@@ -76,7 +76,14 @@ export function AiEnginesSettings({ config }: { config: HarnessConfig }) {
     config.providerDefaultModels ?? {}
   );
 
-  // Reseed set/not-set flags on mount (write-only — only the boolean is fetched).
+  // Ollama health & model discovery state
+  const [ollamaStatus, setOllamaStatus] = useState<{ running: boolean; version?: string; error?: string } | null>(null);
+  const [ollamaModels, setOllamaModels] = useState<Array<{ name: string; model: string; size: number }>>([]);
+  const [selectedOllamaModel, setSelectedOllamaModel] = useState<string>('qwen2.5-coder:7b');
+  const [ollamaTesting, setOllamaTesting] = useState(false);
+  const [ollamaTestNote, setOllamaTestNote] = useState<string | null>(null);
+
+  // Reseed set/not-set flags + query Ollama on mount.
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -85,9 +92,44 @@ export function AiEnginesSettings({ config }: { config: HarnessConfig }) {
         try { out[b.id] = await window.cth.providerKeyHas(b.id); } catch { out[b.id] = false; }
       }
       if (alive) setHasKey(out);
+
+      // Check Ollama status
+      try {
+        const st = await window.cth.ollamaStatus();
+        if (alive) setOllamaStatus(st);
+        if (st.running) {
+          const res = await window.cth.ollamaModels();
+          if (alive && res.ok && Array.isArray(res.models)) {
+            setOllamaModels(res.models);
+            if (res.models.length > 0 && !res.models.some((m) => m.name === selectedOllamaModel)) {
+              setSelectedOllamaModel(res.models[0].name);
+            }
+          }
+        }
+      } catch {
+        if (alive) setOllamaStatus({ running: false, error: 'Ollama service unreachable' });
+      }
     })();
     return () => { alive = false; };
   }, []);
+
+  const runOllamaTest = async () => {
+    setOllamaTesting(true);
+    setOllamaTestNote(null);
+    try {
+      const r = await window.cth.ollamaTest({ model: selectedOllamaModel });
+      if (r.ok) {
+        const evalTokens = r.tokens?.eval_count ? ` · ${r.tokens.eval_count} tokens generated` : '';
+        setOllamaTestNote(`✓ Inference successful (${r.latencyMs}ms${evalTokens}): "${r.response || 'Ready'}"`);
+      } else {
+        setOllamaTestNote(`✗ Error: ${r.error || 'Test request failed'}`);
+      }
+    } catch (e) {
+      setOllamaTestNote(`✗ Error: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setOllamaTesting(false);
+    }
+  };
 
   const saveKey = async (backend: string) => {
     const key = (draftKey[backend] ?? '').trim();
@@ -160,6 +202,89 @@ export function AiEnginesSettings({ config }: { config: HarnessConfig }) {
             {note[b.id] && <div style={{ fontSize: 11, color: 'var(--cth-ink-500)' }}>{note[b.id]}</div>}
           </div>
         ))}
+      </div>
+
+      {/* Ollama Local Model Provider */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        padding: 12,
+        background: 'var(--cth-paper-100)',
+        boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ProviderLogo provider="pi" size={16} />
+            <span style={{ fontFamily: 'var(--cth-font-display)', fontSize: 10, color: 'var(--cth-ink-900)', textTransform: 'uppercase' }}>
+              Ollama · Local Model Provider
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span
+              style={{
+                display: 'inline-block',
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: ollamaStatus?.running ? 'var(--cth-mint)' : 'var(--cth-rose)'
+              }}
+            />
+            <span style={{ fontSize: 11, color: 'var(--cth-ink-700)' }}>
+              {ollamaStatus?.running ? `Running (v${ollamaStatus.version || 'unknown'})` : 'Stopped / Offline'}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 12, color: 'var(--cth-ink-700)', lineHeight: '18px' }}>
+          Local models served at <code>http://localhost:11434</code>. Discovered models automatically power your local agents.
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Installed Ollama Models</label>
+            {ollamaModels.length > 0 ? (
+              <select
+                value={selectedOllamaModel}
+                onChange={(e) => setSelectedOllamaModel(e.target.value)}
+                style={{ ...inputStyle, cursor: 'pointer' }}
+              >
+                {ollamaModels.map((m) => (
+                  <option key={m.name} value={m.name}>
+                    {m.name} ({(m.size / (1024 * 1024 * 1024)).toFixed(1)} GB)
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div style={{ ...inputStyle, color: 'var(--cth-ink-500)', fontSize: 12 }}>
+                {ollamaStatus?.running ? 'No models found in Ollama (run: ollama pull qwen2.5-coder:7b)' : 'Ollama not detected'}
+              </div>
+            )}
+          </div>
+
+          <div style={{ paddingTop: 14 }}>
+            <PixelButton
+              variant="secondary"
+              size="sm"
+              disabled={!ollamaStatus?.running || ollamaTesting}
+              onClick={() => void runOllamaTest()}
+            >
+              {ollamaTesting ? 'Testing...' : 'Test Connection'}
+            </PixelButton>
+          </div>
+        </div>
+
+        {ollamaTestNote && (
+          <div style={{
+            fontSize: 11,
+            color: ollamaTestNote.startsWith('✓') ? 'var(--cth-mint)' : 'var(--cth-rose)',
+            padding: '4px 6px',
+            background: 'var(--cth-paper-50)',
+            boxShadow: 'inset 0 0 0 1px var(--cth-ink-200)'
+          }}>
+            {ollamaTestNote}
+          </div>
+        )}
       </div>
 
       {/* Per-CLI local endpoint + default model */}

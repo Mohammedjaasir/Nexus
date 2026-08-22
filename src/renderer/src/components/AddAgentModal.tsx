@@ -230,6 +230,21 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
     } catch { /* clipboard blocked — the textarea below is selectable as a fallback */ }
   };
 
+  // Dynamic Ollama model discovery
+  const [localOllamaModels, setLocalOllamaModels] = useState<Array<{ name: string; size: number }>>([]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await window.cth.ollamaModels();
+        if (alive && res.ok && Array.isArray(res.models)) {
+          setLocalOllamaModels(res.models);
+        }
+      } catch { /* noop */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+
   // Close only the modal on Esc. Capture prevents the fullscreen terminal's
   // window-level handler from also closing the view underneath.
   useEffect(() => {
@@ -828,6 +843,27 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                     {hasOssQuickPicks(provider) && (
                       <Row label="OSS models">
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {localOllamaModels.length > 0 && (
+                            <div>
+                              <div style={ossGroupHead}>Installed in Ollama (Local)</div>
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                {localOllamaModels.map((p) => {
+                                  const slug = localSlugFor(provider, p.name);
+                                  const active = (model ?? '') === slug;
+                                  return (
+                                    <button
+                                      key={p.name}
+                                      onClick={() => pickModel(slug)}
+                                      title={`${slug} (${(p.size / (1024 * 1024 * 1024)).toFixed(1)} GB)`}
+                                      style={ossChip(active, accent)}
+                                    >
+                                      {p.name}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                           <div>
                             <div style={ossGroupHead}>Local · no key (Ollama / LM Studio)</div>
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

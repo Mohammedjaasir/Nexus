@@ -707,8 +707,8 @@ export class HiveManager {
               // a bundled plugin into a PER-AGENT OPENCODE config dir that posts
               // HIVE_SOCK payloads on tool.execute.before/after + session.idle — the
               // same Stop→drain semantics, provider-agnostic, no traffic interception.
-              // LIVE-UNVERIFIED (plugin auto-load + session.idle firing); the renderer
-              // idle inbox-wake nudge is the guaranteed drain fallback.
+              // OPENCODE_CONFIG_DIR isolates the plugin install per agent.
+              env.AGENT_WORKSPACE = meta.cwd || dir;
               env.OPENCODE_CONFIG_DIR = this.installOpenCodePlugin(dir);
             }
             else if (desc.shim === 'grok') this.installGrokHooks();
@@ -2283,8 +2283,12 @@ module.exports.default = module.exports;
 // renderer idle inbox-wake nudge delivers mail. ESM (OpenCode runs on Bun). Fully
 // wrapped. LIVE-UNVERIFIED (plugin auto-load + session.idle firing need BYOK keys).
 const OPENCODE_PLUGIN = `import { createConnection } from 'node:net';
+import { resolve, isAbsolute } from 'node:path';
+
 const SOCK = process.env.HIVE_SOCK;
 const AGENT = process.env.AGENT_ID || null;
+const WORKSPACE = process.env.AGENT_WORKSPACE || process.cwd();
+
 function post(payload) {
   try {
     if (!SOCK) return;
@@ -2293,13 +2297,75 @@ function post(payload) {
     c.on('error', () => {});
   } catch (e) {}
 }
-export const HiveBridge = async () => {
+
+const PLACEHOLDER_PREFIX_RE = /^([a-zA-Z]:)?[/\\\\]*(?:path[/\\\\]+to[/\\\\]+(?:current[/\\\\]+)?(?:project[/\\\\]+|workspace[/\\\\]+)?|current[/\\\\]+project[/\\\\]+|(?:project|workspace)[/\\\\]+|path[/\\\\]+to[/\\\\]+)/i;
+const EMBEDDED_PLACEHOLDER_RE = /[/\\\\]+path[/\\\\]+to[/\\\\]+(?:current[/\\\\]+)?(?:project|workspace)?[/\\\\]+/i;
+
+function resolvePath(raw, workspace) {
+  if (typeof raw !== 'string' || !raw.trim()) return raw;
+  let p = raw.trim().replace(/^["']|["']$/g, '');
+
+  if (PLACEHOLDER_PREFIX_RE.test(p)) {
+    const rel = p.replace(PLACEHOLDER_PREFIX_RE, '');
+    return resolve(workspace, rel);
+  }
+
+  if (EMBEDDED_PLACEHOLDER_RE.test(p)) {
+    const parts = p.split(EMBEDDED_PLACEHOLDER_RE);
+    const rel = parts[parts.length - 1];
+    return resolve(workspace, rel);
+  }
+
+  if (/^[a-zA-Z]:[/\\]/.test(p)) {
+    return p;
+  }
+
+  if (/^[/\\]+/.test(p)) {
+    const rel = p.replace(/^[/\\]+/, '');
+    return resolve(workspace, rel);
+  }
+
+  if (workspace) {
+    return resolve(workspace, p);
+  }
+
+  return p;
+}
+
+function rewriteArgs(args, workspace) {
+  if (!args || typeof args !== 'object') return;
+  for (const key of Object.keys(args)) {
+    const val = args[key];
+    if (typeof val === 'string') {
+      if (/^(?:filePath|path|file_path|filename|file|targetFile|target_file|destination|source|dir|directory)$/i.test(key)) {
+        args[key] = resolvePath(val, workspace);
+      } else if (key === 'command' || key === 'cmd') {
+        const wsNorm = workspace.replace(/\\\\/g, '/');
+        args[key] = val
+          .replace(/[/\\\\]*path[/\\\\]+to[/\\\\]+(?:current[/\\\\]+)?(?:project|workspace)[/\\\\]*/gi, wsNorm + '/')
+          .replace(/[/\\\\]*path[/\\\\]+to[/\\\\]*/gi, wsNorm + '/');
+      } else if (PLACEHOLDER_PREFIX_RE.test(val) || EMBEDDED_PLACEHOLDER_RE.test(val)) {
+        args[key] = resolvePath(val, workspace);
+      }
+    } else if (val && typeof val === 'object') {
+      rewriteArgs(val, workspace);
+    }
+  }
+}
+
+export const HiveBridge = async (ctx) => {
+  const workspace = (ctx && (ctx.directory || ctx.cwd)) || WORKSPACE || process.cwd();
   return {
     event: async (input) => {
       try { if (input && input.event && input.event.type === 'session.idle') post({ hook_event_name: 'Stop' }); } catch (e) {}
     },
-    'tool.execute.before': async (input) => {
-      try { post({ hook_event_name: 'PreToolUse', tool_name: input && (input.tool || input.name) }); } catch (e) {}
+    'tool.execute.before': async (input, output) => {
+      try {
+        if (output && output.args) {
+          rewriteArgs(output.args, workspace);
+        }
+        post({ hook_event_name: 'PreToolUse', tool_name: input && (input.tool || input.name) });
+      } catch (e) {}
     },
     'tool.execute.after': async (input) => {
       try { post({ hook_event_name: 'PostToolUse', tool_name: input && (input.tool || input.name) }); } catch (e) {}

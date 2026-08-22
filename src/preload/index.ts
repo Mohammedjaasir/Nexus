@@ -1247,6 +1247,13 @@ const api = {
     ipcRenderer.invoke('providerKey:has', backend),
   providerKeyClear: (backend: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('providerKey:clear', backend),
+  // Ollama Model Provider — health check, dynamic models, test inference
+  ollamaStatus: (host?: string): Promise<{ running: boolean; version?: string; error?: string }> =>
+    ipcRenderer.invoke('ollama:status', host),
+  ollamaModels: (host?: string): Promise<{ ok: boolean; models: Array<{ name: string; model: string; size: number; digest: string; modified_at: string }>; error?: string }> =>
+    ipcRenderer.invoke('ollama:models', host),
+  ollamaTest: (req: { model: string; host?: string }): Promise<{ ok: boolean; latencyMs?: number; response?: string; error?: string; tokens?: { prompt_eval_count?: number; eval_count?: number } }> =>
+    ipcRenderer.invoke('ollama:test', req),
   // Realtime Michael (voice orchestrator) — MAIN mints a short-lived EPHEMERAL token
   // from the BYOK OpenAI key; the real key NEVER crosses IPC. `realtimeHasOpenAiKey`
   // is a presence boolean only (gates the voice toggle, like providerKeyHas).

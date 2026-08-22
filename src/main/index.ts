@@ -82,6 +82,15 @@ import {
   codexRemoteSocketFits,
   withCodexRemoteArgs
 } from '../shared/codexRemote';
+import {
+  checkOllamaStatus,
+  listOllamaModels,
+  testOllamaConnection,
+  startOllamaBridge,
+  DEFAULT_OLLAMA_OPENAI_URL
+} from './ollama';
+
+const activeOllamaBridges = new Map<string, { close: () => void }>();
 
 const isDev = !!process.env.ELECTRON_RENDERER_URL;
 
@@ -403,6 +412,8 @@ function teardownPty(id: string): void {
     // W1 — kill this agent's proxy-bridge sidecar (qwen), if any, so a dead
     // PTY never leaves an orphan loopback listener. No-op for non-proxy agents.
     try { hive.stopProxyBridge(agentId); } catch (e) { console.error('[hive] stopProxyBridge failed:', e); }
+    // Clean up local Ollama bridge if running for this PTY
+    try { activeOllamaBridges.get(id)?.close(); activeOllamaBridges.delete(id); } catch { /* best-effort */ }
     if (hive.enabled()) {
       try { hive.setArchived(agentId, true); } catch (e) { console.error('[hive] setArchived failed:', e); }
     }
@@ -2731,19 +2742,41 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
     //    env var, built dynamically so permission:allow is GATED on autoMode (#2).
     if (provider === 'opencode') {
       const oc: Record<string, unknown> = { autoupdate: false };
-      if (cfg.autoMode) oc.permission = { edit: 'allow', bash: 'allow', webfetch: 'allow' };
-      const baseUrl = cfg.providerBaseUrls?.opencode;
-      if (baseUrl) {
-        // Register the model id the user actually selects (the part after 'local/')
-        // so `--model local/<id>` resolves; default to 'local'. Without this the
-        // dropdown's `local/llama3` failed against a config that only declared model
-        // 'local' (Jim verify-opencode MUST-FIX #2).
-        const localModel = (prefix === 'local' && modelSlug.slice(6)) || 'local';
+      if (cfg.autoMode) oc.permission = { edit: 'allow', bash: 'allow', webfetch: 'allow', write: 'allow', read: 'allow' };
+      const isLocalModel = prefix === 'local' || prefix === 'ollama';
+      const configuredBaseUrl = cfg.providerBaseUrls?.opencode;
+      const effectiveLocalBaseUrl = configuredBaseUrl || (isLocalModel ? DEFAULT_OLLAMA_OPENAI_URL : undefined);
+
+      if (effectiveLocalBaseUrl && (isLocalModel || configuredBaseUrl)) {
+        // Register the local model id the user actually selects (e.g. local/qwen2.5-coder:7b)
+        // so `--model local/<id>` resolves cleanly in OpenCode; cloud models stay untouched.
+        const localModel = (isLocalModel ? modelSlug.replace(/^(local|ollama)\//i, '') : modelSlug.slice(6)) || 'local';
+        let targetBaseUrl = effectiveLocalBaseUrl;
+        if (isLocalModel) {
+          try {
+            const bridge = await startOllamaBridge(opts.cwd, effectiveLocalBaseUrl);
+            activeOllamaBridges.set(opts.id, bridge);
+            targetBaseUrl = `http://127.0.0.1:${bridge.port}/v1`;
+          } catch (err) {
+            console.error('[spawn] startOllamaBridge failed, using direct url:', err);
+          }
+        }
         oc.provider = {
-          local: { npm: '@ai-sdk/openai-compatible', name: 'Local (self-hosted)', options: { baseURL: baseUrl }, models: { [localModel]: { name: localModel } } }
+          local: {
+            npm: '@ai-sdk/openai-compatible',
+            name: 'Local (Ollama)',
+            options: { baseURL: targetBaseUrl },
+            models: { [localModel]: { name: localModel } }
+          }
         };
+        // Inject workspace instructions so local Ollama models receive the real workspace path dynamically
+        // and avoid placeholder paths like /path/to/current/project/.
+        oc.instructions = [
+          `Workspace root directory: ${opts.cwd}. All file tool operations (reading, writing, editing) must target paths within this workspace directory. Never use placeholder paths such as /path/to/current/project/.`
+        ];
       }
       extra.OPENCODE_CONFIG_CONTENT = JSON.stringify(oc);
+      extra.AGENT_WORKSPACE = opts.cwd;
     }
     opts.env = { ...(opts.env ?? {}), ...extra };
   }
@@ -2882,6 +2915,17 @@ ipcMain.handle('providerKey:clear', (_evt, backend: unknown) => {
   if (typeof backend !== 'string' || !(backend in BACKEND_KEY_ENV)) return { ok: false, error: 'unknown backend' };
   try { integrations.deleteSecret(providerKeyRef(backend)); return { ok: true }; }
   catch (e) { return { ok: false, error: e instanceof Error ? e.message : String(e) }; }
+});
+// Ollama Model Provider handlers: health check, model discovery, and connection test
+ipcMain.handle('ollama:status', (_evt, host: unknown) =>
+  checkOllamaStatus(typeof host === 'string' ? host : undefined));
+ipcMain.handle('ollama:models', (_evt, host: unknown) =>
+  listOllamaModels(typeof host === 'string' ? host : undefined));
+ipcMain.handle('ollama:test', (_evt, req: unknown) => {
+  const r = (req ?? {}) as { model?: unknown; host?: unknown };
+  const model = typeof r.model === 'string' ? r.model : '';
+  const host = typeof r.host === 'string' ? r.host : undefined;
+  return testOllamaConnection(model, host);
 });
 // Probe an integration's reachability through the broker's own auth path (admin-only;
 // runs in main, so the secret is used but never returned — only the upstream status).
