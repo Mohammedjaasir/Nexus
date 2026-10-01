@@ -157,7 +157,7 @@ export interface CircuitBreakerConfig {
  *  The user ingests their own documents/images/PDFs; agents query them on demand
  *  via the `kg` CLI. Opt-in like the heartbeat/Slack features — `enabled` gates
  *  everything (no env injected, no prompt line, no store touched when off). See
- *  docs/design/knowledge-graph.md. */
+ *  specs/knowledge-graph.md. */
 export interface KnowledgeGraphConfig {
   /** Master switch. Default false = zero behaviour change (the feature is dark). */
   enabled?: boolean;

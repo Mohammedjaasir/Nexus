@@ -44,7 +44,14 @@ import { reduceStatus, clampPercent, isNewer, type UpdateStatus } from '../share
  *      downgrade is per-check, not a permanent latch.
  */
 
-const REPO = 'chaitanyagiri/munder-difflin';
+/** GitHub `owner/repo` this build polls for releases. Deliberately unset: this
+ *  branch no longer ships from the upstream repo, and pointing at it would
+ *  auto-update the app back to upstream. While null, nothing is checked,
+ *  downloaded or opened, and a manual check says why. Set it (and the matching
+ *  `publish` block in electron-builder.yml) once this product has its own
+ *  release channel. */
+const REPO: string | null = null;
+const NO_CHANNEL = 'Updates are off: this build has no release channel configured.';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6h
 const FALLBACK_CACHE_MS = 60 * 60 * 1000;     // 1h between releases/latest polls
 
@@ -251,10 +258,12 @@ export function initAutoUpdater(getWebContents: () => WebContents | null): void 
     }
   });
   ipcMain.handle('update:checkNow', async () => {
+    if (!REPO) { emit({ state: 'error', message: NO_CHANNEL }); return { ok: false, error: NO_CHANNEL }; }
     if (!app.isPackaged) return { ok: false, error: 'dev build — updates are only checked in packaged apps' };
     return runCheck();
   });
   ipcMain.handle('update:download', async () => {
+    if (!REPO) return { ok: false, error: NO_CHANNEL };
     if (!app.isPackaged) return { ok: false, error: 'dev build — updates are only downloaded in packaged apps' };
     return runDownload();
   });
@@ -286,11 +295,12 @@ export function initAutoUpdater(getWebContents: () => WebContents | null): void 
         : SIMULATED_NOTES;
     emit(o.state === 'downloaded'
       ? { state: 'downloaded', version, notes }
-      : { state: 'available-manual', version, notes, url: `https://github.com/${REPO}/releases/tag/v${version}` });
+      : { state: 'available-manual', version, notes, url: REPO ? `https://github.com/${REPO}/releases/tag/v${version}` : '' });
     logLine(`SIMULATED ${o.state === 'downloaded' ? 'downloaded' : 'available-manual'} ${version} (dev only)`);
     return { ok: true };
   });
   ipcMain.handle('update:openRelease', (_evt, url: unknown) => {
+    if (!REPO) return { ok: false };
     const href = typeof url === 'string' ? url : `https://github.com/${REPO}/releases/latest`;
     // Only ever open the project's releases page — this is not a generic opener.
     if (!href.startsWith(`https://github.com/${REPO}/`)) return { ok: false };
@@ -299,6 +309,7 @@ export function initAutoUpdater(getWebContents: () => WebContents | null): void 
   });
 
   if (!app.isPackaged) return;
+  if (!REPO) { logLine('no release channel configured; auto-update disabled'); return; }
   if (started) return;
   started = true;
 

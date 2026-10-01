@@ -8,8 +8,6 @@ import type { UpdateStatus } from '../shared/updateState';
 export type { UpdateStatus } from '../shared/updateState';
 import type { ToolStatus } from '../shared/toolCatalog';
 export type { ToolStatus } from '../shared/toolCatalog';
-import type { HeroPayload } from '../shared/heroPayload';
-export type { HeroPayload } from '../shared/heroPayload';
 import type { LocalSkill, CatalogSkill } from '../main/skills';
 export type { LocalSkill, CatalogSkill } from '../main/skills';
 import type {
@@ -881,9 +879,6 @@ const api = {
   /** Which external tools (uv, mempalace, git, each agent engine) are actually
    *  present on this machine, with a platform-resolved install command each. */
   toolsStatus: (): Promise<ToolStatus[]> => ipcRenderer.invoke('tools:status'),
-  /** Settings hero payload — plan + sponsor, fetched from the repo and cached. */
-  heroPayload: (force?: boolean): Promise<{ hero: HeroPayload; fetchedAt: number; stale: boolean }> =>
-    ipcRenderer.invoke('hero:payload', force),
   /** Skills already installed for the coding agents on this machine. */
   skillsLocal: (cwd?: string): Promise<LocalSkill[]> => ipcRenderer.invoke('skills:local', cwd),
   /** The browsable skills catalog (cached; `force` re-fetches). */

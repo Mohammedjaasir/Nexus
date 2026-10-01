@@ -13,7 +13,6 @@ import {
 import { PixelPanel } from './PixelPanel';
 import { PixelButton } from './PixelButton';
 import { UpdatesSection } from './UpdatesSection';
-import { SettingsHeroCard } from './SettingsHeroCard';
 import { SetupPanel } from './SetupPanel';
 import { Icon } from './Icon';
 import { OfficeThemePicker } from './OfficeThemePicker';
@@ -869,14 +868,6 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                   {/* GENERAL */}
                   {activeSection === 'General' && (
                     <>
-                      {/* Who you are and what this install is — version, plan,
-                          sponsor, and the app-level actions that belong to none
-                          of the settings below. Slots for a future subscription
-                          and a sponsor live here; both render nothing until set. */}
-                      <SettingsHeroCard />
-
-                      <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
-
                       {/* Updates — first among the settings proper, because "am I
                           on the latest?" is the question people open Settings to
                           answer, and the toolbar chip says nothing at all when

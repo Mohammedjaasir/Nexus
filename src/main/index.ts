@@ -74,7 +74,6 @@ import { buildMissingCliScript, chooseInstallRung } from './cliInstall';
 import { detectNodeVersion, nodeIsUsable, resolveNodeInstaller } from './nodeInstall';
 import { toolCatalog, type ToolStatus } from '../shared/toolCatalog';
 import { listLocalSkills, loadCatalog, installSkill, uninstallSkill, type LocalSkill } from './skills';
-import { loadHero } from './hero';
 import {
   CODEX_REMOTE_SOCKET_RELATIVE,
   codexRemoteAliasPath,
@@ -3416,12 +3415,6 @@ ipcMain.handle('project:complete:step', async (_evt, projectId: unknown, customC
 ipcMain.handle('project:complete:contract', (_evt, projectId: unknown) =>
   (typeof projectId === 'string' ? projectManager.evaluateProjectCompletionContract(projectId) : null)
 );
-
-// ─── IPC: Settings hero payload (remote data, cached) ───────────────────────
-/** Plan copy and sponsor, fetched from the repo so they can change without a
- *  release. Validated in shared/heroPayload before it reaches the renderer. */
-ipcMain.handle('hero:payload', async (_evt, force: unknown) =>
-  loadHero(join(app.getPath('userData'), 'hero.json'), { force: force === true }));
 
 // ─── IPC: skills (installed locally, and the browsable catalog) ─────────────
 /** Skills the CLIs on this machine can already use. Scans the registered repos

@@ -50,45 +50,9 @@ function toastable(s: UpdateStatus): ToastStatus | null {
   return s.state === 'downloaded' || s.state === 'available-manual' ? s : null;
 }
 
-const GITHUB_REPO_URL = 'https://github.com/chaitanyagiri/munder-difflin';
-/** Only ever the `href` — the click is handled by `updateOpenRelease`, which
- *  resolves `undefined` to this same page in main. */
-const GITHUB_RELEASES_URL = `${GITHUB_REPO_URL}/releases/latest`;
-
-/** One-time flag for the star ask. `cth.`-prefixed localStorage is this app's
- *  convention for renderer-only UI memory (see App.tsx's skipHivePickerOnce and
- *  design/theme.ts) — and SettingsModal's "reset & start over" clears every
- *  `cth.` key, which is right: a wiped install is a new user who has not been
- *  asked yet. It is deliberately NOT a HarnessConfig key; that file is the
- *  agent runtime's contract, hand-mirrored across main/preload/renderer, and a
- *  cosmetic nudge does not belong in it. */
-const STAR_ASK_KEY = 'cth.updateStarAsked';
-
-function starAskPending(): boolean {
-  try {
-    return window.localStorage.getItem(STAR_ASK_KEY) !== '1';
-  } catch {
-    // Storage unavailable means we cannot honour "at most once, ever" — so ask
-    // zero times rather than risk asking on every single update.
-    return false;
-  }
-}
-
-function markStarAsked(): void {
-  try { window.localStorage.setItem(STAR_ASK_KEY, '1'); } catch { /* nothing to do */ }
-}
-
 export function UpdateToast() {
   const [status, setStatus] = useState<ToastStatus | null>(null);
   const [busy, setBusy] = useState(false);
-  // Read once per window, so persisting the flag below cannot make the link
-  // vanish from under the cursor of the person currently looking at it.
-  const [starAsk] = useState(starAskPending);
-  /** The version the ask was spent on. A version rather than a boolean because
-   *  flipping a boolean the moment we persist would yank the link out from
-   *  under the cursor of the person looking at it — this keeps it on the toast
-   *  that is showing it, and withholds it from any later one. */
-  const [starSpentOn, setStarSpentOn] = useState<string | null>(null);
 
   useEffect(() => window.cth.onUpdateStatus?.((next) => {
     const t = toastable(next);
@@ -97,9 +61,9 @@ export function UpdateToast() {
     if (t) setStatus(t);
   }), []);
 
-  // Settings' hero card asks to re-open the release notes. This surface owns the
-  // last status and the drop renderer, so it answers rather than duplicating
-  // either. `updateCurrent()` is used instead of the remembered state because
+  // A `cth:show-release-notes` event asks to re-open the release notes. This
+  // surface owns the last status and the drop renderer, so it answers rather
+  // than duplicating either. `updateCurrent()` is used instead of the remembered state because
   // "later" clears the local copy while main still holds it — dismissing a
   // release must not make it unreadable afterwards. With genuinely nothing to
   // show (a dev build, or an install already on the newest release) the honest
@@ -124,20 +88,6 @@ export function UpdateToast() {
    *  the digest path stays the default, not a fallback nobody exercises. */
   const dropHtml = useMemo(() => extractDropHtml(status?.notes), [status?.notes]);
   const version = status?.version ?? null;
-  // Shown = spent. Not "clicked" — an ask the user read and ignored is an
-  // answer too, and asking again next release is exactly what rule 3 forbids.
-  // `notes.length > 0` was standing in for "this toast has something to show".
-  // A drop-only release body digests to zero bullets while being the richest
-  // release page we ship, so it has to count too — otherwise the star ask
-  // silently disappears on exactly the releases most worth starring.
-  const showStar = starAsk && (notes.length > 0 || !!dropHtml)
-    && (starSpentOn === null || starSpentOn === version);
-  useEffect(() => {
-    if (showStar && version && starSpentOn === null) {
-      setStarSpentOn(version);
-      markStarAsked();
-    }
-  }, [showStar, version, starSpentOn]);
 
   if (!status) return null;
 
@@ -165,10 +115,10 @@ export function UpdateToast() {
         html={dropHtml}
         canRestart={status.state === 'downloaded'}
         busy={busy}
-        showStar={showStar}
+        showStar={false}
         onRestart={() => void restart()}
         onOpenRelease={openRelease}
-        onStar={() => void window.cth.openExternal(GITHUB_REPO_URL)}
+        onStar={() => {}}
         onDismiss={() => setStatus(null)}
       />
     );
@@ -238,17 +188,10 @@ export function UpdateToast() {
           </ul>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <a
-              href={status.state === 'available-manual' ? status.url : GITHUB_RELEASES_URL}
+              href={status.state === 'available-manual' ? status.url : undefined}
               onClick={(e) => { e.preventDefault(); openRelease(); }}
               style={linkStyle}
             >Read more</a>
-            {showStar && (
-              <a
-                href={GITHUB_REPO_URL}
-                onClick={(e) => { e.preventDefault(); void window.cth.openExternal(GITHUB_REPO_URL); }}
-                style={linkStyle}
-              >⭐ Star us on GitHub</a>
-            )}
           </div>
         </div>
       )}
