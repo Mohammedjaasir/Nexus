@@ -89,3 +89,6 @@
 @media (prefers-reduced-motion: reduce) {
   .nx-sidebar { transition: none; }
 }
+.nx-help { margin-top: 10px; width: 100%; display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--nx-frame-border); border-radius: var(--nx-radius-md); background: transparent; color: var(--nx-frame-muted); text-align: left; font: 400 12px/1.35 var(--nx-font); cursor: pointer; }
+.nx-help strong { color: var(--nx-frame-text); font-weight: 600; font-size: 13px; }
+.nx-help:hover { background: var(--nx-frame-hover); }

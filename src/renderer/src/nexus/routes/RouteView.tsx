@@ -9,6 +9,7 @@ import { WorkspacePage } from '../pages/WorkspacePage';
 import { ProjectsPage } from '../pages/ProjectsPage';
 import { ProjectPage } from '../pages/ProjectPage';
 import { PlannedPage } from '../pages/PlannedPage';
+import { HomePage } from '../launcher/HomePage';
 
 export function RouteView({ config }: { config: HarnessConfig }) {
   const route = useRoute();
@@ -31,7 +32,7 @@ export function RouteView({ config }: { config: HarnessConfig }) {
     case 'artifacts': page = <PlannedPage which="artifacts" />; break;
     case 'handoffs': page = <PlannedPage which="handoffs" />; break;
     case 'deployments': page = <PlannedPage which="deployments" />; break;
-    case 'home': page = <NotFoundPage message="Coming in this build." />; break;
+    case 'home': page = <HomePage />; break;
   }
   return <main ref={mainRef} className={`nx-main${route.name === 'agents' || route.name === 'project' ? ' nx-main--flush' : ''}`} id="nx-main">{page}</main>;
 }

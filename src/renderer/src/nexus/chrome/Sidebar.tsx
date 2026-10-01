@@ -11,6 +11,7 @@ export function Sidebar() {
   const actions = useShellActions();
   const expanded = useNexusUi((s) => s.railExpanded);
   const setExpanded = useNexusUi((s) => s.setRailExpanded);
+  const focusComposer = useNexusUi((s) => s.focusComposer);
 
   const run = (item: NavItem) => {
     if (item.route) { navigate(item.route); return; }
@@ -47,7 +48,13 @@ export function Sidebar() {
       <ul className="nx-nav">{NAV_MAIN.map(renderItem)}</ul>
       <div className="nx-nav__heading">Resources</div>
       <ul className="nx-nav">{NAV_RESOURCES.map(renderItem)}</ul>
-      <div className="nx-sidebar__foot"><SetupCard /></div>
+      <div className="nx-sidebar__foot">
+        <SetupCard />
+        <button type="button" className="nx-help nx-focusable" onClick={focusComposer}>
+          <Icon name="help" size={18} />
+          <span><strong>Need help?</strong><br />Ask your lead agent</span>
+        </button>
+      </div>
     </nav>
   );
 }
