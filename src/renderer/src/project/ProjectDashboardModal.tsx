@@ -10,9 +10,13 @@ import { ProjectImportModal } from './ProjectImportModal';
 export interface ProjectDashboardModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Start the new-project wizard (owned by the caller). */
+  onNewProject?: () => void;
+  /** Open the selected project's view; defaults to just closing. */
+  onOpenProject?: () => void;
 }
 
-export function ProjectDashboardModal({ isOpen, onClose }: ProjectDashboardModalProps) {
+export function ProjectDashboardModal({ isOpen, onClose, onNewProject, onOpenProject }: ProjectDashboardModalProps) {
   const activeProject = useStore((s) => s.activeProject);
   const setActiveProject = useStore((s) => s.setActiveProject);
   const projects = useStore((s) => s.projects);
@@ -143,6 +147,11 @@ export function ProjectDashboardModal({ isOpen, onClose }: ProjectDashboardModal
                 ACTIVE PROJECTS ({projects.length})
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
+                {onNewProject && (
+                  <PixelButton variant="secondary" size="sm" onClick={onNewProject}>
+                    + New Project
+                  </PixelButton>
+                )}
                 <PixelButton variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
                   + Import Existing Project
                 </PixelButton>
@@ -184,7 +193,7 @@ export function ProjectDashboardModal({ isOpen, onClose }: ProjectDashboardModal
               {currentProject ? (
                 <ProjectSummaryCard
                   project={currentProject}
-                  onOpenProject={onClose}
+                  onOpenProject={onOpenProject ?? onClose}
                   onRefreshProject={handleRefreshActive}
                   onChangeDomain={handleChangeDomain}
                   isRefreshing={refreshing}

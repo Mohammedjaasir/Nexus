@@ -29,11 +29,9 @@ import { FullscreenFileEditor } from '@/components/FullscreenFileEditor';
 import { IdePanel } from '@/ide/IdePanel';
 import { useHoldOptionToTalk } from '@/freeflow/holdOption';
 import { ProjectDashboardModal } from '@/project/ProjectDashboardModal';
-import { HQWorldView } from '@/project/HQWorldView';
 import { NewProjectWizardModal } from '@/project/NewProjectWizardModal';
-import { ProjectImportModal } from '@/project/ProjectImportModal';
 import { ProjectCommandCenter } from '@/project/ProjectCommandCenter';
-import { getDomainDefinition, type DomainId } from '@shared/domain';
+import { getDomainDefinition } from '@shared/domain';
 import brandLogo from '@brand/logo.png?url';
 
 // Injected at build time from package.json (see electron.vite.config.ts).
@@ -57,10 +55,10 @@ export function App() {
   const setActiveProject = useStore(s => s.setActiveProject);
   const setProjects = useStore(s => s.setProjects);
 
-  const [mainView, setMainView] = useState<'home' | 'project' | 'floor'>('home');
+  // Interim view switch until the workspace shell replaces it: the active
+  // project's command center, or the agents view (the legacy office floor).
+  const [mainView, setMainView] = useState<'project' | 'agents'>('agents');
   const [newProjectWizardOpen, setNewProjectWizardOpen] = useState(false);
-  const [newProjectDomain, setNewProjectDomain] = useState<DomainId | undefined>(undefined);
-  const [importModalOpen, setImportModalOpen] = useState(false);
   const [projectDashboardOpen, setProjectDashboardOpen] = useState(false);
   const [config, setConfig] = useState<HarnessConfig | null>(null);
   // Whether the user has passed the launch-time hive picker this session. Starts
@@ -291,55 +289,15 @@ export function App() {
           {config.autoMode ? 'auto mode on' : 'auto mode off'}
         </span>
 
-        {/* Main View Navigation Tabs */}
-        <div style={{ display: 'inline-flex', gap: 4, background: 'var(--cth-ink-100)', padding: 2, borderRadius: 2 }} className="cth-titlebar-nodrag">
-          <button
-            type="button"
-            onClick={() => setMainView('home')}
-            style={{
-              padding: '2px 8px',
-              fontSize: 11,
-              fontWeight: mainView === 'home' ? 700 : 500,
-              background: mainView === 'home' ? '#fff' : 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--cth-ink-900)'
-            }}
-          >
-            🏠 Projects Home
-          </button>
-          {activeProject && (
-            <button
-              type="button"
-              onClick={() => setMainView('project')}
-              style={{
-                padding: '2px 8px',
-                fontSize: 11,
-                fontWeight: mainView === 'project' ? 700 : 500,
-                background: mainView === 'project' ? '#fff' : 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--cth-ink-900)'
-              }}
-            >
-              📊 Command Center ({activeProject.name})
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setMainView('floor')}
-            style={{
-              padding: '2px 8px',
-              fontSize: 11,
-              fontWeight: mainView === 'floor' ? 700 : 500,
-              background: mainView === 'floor' ? '#fff' : 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--cth-ink-900)'
-            }}
-          >
-            🏢 Office Floor
-          </button>
+        <div role="tablist" aria-label="View" className="cth-titlebar-nodrag" style={{ display: 'inline-flex', gap: 2 }}>
+          <ViewTab
+            label="Project"
+            active={mainView === 'project'}
+            disabled={!activeProject}
+            title={activeProject ? undefined : 'Select a project first'}
+            onClick={() => setMainView('project')}
+          />
+          <ViewTab label="Agents" active={mainView === 'agents'} onClick={() => setMainView('agents')} />
         </div>
 
         {/* Domain Project Workspace Button */}
@@ -366,7 +324,7 @@ export function App() {
           }}
         >
           <span style={{ fontWeight: 600 }}>
-            📁 {activeProject ? activeProject.name : 'Select Project'}
+            {activeProject ? activeProject.name : 'Select project'}
           </span>
           {activeProject && (
             <span
@@ -378,7 +336,7 @@ export function App() {
                 color: 'var(--cth-ink-700)'
               }}
             >
-              ⚡ {getDomainDefinition(activeProject.domainId).name}
+              {getDomainDefinition(activeProject.domainId).name}
             </span>
           )}
         </button>
@@ -461,7 +419,7 @@ export function App() {
       {mainView === 'project' && activeProject ? (
         <ProjectCommandCenter
           project={activeProject}
-          onBackToHome={() => setMainView('home')}
+          onBackToHome={() => setMainView('agents')}
           onRefreshProject={async () => {
             const refreshed = await window.cth?.projectRefresh?.(activeProject.id);
             if (refreshed) setActiveProject(refreshed);
@@ -471,29 +429,11 @@ export function App() {
         <div style={{
           flex: 1, minHeight: 0,
           display: 'flex',
-          padding: mainView === 'home' ? 0 : 16,
+          padding: 16,
           gap: 0
         }}>
           <div style={{ flex: 1, minHeight: 0, minWidth: 0, position: 'relative', display: 'flex' }}>
-            {mainView === 'home' ? (
-              <HQWorldView
-                onOpenProject={async (id) => {
-                  const act = await window.cth?.projectSetActive?.(id);
-                  if (act) setActiveProject(act);
-                  setMainView('project');
-                }}
-                onNewProject={(dom) => {
-                  setNewProjectDomain(dom);
-                  setNewProjectWizardOpen(true);
-                }}
-                onImportProject={(dom) => {
-                  setNewProjectDomain(dom);
-                  setImportModalOpen(true);
-                }}
-                onSwitchToFloor={() => setMainView('floor')}
-              />
-            ) : (
-              <>
+            <>
                 <OfficeFloor />
                 <MemoryPanel />
                 {agentCount === 0 && godStatus === 'booting' && <MichaelBooting />}
@@ -519,8 +459,7 @@ export function App() {
                     </div>
                   </div>
                 )}
-              </>
-            )}
+            </>
           </div>
 
           <SidebarSplitter
@@ -581,7 +520,6 @@ export function App() {
       {newProjectWizardOpen && (
         <NewProjectWizardModal
           isOpen={newProjectWizardOpen}
-          initialDomainId={newProjectDomain}
           onClose={() => setNewProjectWizardOpen(false)}
           onProjectCreated={(p) => {
             setActiveProject(p);
@@ -590,17 +528,6 @@ export function App() {
         />
       )}
 
-      {importModalOpen && (
-        <ProjectImportModal
-          isOpen={importModalOpen}
-          onClose={() => setImportModalOpen(false)}
-          onImportSuccess={async () => {
-            const act = await window.cth.projectGetActive();
-            if (act) setActiveProject(act);
-            setMainView('project');
-          }}
-        />
-      )}
 
       {addAgentOpen && (
         <AddAgentModal
@@ -639,8 +566,41 @@ export function App() {
       <ProjectDashboardModal
         isOpen={projectDashboardOpen}
         onClose={() => setProjectDashboardOpen(false)}
+        onNewProject={() => { setProjectDashboardOpen(false); setNewProjectWizardOpen(true); }}
+        onOpenProject={() => { setProjectDashboardOpen(false); setMainView('project'); }}
       />
     </div>
+  );
+}
+
+/** One segment of the interim title-bar view switch. */
+function ViewTab({ label, active, disabled, title, onClick }: {
+  label: string; active: boolean; disabled?: boolean; title?: string; onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      disabled={disabled}
+      title={title}
+      onClick={onClick}
+      style={{
+        padding: '3px 10px',
+        fontFamily: 'var(--cth-font-ui)',
+        fontSize: 12,
+        fontWeight: active ? 600 : 400,
+        background: active ? 'var(--cth-paper-100)' : 'transparent',
+        boxShadow: active ? 'inset 0 0 0 1px var(--cth-ink-300)' : 'none',
+        border: 'none',
+        borderRadius: 2,
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        color: 'var(--cth-ink-900)'
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
