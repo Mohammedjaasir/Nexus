@@ -1,0 +1,55 @@
+.nx-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: 500 14px/1 var(--nx-font); border-radius: var(--nx-radius-sm);
+  border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+  transition: background var(--nx-fast) var(--nx-ease), border-color var(--nx-fast) var(--nx-ease);
+}
+.nx-btn--md { height: 36px; padding: 0 14px; }
+.nx-btn--sm { height: 30px; padding: 0 10px; font-size: 13px; }
+.nx-btn--primary { background: var(--nx-accent); color: var(--nx-accent-text); }
+.nx-btn--primary:hover:not(:disabled) { background: var(--nx-accent-hover); }
+.nx-btn--secondary { background: var(--nx-surface); color: var(--nx-text); border-color: var(--nx-border); }
+.nx-btn--secondary:hover:not(:disabled) { background: var(--nx-surface-hover); }
+.nx-btn--ghost { background: transparent; color: var(--nx-text-2); }
+.nx-btn--ghost:hover:not(:disabled) { background: var(--nx-surface-hover); }
+.nx-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+.nx-btn:focus-visible, .nx-focusable:focus-visible { outline: 2px solid var(--nx-focus); outline-offset: 2px; }
+
+.nx-tile { display: inline-grid; place-items: center; border-radius: 10px; color: #fff; flex-shrink: 0; }
+.nx-tile--sm { width: 28px; height: 28px; border-radius: 8px; }
+.nx-tile--md { width: 36px; height: 36px; }
+.nx-tile--lg { width: 44px; height: 44px; border-radius: 12px; }
+.nx-tile[data-hue='violet'] { background: var(--nx-hue-violet); }
+.nx-tile[data-hue='blue']   { background: var(--nx-hue-blue); }
+.nx-tile[data-hue='orange'] { background: var(--nx-hue-orange); }
+.nx-tile[data-hue='teal']   { background: var(--nx-hue-teal); }
+.nx-tile[data-hue='green']  { background: var(--nx-hue-green); }
+.nx-tile[data-hue='amber']  { background: var(--nx-hue-amber); }
+.nx-tile[data-hue='pink']   { background: var(--nx-hue-pink); }
+.nx-tile[data-hue='slate']  { background: var(--nx-hue-slate); }
+
+.nx-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font: 600 11px/1 var(--nx-font); letter-spacing: 0.02em; }
+.nx-badge--neutral { background: var(--nx-surface-2); color: var(--nx-text-muted); border: 1px solid var(--nx-border); }
+.nx-badge--planned { background: var(--nx-hue-amber-soft); color: var(--nx-hue-amber); }
+.nx-badge--accent  { background: var(--nx-hue-blue-soft); color: var(--nx-accent); }
+
+.nx-empty { display: grid; justify-items: start; gap: 8px; padding: 28px; border: 1px dashed var(--nx-border); border-radius: var(--nx-radius-lg); background: var(--nx-surface); color: var(--nx-text-2); max-width: 640px; }
+.nx-empty__icon { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--nx-surface-2); color: var(--nx-text-muted); }
+.nx-empty__title { margin: 4px 0 0; font: 600 16px/1.3 var(--nx-font); color: var(--nx-text); }
+.nx-empty__body { font: 400 14px/1.55 var(--nx-font); }
+.nx-empty__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+.nx-skeleton { display: block; border-radius: var(--nx-radius-sm); background: linear-gradient(90deg, var(--nx-surface-2), var(--nx-surface-hover), var(--nx-surface-2)); background-size: 200% 100%; animation: nx-shimmer 1.4s linear infinite; }
+@keyframes nx-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+.nx-sheet-layer { position: fixed; inset: 0; z-index: 300; }
+.nx-sheet-scrim { position: absolute; inset: 0; background: rgba(11, 17, 32, 0.45); }
+.nx-sheet { position: absolute; background: var(--nx-surface); box-shadow: var(--nx-shadow-pop); display: flex; flex-direction: column; }
+.nx-sheet--right { top: 0; right: 0; bottom: 0; width: min(var(--nx-assistant-w), 100vw); }
+.nx-sheet--bottom { left: 0; right: 0; bottom: 0; max-height: 88vh; border-radius: var(--nx-radius-lg) var(--nx-radius-lg) 0 0; }
+
+.nx-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-skeleton { animation: none; }
+}

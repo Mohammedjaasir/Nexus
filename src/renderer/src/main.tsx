@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import brandLogo from '@brand/logo.png?url';
 import './design/global.css';
+import './nexus/styles/index.css';
 
 const favicon = document.createElement('link');
 favicon.rel = 'icon';
