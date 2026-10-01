@@ -3,6 +3,8 @@ import type { HarnessConfig } from '@/store/config';
 import { Sheet } from './ui/Sheet';
 import { AssistantPanel } from './assistant/AssistantPanel';
 import { useNexusUi } from './state/uiStore';
+import { CommandPalette } from './chrome/CommandPalette';
+import { useShortcuts } from './chrome/useShortcuts';
 import { ShellActionsContext, type ShellActions } from './shellActions';
 import { TopBar } from './chrome/TopBar';
 import { Sidebar } from './chrome/Sidebar';
@@ -13,6 +15,7 @@ import { useProjectsLoader } from './data/useProjects';
 export function NexusShell({ config, actions }: { config: HarnessConfig; actions: ShellActions }) {
   useProjectsLoader();
   const compact = useIsCompact();
+  useShortcuts();
   return (
     <ShellActionsContext.Provider value={actions}>
       <div className="nx-shell">
@@ -25,6 +28,7 @@ export function NexusShell({ config, actions }: { config: HarnessConfig; actions
         {!compact && <aside className="nx-assistant-slot" aria-labelledby="nx-assist-col"><AssistantPanel headingId="nx-assist-col" /></aside>}
         {compact && <CompactAssistant />}
         <MobileNav />
+        <CommandPalette />
       </div>
     </ShellActionsContext.Provider>
   );

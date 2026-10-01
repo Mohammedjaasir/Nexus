@@ -92,3 +92,15 @@
 .nx-help { margin-top: 10px; width: 100%; display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--nx-frame-border); border-radius: var(--nx-radius-md); background: transparent; color: var(--nx-frame-muted); text-align: left; font: 400 12px/1.35 var(--nx-font); cursor: pointer; }
 .nx-help strong { color: var(--nx-frame-text); font-weight: 600; font-size: 13px; }
 .nx-help:hover { background: var(--nx-frame-hover); }
+.nx-palette-layer { position: fixed; inset: 0; z-index: 400; background: rgba(11,17,32,0.5); display: grid; justify-items: center; align-items: start; padding-top: 12vh; }
+.nx-palette { width: min(640px, calc(100vw - 32px)); background: var(--nx-surface); color: var(--nx-text); border-radius: var(--nx-radius-lg); box-shadow: var(--nx-shadow-pop); overflow: hidden; }
+.nx-palette__input { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--nx-border); color: var(--nx-text-muted); }
+.nx-palette__input input { flex: 1; height: 52px; border: 0; background: transparent; color: var(--nx-text); font: 400 16px/1 var(--nx-font); outline: none; }
+.nx-palette__input kbd { font: 600 11px/1 var(--nx-font); padding: 4px 6px; border-radius: 6px; background: var(--nx-surface-2); }
+.nx-palette__list { list-style: none; margin: 0; padding: 6px; max-height: 50vh; overflow-y: auto; }
+.nx-palette__item { display: grid; grid-template-columns: 96px 1fr auto; align-items: center; gap: 10px; padding: 10px; border-radius: var(--nx-radius-sm); cursor: pointer; }
+.nx-palette__item.is-sel { background: var(--nx-surface-hover); }
+.nx-palette__group { font: 600 11px/1 var(--nx-font); color: var(--nx-text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.nx-palette__label { font: 500 14px/1.3 var(--nx-font); }
+.nx-palette__hint { font: 400 12px/1.3 var(--nx-font); color: var(--nx-text-muted); max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nx-palette__empty { padding: 18px; color: var(--nx-text-muted); font: 400 14px/1.4 var(--nx-font); }
