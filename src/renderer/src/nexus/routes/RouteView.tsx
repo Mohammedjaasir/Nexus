@@ -4,6 +4,11 @@ import { useRoute } from '../router/useRoute';
 import { formatRoute, routeTitle } from '../router/routes';
 import { AgentsView } from '../pages/AgentsView';
 import { NotFoundPage } from '../pages/NotFoundPage';
+import { WorkspacesPage } from '../pages/WorkspacesPage';
+import { WorkspacePage } from '../pages/WorkspacePage';
+import { ProjectsPage } from '../pages/ProjectsPage';
+import { ProjectPage } from '../pages/ProjectPage';
+import { PlannedPage } from '../pages/PlannedPage';
 
 export function RouteView({ config }: { config: HarnessConfig }) {
   const route = useRoute();
@@ -19,7 +24,14 @@ export function RouteView({ config }: { config: HarnessConfig }) {
   switch (route.name) {
     case 'agents': page = <AgentsView config={config} />; break;
     case 'not-found': page = <NotFoundPage />; break;
-    default: page = <NotFoundPage message="Coming in this build." />;
+    case 'workspaces': page = <WorkspacesPage />; break;
+    case 'workspace': page = <WorkspacePage id={route.id} />; break;
+    case 'projects': page = <ProjectsPage />; break;
+    case 'project': page = <ProjectPage id={route.id} />; break;
+    case 'artifacts': page = <PlannedPage which="artifacts" />; break;
+    case 'handoffs': page = <PlannedPage which="handoffs" />; break;
+    case 'deployments': page = <PlannedPage which="deployments" />; break;
+    case 'home': page = <NotFoundPage message="Coming in this build." />; break;
   }
-  return <main ref={mainRef} className={`nx-main${route.name === 'agents' ? ' nx-main--flush' : ''}`} id="nx-main">{page}</main>;
+  return <main ref={mainRef} className={`nx-main${route.name === 'agents' || route.name === 'project' ? ' nx-main--flush' : ''}`} id="nx-main">{page}</main>;
 }

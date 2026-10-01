@@ -1,0 +1,59 @@
+import { useMemo, useState } from 'react';
+import { useStore } from '@/store/store';
+import { WORKSPACES } from '../workspaces/registry';
+import { workspaceForDomain } from '../workspaces/mapping';
+import { recentProjects } from '../data/selectors';
+import { useProjectsLoader } from '../data/useProjects';
+import { navigate } from '../router/useRoute';
+import { useShellActions } from '../shellActions';
+import { Button } from '../ui/Button';
+import { EmptyState } from '../ui/EmptyState';
+import { ProjectRow } from '../components/ProjectRow';
+import { LoadError, RowsSkeleton } from '../components/LoadStates';
+
+export function ProjectsPage() {
+  const projects = useStore((s) => s.projects);
+  const { status, error, refresh } = useProjectsLoader();
+  const actions = useShellActions();
+  const [q, setQ] = useState('');
+  const [ws, setWs] = useState<string>('all');
+  const shown = useMemo(() => recentProjects(projects, projects.length).filter((p) => {
+    const w = workspaceForDomain(p.domainId)?.id ?? 'unassigned';
+    if (ws !== 'all' && w !== ws) return false;
+    const needle = q.trim().toLowerCase();
+    return !needle || p.name.toLowerCase().includes(needle) || p.rootPath.toLowerCase().includes(needle);
+  }), [projects, q, ws]);
+
+  return (
+    <div className="nx-page">
+      <header className="nx-pagehead">
+        <h1 tabIndex={-1}>Projects</h1>
+        <div className="nx-pagehead__actions">
+          <Button icon="import" onClick={actions.openImport}>Import</Button>
+          <Button variant="primary" icon="plus" onClick={() => actions.openNewProject()}>New project</Button>
+        </div>
+      </header>
+      {projects.length > 0 && (
+        <div className="nx-toolbar">
+          <input className="nx-input nx-focusable" type="search" placeholder="Filter by name or folder" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filter projects" />
+          <select className="nx-input nx-focusable" value={ws} onChange={(e) => setWs(e.target.value)} aria-label="Workspace">
+            <option value="all">All workspaces</option>
+            {WORKSPACES.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
+            <option value="unassigned">Unassigned</option>
+          </select>
+          <Button variant="ghost" onClick={actions.openProjectManager}>Manage projects</Button>
+        </div>
+      )}
+      {status === 'error' && projects.length === 0 ? <LoadError error={error} onRetry={refresh} />
+        : status === 'loading' && projects.length === 0 ? <RowsSkeleton />
+        : projects.length === 0 ? (
+          <EmptyState icon="projects" title="No projects yet" body="Create a project or import a folder you already work in. Agents use it as their working directory."
+            actions={<><Button variant="primary" icon="plus" onClick={() => actions.openNewProject()}>New project</Button><Button icon="import" onClick={actions.openImport}>Import</Button></>} />
+        ) : shown.length === 0 ? (
+          <p className="nx-muted" role="status">No projects match these filters.</p>
+        ) : (
+          <div className="nx-rows">{shown.map((p) => <ProjectRow key={p.id} project={p} onOpen={() => navigate({ name: 'project', id: p.id })} />)}</div>
+        )}
+    </div>
+  );
+}
