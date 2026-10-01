@@ -48,7 +48,7 @@ export function QuitWarningModal({ ptyCount, closing, onCancel, onConfirm, onClo
         onClick={(e) => e.stopPropagation()}
         style={{ width: 480, maxWidth: '92vw' }}
       >
-        <PixelPanel variant="dialog" title={inClosingTime ? 'CLOSING TIME' : 'QUITTING NOW?'} noPadding>
+        <PixelPanel variant="dialog" title={inClosingTime ? 'WRAPPING UP' : 'QUITTING NOW?'} noPadding>
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
             {inClosingTime ? (
               <>
@@ -81,7 +81,7 @@ export function QuitWarningModal({ ptyCount, closing, onCancel, onConfirm, onClo
                         <>Every agent saved its memory and the orchestrator confirmed the
                         shutdown. The harness closes itself in a moment.</>
                       ) : (
-                        <>The orchestrator broadcast closing time. Every worker parks its
+                        <>The orchestrator asked every agent to wrap up. Every worker parks its
                         work, saves its memory, and reports back — the app closes only
                         after the orchestrator confirms nothing will be lost.</>
                       )}
@@ -160,9 +160,9 @@ export function QuitWarningModal({ ptyCount, closing, onCancel, onConfirm, onClo
                   fontSize: 12, lineHeight: '18px',
                   color: 'var(--cth-ink-700)'
                 }}>
-                  Tip: <strong>closing time</strong> is the safe way out — the orchestrator has
+                  Tip: <strong>wrap up first</strong> is the safe way out — the orchestrator has
                   every agent commit its work and save its memory, and the app closes itself
-                  once the whole floor has confirmed. No data loss.
+                  once every agent has confirmed. No data loss.
                 </div>
 
                 {closing?.phase === 'error' && (
@@ -173,7 +173,7 @@ export function QuitWarningModal({ ptyCount, closing, onCancel, onConfirm, onClo
                     fontSize: 12, lineHeight: '18px',
                     color: 'var(--cth-ink-900)'
                   }}>
-                    {closing.error ?? 'Closing time could not start.'}
+                    {closing.error ?? 'Wrap-up could not start.'}
                   </div>
                 )}
 
@@ -184,7 +184,7 @@ export function QuitWarningModal({ ptyCount, closing, onCancel, onConfirm, onClo
                   {onClosingTime && (
                     <PixelButton variant="primary" size="md" onClick={onClosingTime} disabled={busy}>
                       <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                        <Icon name="clock" /> closing time
+                        <Icon name="clock" /> wrap up first
                       </span>
                     </PixelButton>
                   )}

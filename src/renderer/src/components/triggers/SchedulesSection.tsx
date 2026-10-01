@@ -89,7 +89,7 @@ export function SchedulesSection({ onSummary }: { onSummary?: (s: string) => voi
   };
 
   const targetName = (to: string) =>
-    to === 'broadcast' ? 'everyone' : to === 'god' ? 'Michael' : agents.find((a) => a.id === to)?.name ?? to;
+    to === 'broadcast' ? 'everyone' : to === 'god' ? 'Lead agent' : agents.find((a) => a.id === to)?.name ?? to;
 
   return (
     <>
@@ -124,7 +124,7 @@ export function SchedulesSection({ onSummary }: { onSummary?: (s: string) => voi
           <Field label="GOES TO">
             <Select value={mTo} onChange={setMTo} style={{ width: '100%' }}>
               <option value="broadcast">everyone</option>
-              <option value="god">Michael</option>
+              <option value="god">Lead agent</option>
               {agents.filter((a) => !a.isGod).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </Select>
           </Field>
@@ -242,13 +242,13 @@ function MissionRow({ mission, targetName, agents, onPatch, onDelete }: {
           <Field label="GOES TO">
             <Select value={to} onChange={setTo} style={{ width: '100%' }}>
               <option value="broadcast">everyone</option>
-              <option value="god">Michael</option>
+              <option value="god">Lead agent</option>
               {agents.filter((a) => !a.isGod).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </Select>
           </Field>
           <Field label="EVERY">
             <IntervalPicker value={intervalMs} onChange={setIntervalMs} />
-            {heartbeat && <Hint>The beat adapts to how quiet the floor is, so this is the ceiling, not the exact gap.</Hint>}
+            {heartbeat && <Hint>The beat adapts to how quiet the agents are, so this is the ceiling, not the exact gap.</Hint>}
           </Field>
           <Field label="PROMPT">
             <textarea

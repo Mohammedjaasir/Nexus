@@ -1,9 +1,9 @@
 import { PixelPanel } from '@/components/PixelPanel';
 
 /**
- * Loader shown on the empty floor while the god agent ("Michael") is clocking
- * in on launch. Replaces the "add agent" prompt so a returning user doesn't see
- * the empty-floor call-to-action before Michael has booted.
+ * Loader shown while the lead (god) agent starts on launch. Replaces the
+ * "add agent" prompt so a returning user doesn't see the empty-state
+ * call-to-action before the lead agent has booted.
  */
 export function MichaelBooting() {
   return (
@@ -13,21 +13,20 @@ export function MichaelBooting() {
       pointerEvents: 'none'
     }}>
       <div style={{ pointerEvents: 'auto', width: 360 }}>
-        <PixelPanel variant="dialog" title="CLOCKING IN" noPadding>
+        <PixelPanel variant="dialog" title="Starting" noPadding>
           <div style={{
             padding: 20,
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14
           }}>
-            {/* Stepped pixel blocks — staggered blink, no easing (matches aesthetic) */}
+            {/* Staggered progress dots */}
             <div style={{ display: 'flex', gap: 6 }}>
               {[0, 1, 2, 3].map((i) => (
                 <span
                   key={i}
                   style={{
-                    width: 14, height: 14,
-                    background: '#C8423E',
-                    boxShadow: 'var(--cth-shadow-hard)',
-                    animation: 'cth-blink 1s steps(1, end) infinite',
+                    width: 8, height: 8, borderRadius: 4,
+                    background: 'var(--cth-ink-500)',
+                    animation: 'cth-pulse 1s ease-in-out infinite',
                     animationDelay: `${i * 0.2}s`
                   }}
                 />
@@ -37,8 +36,7 @@ export function MichaelBooting() {
               margin: 0, fontSize: 13, lineHeight: '20px', textAlign: 'center',
               color: 'var(--cth-ink-700)'
             }}>
-              Michael is settling into the corner office and getting the floor
-              ready. Hang tight…
+              Starting the lead agent…
             </p>
           </div>
         </PixelPanel>

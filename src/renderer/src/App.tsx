@@ -444,10 +444,10 @@ export function App() {
                     pointerEvents: 'none'
                   }}>
                     <div style={{ pointerEvents: 'auto', width: 360 }}>
-                      <PixelPanel variant="dialog" title="EMPTY FLOOR" noPadding>
+                      <PixelPanel variant="dialog" title="No agents yet" noPadding>
                         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                           <p style={{ margin: 0, fontSize: 13, lineHeight: '20px' }}>
-                            No agents on the floor yet. Spawn one to see real claude output stream in here.
+                            No agents are running. Add one to see its terminal output here.
                           </p>
                           <PixelButton variant="primary" size="md" onClick={() => setAddAgentOpen(true)}>
                             <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
@@ -483,10 +483,10 @@ export function App() {
                 <div style={{
                   fontFamily: 'var(--cth-font-display)', fontSize: 10, lineHeight: '14px',
                   color: 'var(--cth-ink-500)'
-                }}>WAKING THE FLOOR</div>
+                }}>STARTING</div>
                 <p style={{ margin: 0, fontSize: 13, textAlign: 'center', color: 'var(--cth-ink-700)' }}>
-                  Michael is clocking in.<br />
-                  The terminal will land here once he's seated.
+                  The lead agent is starting.<br />
+                  Its terminal will appear here once it is ready.
                 </p>
               </PixelPanel>
             ) : (
@@ -500,7 +500,7 @@ export function App() {
                   color: 'var(--cth-ink-500)'
                 }}>NO AGENT SELECTED</div>
                 <p style={{ margin: 0, fontSize: 13, textAlign: 'center', color: 'var(--cth-ink-700)' }}>
-                  Spawn an agent from the strip below.<br />
+                  Add an agent from the strip below.<br />
                   The terminal and command bar will land here.
                 </p>
                 <PixelButton variant="secondary" size="md" onClick={() => setAddAgentOpen(true)}>

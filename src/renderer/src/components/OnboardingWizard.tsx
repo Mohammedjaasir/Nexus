@@ -35,9 +35,9 @@ const FEATURES: Feature[] = [
   },
   {
     icon: 'gear',
-    label: 'MICHAEL IS YOUR CLONE',
-    desc: 'Your clone runs the floor — triages requests, routes tasks, and escalates only what needs you.',
-    descPlain: 'Your clone, Michael, takes your requests, hands work to the right agent, and only interrupts you when it matters.',
+    label: 'A LEAD AGENT COORDINATES',
+    desc: 'The lead agent triages requests, routes tasks, and escalates only what needs you.',
+    descPlain: 'The lead agent takes your requests, hands work to the right agent, and only interrupts you when it matters.',
     tint: 'var(--cth-sky-light)', edge: 'var(--cth-sky)'
   },
   {
@@ -367,14 +367,14 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               <>
                 <p style={{ margin: 0, lineHeight: '22px' }}>
                   {plain ? (
-                    <><strong>Michael is your clone</strong> — he reads your requests, breaks
-                    them into tasks, and hands them to the right agent. He's the boss of the
-                    floor; you're still the boss of him. Choose which AI engine powers him.</>
+                    <><strong>The lead agent works on your behalf</strong> — it reads your requests,
+                    breaks them into tasks, and hands them to the right agent. You stay in
+                    charge of it. Choose which AI engine powers it.</>
                   ) : (
-                    <><strong>Michael is your clone</strong> — the boss of the floor you just
-                    met. He triages your requests, assigns tasks, and manages the team, while
-                    escalating anything that genuinely needs you. Pick the engine and model that
-                    power him; give him a longer-context, higher-capability model.</>
+                    <><strong>The lead agent works on your behalf</strong>. It triages your
+                    requests, assigns tasks, and coordinates the other agents, while escalating
+                    anything that genuinely needs you. Pick the engine and model that power it;
+                    a longer-context, higher-capability model works best.</>
                   )}
                 </p>
 
@@ -389,13 +389,13 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     {plain ? (
                       <>A <strong>CLI agent</strong> is an AI coding assistant that runs on your
                       computer — popular ones are Claude Code (Anthropic), Codex (OpenAI) and
-                      Antigravity (Google Gemini). <strong>Your clone</strong> is the always-on
-                      one that runs your whole office. We recommend Claude Code on Opus 4.8 (1M).
+                      Antigravity (Google Gemini). <strong>The lead agent</strong> is the always-on
+                      one that coordinates the others. We recommend Claude Code on Opus 4.8 (1M).
                       You can add or switch the others later.</>
                     ) : (
                       <>Each option is a <strong>CLI engine</strong> you have installed (Claude Code,
                       Codex, Antigravity/Gemini, or a local proxy like Qwen).
-                      <strong> Your clone</strong> (Michael) is the engine that orchestrates the whole
+                      <strong> The lead agent</strong> is the engine that orchestrates the whole
                       hive. Recommended: Claude Code · Opus 4.8 · 1M — other providers can be wired
                       per agent later.</>
                     )}
@@ -481,7 +481,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     create a brand-new folder or pick an existing one, and add more anytime.</>
                   ) : (
                     <>Add the repos you want your agents to work in. Each folder becomes a
-                    <strong> project</strong> (a room on the floor) — multiple agents can share one.
+                    <strong> project</strong> — multiple agents can share one.
                     You can add more later.</>
                   )}
                 </p>

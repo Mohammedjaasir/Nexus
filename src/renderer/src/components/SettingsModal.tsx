@@ -1155,7 +1155,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                                 style={{ ...slackInputStyle, width: 180 }}
                               />
                               <span style={{ fontSize: 11, color: 'var(--cth-ink-500)' }}>
-                                {fmtBudgetTokens(agentBudget) ? `= ${fmtBudgetTokens(agentBudget)} tokens` : 'total tokens across the floor'}
+                                {fmtBudgetTokens(agentBudget) ? `= ${fmtBudgetTokens(agentBudget)} tokens` : 'total tokens across all agents'}
                               </span>
                             </label>
                             <label style={{ display: 'flex', flexDirection: 'column', gap: 4, ...slackLabelStyle }}>
@@ -1318,7 +1318,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                               >i</button>
                             </span>
                             <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
-                              Pipe a Slack channel's messages straight into Michael's queue.
+                              Pipe a Slack channel's messages straight into the lead agent's queue.
                             </span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1923,7 +1923,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                               boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)'
                             }} />
                             {openAiVoiceNote || (hasOpenAiKey
-                              ? 'Key saved — Talk is ready. Start it from Michael’s card.'
+                              ? 'Key saved — Talk is ready. Start it from the lead agent’s card.'
                               : 'No key yet — Talk stays disabled until one is saved.')}
                           </span>
                         </div>

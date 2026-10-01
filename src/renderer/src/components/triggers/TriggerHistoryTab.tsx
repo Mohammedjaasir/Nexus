@@ -249,7 +249,7 @@ function ExchangeCard({
   const tail = (() => {
     if (pending || ex.answered) return null;
     if (decision === 'rejected') return 'You turned this down. Nothing was sent to the hive.';
-    return 'No reply yet. Michael has this one.';
+    return 'No reply yet. The lead agent has this one.';
   })();
 
   return (
@@ -299,8 +299,8 @@ function ExchangeCard({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ ...uiText, fontSize: 11, lineHeight: '16px', color: 'var(--cth-ink-700)' }}>
             {pending.kind === 'directive'
-              ? 'Approve and this goes to Michael, who will put the hive to work on it. Reject and it is dropped — nothing runs.'
-              : 'Approve and Michael reads this. Reject and it is dropped — nothing runs.'}
+              ? 'Approve and this goes to the lead agent, which will put the hive to work on it. Reject and it is dropped — nothing runs.'
+              : 'Approve and the lead agent reads this. Reject and it is dropped — nothing runs.'}
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <PixelButton
@@ -308,7 +308,7 @@ function ExchangeCard({
               size="sm"
               disabled={!!busy[pending.id]}
               onClick={() => onDecide(pending.id, 'approved')}
-              title="Send this message through to Michael"
+              title="Send this message through to the lead agent"
             >
               {busy[pending.id] ? 'one sec…' : 'approve'}
             </PixelButton>
@@ -349,12 +349,12 @@ const SECTIONS: { key: Source; label: string; blurb: string }[] = [
   {
     key: 'webhook',
     label: 'Webhooks',
-    blurb: 'Everything posted to your webhook endpoints, next to what Michael sent back.'
+    blurb: 'Everything posted to your webhook endpoints, next to what the lead agent sent back.'
   },
   {
     key: 'org',
     label: 'Organization',
-    blurb: 'Messages from your teammates’ clone nodes, next to what Michael sent back.'
+    blurb: 'Messages from your teammates’ clone nodes, next to what the lead agent sent back.'
   }
 ];
 
@@ -511,7 +511,7 @@ export function TriggerHistoryTab() {
           ) : (
             <EmptyState
               title="No webhook messages yet."
-              body={'When something posts to one of your endpoints, it lands here with Michael’s '
+              body={'When something posts to one of your endpoints, it lands here with the lead agent’s '
                 + 'reply underneath. Nothing has called in so far. Add an endpoint under Webhooks to '
                 + 'get a URL you can hand out.'}
             />
