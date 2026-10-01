@@ -18,6 +18,132 @@ import type {
 export type {
   ContextRule, ContextTriggerConfig, OrgTriggerConfig, TriggerHistoryEntry, WebhookTrigger
 } from '../shared/triggers';
+import type { Project, CreateProjectInput, UpdateProjectInput, ProjectScanResult } from '../shared/project';
+export type { Project, CreateProjectInput, UpdateProjectInput, ProjectScanResult } from '../shared/project';
+import type {
+  DomainDefinition,
+  DomainId,
+  DomainAgentRole,
+  AgentContextStrategy
+} from '../shared/domain';
+export type {
+  DomainDefinition,
+  DomainId,
+  DomainAgentRole,
+  AgentContextStrategy
+};
+import type {
+  TaskRoutingResult,
+  AgentRoleCandidate,
+  PreparedAgentConfig
+} from '../shared/routing';
+export type {
+  TaskRoutingResult,
+  AgentRoleCandidate,
+  PreparedAgentConfig
+};
+import type {
+  TaskExecutionPlan,
+  TaskExecutionResult,
+  TaskVerificationSummary,
+  TaskVerificationRuleResult,
+  TaskVerificationStatus
+} from '../shared/execution';
+export type {
+  TaskExecutionPlan,
+  TaskExecutionResult,
+  TaskVerificationSummary,
+  TaskVerificationRuleResult,
+  TaskVerificationStatus
+};
+import type {
+  ProjectPlan,
+  ProjectMilestone,
+  ProjectTask,
+  ProjectPlanProgress,
+  TaskStatus,
+  MilestoneStatus
+} from '../shared/plan';
+export type {
+  ProjectPlan,
+  ProjectMilestone,
+  ProjectTask,
+  ProjectPlanProgress,
+  TaskStatus,
+  MilestoneStatus
+};
+import type {
+  ProjectGap,
+  ProjectGapAnalysisResult,
+  GapCategory,
+  GapStatus,
+  ConfidenceBreakdown
+} from '../shared/gap';
+export type {
+  ProjectGap,
+  ProjectGapAnalysisResult,
+  GapCategory,
+  GapStatus,
+  ConfidenceBreakdown
+};
+import type {
+  ProjectGoal,
+  GoalCapability,
+  GoalAnalysisResult
+} from '../shared/goal';
+export type {
+  ProjectGoal,
+  GoalCapability,
+  GoalAnalysisResult
+};
+import type {
+  ProjectState,
+  ProjectCompletionContract,
+  NextTaskResult,
+  ProjectStepResult
+} from '../shared/completion';
+export type {
+  ProjectState,
+  ProjectCompletionContract,
+  NextTaskResult,
+  ProjectStepResult
+};
+import type {
+  ProjectGraphNode,
+  ProjectGraphEdge,
+  ProjectGraphStats,
+  ProjectSubgraph,
+  ProjectGraphQueryFilter,
+  ProjectGraphNodeKind,
+  ProjectGraphRelationKind
+} from '../shared/graph';
+export type {
+  ProjectGraphNode,
+  ProjectGraphEdge,
+  ProjectGraphStats,
+  ProjectSubgraph,
+  ProjectGraphQueryFilter,
+  ProjectGraphNodeKind,
+  ProjectGraphRelationKind
+};
+import type {
+  ContextPackage,
+  ContextItem,
+  ContextProvenance,
+  ContextTier,
+  ContextProvenanceReason,
+  ContextAssemblyOptions,
+  ContextBenchmarkResult
+} from '../shared/context';
+export type {
+  ContextPackage,
+  ContextItem,
+  ContextProvenance,
+  ContextTier,
+  ContextProvenanceReason,
+  ContextAssemblyOptions,
+  ContextBenchmarkResult
+};
 
 /** Renderer-visible integration record: the secretRef handle is redacted to a
  *  presence boolean. Matches main `integrations.listRecordsRedacted()` — the
@@ -1369,7 +1495,162 @@ const api = {
     notes?: string;
     /** Preview the centered release page using the default drop template. */
     drop?: boolean;
-  }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('update:simulate', opts)
+  }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('update:simulate', opts),
+
+  // ─── Projects & Domains (domain-specialized AI workspace) ─────────────────
+  projectCreate: (input: CreateProjectInput): Promise<{ ok: boolean; project?: Project; error?: string }> =>
+    ipcRenderer.invoke('project:create', input),
+  projectImport: (rootPath: string, domainId?: DomainId, name?: string): Promise<{ ok: boolean; project?: Project; scanResult?: ProjectScanResult; error?: string }> =>
+    ipcRenderer.invoke('project:import', rootPath, domainId, name),
+  projectScan: (rootPath: string): Promise<{ ok: boolean; scanResult?: ProjectScanResult; error?: string }> =>
+    ipcRenderer.invoke('project:scan', rootPath),
+  projectGet: (id: string): Promise<Project | null> =>
+    ipcRenderer.invoke('project:get', id),
+  projectList: (): Promise<Project[]> =>
+    ipcRenderer.invoke('project:list'),
+  projectUpdate: (id: string, patch: UpdateProjectInput): Promise<Project | null> =>
+    ipcRenderer.invoke('project:update', id, patch),
+  projectDelete: (id: string): Promise<boolean> =>
+    ipcRenderer.invoke('project:delete', id),
+  projectGetActive: (): Promise<Project | null> =>
+    ipcRenderer.invoke('project:getActive'),
+  projectSetActive: (id: string | null): Promise<Project | null> =>
+    ipcRenderer.invoke('project:setActive', id),
+  projectRefresh: (id: string): Promise<Project | null> =>
+    ipcRenderer.invoke('project:refresh', id),
+  domainList: (): Promise<DomainDefinition[]> =>
+    ipcRenderer.invoke('domain:list'),
+  domainGet: (id: string): Promise<DomainDefinition | null> =>
+    ipcRenderer.invoke('domain:get', id),
+
+  // ─── Project Knowledge Graph APIs ────────────────────────────────────────
+  projectGraphGetStats: (projectId: string): Promise<ProjectGraphStats> =>
+    ipcRenderer.invoke('project:graph:getStats', projectId),
+  projectGraphGetNodes: (projectId: string, filter?: ProjectGraphQueryFilter): Promise<ProjectGraphNode[]> =>
+    ipcRenderer.invoke('project:graph:getNodes', projectId, filter),
+  projectGraphGetNode: (projectId: string, nodeId: string): Promise<ProjectGraphNode | null> =>
+    ipcRenderer.invoke('project:graph:getNode', projectId, nodeId),
+  projectGraphGetNeighbors: (
+    projectId: string,
+    nodeId: string,
+    direction?: 'outgoing' | 'incoming' | 'both'
+  ): Promise<{ nodes: ProjectGraphNode[]; edges: ProjectGraphEdge[] }> =>
+    ipcRenderer.invoke('project:graph:getNeighbors', projectId, nodeId, direction),
+  projectGraphFindNode: (projectId: string, query: string): Promise<ProjectGraphNode[]> =>
+    ipcRenderer.invoke('project:graph:findNode', projectId, query),
+  projectGraphFindRelated: (
+    projectId: string,
+    nodeId: string,
+    relationKind: ProjectGraphRelationKind
+  ): Promise<{ nodes: ProjectGraphNode[]; edges: ProjectGraphEdge[] }> =>
+    ipcRenderer.invoke('project:graph:findRelated', projectId, nodeId, relationKind),
+  projectGraphGetSubgraph: (projectId: string, nodeId: string, depth?: number): Promise<ProjectSubgraph> =>
+    ipcRenderer.invoke('project:graph:getSubgraph', projectId, nodeId, depth),
+  projectGraphRebuild: (projectId: string): Promise<ProjectGraphStats | null> =>
+    ipcRenderer.invoke('project:graph:rebuild', projectId),
+
+  // ─── Context Intelligence Engine APIs ────────────────────────────────────
+  projectContextAssemble: (
+    projectId: string,
+    task: string,
+    options?: ContextAssemblyOptions
+  ): Promise<ContextPackage | null> =>
+    ipcRenderer.invoke('project:context:assemble', projectId, task, options),
+  projectContextPrepare: (
+    projectId: string,
+    task: string,
+    options?: ContextAssemblyOptions
+  ): Promise<{ task: string; contextPackage: ContextPackage; enrichedPrompt: string } | null> =>
+    ipcRenderer.invoke('project:context:prepare', projectId, task, options),
+  projectContextBenchmark: (
+    projectId: string,
+    task: string,
+    budgetTokens?: number
+  ): Promise<ContextBenchmarkResult | null> =>
+    ipcRenderer.invoke('project:context:benchmark', projectId, task, budgetTokens),
+
+  // ─── Domain & Specialized Agent Role APIs ────────────────────────────────
+  domainRolesList: (domainId?: string): Promise<DomainAgentRole[]> =>
+    ipcRenderer.invoke('domain:roles:list', domainId),
+  domainRolesGet: (roleId: string): Promise<DomainAgentRole | null> =>
+    ipcRenderer.invoke('domain:roles:get', roleId),
+  projectRolesList: (projectId: string): Promise<DomainAgentRole[]> =>
+    ipcRenderer.invoke('project:roles:list', projectId),
+  projectRolesSuggest: (projectId: string, task: string): Promise<DomainAgentRole | null> =>
+    ipcRenderer.invoke('project:roles:suggest', projectId, task),
+  projectTaskRoute: (projectId: string, task: string): Promise<TaskRoutingResult | null> =>
+    ipcRenderer.invoke('project:task:route', projectId, task),
+
+  // ─── Phase 7C: Task Execution & Verification APIs ─────────────────────────
+  projectTaskPlan: (
+    projectId: string,
+    task: string,
+    options?: {
+      roleId?: string;
+      provider?: string;
+      model?: string;
+      budgetTokens?: number;
+    }
+  ): Promise<TaskExecutionPlan | null> =>
+    ipcRenderer.invoke('project:task:plan', projectId, task, options),
+  projectTaskVerify: (
+    projectId: string,
+    ruleIds?: string[],
+    customCmd?: string
+  ): Promise<TaskVerificationSummary | null> =>
+    ipcRenderer.invoke('project:task:verify', projectId, ruleIds, customCmd),
+  projectTaskExecute: (
+    plan: TaskExecutionPlan,
+    customCmd?: string
+  ): Promise<TaskExecutionResult | null> =>
+    ipcRenderer.invoke('project:task:execute', plan, customCmd),
+
+  // ─── Phase 8A: Project Plan & Task Graph APIs ─────────────────────────────
+  projectPlanGet: (projectId: string): Promise<ProjectPlan | null> =>
+    ipcRenderer.invoke('project:plan:get', projectId),
+  projectPlanGenerate: (projectId: string): Promise<ProjectPlan | null> =>
+    ipcRenderer.invoke('project:plan:generate', projectId),
+  projectPlanUpdateTaskStatus: (
+    projectId: string,
+    taskId: string,
+    status: TaskStatus
+  ): Promise<ProjectPlan | null> =>
+    ipcRenderer.invoke('project:plan:updateTaskStatus', projectId, taskId, status),
+
+  // ─── Phase 8B: Project Gap Analysis APIs ──────────────────────────────────
+  projectGapsAnalyze: (projectId: string): Promise<ProjectGapAnalysisResult | null> =>
+    ipcRenderer.invoke('project:gaps:analyze', projectId),
+  projectGapsReconcile: (
+    projectId: string
+  ): Promise<{ plan: ProjectPlan; gaps: ProjectGapAnalysisResult } | null> =>
+    ipcRenderer.invoke('project:gaps:reconcile', projectId),
+
+  // ─── Phase 8C: Goal-Aware Project Planning APIs ───────────────────────────
+  projectGoalSet: (
+    projectId: string,
+    title: string,
+    description?: string
+  ): Promise<GoalAnalysisResult | null> =>
+    ipcRenderer.invoke('project:goal:set', projectId, title, description),
+  projectGoalGet: (projectId: string): Promise<GoalAnalysisResult | null> =>
+    ipcRenderer.invoke('project:goal:get', projectId),
+  projectGoalReconcile: (
+    projectId: string
+  ): Promise<{ plan: ProjectPlan; goalAnalysis: GoalAnalysisResult } | null> =>
+    ipcRenderer.invoke('project:goal:reconcile', projectId),
+
+  // ─── Phase 9: Complete Project — Verified Execution APIs ──────────────────
+  projectCompleteNext: (projectId: string): Promise<NextTaskResult | null> =>
+    ipcRenderer.invoke('project:complete:next', projectId),
+  projectCompleteStep: (
+    projectId: string,
+    customCmd?: string
+  ): Promise<ProjectStepResult | null> =>
+    ipcRenderer.invoke('project:complete:step', projectId, customCmd),
+  projectCompleteContract: (
+    projectId: string
+  ): Promise<ProjectCompletionContract | null> =>
+    ipcRenderer.invoke('project:complete:contract', projectId)
 };
 
 contextBridge.exposeInMainWorld('cth', api);

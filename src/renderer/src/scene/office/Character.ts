@@ -779,6 +779,20 @@ export class Character {
         this.idleTimer = 0;
         this.idleWanderDelay = 1 + Math.random() * 3;
         this.sprite.setAnimation('idle', this.direction);
+        // Apply ambient waypoint metadata set by updateWander
+        if (this.pendingWaypointFacing) {
+          this.faceDirection(this.pendingWaypointFacing);
+          this.pendingWaypointFacing = null;
+        }
+        if (this.pendingWaypointThought) {
+          this.thoughtBubble.show(this.pendingWaypointThought);
+          this.pendingWaypointThought = null;
+          setTimeout(() => this.thoughtBubble.startLinger(), 2800);
+        }
+        if (this.pendingWaypointIsDesk) {
+          this.pendingWaypointIsDesk = false;
+          this.applySit();
+        }
       } else {
         this.setIdle();
       }
@@ -789,6 +803,7 @@ export class Character {
       }
       return;
     }
+
 
     const target = this.path[0];
     const ts = this.mapRenderer.tileSize;
@@ -850,25 +865,107 @@ export class Character {
     }
   }
 
-  private updateWander(dt: number): void {
-    this.idleTimer += dt;
-    if (this.idleTimer < this.idleWanderDelay) return;
-    this.idleTimer = 0;
-    this.idleWanderDelay = 1 + Math.random() * 3;
-    // Pick a nearby walkable tile and stroll to it.
-    const cur = this.getTilePosition();
-    const range = 6;
-    for (let attempt = 0; attempt < 14; attempt++) {
-      const tx = cur.x + Math.floor(Math.random() * range * 2) - range;
-      const ty = cur.y + Math.floor(Math.random() * range * 2) - range;
-      if ((tx !== cur.x || ty !== cur.y) && this.mapRenderer.isWalkable(tx, ty)) {
-        const wasWandering = this.wandering;
-        this.moveTo({ x: tx, y: ty });   // moveTo() leaves state='walk'
-        this.wandering = wasWandering;   // keep wandering through the walk
-        return;
+  // ── Ambient Waypoint & Activity System ──────────────────────────────────
+  private ambientTimer = 0;
+  private ambientDuration = 2 + Math.random() * 3;
+  // Set by updateWander before calling moveTo so updateWalk can apply on arrival
+  private pendingWaypointFacing: Direction | null = null;
+  private pendingWaypointThought: string | null = null;
+  private pendingWaypointIsDesk = false;
+
+  private getOfficeWaypoints(): Array<{ name: string; tile: { x: number; y: number }; facing?: Direction; thought?: string; duration: number; weight: number }> {
+    return [
+      // 60% probability: Return to / work at desk
+      { name: 'desk', tile: this.deskTile, facing: this.seatDirection, duration: 12 + Math.random() * 12, weight: 60 },
+      // 15% probability: Coffee / water break
+      { name: 'coffee', tile: { x: 26, y: 20 }, facing: 'up', thought: 'Need coffee ☕', duration: 3.5 + Math.random() * 2, weight: 10 },
+      { name: 'water', tile: { x: 16, y: 3 }, facing: 'down', thought: 'Hydration break 💧', duration: 3 + Math.random() * 2, weight: 5 },
+      // 10% probability: Common area / lounge / reception
+      { name: 'lounge', tile: { x: 5, y: 16 }, facing: 'up', thought: 'Quick breather 🌿', duration: 4.5 + Math.random() * 3, weight: 5 },
+      { name: 'reception', tile: { x: 9, y: 16 }, facing: 'up', thought: 'Checking in 📋', duration: 4 + Math.random() * 2, weight: 5 },
+      // 10% probability: Meeting table / social collaboration
+      { name: 'meeting', tile: { x: 20, y: 14 }, facing: 'left', thought: 'Discussing specs 📐', duration: 5 + Math.random() * 3, weight: 10 },
+      // 5% probability: Mission board / printer / window
+      { name: 'board', tile: { x: 9, y: 11 }, facing: 'up', thought: 'Checking the backlog 📌', duration: 3.5 + Math.random() * 2, weight: 3 },
+      { name: 'printer', tile: { x: 14, y: 8 }, facing: 'up', thought: 'Printing docs 📄', duration: 3 + Math.random() * 2, weight: 1 },
+      { name: 'window', tile: { x: 10, y: 3 }, facing: 'up', thought: 'Nice breeze today 🍃', duration: 3.5 + Math.random() * 2, weight: 1 }
+    ];
+  }
+
+  private pickWalkableTileNear(target: { x: number; y: number }): { x: number; y: number } | null {
+    if (this.mapRenderer.isWalkable(target.x, target.y)) return target;
+    for (let r = 1; r <= 2; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const nx = target.x + dx;
+          const ny = target.y + dy;
+          if (this.mapRenderer.isWalkable(nx, ny)) return { x: nx, y: ny };
+        }
       }
     }
+    return null;
   }
+
+  private updateWander(dt: number): void {
+    if (this.state === 'walk') {
+      return;
+    }
+
+    this.ambientTimer += dt;
+    if (this.ambientTimer < this.ambientDuration) return;
+    this.ambientTimer = 0;
+
+    // Pick next ambient activity based on weighted probabilities
+    const waypoints = this.getOfficeWaypoints();
+    const totalWeight = waypoints.reduce((sum, wp) => sum + wp.weight, 0);
+    let rand = Math.random() * totalWeight;
+    let chosen = waypoints[0];
+
+    for (const wp of waypoints) {
+      if (rand < wp.weight) {
+        chosen = wp;
+        break;
+      }
+      rand -= wp.weight;
+    }
+
+    const destTile = this.pickWalkableTileNear(chosen.tile);
+    if (!destTile) {
+      this.ambientDuration = 2 + Math.random() * 2;
+      return;
+    }
+
+    this.ambientDuration = chosen.duration;
+    const cur = this.getTilePosition();
+
+    if (cur.x === destTile.x && cur.y === destTile.y) {
+      // Already at destination — perform the activity in place
+      if (chosen.facing) this.faceDirection(chosen.facing);
+      if (chosen.thought && Math.random() < 0.6) {
+        this.thoughtBubble.show(chosen.thought);
+        setTimeout(() => this.thoughtBubble.startLinger(), 2800);
+      }
+      if (destTile.x === this.deskTile.x && destTile.y === this.deskTile.y) {
+        this.applySit();
+      }
+      return;
+    }
+
+    // Stand up before walking
+    if (this.sitting) {
+      this.sitting = false;
+      this.sprite.setSeatedCrop(0);
+      this.sprite.setPosition(this.px, this.py);
+    }
+
+    // Store waypoint metadata for updateWalk to apply on arrival
+    this.pendingWaypointFacing = chosen.facing ?? null;
+    this.pendingWaypointThought = chosen.thought && Math.random() < 0.6 ? chosen.thought : null;
+    this.pendingWaypointIsDesk = destTile.x === this.deskTile.x && destTile.y === this.deskTile.y;
+    // Use moveTo (not walkToAndThen) to preserve wandering/idleLoop state
+    this.moveTo(destTile);
+  }
+
 
   destroy(): void {
     if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }

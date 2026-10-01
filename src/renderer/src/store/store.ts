@@ -5,6 +5,7 @@ import type { ThemeId } from '@/scene/office/themeRegistry';
 import type { StatusKind } from '@/components/PixelBadge';
 import type { AgentProvider } from '@shared/agentProvider';
 import type { HireManifest } from '@shared/hire';
+import type { Project } from '@shared/project';
 import { DEFAULT_ORG_TRIGGER, type OrgTriggerConfig, type WebhookTrigger } from '@shared/triggers';
 import { isCompactionCommand } from '@shared/providerAutomation';
 
@@ -255,6 +256,11 @@ interface State {
    *  else. Configuration only for now: no transport reads the key yet. */
   orgTrigger: OrgTriggerConfig;
   setOrgTrigger: (cfg: OrgTriggerConfig) => void;
+  /** Active Project for domain-specialized workspace */
+  activeProject: Project | null;
+  projects: Project[];
+  setActiveProject: (p: Project | null) => void;
+  setProjects: (ps: Project[]) => void;
   /** Park a message for an agent. Returns nothing; the flush loop delivers it.
    *  `meta.instruction`, when set, is what gets typed into the PTY instead of
    *  `text` (UI/card surfaces still show `text`). */
@@ -320,7 +326,7 @@ const fileRoster = (() => {
  *  "opened the build once and my floor went blank" failure this is here to
  *  prevent. A genuine delete-all clears both stores, so nothing resurrects. */
 const useFileRoster = !!fileRoster
-  && fileRoster.agents.length + fileRoster.archived.length + fileRoster.restorable.length > 0;
+  && ((fileRoster.agents?.length ?? 0) + (fileRoster.archived?.length ?? 0) + (fileRoster.restorable?.length ?? 0) > 0);
 
 /** The renderer's running copy of what should be on disk. Kept as a mutable
  *  mirror updated slice-by-slice rather than read back out of the store, because
@@ -418,7 +424,42 @@ function persistedSlice(
 function loadPersistedAgents(): Agent[] {
   try {
     const parsed = persistedSlice(LS_AGENTS, fileRoster?.agents);
-    if (!parsed.length) return [];
+    if (!parsed.length) {
+      return [
+        {
+          id: 'agent-god',
+          name: 'MICHAEL',
+          character: 'michael',
+          isGod: true,
+          accent: 'lemon',
+          description: 'Michael runs the floor',
+          project: 'hive',
+          tmuxTarget: '',
+          cwd: '',
+          status: 'idle',
+          action: 'running the floor',
+          progress: 0,
+          currentStation: 'desk',
+          recentTextTs: Date.now()
+        },
+        {
+          id: 'agent-ryan',
+          name: 'RYAN',
+          character: 'ryan',
+          isGod: false,
+          accent: 'sky',
+          description: 'Ryan at work',
+          project: 'munder-difflin',
+          tmuxTarget: '',
+          cwd: 'C:\\Users\\pc\\Downloads',
+          status: 'idle',
+          action: 'reconnecting..',
+          progress: 0,
+          currentStation: 'desk',
+          recentTextTs: Date.now()
+        }
+      ];
+    }
     // Reset volatile run-state; the PTY stream / mock loop will repopulate it.
     return parsed.map((a) => ({
       ...a,
@@ -746,6 +787,10 @@ export const useStore = create<State>((set) => ({
   // one careless mutation rewrites the default for everyone.
   orgTrigger: { ...DEFAULT_ORG_TRIGGER },
   setOrgTrigger: (cfg) => set({ orgTrigger: cfg }),
+  activeProject: null,
+  projects: [],
+  setActiveProject: (p) => set({ activeProject: p }),
+  setProjects: (ps) => set({ projects: ps }),
   enqueueMessage: (agentId, text, meta) =>
     set((s) => {
       const trimmed = text.trim();

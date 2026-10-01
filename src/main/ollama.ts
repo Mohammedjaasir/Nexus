@@ -5,8 +5,8 @@
  * and OpenAI-compatible endpoint resolution for local Ollama instances.
  */
 
-export const DEFAULT_OLLAMA_HOST = 'http://localhost:11434';
-export const DEFAULT_OLLAMA_OPENAI_URL = 'http://localhost:11434/v1';
+export const DEFAULT_OLLAMA_HOST = 'http://127.0.0.1:11434';
+export const DEFAULT_OLLAMA_OPENAI_URL = 'http://127.0.0.1:11434/v1';
 
 export interface OllamaModelInfo {
   name: string;
@@ -273,16 +273,31 @@ export async function startOllamaBridge(
   workspace: string,
   upstreamHost?: string
 ): Promise<OllamaBridgeInstance> {
-  const base = normalizeOllamaHost(upstreamHost);
+  const rawBase = (upstreamHost || DEFAULT_OLLAMA_HOST).trim().replace(/\/v1\/?$/i, '').replace(/\/+$/, '');
+  const base = rawBase.replace('localhost', '127.0.0.1');
   const upstreamUrl = new URL(base);
 
   const server = http.createServer((req, res) => {
     const targetPath = req.url || '/';
     const reqChunks: Buffer[] = [];
 
+    console.log('[OllamaBridge] REQUEST');
+    console.log(`method:\n${req.method}`);
+    console.log(`url:\n${req.url}`);
+    console.log(`upstream:\nhttp://${upstreamUrl.hostname}:${upstreamUrl.port || 11434}${targetPath}\n`);
+
     req.on('data', (chunk: Buffer) => reqChunks.push(chunk));
     req.on('end', () => {
       const reqBody = Buffer.concat(reqChunks);
+
+      // Sanitize headers: strip host, force identity encoding so SSE/JSON is uncompressed
+      const fwdHeaders: Record<string, string | string[] | undefined> = { ...req.headers };
+      delete fwdHeaders.host;
+      delete fwdHeaders['accept-encoding'];
+      fwdHeaders['accept-encoding'] = 'identity';
+      if (reqBody.length > 0) {
+        fwdHeaders['content-length'] = String(reqBody.length);
+      }
 
       const upstreamReq = http.request(
         {
@@ -290,12 +305,13 @@ export async function startOllamaBridge(
           port: upstreamUrl.port || 11434,
           path: targetPath,
           method: req.method,
-          headers: {
-            ...req.headers,
-            host: `${upstreamUrl.hostname}:${upstreamUrl.port || 11434}`
-          }
+          headers: fwdHeaders
         },
         (upstreamRes) => {
+          console.log('[OllamaBridge] UPSTREAM RESPONSE');
+          console.log(`status:\n${upstreamRes.statusCode}`);
+          console.log(`content-type:\n${upstreamRes.headers['content-type']}\n`);
+
           const isStreaming = (upstreamRes.headers['content-type'] || '').includes('text/event-stream');
 
           if (!isStreaming) {
@@ -470,6 +486,9 @@ export async function startOllamaBridge(
       );
 
       upstreamReq.on('error', (err) => {
+        console.log('[OllamaBridge] ERROR');
+        console.log(`message:\n${err.message}`);
+        console.log(`stack:\n${err.stack}\n`);
         res.writeHead(502, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
       });

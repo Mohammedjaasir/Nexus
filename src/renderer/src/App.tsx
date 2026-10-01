@@ -28,6 +28,12 @@ import { TaskDetailOverlay } from '@/components/TaskDetailOverlay';
 import { FullscreenFileEditor } from '@/components/FullscreenFileEditor';
 import { IdePanel } from '@/ide/IdePanel';
 import { useHoldOptionToTalk } from '@/freeflow/holdOption';
+import { ProjectDashboardModal } from '@/project/ProjectDashboardModal';
+import { HQWorldView } from '@/project/HQWorldView';
+import { NewProjectWizardModal } from '@/project/NewProjectWizardModal';
+import { ProjectImportModal } from '@/project/ProjectImportModal';
+import { ProjectCommandCenter } from '@/project/ProjectCommandCenter';
+import { getDomainDefinition, type DomainId } from '@shared/domain';
 import brandLogo from '@brand/logo.png?url';
 
 // Injected at build time from package.json (see electron.vite.config.ts).
@@ -47,7 +53,15 @@ export function App() {
   const setSidebarWidth = useStore(s => s.setSidebarWidth);
   const ideOpen = useStore(s => s.ideOpen);
   const setIdeOpen = useStore(s => s.setIdeOpen);
+  const activeProject = useStore(s => s.activeProject);
+  const setActiveProject = useStore(s => s.setActiveProject);
+  const setProjects = useStore(s => s.setProjects);
 
+  const [mainView, setMainView] = useState<'home' | 'project' | 'floor'>('home');
+  const [newProjectWizardOpen, setNewProjectWizardOpen] = useState(false);
+  const [newProjectDomain, setNewProjectDomain] = useState<DomainId | undefined>(undefined);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [projectDashboardOpen, setProjectDashboardOpen] = useState(false);
   const [config, setConfig] = useState<HarnessConfig | null>(null);
   // Whether the user has passed the launch-time hive picker this session. Starts
   // true (skip the picker) right after a hive SWITCH — changeHome relaunches and
@@ -118,6 +132,12 @@ export function App() {
     window.cth.realtimeHasOpenAiKey().then(has => {
       if (!cancelled) useStore.getState().setHasOpenAiKey(has);
     });
+    window.cth.projectGetActive().then(p => {
+      if (!cancelled && p) useStore.getState().setActiveProject(p);
+    });
+    window.cth.projectList().then(list => {
+      if (!cancelled && list) useStore.getState().setProjects(list);
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -127,7 +147,7 @@ export function App() {
   useHoldOptionToTalk();
 
   // Quit warning subscription
-  useEffect(() => window.cth.onCloseRequested((info) => setQuitWarn(info)), []);
+  useEffect(() => window.cth?.onCloseRequested?.((info) => setQuitWarn(info)) || (() => {}), []);
 
   // Shareable hires: a validated manifest arriving via the munderdifflin://
   // deep link (or file import) pre-fills the Add-Agent modal. Never spawns by itself.
@@ -278,6 +298,98 @@ export function App() {
         }}>
           {config.autoMode ? 'auto mode on' : 'auto mode off'}
         </span>
+
+        {/* Main View Navigation Tabs */}
+        <div style={{ display: 'inline-flex', gap: 4, background: 'var(--cth-ink-100)', padding: 2, borderRadius: 2 }} className="cth-titlebar-nodrag">
+          <button
+            type="button"
+            onClick={() => setMainView('home')}
+            style={{
+              padding: '2px 8px',
+              fontSize: 11,
+              fontWeight: mainView === 'home' ? 700 : 500,
+              background: mainView === 'home' ? '#fff' : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--cth-ink-900)'
+            }}
+          >
+            🏠 Projects Home
+          </button>
+          {activeProject && (
+            <button
+              type="button"
+              onClick={() => setMainView('project')}
+              style={{
+                padding: '2px 8px',
+                fontSize: 11,
+                fontWeight: mainView === 'project' ? 700 : 500,
+                background: mainView === 'project' ? '#fff' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--cth-ink-900)'
+              }}
+            >
+              📊 Command Center ({activeProject.name})
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setMainView('floor')}
+            style={{
+              padding: '2px 8px',
+              fontSize: 11,
+              fontWeight: mainView === 'floor' ? 700 : 500,
+              background: mainView === 'floor' ? '#fff' : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--cth-ink-900)'
+            }}
+          >
+            🏢 Office Floor
+          </button>
+        </div>
+
+        {/* Domain Project Workspace Button */}
+        <button
+          className="cth-titlebar-nodrag"
+          onClick={() => setProjectDashboardOpen(true)}
+          title={activeProject ? `Project: ${activeProject.name} (${activeProject.rootPath})` : 'Select or Import a Project'}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '2px 8px',
+            background: activeProject ? 'var(--cth-mint-light)' : 'var(--cth-paper-100)',
+            boxShadow: activeProject
+              ? 'inset 0 0 0 1.5px var(--cth-mint)'
+              : 'inset 0 0 0 1px var(--cth-ink-300)',
+            border: 'none',
+            borderRadius: 2,
+            cursor: 'pointer',
+            fontFamily: 'var(--cth-font-ui)',
+            fontSize: 12,
+            lineHeight: '18px',
+            color: 'var(--cth-ink-900)'
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>
+            📁 {activeProject ? activeProject.name : 'Select Project'}
+          </span>
+          {activeProject && (
+            <span
+              style={{
+                fontSize: 10,
+                padding: '0 4px',
+                background: 'var(--cth-cream-100)',
+                boxShadow: 'inset 0 0 0 1px var(--cth-ink-200)',
+                color: 'var(--cth-ink-700)'
+              }}
+            >
+              ⚡ {getDomainDefinition(activeProject.domainId).name}
+            </span>
+          )}
+        </button>
         {/* v0.3.4: theme + fullscreen live HERE (top right), not buried in the
             terminal header — and the theme darkens the whole app, terminals
             included (design/theme.ts + tokens.css dark block). */}
@@ -353,92 +465,150 @@ export function App() {
 
       </div>
 
-      <div style={{
-        flex: 1, minHeight: 0,
-        display: 'flex',
-        padding: 16,
-        gap: 0
-      }}>
-        <div style={{ flex: 1, minHeight: 0, minWidth: 0, position: 'relative' }}>
-          <OfficeFloor />
-          <MemoryPanel />
-          {agentCount === 0 && godStatus === 'booting' && <MichaelBooting />}
-          {agentCount === 0 && godStatus !== 'booting' && (
-            <div style={{
-              position: 'absolute', inset: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              pointerEvents: 'none'
-            }}>
-              <div style={{ pointerEvents: 'auto', width: 360 }}>
-                <PixelPanel variant="dialog" title="EMPTY FLOOR" noPadding>
-                  <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <p style={{ margin: 0, fontSize: 13, lineHeight: '20px' }}>
-                      No agents on the floor yet. Spawn one to see real claude output stream in here.
-                    </p>
-                    <PixelButton variant="primary" size="md" onClick={() => setAddAgentOpen(true)}>
-                      <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                        <Icon name="plus" /> add agent
-                      </span>
-                    </PixelButton>
-                  </div>
-                </PixelPanel>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <SidebarSplitter
-          width={sidebarWidth}
-          onChange={setSidebarWidth}
-          viewportWidth={vpWidth}
+      {/* Main Content View Switcher */}
+      {mainView === 'project' && activeProject ? (
+        <ProjectCommandCenter
+          project={activeProject}
+          onBackToHome={() => setMainView('home')}
+          onRefreshProject={async () => {
+            const refreshed = await window.cth?.projectRefresh?.(activeProject.id);
+            if (refreshed) setActiveProject(refreshed);
+          }}
         />
-
+      ) : (
         <div style={{
-          width: sidebarWidth, flexShrink: 0,
-          minHeight: 0, display: 'flex', flexDirection: 'column'
+          flex: 1, minHeight: 0,
+          display: 'flex',
+          padding: mainView === 'home' ? 0 : 16,
+          gap: 0
         }}>
-          {agent ? (
-            <AgentDetailPanel agent={agent} />
-          ) : godStatus === 'booting' ? (
-            <PixelPanel variant="default" noPadding style={{
-              padding: 16, height: '100%',
-              display: 'flex', flexDirection: 'column',
-              justifyContent: 'center', alignItems: 'center', gap: 12
-            }}>
-              <div style={{
-                fontFamily: 'var(--cth-font-display)', fontSize: 10, lineHeight: '14px',
-                color: 'var(--cth-ink-500)'
-              }}>WAKING THE FLOOR</div>
-              <p style={{ margin: 0, fontSize: 13, textAlign: 'center', color: 'var(--cth-ink-700)' }}>
-                Michael is clocking in.<br />
-                The terminal will land here once he's seated.
-              </p>
-            </PixelPanel>
-          ) : (
-            <PixelPanel variant="default" noPadding style={{
-              padding: 16, height: '100%',
-              display: 'flex', flexDirection: 'column',
-              justifyContent: 'center', alignItems: 'center', gap: 12
-            }}>
-              <div style={{
-                fontFamily: 'var(--cth-font-display)', fontSize: 10, lineHeight: '14px',
-                color: 'var(--cth-ink-500)'
-              }}>NO AGENT SELECTED</div>
-              <p style={{ margin: 0, fontSize: 13, textAlign: 'center', color: 'var(--cth-ink-700)' }}>
-                Spawn an agent from the strip below.<br />
-                The terminal and command bar will land here.
-              </p>
-              <PixelButton variant="secondary" size="md" onClick={() => setAddAgentOpen(true)}>
-                <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                  <Icon name="plus" /> add agent
-                </span>
-              </PixelButton>
-            </PixelPanel>
-          )}
-        </div>
-      </div>
+          <div style={{ flex: 1, minHeight: 0, minWidth: 0, position: 'relative', display: 'flex' }}>
+            {mainView === 'home' ? (
+              <HQWorldView
+                onOpenProject={async (id) => {
+                  const act = await window.cth?.projectSetActive?.(id);
+                  if (act) setActiveProject(act);
+                  setMainView('project');
+                }}
+                onNewProject={(dom) => {
+                  setNewProjectDomain(dom);
+                  setNewProjectWizardOpen(true);
+                }}
+                onImportProject={(dom) => {
+                  setNewProjectDomain(dom);
+                  setImportModalOpen(true);
+                }}
+                onSwitchToFloor={() => setMainView('floor')}
+              />
+            ) : (
+              <>
+                <OfficeFloor />
+                <MemoryPanel />
+                {agentCount === 0 && godStatus === 'booting' && <MichaelBooting />}
+                {agentCount === 0 && godStatus !== 'booting' && (
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    pointerEvents: 'none'
+                  }}>
+                    <div style={{ pointerEvents: 'auto', width: 360 }}>
+                      <PixelPanel variant="dialog" title="EMPTY FLOOR" noPadding>
+                        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <p style={{ margin: 0, fontSize: 13, lineHeight: '20px' }}>
+                            No agents on the floor yet. Spawn one to see real claude output stream in here.
+                          </p>
+                          <PixelButton variant="primary" size="md" onClick={() => setAddAgentOpen(true)}>
+                            <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                              <Icon name="plus" /> add agent
+                            </span>
+                          </PixelButton>
+                        </div>
+                      </PixelPanel>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
+          <SidebarSplitter
+            width={sidebarWidth}
+            onChange={setSidebarWidth}
+            viewportWidth={vpWidth}
+          />
+
+          <div style={{
+            width: sidebarWidth, flexShrink: 0,
+            minHeight: 0, display: 'flex', flexDirection: 'column'
+          }}>
+            {agent ? (
+              <AgentDetailPanel agent={agent} />
+            ) : godStatus === 'booting' ? (
+              <PixelPanel variant="default" noPadding style={{
+                padding: 16, height: '100%',
+                display: 'flex', flexDirection: 'column',
+                justifyContent: 'center', alignItems: 'center', gap: 12
+              }}>
+                <div style={{
+                  fontFamily: 'var(--cth-font-display)', fontSize: 10, lineHeight: '14px',
+                  color: 'var(--cth-ink-500)'
+                }}>WAKING THE FLOOR</div>
+                <p style={{ margin: 0, fontSize: 13, textAlign: 'center', color: 'var(--cth-ink-700)' }}>
+                  Michael is clocking in.<br />
+                  The terminal will land here once he's seated.
+                </p>
+              </PixelPanel>
+            ) : (
+              <PixelPanel variant="default" noPadding style={{
+                padding: 16, height: '100%',
+                display: 'flex', flexDirection: 'column',
+                justifyContent: 'center', alignItems: 'center', gap: 12
+              }}>
+                <div style={{
+                  fontFamily: 'var(--cth-font-display)', fontSize: 10, lineHeight: '14px',
+                  color: 'var(--cth-ink-500)'
+                }}>NO AGENT SELECTED</div>
+                <p style={{ margin: 0, fontSize: 13, textAlign: 'center', color: 'var(--cth-ink-700)' }}>
+                  Spawn an agent from the strip below.<br />
+                  The terminal and command bar will land here.
+                </p>
+                <PixelButton variant="secondary" size="md" onClick={() => setAddAgentOpen(true)}>
+                  <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                    <Icon name="plus" /> add agent
+                  </span>
+                </PixelButton>
+              </PixelPanel>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Agent Strip (Agent Box) rendered across all views */}
       <AgentStrip config={config} />
+
+      {newProjectWizardOpen && (
+        <NewProjectWizardModal
+          isOpen={newProjectWizardOpen}
+          initialDomainId={newProjectDomain}
+          onClose={() => setNewProjectWizardOpen(false)}
+          onProjectCreated={(p) => {
+            setActiveProject(p);
+            setMainView('project');
+          }}
+        />
+      )}
+
+      {importModalOpen && (
+        <ProjectImportModal
+          isOpen={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImportSuccess={async () => {
+            const act = await window.cth.projectGetActive();
+            if (act) setActiveProject(act);
+            setMainView('project');
+          }}
+        />
+      )}
 
       {addAgentOpen && (
         <AddAgentModal
@@ -474,6 +644,10 @@ export function App() {
       {fullscreenFilePath && <FullscreenFileEditor />}
       {ideOpen && <IdePanel />}
       <TaskDetailOverlay />
+      <ProjectDashboardModal
+        isOpen={projectDashboardOpen}
+        onClose={() => setProjectDashboardOpen(false)}
+      />
     </div>
   );
 }

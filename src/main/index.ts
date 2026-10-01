@@ -89,6 +89,15 @@ import {
   startOllamaBridge,
   DEFAULT_OLLAMA_OPENAI_URL
 } from './ollama';
+import { ProjectManager } from './project/projectManager';
+import {
+  listDomainDefinitions,
+  getDomainDefinition,
+  listDomainRoles,
+  getDomainRole
+} from '../shared/domain';
+import type { CreateProjectInput, UpdateProjectInput } from '../shared/project';
+import type { DomainId } from '../shared/domain';
 
 const activeOllamaBridges = new Map<string, { close: () => void }>();
 
@@ -305,6 +314,7 @@ const reflector = new MemoryReflector(
 // Durable harness state (SQLite, main process). Phase A: window bounds (kv) +
 // net-new command history. Opened in whenReady, closed in the teardown blocks.
 const persist = new PersistStore();
+const projectManager = new ProjectManager(persist);
 /** The PRIMARY window — the one running the hive/god orchestration and the sink
  *  for process-global timer events (missions, breaker, Slack ingestion). It is
  *  the most-recently-focused live window, so global events follow the user.
@@ -3232,6 +3242,180 @@ ipcMain.handle('hive:setArchived', (_evt, id: unknown, archived: unknown) => {
   hive.setArchived(id, archived === true);
   return { ok: true };
 });
+
+// ─── IPC: Projects & Domains (domain-specialized AI workspace) ─────────────
+ipcMain.handle('project:create', async (_evt, input: CreateProjectInput) => {
+  if (!input || !input.rootPath) return { ok: false, error: 'invalid input' };
+  try {
+    const project = await projectManager.createProject(input);
+    return { ok: true, project };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+ipcMain.handle('project:import', async (_evt, rootPath: unknown, domainId: unknown, name: unknown) => {
+  if (typeof rootPath !== 'string' || !rootPath.trim()) return { ok: false, error: 'invalid rootPath' };
+  try {
+    const res = await projectManager.importProject(
+      rootPath,
+      typeof domainId === 'string' ? (domainId as DomainId) : undefined,
+      typeof name === 'string' ? name : undefined
+    );
+    return { ok: true, project: res.project, scanResult: res.scanResult };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+ipcMain.handle('project:scan', async (_evt, rootPath: unknown) => {
+  if (typeof rootPath !== 'string' || !rootPath.trim()) return { ok: false, error: 'invalid rootPath' };
+  try {
+    const scanResult = await projectManager.scan(rootPath);
+    return { ok: true, scanResult };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+ipcMain.handle('project:get', (_evt, id: unknown) => {
+  if (typeof id !== 'string') return null;
+  return projectManager.getProject(id);
+});
+ipcMain.handle('project:list', () => projectManager.listProjects());
+ipcMain.handle('project:update', (_evt, id: unknown, patch: unknown) => {
+  if (typeof id !== 'string' || !patch || typeof patch !== 'object') return null;
+  return projectManager.updateProject(id, patch as UpdateProjectInput);
+});
+ipcMain.handle('project:delete', (_evt, id: unknown) => {
+  if (typeof id !== 'string') return false;
+  return projectManager.deleteProject(id);
+});
+ipcMain.handle('project:getActive', () => projectManager.getActiveProject());
+ipcMain.handle('project:setActive', (_evt, id: unknown) => {
+  return projectManager.setActiveProject(typeof id === 'string' ? id : null);
+});
+ipcMain.handle('project:refresh', async (_evt, id: unknown) => {
+  if (typeof id !== 'string') return null;
+  return projectManager.refreshProject(id);
+});
+ipcMain.handle('project:graph:getStats', (_evt, projectId: unknown) => {
+  if (typeof projectId !== 'string') return null;
+  return projectManager.getGraphStats(projectId);
+});
+ipcMain.handle('project:graph:getNodes', (_evt, projectId: unknown, filter: unknown) => {
+  if (typeof projectId !== 'string') return [];
+  return projectManager.getGraphNodes(projectId, filter && typeof filter === 'object' ? filter : undefined);
+});
+ipcMain.handle('project:graph:getNode', (_evt, projectId: unknown, nodeId: unknown) => {
+  if (typeof projectId !== 'string' || typeof nodeId !== 'string') return null;
+  return projectManager.getGraphNode(projectId, nodeId);
+});
+ipcMain.handle('project:graph:getNeighbors', (_evt, projectId: unknown, nodeId: unknown, direction: unknown) => {
+  if (typeof projectId !== 'string' || typeof nodeId !== 'string') return { nodes: [], edges: [] };
+  const dir = direction === 'outgoing' || direction === 'incoming' ? direction : 'both';
+  return projectManager.getGraphNeighbors(projectId, nodeId, dir);
+});
+ipcMain.handle('project:graph:findNode', (_evt, projectId: unknown, query: unknown) => {
+  if (typeof projectId !== 'string' || typeof query !== 'string') return [];
+  return projectManager.findGraphNode(projectId, query);
+});
+ipcMain.handle('project:graph:findRelated', (_evt, projectId: unknown, nodeId: unknown, relationKind: unknown) => {
+  if (typeof projectId !== 'string' || typeof nodeId !== 'string' || typeof relationKind !== 'string') return { nodes: [], edges: [] };
+  return projectManager.findRelatedGraphNodes(projectId, nodeId, relationKind as any);
+});
+ipcMain.handle('project:graph:getSubgraph', (_evt, projectId: unknown, nodeId: unknown, depth: unknown) => {
+  if (typeof projectId !== 'string' || typeof nodeId !== 'string') return { rootNodeId: '', depth: 1, nodes: [], edges: [] };
+  const d = typeof depth === 'number' ? depth : 1;
+  return projectManager.getGraphSubgraph(projectId, nodeId, d);
+});
+ipcMain.handle('project:graph:rebuild', (_evt, projectId: unknown) => {
+  if (typeof projectId !== 'string') return null;
+  return projectManager.rebuildGraph(projectId);
+});
+ipcMain.handle('project:context:assemble', async (_evt, projectId: unknown, task: unknown, options: unknown) => {
+  if (typeof projectId !== 'string' || typeof task !== 'string') return null;
+  return projectManager.assembleContext(projectId, task, options && typeof options === 'object' ? options : undefined);
+});
+ipcMain.handle('project:context:prepare', async (_evt, projectId: unknown, task: unknown, options: unknown) => {
+  if (typeof projectId !== 'string' || typeof task !== 'string') return null;
+  return projectManager.prepareAgentTaskContext(projectId, task, options && typeof options === 'object' ? options : undefined);
+});
+ipcMain.handle('project:context:benchmark', async (_evt, projectId: unknown, task: unknown, budgetTokens: unknown) => {
+  if (typeof projectId !== 'string' || typeof task !== 'string') return null;
+  return projectManager.runContextBenchmark(projectId, task, typeof budgetTokens === 'number' ? budgetTokens : undefined);
+});
+ipcMain.handle('domain:list', () => listDomainDefinitions());
+ipcMain.handle('domain:get', (_evt, id: unknown) => {
+  if (typeof id !== 'string') return null;
+  return getDomainDefinition(id);
+});
+ipcMain.handle('domain:roles:list', (_evt, domainId: unknown) =>
+  listDomainRoles(typeof domainId === 'string' ? domainId : undefined)
+);
+ipcMain.handle('domain:roles:get', (_evt, roleId: unknown) =>
+  (typeof roleId === 'string' ? getDomainRole(roleId) : null)
+);
+ipcMain.handle('project:roles:list', (_evt, projectId: unknown) =>
+  (typeof projectId === 'string' ? projectManager.getRolesForProject(projectId) : [])
+);
+ipcMain.handle('project:roles:suggest', (_evt, projectId: unknown, task: unknown) =>
+  (typeof projectId === 'string' && typeof task === 'string' ? projectManager.suggestRoleForProjectTask(projectId, task) : null)
+);
+ipcMain.handle('project:task:route', (_evt, projectId: unknown, task: unknown) =>
+  (typeof projectId === 'string' && typeof task === 'string' ? projectManager.routeTask(projectId, task) : null)
+);
+ipcMain.handle('project:task:plan', async (_evt, projectId: unknown, task: unknown, options: unknown) => {
+  if (typeof projectId !== 'string' || typeof task !== 'string') return null;
+  return projectManager.prepareTaskExecutionPlan(projectId, task, options && typeof options === 'object' ? options as any : undefined);
+});
+ipcMain.handle('project:task:verify', async (_evt, projectId: unknown, ruleIds: unknown, customCmd: unknown) => {
+  if (typeof projectId !== 'string') return null;
+  const rIds = Array.isArray(ruleIds) ? ruleIds.filter((r) => typeof r === 'string') : undefined;
+  const cmd = typeof customCmd === 'string' ? customCmd : undefined;
+  return projectManager.runTaskVerification(projectId, rIds, cmd);
+});
+ipcMain.handle('project:task:execute', async (_evt, plan: unknown, customCmd: unknown) => {
+  if (!plan || typeof plan !== 'object') return null;
+  const cmd = typeof customCmd === 'string' ? customCmd : undefined;
+  return projectManager.executeTaskPlan(plan as any, undefined, cmd);
+});
+ipcMain.handle('project:plan:get', (_evt, projectId: unknown) =>
+  (typeof projectId === 'string' ? projectManager.getProjectPlan(projectId) : null)
+);
+ipcMain.handle('project:plan:generate', (_evt, projectId: unknown) =>
+  (typeof projectId === 'string' ? projectManager.generateProjectPlan(projectId) : null)
+);
+ipcMain.handle('project:plan:updateTaskStatus', (_evt, projectId: unknown, taskId: unknown, status: unknown) =>
+  (typeof projectId === 'string' && typeof taskId === 'string' && typeof status === 'string'
+    ? projectManager.updateTaskStatus(projectId, taskId, status as any)
+    : null)
+);
+ipcMain.handle('project:gaps:analyze', (_evt, projectId: unknown) =>
+  (typeof projectId === 'string' ? projectManager.analyzeProjectGaps(projectId) : null)
+);
+ipcMain.handle('project:gaps:reconcile', (_evt, projectId: unknown) =>
+  (typeof projectId === 'string' ? projectManager.reconcileProjectPlan(projectId) : null)
+);
+ipcMain.handle('project:goal:set', (_evt, projectId: unknown, title: unknown, description: unknown) =>
+  (typeof projectId === 'string' && typeof title === 'string'
+    ? projectManager.setProjectGoal(projectId, title, typeof description === 'string' ? description : undefined)
+    : null)
+);
+ipcMain.handle('project:goal:get', (_evt, projectId: unknown) =>
+  (typeof projectId === 'string' ? projectManager.getProjectGoal(projectId) : null)
+);
+ipcMain.handle('project:goal:reconcile', (_evt, projectId: unknown) =>
+  (typeof projectId === 'string' ? projectManager.reconcileGoalPlan(projectId) : null)
+);
+ipcMain.handle('project:complete:next', (_evt, projectId: unknown) =>
+  (typeof projectId === 'string' ? projectManager.getNextProjectTask(projectId) : null)
+);
+ipcMain.handle('project:complete:step', async (_evt, projectId: unknown, customCmd: unknown) => {
+  if (typeof projectId !== 'string') return null;
+  const cmd = typeof customCmd === 'string' ? customCmd : undefined;
+  return projectManager.executeProjectStep(projectId, undefined, cmd);
+});
+ipcMain.handle('project:complete:contract', (_evt, projectId: unknown) =>
+  (typeof projectId === 'string' ? projectManager.evaluateProjectCompletionContract(projectId) : null)
+);
 
 // ─── IPC: Settings hero payload (remote data, cached) ───────────────────────
 /** Plan copy and sponsor, fetched from the repo so they can change without a

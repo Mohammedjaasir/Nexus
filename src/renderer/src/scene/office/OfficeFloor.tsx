@@ -247,6 +247,8 @@ export function OfficeFloor() {
       });
       if (mountIdRef.current !== mountId) { safeDestroy(app); return; }
       while (host.firstChild) host.removeChild(host.firstChild);
+      app.canvas.style.imageRendering = 'pixelated';
+      app.canvas.style.display = 'block';
       host.appendChild(app.canvas);
 
       // This canvas holds the OLDEST WebGL context in the process (it is built at
