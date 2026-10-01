@@ -16,40 +16,40 @@ import { PixelButton } from './PixelButton';
 // ─── Theme matching CTH palette ─────────────────────────────────────────────
 const cthEditorTheme = EditorView.theme({
   '&': {
-    background: '#FCFAF0',
-    color: '#1A1320',
+    background: '#FFFFFF',
+    color: '#18181B',
     height: '100%',
-    fontFamily: 'VT323, "JetBrains Mono", monospace',
+    fontFamily: 'var(--cth-font-mono)',
     fontSize: '16px'
   },
-  '.cm-content': { caretColor: '#FF6B6B', padding: '8px 0' },
-  '.cm-cursor, .cm-dropCursor': { borderLeftColor: '#FF6B6B', borderLeftWidth: '2px' },
+  '.cm-content': { caretColor: '#C8423E', padding: '8px 0' },
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: '#C8423E', borderLeftWidth: '2px' },
   '.cm-scroller': { fontFamily: 'inherit', overflow: 'auto' },
   '.cm-gutters': {
-    background: '#F0EAD2',
-    color: '#6B5878',
-    borderRight: '1px solid #D9CFE0'
+    background: '#F3F3F5',
+    color: '#5F5F68',
+    borderRight: '1px solid #DCDCE0'
   },
-  '.cm-activeLineGutter': { background: '#FFEC99' },
+  '.cm-activeLineGutter': { background: '#ECECEE' },
   '.cm-activeLine': { background: 'rgba(255, 217, 61, 0.10)' },
-  '.cm-selectionBackground, ::selection': { background: '#FFEC99 !important' },
-  '.cm-searchMatch': { background: '#A8E6E0', outline: '1px solid #1A1320' },
+  '.cm-selectionBackground, ::selection': { background: '#CFE0F2 !important' },
+  '.cm-searchMatch': { background: '#CFE0F2', outline: '1px solid #2D72B0' },
   '.cm-searchMatch.cm-searchMatch-selected': { background: '#FFD93D' }
 }, { dark: false });
 
 const cthSyntax = HighlightStyle.define([
   { tag: tags.keyword,        color: '#B197FC' },
-  { tag: tags.operator,       color: '#6B5878' },
+  { tag: tags.operator,       color: '#5F5F68' },
   { tag: [tags.string, tags.regexp], color: '#6BCF7F' },
-  { tag: [tags.number, tags.bool, tags.null], color: '#FF6B6B' },
-  { tag: tags.comment,        color: '#6B5878', fontStyle: 'italic' },
-  { tag: tags.variableName,   color: '#1A1320' },
+  { tag: [tags.number, tags.bool, tags.null], color: '#C8423E' },
+  { tag: tags.comment,        color: '#5F5F68', fontStyle: 'italic' },
+  { tag: tags.variableName,   color: '#18181B' },
   { tag: tags.function(tags.variableName), color: '#FFA07A' },
   { tag: [tags.typeName, tags.className], color: '#4ECDC4' },
-  { tag: tags.propertyName,   color: '#3D2E4A' },
-  { tag: tags.heading,        color: '#1A1320', fontWeight: 'bold' as any },
+  { tag: tags.propertyName,   color: '#3F3F46' },
+  { tag: tags.heading,        color: '#18181B', fontWeight: 'bold' as any },
   { tag: tags.link,           color: '#4ECDC4', textDecoration: 'underline' as any },
-  { tag: tags.meta,           color: '#6B5878' }
+  { tag: tags.meta,           color: '#5F5F68' }
 ]);
 
 function extensionsFor(filename: string) {

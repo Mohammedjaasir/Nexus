@@ -211,7 +211,7 @@ export function ProjectGoalCard({ projectId, onPlanUpdated }: ProjectGoalCardPro
                   key={cap.capabilityId}
                   style={{
                     padding: '8px 10px',
-                    background: isDone ? 'rgba(76, 175, 80, 0.05)' : isMissing ? '#FFF8E7' : '#fff',
+                    background: isDone ? 'rgba(76, 175, 80, 0.05)' : isMissing ? '#F6F6F7' : '#fff',
                     boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
                     display: 'flex',
                     flexDirection: 'column',

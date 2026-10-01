@@ -52,11 +52,11 @@ const CUSTOM_AUTH: IntegrationAuthType[] = ['none', 'bearer', 'header'];
 
 // UI-only brand glyphs (Jim's templates carry no glyph). Falls back to label initials.
 const GLYPH: Record<string, { mono: string; bg: string }> = {
-  github: { mono: 'Gh', bg: '#1A1320' },
+  github: { mono: 'Gh', bg: '#18181B' },
   'custom-rest': { mono: '{}', bg: '#2E9E5B' }
 };
 function glyphFor(kind: string, label: string): { mono: string; bg: string } {
-  return GLYPH[kind] ?? { mono: (label.replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '··'), bg: '#6B5878' };
+  return GLYPH[kind] ?? { mono: (label.replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '··'), bg: '#5F5F68' };
 }
 
 const dispLabel: CSSProperties = { fontFamily: 'var(--cth-font-display)', fontSize: 8, lineHeight: '12px', color: 'var(--cth-ink-500)', textTransform: 'uppercase' };
@@ -333,13 +333,13 @@ export function IntegrationsRegistry() {
           <span style={fieldLabel}>Test connection</span>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <PixelButton variant="secondary" size="sm" onClick={() => { void onTestCfg(); }} disabled={draft.isNew || testing}>{testing ? 'testing…' : 'Test connection'}</PixelButton>
-            {cfgTest && <span style={{ fontSize: 12, color: cfgTest.ok ? 'var(--cth-mint-700, #1f7a4d)' : 'var(--cth-danger, #6E1423)' }}>{fmtTest(cfgTest)}</span>}
+            {cfgTest && <span style={{ fontSize: 12, color: cfgTest.ok ? 'var(--cth-mint-700, #1f7a4d)' : 'var(--cth-danger, #C8423E)' }}>{fmtTest(cfgTest)}</span>}
           </div>
           <span style={hint}>{draft.isNew ? 'Save the integration first, then test the live connection.' : 'Runs a live read-only probe against the base URL with the stored secret.'}</span>
         </div>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
-          {(err || note) && <span style={{ marginRight: 'auto', fontSize: 12, color: err ? 'var(--cth-danger, #6E1423)' : 'var(--cth-ink-500)' }}>{err || note}</span>}
+          {(err || note) && <span style={{ marginRight: 'auto', fontSize: 12, color: err ? 'var(--cth-danger, #C8423E)' : 'var(--cth-ink-500)' }}>{err || note}</span>}
           <PixelButton variant="secondary" size="sm" onClick={goList} disabled={busy}>cancel</PixelButton>
           <PixelButton variant="primary" size="sm" onClick={() => { void onSave(); }} disabled={busy}>{busy ? '…' : draft.isNew ? 'Save integration' : 'Save changes'}</PixelButton>
         </div>
@@ -374,7 +374,7 @@ export function IntegrationsRegistry() {
               const st = !r.enabled
                 ? { dot: '○', color: 'var(--cth-ink-500)', text: 'Disabled' }
                 : needsSecret(r.authType) && !r.hasSecret
-                  ? { dot: '▲', color: 'var(--cth-danger, #6E1423)', text: 'Needs secret' }
+                  ? { dot: '▲', color: 'var(--cth-danger, #C8423E)', text: 'Needs secret' }
                   : { dot: '●', color: 'var(--cth-mint-700, #1f7a4d)', text: 'Enabled' };
               const rt = rowTest[r.id];
               return (
@@ -396,7 +396,7 @@ export function IntegrationsRegistry() {
                     <span style={{ ...hint, color: usable(r) ? 'var(--cth-mint-700, #1f7a4d)' : 'var(--cth-ink-500)' }}>
                       {usable(r) ? '✓ Available to all workers' : 'Not available to workers yet'}
                     </span>
-                    {rt && <span style={{ fontSize: 12, color: rt.ok ? 'var(--cth-mint-700, #1f7a4d)' : 'var(--cth-danger, #6E1423)' }}>· {fmtTest(rt)}</span>}
+                    {rt && <span style={{ fontSize: 12, color: rt.ok ? 'var(--cth-mint-700, #1f7a4d)' : 'var(--cth-danger, #C8423E)' }}>· {fmtTest(rt)}</span>}
                   </div>
                 </div>
               );

@@ -48,31 +48,31 @@ const zoomBtnStyle: CSSProperties = {
 // can satisfy at once. The terminal's `minimumContrastRatio` (see terminalPool.ts)
 // dynamically adjusts the per-cell foreground to keep both roles legible; these
 // values are tuned so the colours stay recognisable and read well natively. The
-// green/yellow are kept deep enough to read as text on cream (the brighter
+// green/yellow are kept deep enough to read as text on white (the brighter
 // variants are the lighter shades, per terminal convention).
 const lightTheme = {
-  background: '#FCFAF0',
-  foreground: '#1A1320',
-  cursor: '#D96A62',
-  cursorAccent: '#FCFAF0',
-  selectionBackground: '#FFEC99',
-  selectionForeground: '#1A1320',
-  black:        '#1A1320',
+  background: '#FFFFFF',
+  foreground: '#18181B',
+  cursor: '#C8423E',
+  cursorAccent: '#FFFFFF',
+  selectionBackground: '#CFE0F2',
+  selectionForeground: '#18181B',
+  black:        '#18181B',
   red:          '#D1453B',
-  green:        '#20904B',    // deep green → readable as text on cream
-  yellow:       '#9C6B00',    // deep amber → readable as text on cream
+  green:        '#20904B',    // deep green → readable as text on white
+  yellow:       '#9C6B00',    // deep amber → readable as text on white
   blue:         '#2B6CB0',
   magenta:      '#8A5CF0',
   cyan:         '#1F9C94',
-  white:        '#3A2F44',   // default "white" text → dark, so it's visible
-  brightBlack:  '#6B5878',
+  white:        '#3F3F46',   // default "white" text → dark, so it's visible
+  brightBlack:  '#5F5F68',
   brightRed:    '#E0584E',
   brightGreen:  '#2E9E54',
   brightYellow: '#B8860B',
   brightBlue:   '#3B7DC4',
   brightMagenta:'#9B72F2',
   brightCyan:   '#2BA89F',
-  brightWhite:  '#1A1320'
+  brightWhite:  '#18181B'
 };
 
 // Dark theme — mirrors the app's dark surface ramp (tokens.css
@@ -84,28 +84,28 @@ const lightTheme = {
 // apart from the panel holding it. Muted-professional ANSI: recognizable hues, no
 // fluorescing on the dark ground; brights are one legible step up, not pastels.
 const darkTheme = {
-  background: '#1A1A1F',        // = --cth-paper-100
-  foreground: '#DEDBD6',        // = --cth-ink-900
+  background: '#1A1A1D',        // = --cth-paper-100
+  foreground: '#E7E7EA',        // = --cth-ink-900
   cursor: '#E08C82',
-  cursorAccent: '#1A1A1F',
-  selectionBackground: '#37363F',
-  selectionForeground: '#DEDBD6',
-  black:        '#222229',
+  cursorAccent: '#1A1A1D',
+  selectionBackground: '#33333A',
+  selectionForeground: '#E7E7EA',
+  black:        '#232327',
   red:          '#E08C82',
   green:        '#74C096',
   yellow:       '#CFAA57',
   blue:         '#6FB3C4',
   magenta:      '#A896E3',
   cyan:         '#6FB3C4',
-  white:        '#DEDBD6',
-  brightBlack:  '#96919F',
+  white:        '#E7E7EA',
+  brightBlack:  '#97979F',
   brightRed:    '#EBA39C',
   brightGreen:  '#96CDA9',
   brightYellow: '#E5C87E',
   brightBlue:   '#8FC5D1',
   brightMagenta:'#C0B3EB',
   brightCyan:   '#8FC5D1',
-  brightWhite:  '#EFEDE9'
+  brightWhite:  '#F2F2F4'
 };
 
 const THEMES: Record<PtyTheme, typeof lightTheme> = { light: lightTheme, dark: darkTheme };
@@ -375,7 +375,7 @@ export function PtyTerminalView({ ptyId, onStreamData, onUserPrompt, onToggleFul
         <span style={{
           width: 8, height: 8, background: 'var(--cth-mint)',
           boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)',
-          animation: 'cth-pulse 1200ms steps(2, end) infinite'
+          animation: 'cth-pulse 1200ms ease-in-out infinite'
         }} />
         live · pty {ptyId}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>

@@ -2,46 +2,47 @@
 // Any change here must also update tokens.css.
 
 export const colors = {
+  // Interim neutral values (see tokens.css for the legacy-name mapping).
   cream: {
-    50: 0xfffdf5,
-    100: 0xfff8e7,
-    200: 0xf4e9c7,
-    300: 0xe8d9a0
+    50: 0xffffff,
+    100: 0xf6f6f7,
+    200: 0xececee,
+    300: 0xe0e0e3
   },
   paper: {
-    100: 0xfcfaf0,
-    200: 0xf0ead2
+    100: 0xffffff,
+    200: 0xf3f3f5
   },
   ink: {
-    900: 0x1a1320,
-    700: 0x3d2e4a,
-    500: 0x6b5878,
-    300: 0xa899b5,
-    100: 0xd9cfe0
+    900: 0x18181b,
+    700: 0x3f3f46,
+    500: 0x5f5f68,
+    300: 0x82828b,
+    100: 0xdcdce0
   },
-  // v0.3.4 recalibration: same hues, professional saturation (mirrors tokens.css)
   accent: {
-    coral: 0xd96a62,
-    coralLight: 0xf3d3cd,
-    mint: 0x5ca97a,
-    mintLight: 0xd2e7da,
-    sky: 0x4f9faf,
-    skyLight: 0xcfe5e9,
-    lemon: 0xdcab3c,
-    lemonLight: 0xf3e4bc,
-    lilac: 0x9482d3,
-    lilacLight: 0xe0daf2,
-    peach: 0xd99168,
-    peachLight: 0xf3daca
+    coral: 0xc8423e,
+    coralLight: 0xf8e1e0,
+    mint: 0x2a7f4e,
+    mintLight: 0xddefe3,
+    sky: 0x2d72b0,
+    skyLight: 0xdce8f4,
+    lemon: 0x8f6305,
+    lemonLight: 0xf5ead0,
+    lilac: 0x6e5cc0,
+    lilacLight: 0xe7e3f5,
+    peach: 0xb05a22,
+    peachLight: 0xf6e3d5
   },
   status: {
-    idle: 0xa199ab,
-    thinking: 0x4f9faf,
-    working: 0xdcab3c,
-    blocked: 0xd96a62,
-    success: 0x5ca97a,
-    ghost: 0xd9d3de
+    idle: 0x9a9aa2,
+    thinking: 0x2d72b0,
+    working: 0x8f6305,
+    blocked: 0xc8423e,
+    success: 0x2a7f4e,
+    ghost: 0xd4d4d9
   },
+  // Legacy office-floor scene colours (the floor is an isolated legacy view).
   world: {
     grassLight: 0xd4eab0,
     grassDark: 0xb5d589,
@@ -57,7 +58,8 @@ export const space = {
 } as const;
 
 export const type = {
-  display: '"Press Start 2P", monospace',
+  // No separate display face any more; kept as a name for existing callers.
+  display: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
   ui: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
   mono: '"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace'
 } as const;

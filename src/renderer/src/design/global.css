@@ -2,10 +2,8 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-/* The app is a fixed cream/light design. Without declaring it, Chromium on a
-   dark-mode OS styles form controls with the DARK UA scheme — most visibly a
-   white (invisible) text caret on our cream textareas. */
-:root { color-scheme: light; }
+/* color-scheme is declared per theme in tokens.css, so native controls follow
+   the app theme rather than the OS. */
 
 html, body, #root {
   margin: 0;
@@ -16,16 +14,6 @@ html, body, #root {
   font-size: var(--cth-text-body-md);
   line-height: var(--cth-lh-body-md);
   overflow: hidden;
-}
-
-body {
-  /* tiny diagonal cream noise — pure CSS, no images */
-  background-image:
-    repeating-linear-gradient(
-      45deg,
-      rgba(232, 217, 160, 0.20) 0 1px,
-      transparent 1px 6px
-    );
 }
 
 button, input, textarea, select {
@@ -40,8 +28,8 @@ input, textarea { caret-color: var(--cth-ink-900); }
 /* The MOUSE text-select pointer (the I-beam) is a different beast from the
    caret: it comes from the OS cursor scheme, which `color-scheme` can't touch.
    On Windows several schemes (and HiDPI variants) draw it white with a hairline
-   outline — invisible hovering over our cream inputs. Replace it with our own
-   inked I-beam wearing a cream halo, so it reads on cream AND on the dark
+   outline — invisible hovering over light inputs. Replace it with a dark I-beam
+   wearing a light halo, so it reads on light surfaces AND on the dark
    terminal. Falls back to the UA `text` cursor if SVG cursors are unavailable. */
 input, textarea, [contenteditable='true'] {
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='17' height='18'><g fill='none' stroke='%23fdf6e3' stroke-width='4' stroke-linecap='round'><path d='M5 2.5h7M8.5 3v12M5 15.5h7'/></g><g fill='none' stroke='%23261d31' stroke-width='1.6' stroke-linecap='round'><path d='M5 2.5h7M8.5 3v12M5 15.5h7'/></g></svg>") 8 9, text;
@@ -59,28 +47,27 @@ input, textarea, [contenteditable='true'] {
 .cth-scroll-hidden { scrollbar-width: none; -ms-overflow-style: none; }
 .cth-scroll-hidden::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
-/* Pixel-snapping for any rasterised content */
-canvas, img, svg { image-rendering: pixelated; image-rendering: crisp-edges; }
+/* Canvas content (the legacy office floor, sprite portraits) is pixel art and
+   must stay crisp when scaled. Images and SVG icons render normally. */
+canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 
-/* Focus ring — 2px outer offset, ink */
+/* Focus ring */
 :focus-visible {
-  outline: 1px solid var(--cth-ink-300);
+  outline: 2px solid var(--cth-sky);
   outline-offset: 2px;
 }
 
-/* Custom scrollbar — chunky, pixel-feel */
-::-webkit-scrollbar { width: 12px; height: 12px; }
-::-webkit-scrollbar-track {
-  background: var(--cth-cream-200);
-  box-shadow: inset 0 0 0 1px var(--cth-ink-100);
-}
+/* Scrollbar — thin and quiet */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--cth-ink-700);
-  box-shadow: inset 0 0 0 1px var(--cth-ink-300);
+  background: var(--cth-ink-100);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 6px;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--cth-ink-900); }
+::-webkit-scrollbar-thumb:hover { background: var(--cth-ink-300); background-clip: padding-box; }
 
-/* commit-graph (open-source git visualiser) — harmonise with the pixel theme */
 /* Commit history. The `* { font-family: … !important }` blanket that used to live
    here existed to reach inside the third-party commit-graph widget; the rows are
    ours now, so fonts are set per element and the override would only fight the
@@ -97,27 +84,18 @@ canvas, img, svg { image-rendering: pixelated; image-rendering: crisp-edges; }
 .cth-titlebar-drag { -webkit-app-region: drag; }
 .cth-titlebar-nodrag { -webkit-app-region: no-drag; }
 
-/* Settings (gear) button in the title bar — a clear bordered chip with a
-   neo-brutalist hover (lemon fill + offset shadow) so it reads as a button. */
-.cth-settings-btn { transition: background 80ms steps(2), box-shadow 80ms steps(2), transform 80ms steps(2); }
-.cth-settings-btn:hover {
-  background: var(--cth-lemon) !important;
-  box-shadow: inset 0 0 0 1px var(--cth-ink-300), 2px 2px 0 0 var(--cth-ink-900) !important;
-  transform: translate(-1px, -1px);
-}
-.cth-settings-btn:active {
-  transform: translate(0, 0);
-  box-shadow: inset 0 0 0 1px var(--cth-ink-300) !important;
-}
+/* Settings button in the title bar: a plain hover fill. */
+.cth-settings-btn { transition: background 120ms ease; }
+.cth-settings-btn:hover { background: var(--cth-cream-200) !important; }
 
-/* Keyframes — pixel-style: step-based, no easing */
+/* Keyframes. Blink stays stepped (it is a caret/cursor blink); pulse is smooth. */
 @keyframes cth-blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
 }
 @keyframes cth-pulse {
-  0%, 49% { transform: scale(1); }
-  50%, 100% { transform: scale(0.7); }
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.8); opacity: 0.6; }
 }
 
 /* Reduce motion */
@@ -200,4 +178,21 @@ canvas, img, svg { image-rendering: pixelated; image-rendering: crisp-edges; }
   display: inline-block; padding: 2px 8px; font-size: 12px;
   background: var(--cth-cream-200); box-shadow: inset 0 0 0 1px var(--cth-ink-100);
   color: var(--cth-ink-500); border-radius: 2px;
+}
+
+/* ─── Legacy label compatibility (interim) ───────────────────────────────────
+   ~160 inline labels were sized for the retired pixel display face, at 7-10px.
+   That face is gone (--cth-font-display now resolves to the UI face), and at
+   those sizes a normal sans is unreadable. Lift them to 11px here, in one
+   place, rather than rewriting every call site that the new design system
+   will replace anyway. Matches React's serialized inline style. Delete this
+   block once no component uses --cth-font-display. */
+[style*="font-family: var(--cth-font-display)"][style*="font-size: 7px"],
+[style*="font-family: var(--cth-font-display)"][style*="font-size: 8px"],
+[style*="font-family: var(--cth-font-display)"][style*="font-size: 9px"],
+[style*="font-family: var(--cth-font-display)"][style*="font-size: 10px"] {
+  font-size: 11px !important;
+  line-height: 16px !important;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }

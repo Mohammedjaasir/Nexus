@@ -167,7 +167,7 @@ export function ContextPreviewModal({
                       ? 'var(--cth-mint-light)'
                       : executionResult.verification.status === 'failed'
                       ? '#FFEEEE'
-                      : '#FFF8E7',
+                      : '#F6F6F7',
                   border: `2px solid ${
                     executionResult.verification.status === 'success'
                       ? 'var(--cth-mint)'

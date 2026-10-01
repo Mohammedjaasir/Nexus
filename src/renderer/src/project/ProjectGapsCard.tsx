@@ -178,7 +178,7 @@ export function ProjectGapsCard({ projectId, onPlanUpdated }: ProjectGapsCardPro
             <div
               key={gap.gapId}
               style={{
-                background: isDone ? 'rgba(76, 175, 80, 0.05)' : isMissing && gap.isCritical ? '#FFF8E7' : 'var(--cth-cream-100)',
+                background: isDone ? 'rgba(76, 175, 80, 0.05)' : isMissing && gap.isCritical ? '#F6F6F7' : 'var(--cth-cream-100)',
                 boxShadow: 'inset 0 0 0 1px var(--cth-ink-200)',
                 padding: '8px 12px',
                 display: 'flex',

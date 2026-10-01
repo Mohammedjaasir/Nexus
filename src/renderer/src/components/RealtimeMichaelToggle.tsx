@@ -56,7 +56,7 @@ const STATE_VIEW: Record<
     variant: 'primary',
     label: 'listening',
     dot: 'var(--cth-mint)',
-    anim: 'cth-pulse 1000ms steps(2, end) infinite',
+    anim: 'cth-pulse 1000ms ease-in-out infinite',
     help: 'Listening — Michael is hearing you (click to stop)',
     activeBg: 'var(--cth-mint)'
   },
@@ -64,7 +64,7 @@ const STATE_VIEW: Record<
     variant: 'primary',
     label: 'speaking',
     dot: 'var(--cth-sky)',
-    anim: 'cth-pulse 600ms steps(2, end) infinite',
+    anim: 'cth-pulse 600ms ease-in-out infinite',
     help: 'Michael is speaking (click to stop)',
     activeBg: 'var(--cth-sky)'
   },
