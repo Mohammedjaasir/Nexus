@@ -146,7 +146,7 @@ function clearLocalState(): void {
     const keys: string[] = [];
     for (let i = 0; i < window.localStorage.length; i++) {
       const k = window.localStorage.key(i);
-      if (k && k.startsWith('cth.')) keys.push(k);
+      if (k && (k.startsWith('cth.') || k.startsWith('nx.'))) keys.push(k);
     }
     for (const k of keys) window.localStorage.removeItem(k);
   } catch { /* noop */ }
