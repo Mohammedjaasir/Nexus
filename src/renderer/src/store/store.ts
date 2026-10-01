@@ -424,42 +424,7 @@ function persistedSlice(
 function loadPersistedAgents(): Agent[] {
   try {
     const parsed = persistedSlice(LS_AGENTS, fileRoster?.agents);
-    if (!parsed.length) {
-      return [
-        {
-          id: 'agent-god',
-          name: 'MICHAEL',
-          character: 'michael',
-          isGod: true,
-          accent: 'lemon',
-          description: 'Michael runs the floor',
-          project: 'hive',
-          tmuxTarget: '',
-          cwd: '',
-          status: 'idle',
-          action: 'running the floor',
-          progress: 0,
-          currentStation: 'desk',
-          recentTextTs: Date.now()
-        },
-        {
-          id: 'agent-ryan',
-          name: 'RYAN',
-          character: 'ryan',
-          isGod: false,
-          accent: 'sky',
-          description: 'Ryan at work',
-          project: 'munder-difflin',
-          tmuxTarget: '',
-          cwd: 'C:\\Users\\pc\\Downloads',
-          status: 'idle',
-          action: 'reconnecting..',
-          progress: 0,
-          currentStation: 'desk',
-          recentTextTs: Date.now()
-        }
-      ];
-    }
+    if (!parsed.length) return [];
     // Reset volatile run-state; the PTY stream / mock loop will repopulate it.
     return parsed.map((a) => ({
       ...a,
