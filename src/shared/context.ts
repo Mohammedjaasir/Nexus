@@ -1,5 +1,5 @@
 /**
- * Core Context Intelligence Engine types for Munder Difflin.
+ * Core Context Intelligence Engine types for Nexus.
  *
  * Defines context tiers, ranking provenance, budget allocation,
  * and context packaging contracts for domain-specialized AI agents.

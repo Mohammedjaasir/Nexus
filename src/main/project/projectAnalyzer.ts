@@ -1,5 +1,5 @@
 /**
- * Deterministic Project Analyzer for Munder Difflin.
+ * Deterministic Project Analyzer for Nexus.
  *
  * Fast, offline local heuristics scanner that inspects project files, dependencies,
  * frameworks, tests, documentation, and Git status WITHOUT sending code to an LLM.

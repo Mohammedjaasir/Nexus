@@ -211,12 +211,12 @@ test('8. Cancellation before execution: Plan remains discarded without state sid
   }
 });
 
-test('9. Real E2E Flow on Munder Difflin: Task -> Role -> Context -> Execute -> Verify', async () => {
+test('9. Real E2E Flow on Nexus: Task -> Role -> Context -> Execute -> Verify', async () => {
   const root = process.cwd();
   const store = new MockStore();
   const manager = new ProjectManager(store);
 
-  const { project } = await manager.importProject(root, 'software-engineering', 'munder-difflin');
+  const { project } = await manager.importProject(root, 'software-engineering', 'nexus');
 
   const taskPrompt = 'Add a small deterministic helper function to an isolated utility file, write a focused test, and make sure the test passes.';
 

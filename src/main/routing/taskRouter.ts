@@ -1,5 +1,5 @@
 /**
- * Deterministic Task -> Agent Router for Munder Difflin.
+ * Deterministic Task -> Agent Router for Nexus.
  *
  * Evaluates task intent, primary and secondary project domains, project type,
  * knowledge graph evidence, and role capabilities to recommend the optimal

@@ -53,14 +53,14 @@ async function runMultiTaskBenchmark() {
   const store = new MemoryStore();
   const root = process.cwd();
   store.saveProject({
-    id: 'munder-difflin-root',
-    name: 'munder-difflin',
+    id: 'nexus-root',
+    name: 'nexus',
     rootPath: root,
     domainId: 'software-engineering'
   });
 
-  const graph = extractProjectKnowledgeGraph('munder-difflin-root', root, 'munder-difflin');
-  store.saveProjectGraph('munder-difflin-root', graph.nodes, graph.edges);
+  const graph = extractProjectKnowledgeGraph('nexus-root', root, 'nexus');
+  store.saveProjectGraph('nexus-root', graph.nodes, graph.edges);
 
   const engine = new ContextEngine(store);
 
@@ -71,8 +71,8 @@ async function runMultiTaskBenchmark() {
   const results = [];
 
   for (const item of BENCHMARK_TASKS) {
-    const realisticBase = engine.computeRealisticBaseline('munder-difflin-root', item.task);
-    const optimizedPackage = await engine.assembleContext('munder-difflin-root', item.task, { budgetTokens: 32000 });
+    const realisticBase = engine.computeRealisticBaseline('nexus-root', item.task);
+    const optimizedPackage = await engine.assembleContext('nexus-root', item.task, { budgetTokens: 32000 });
 
     let testsPassed = false;
     try {

@@ -1,5 +1,5 @@
 /**
- * Core Project definitions for Munder Difflin.
+ * Core Project definitions for Nexus.
  *
  * Defines the Project abstraction, detected components, health metrics,
  * and scanning results for domain-specialized AI workspace execution.

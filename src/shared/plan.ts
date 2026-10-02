@@ -1,5 +1,5 @@
 /**
- * Shared types for Project Planning & Task Graph in Munder Difflin (Phase 8A).
+ * Shared types for Project Planning & Task Graph in Nexus (Phase 8A).
  */
 
 export type TaskStatus =

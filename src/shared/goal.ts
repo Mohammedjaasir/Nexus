@@ -1,5 +1,5 @@
 /**
- * Shared types for Goal-Aware Project Planning in Munder Difflin (Phase 8C).
+ * Shared types for Goal-Aware Project Planning in Nexus (Phase 8C).
  */
 
 export interface GoalCapability {

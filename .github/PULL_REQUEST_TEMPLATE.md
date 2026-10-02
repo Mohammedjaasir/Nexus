@@ -1,4 +1,4 @@
-<!-- Thanks for contributing to Munder Difflin! -->
+<!-- Thanks for contributing to Nexus! -->
 
 ## What & why
 
@@ -18,8 +18,8 @@
 
 ## Checklist
 
-- [ ] `npm run typecheck` passes (the de-facto CI gate).
+- [ ] `npm run typecheck` and `npm run test:focused` pass.
 - [ ] `npm run build` succeeds.
-- [ ] Any new UI derives from `DESIGN.md` / `tokens.ts` — no ad-hoc colors, spacing, or fonts.
+- [ ] New Nexus UI uses the `--nx-*` tokens and `nexus/ui` primitives — no ad-hoc colours or fonts.
 - [ ] If I added art, it's my own or compatibly licensed, and listed in `ATTRIBUTION.md`.
 - [ ] PR is focused on a single change.

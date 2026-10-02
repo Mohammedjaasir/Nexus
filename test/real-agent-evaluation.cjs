@@ -54,14 +54,14 @@ async function runRealAgentEvaluation() {
   const store = new MemoryStore();
   const root = process.cwd();
   store.saveProject({
-    id: 'munder-difflin-root',
-    name: 'munder-difflin',
+    id: 'nexus-root',
+    name: 'nexus',
     rootPath: root,
     domainId: 'software-engineering'
   });
 
-  const graph = extractProjectKnowledgeGraph('munder-difflin-root', root, 'munder-difflin');
-  store.saveProjectGraph('munder-difflin-root', graph.nodes, graph.edges);
+  const graph = extractProjectKnowledgeGraph('nexus-root', root, 'nexus');
+  store.saveProjectGraph('nexus-root', graph.nodes, graph.edges);
 
   const engine = new ContextEngine(store);
 
@@ -77,7 +77,7 @@ async function runRealAgentEvaluation() {
 
     // ──────────────── SCENARIO A: BASELINE CONTEXT ────────────────
     const t0Base = performance.now();
-    const baseline = engine.computeRealisticBaseline('munder-difflin-root', item.task);
+    const baseline = engine.computeRealisticBaseline('nexus-root', item.task);
     const t1Base = performance.now();
 
     // Measure tool calls & tests under Baseline
@@ -103,7 +103,7 @@ async function runRealAgentEvaluation() {
 
     // ──────────────── SCENARIO B: CONTEXT ENGINE OPTIMIZED CONTEXT ────────────────
     const t0Opt = performance.now();
-    const optimized = await engine.assembleContext('munder-difflin-root', item.task, { budgetTokens: 32000 });
+    const optimized = await engine.assembleContext('nexus-root', item.task, { budgetTokens: 32000 });
     const t1Opt = performance.now();
 
     // Verify optimized package contains the essential target file

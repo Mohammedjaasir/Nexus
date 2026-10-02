@@ -1,5 +1,5 @@
 /**
- * Shared types for Project Gap Analysis in Munder Difflin (Phase 8B).
+ * Shared types for Project Gap Analysis in Nexus (Phase 8B).
  */
 
 export type GapStatus = 'completed' | 'in_progress' | 'missing' | 'blocked' | 'unknown';

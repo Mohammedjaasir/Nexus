@@ -140,7 +140,7 @@ export function ProjectImportModal({ isOpen, onClose, onImportSuccess }: Project
           </div>
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
             <p style={{ margin: 0, fontSize: 12, lineHeight: '18px', color: 'var(--cth-ink-700)' }}>
-              Select a local repository or project folder. Munder Difflin will perform deterministic local analysis to detect its domain, languages, frameworks, and architecture.
+              Select a local repository or project folder. Nexus will perform deterministic local analysis to detect its domain, languages, frameworks, and architecture.
             </p>
 
             {/* Folder Selection Row */}

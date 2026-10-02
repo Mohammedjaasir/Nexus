@@ -1,5 +1,5 @@
 /**
- * Shared types for Task -> Agent Routing in Munder Difflin.
+ * Shared types for Task -> Agent Routing in Nexus.
  */
 
 import type { DomainAgentRole, AgentContextStrategy } from './domain';

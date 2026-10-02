@@ -1,5 +1,5 @@
 /**
- * Shared types for Task Execution & Verification flow in Munder Difflin (Phase 7C).
+ * Shared types for Task Execution & Verification flow in Nexus (Phase 7C).
  */
 
 import type { AgentProvider } from './agentProvider';

@@ -38,10 +38,15 @@ implemented.
   as ready from the hive's god status, even when the lead agent's CLI process
   has exited (seen: engine CLI `qwen` not installed, exit code 3).
 - **Legacy screens reachable from the Nexus shell still carry the old
-  identity.** IDE header "MUNDER DIFFLIN · IDE", the agents floor and cards
-  ("Michael" / "BOSS", "Message Michael"), Project Command Center ("Floor
-  Office View", "Phase 9A" labels), Settings copy, `index.html` title before
-  the shell mounts. The lead agent is named "Michael" in `hooks/useHive.ts`.
+  persona identity.** The agents floor and cards ("Michael" / "BOSS",
+  "Message Michael"), Project Command Center ("Floor Office View", "Phase 9A"
+  labels). The lead agent is named "Michael" in `hooks/useHive.ts`. (The old
+  product name was removed from all display text on 2026-10-02.)
+- **The old product name survives only in identifiers**, kept on purpose until
+  the identity/data-migration phase: `package.json` `name` (it sets the
+  `%APPDATA%` data folder), `appId` / `productName`, the deep-link scheme and
+  hire spec id, the Windows pipe, and the MCP/hook ids written into agents'
+  CLI configs.
 - **Legacy Settings modal ignores Escape** (its close button works).
 - **`projectDelete` leaves `project_plans` / `project_gaps` /
   `project_goals` rows** behind (orphans).

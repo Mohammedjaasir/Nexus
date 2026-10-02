@@ -1,5 +1,5 @@
 /**
- * Core Knowledge Graph types for Munder Difflin.
+ * Core Knowledge Graph types for Nexus.
  *
  * Models project-scoped graph nodes, relationships, query contracts, and statistics.
  */

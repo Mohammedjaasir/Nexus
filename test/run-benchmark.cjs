@@ -25,26 +25,26 @@ async function main() {
   const store = new MemoryStore();
   const root = process.cwd();
   store.saveProject({
-    id: 'munder-difflin-root',
-    name: 'munder-difflin',
+    id: 'nexus-root',
+    name: 'nexus',
     rootPath: root,
     domainId: 'software-engineering'
   });
 
-  const graph = extractProjectKnowledgeGraph('munder-difflin-root', root, 'munder-difflin');
-  store.saveProjectGraph('munder-difflin-root', graph.nodes, graph.edges);
+  const graph = extractProjectKnowledgeGraph('nexus-root', root, 'nexus');
+  store.saveProjectGraph('nexus-root', graph.nodes, graph.edges);
 
   const engine = new ContextEngine(store);
   const task = 'Fix the Ollama agent workspace/path issue.';
 
   // 1. Measure Scenario A (Realistic Baseline)
   const t0Baseline = performance.now();
-  const realisticBase = engine.computeRealisticBaseline('munder-difflin-root', task);
+  const realisticBase = engine.computeRealisticBaseline('nexus-root', task);
   const t1Baseline = performance.now();
 
   // 2. Measure Scenario B (Context Engine Optimized)
   const t0Optimized = performance.now();
-  const optimizedPackage = await engine.assembleContext('munder-difflin-root', task, { budgetTokens: 32000 });
+  const optimizedPackage = await engine.assembleContext('nexus-root', task, { budgetTokens: 32000 });
   const t1Optimized = performance.now();
 
   // 3. Run Task Test Verification
@@ -59,7 +59,7 @@ async function main() {
   }
 
   console.log('================================================================');
-  console.log('   MUNDER DIFFLIN CONTEXT INTELLIGENCE A/B BENCHMARK REPORT    ');
+  console.log('   NEXUS CONTEXT INTELLIGENCE A/B BENCHMARK REPORT    ');
   console.log('================================================================');
   console.log('Task: "' + task + '"\n');
 

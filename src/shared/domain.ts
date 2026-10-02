@@ -1,7 +1,7 @@
 /**
- * Domain Registry and Specialized Agent definitions for Munder Difflin.
+ * Domain Registry and Specialized Agent definitions for Nexus.
  *
- * Expands Munder Difflin HQ into a full multi-domain engineering simulation:
+ * Expands the platform into a multi-domain engineering registry:
  *  1. Software Engineering
  *  2. AI / Machine Learning
  *  3. Cybersecurity
