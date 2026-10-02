@@ -5,12 +5,19 @@ import type { Hue } from '../iconNames';
 
 export interface HotspotModel { key: string; label: string; tagline: string; description: string; icon: NexusIconName; hue: Hue | 'accent'; x: number; y: number; count: number | null; onOpen: () => void }
 
-export const WorkspaceHotspot = forwardRef<HTMLButtonElement, { model: HotspotModel; index: number; focusIndex: number; mode: 'stage' | 'grid'; onFocusIndex: (i: number) => void; onKeyDown: (e: React.KeyboardEvent) => void }>(
-  function WorkspaceHotspot({ model, index, focusIndex, mode, onFocusIndex, onKeyDown }, ref) {
-    const style = mode === 'stage' ? { left: `${model.x}%`, top: `${model.y}%`, animationDelay: `${(index % 5) * -1.2}s` } : undefined;
+export const WorkspaceHotspot = forwardRef<HTMLButtonElement, { model: HotspotModel; index: number; focusIndex: number; mode: 'stage' | 'grid'; onFocusIndex: (i: number) => void; onKeyDown: (e: React.KeyboardEvent) => void; onActive?: (key: string | null) => void }>(
+  function WorkspaceHotspot({ model, index, focusIndex, mode, onFocusIndex, onKeyDown, onActive }, ref) {
+    const style = mode === 'stage' ? { left: `${model.x}%`, top: `${model.y}%` } : undefined;
     return (
-      <div className={`nx-hs-wrap nx-hs-wrap--${mode}`} style={style} data-hue={model.hue}>
-        {mode === 'stage' && <span className="nx-hs-island" aria-hidden="true" />}
+      <div
+        className={`nx-hs-wrap nx-hs-wrap--${mode}`}
+        style={style}
+        data-hue={model.hue}
+        onMouseEnter={() => onActive?.(model.key)}
+        onMouseLeave={() => onActive?.(null)}
+        onFocus={() => onActive?.(model.key)}
+        onBlur={() => onActive?.(null)}
+      >
         <button
           ref={ref}
           type="button"

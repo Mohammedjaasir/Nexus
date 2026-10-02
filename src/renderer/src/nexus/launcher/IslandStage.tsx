@@ -7,20 +7,22 @@ import { useNexusUi } from '../state/uiStore';
 import { nextHotspot, type Dir } from './hotspotNav';
 import { ISLAND_ART_URL } from './islandArt';
 import { WorkspaceHotspot, type HotspotModel } from './WorkspaceHotspot';
+import { ArchipelagoScene } from './ArchipelagoScene';
 
 const KEY_DIR: Record<string, Dir> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
 
-function useGridMode(): boolean {
-  const q = '(max-width: 899px)';
+function useMedia(q: string): boolean {
   const [m, setM] = useState(() => window.matchMedia(q).matches);
-  useEffect(() => { const mq = window.matchMedia(q); const on = () => setM(mq.matches); mq.addEventListener('change', on); return () => mq.removeEventListener('change', on); }, []);
+  useEffect(() => { const mq = window.matchMedia(q); const on = () => setM(mq.matches); mq.addEventListener('change', on); return () => mq.removeEventListener('change', on); }, [q]);
   return m;
 }
 
 export function IslandStage() {
   const projects = useStore((s) => s.projects);
   const setLast = useNexusUi((s) => s.setLastWorkspace);
-  const grid = useGridMode();
+  const grid = useMedia('(max-width: 899px)');
+  const reducedMotion = useMedia('(prefers-reduced-motion: reduce)');
+  const [active, setActive] = useState<string | null>(null);
   const [artLoaded, setArtLoaded] = useState(false);
   const [artFailed, setArtFailed] = useState(false);
   const [focusIndex, setFocusIndex] = useState(0);
@@ -57,6 +59,7 @@ export function IslandStage() {
       {!grid && (
         <div className="nx-stage__art" aria-hidden="true">
           <div className="nx-stage__sky"><span className="nx-cloud nx-cloud--a" /><span className="nx-cloud nx-cloud--b" /><span className="nx-cloud nx-cloud--c" /></div>
+          {!artLoaded && <ArchipelagoScene active={active} motion={!reducedMotion} />}
           {ISLAND_ART_URL && !artFailed && (
             <img className={`nx-stage__img${artLoaded ? ' is-loaded' : ''}`} src={ISLAND_ART_URL} alt="" onLoad={() => setArtLoaded(true)} onError={() => setArtFailed(true)} />
           )}
@@ -64,7 +67,7 @@ export function IslandStage() {
       )}
       <div className={grid ? 'nx-stage__grid' : 'nx-stage__layer'} role={grid ? undefined : 'group'} aria-roledescription={grid ? undefined : 'launcher map'}>
         {models.map((m, i) => (
-          <WorkspaceHotspot key={m.key} ref={(el) => { refs.current[i] = el; }} model={m} index={i} focusIndex={focusIndex} mode={grid ? 'grid' : 'stage'} onFocusIndex={setFocusIndex} onKeyDown={onKeyDown} />
+          <WorkspaceHotspot key={m.key} ref={(el) => { refs.current[i] = el; }} model={m} index={i} focusIndex={focusIndex} mode={grid ? 'grid' : 'stage'} onFocusIndex={setFocusIndex} onKeyDown={onKeyDown} onActive={grid ? undefined : setActive} />
         ))}
       </div>
       {!grid && <p className="nx-sr-only">Use arrow keys to move between workspaces and Enter to open one.</p>}
