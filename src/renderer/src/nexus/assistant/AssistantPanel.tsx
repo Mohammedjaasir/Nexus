@@ -60,7 +60,9 @@ export function AssistantPanel({ headingId }: { headingId: string }) {
     const tail = s.state === 'starting' ? 'delivered once it has started'
       : s.state === 'ready' && s.deliveryPaused ? 'delivery is paused — release it in Agents'
       : 'delivered when the agent is ready';
-    setNotice({ tone: 'ok', text: `Queued for ${res.target.name} · ${tail}` });
+    // Role, not the agent's name: the legacy hive still names its lead agent
+    // after a persona, and that must not surface in the Nexus shell.
+    setNotice({ tone: 'ok', text: `Queued for the lead agent · ${tail}` });
   };
 
   const suggestions = showAll ? SUGGESTIONS : SUGGESTIONS.slice(0, 4);
@@ -71,7 +73,7 @@ export function AssistantPanel({ headingId }: { headingId: string }) {
         <span className="nx-assist__logo" aria-hidden="true"><Icon name="sparkles" size={18} /></span>
         <h2 id={headingId} className="nx-assist__title">Assistant</h2>
         <span className={`nx-dot nx-dot--${s.state}`} aria-hidden="true" />
-        <span className="nx-assist__target">{s.state === 'unavailable' ? 'Offline' : `Lead agent · ${s.target.name}`}</span>
+        <span className="nx-assist__target">{s.state === 'unavailable' ? 'Offline' : 'Lead agent'}</span>
         <button type="button" className="nx-iconbtn nx-focusable" onClick={port.openConversation} title="Open conversation in Agents" aria-label="Open conversation in Agents">
           <Icon name="agents" size={17} />
         </button>
