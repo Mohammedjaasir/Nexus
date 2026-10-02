@@ -39,6 +39,11 @@ if (import.meta.env.DEV && typeof window !== 'undefined' && !window.cth) {
 
   const baseBridge: Record<string, any> = {
     getConfig: async () => ({
+      // Reach the shell directly in the preview: onboarding and the hive
+      // picker need a real backend.
+      onboardingComplete: true,
+      autoMode: false,
+      harnessHome: '/sample/home',
       tvShowOffices: false,
       officeTheme: 'office',
       freeflowEnabled: false,
@@ -63,9 +68,12 @@ if (import.meta.env.DEV && typeof window !== 'undefined' && !window.cth) {
     listMissions: async () => [],
     appInfo: async () => ({ version: 'dev', name: 'Browser preview' }),
     getGodState: async () => ({ status: 'idle' }),
+    listPtys: async () => [],
     rosterReadSync: () => null,
     rosterWrite: async () => {}
   };
+
+  try { window.localStorage.setItem('cth.skipHivePickerOnce', '1'); } catch { /* preview only */ }
 
   (window as any).cth = new Proxy(baseBridge, {
     get(target, prop: string) {

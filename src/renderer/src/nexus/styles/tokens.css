@@ -35,6 +35,10 @@
   --nx-focus: #2F6BFF;
   --nx-danger: #C2352F;
   --nx-success: #1E7F4F;
+  /* Text on the soft badge fills (kept separate from the solid hues, which
+     also carry white icons and cannot simply lighten in dark mode). */
+  --nx-planned-text: #8A5A06;
+  --nx-accent-on-soft: #2457D6;
 
   /* Workspace hues: solid (icon tile) + soft (tile background) */
   --nx-hue-violet: #7C4DFF;  --nx-hue-violet-soft: #EEE8FF;
@@ -85,6 +89,10 @@
   --nx-accent-hover: #7AA2FF;
   --nx-accent-text: #0B1120;
   --nx-focus: #7AA2FF;
+  --nx-danger: #F87171;
+  --nx-success: #4ADE80;
+  --nx-planned-text: #E8B54D;
+  --nx-accent-on-soft: #7AA2FF;
   --nx-hue-violet-soft: #2A2350;  --nx-hue-blue-soft: #1C2A52;  --nx-hue-orange-soft: #3D2516;
   --nx-hue-teal-soft: #13353B;    --nx-hue-green-soft: #163626;  --nx-hue-amber-soft: #3A2E12;
   --nx-hue-pink-soft: #3C1A30;    --nx-hue-slate-soft: #22304B;

@@ -30,8 +30,8 @@
 
 .nx-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font: 600 11px/1 var(--nx-font); letter-spacing: 0.02em; }
 .nx-badge--neutral { background: var(--nx-surface-2); color: var(--nx-text-muted); border: 1px solid var(--nx-border); }
-.nx-badge--planned { background: var(--nx-hue-amber-soft); color: var(--nx-hue-amber); }
-.nx-badge--accent  { background: var(--nx-hue-blue-soft); color: var(--nx-accent); }
+.nx-badge--planned { background: var(--nx-hue-amber-soft); color: var(--nx-planned-text); }
+.nx-badge--accent  { background: var(--nx-hue-blue-soft); color: var(--nx-accent-on-soft); }
 
 .nx-empty { display: grid; justify-items: start; gap: 8px; padding: 28px; border: 1px dashed var(--nx-border); border-radius: var(--nx-radius-lg); background: var(--nx-surface); color: var(--nx-text-2); max-width: 640px; }
 .nx-empty__icon { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--nx-surface-2); color: var(--nx-text-muted); }

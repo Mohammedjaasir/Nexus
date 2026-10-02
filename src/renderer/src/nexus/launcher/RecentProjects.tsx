@@ -41,7 +41,7 @@ export function RecentProjects() {
                 <li key={p.id} className="nx-pcard">
                   <button type="button" className="nx-pcard__open nx-focusable" onClick={() => navigate({ name: 'project', id: p.id })}>
                     <IconTile icon={ws?.icon ?? 'projects'} hue={ws?.hue ?? 'slate'} size="md" />
-                    <span className="nx-pcard__text">
+                    <span className="nx-pcard__text" title={`${p.name} · ${p.rootPath}`}>
                       <span className="nx-pcard__name">{p.name}</span>
                       <span className="nx-pcard__ws">{ws ? `${ws.label} workspace` : `${UNASSIGNED_LABEL} workspace`}</span>
                     </span>
