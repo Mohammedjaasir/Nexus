@@ -55,6 +55,7 @@
 .nx-passport__actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
 .nx-passport__note { margin: 0; color: var(--nx-text-2); }
 .nx-surface__title { view-transition-name: nx-focus; }
+:root[data-nx-vt] .nx-surface__title { view-transition-name: none; }
 ::view-transition-group(nx-focus) { animation-duration: var(--nx-t-shift); animation-timing-function: var(--nx-ease-in); }
 @media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }
 
@@ -74,6 +75,9 @@
   .nx-rail [data-desktop-only] { display: none; }
   .nx-surface { padding: var(--nx-s4) var(--nx-s4) 140px; }
   .nx-intent { margin: 0 var(--nx-s3) var(--nx-s3); }
+  .nx-main--flush:has(> .nx-workbench) { overflow: auto; }
+  .nx-workbench, .nx-bench { flex: none; }
+  .nx-surface { overflow: visible; }
   .nx-mruns { padding: var(--nx-s3) var(--nx-s4) 0; background: var(--nx-surface); }
 }
 

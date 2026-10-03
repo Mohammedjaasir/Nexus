@@ -18,3 +18,9 @@ test('reduced motion or no support: runs the update directly', () => {
     assert.ok(ran);
   }
 });
+
+test('startViewTransition throwing still runs the update', () => {
+  let ran = 0;
+  withViewTransition(() => { ran += 1; }, { reduce: false, doc: { startViewTransition: () => { throw new Error('boom'); } } });
+  assert.equal(ran, 1);
+});

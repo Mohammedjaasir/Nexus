@@ -5,6 +5,8 @@ type Doc = { startViewTransition?: (cb: () => void) => unknown };
 export function withViewTransition(update: () => void, opts: { reduce?: boolean; doc?: Doc } = {}): void {
   const doc: Doc = opts.doc ?? (typeof document !== 'undefined' ? (document as unknown as Doc) : {});
   const reduce = opts.reduce ?? (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  if (!reduce && typeof doc.startViewTransition === 'function') { doc.startViewTransition(update); return; }
+  if (!reduce && typeof doc.startViewTransition === 'function') {
+    try { doc.startViewTransition(update); return; } catch { /* fall through: navigation always happens */ }
+  }
   update();
 }

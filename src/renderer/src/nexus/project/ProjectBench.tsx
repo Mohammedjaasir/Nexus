@@ -81,19 +81,31 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   useEffect(() => { setSelection({ kind: node.kind, label }); }, [node.kind, label, setSelection]);
   useEffect(() => () => setSelection(null), [setSelection]);
 
-  const wide = useMedia('(min-width: 1280px)');
+  const wide = !useMedia('(max-width: 1279px)');
   const mobile = useMedia('(max-width: 767px)');
   const [detailsOpen, setDetailsOpen] = useState(false);
   const closeDetails = useCallback(() => setDetailsOpen(false), []);
-  useEffect(() => { if (wide) setDetailsOpen(false); }, [wide]);
+  useEffect(() => {
+    if (!wide) return;
+    setDetailsOpen((open) => {
+      // Widening with the sheet open: focus would otherwise drop to body.
+      if (open) setTimeout(() => document.getElementById('nx-surface-title')?.focus(), 0);
+      return false;
+    });
+  }, [wide]);
 
   // The clicked node carries the shared transition name only for this one
   // transition; the surface title carries it in steady state. The router is
   // hash-based, so the hashchange is dispatched synchronously inside flushSync
   // and the new snapshot shows the rendered surface.
   const onSelect = (nodeId: string, el?: HTMLElement) => {
+    const root = document.documentElement;
+    // Old snapshot: only the node is named (the surface title is suppressed).
+    root.dataset.nxVt = '1';
     el?.style.setProperty('view-transition-name', 'nx-focus');
     withViewTransition(() => {
+      // New snapshot: only the title is named. Cleared on every path.
+      delete root.dataset.nxVt;
       el?.style.removeProperty('view-transition-name');
       flushSync(() => {
         setSelected(nodeId);
