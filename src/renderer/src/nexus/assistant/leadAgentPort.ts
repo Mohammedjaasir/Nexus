@@ -34,8 +34,9 @@ export function useLeadAgentPort(): AssistantPort {
       if (!trimmed) return { ok: false, error: 'Type a message first.' };
       if (status.state === 'unavailable') return { ok: false, error: status.reason };
       const instruction = contextHeader ? `${contextHeader}\n${trimmed}` : trimmed;
-      useStore.getState().enqueueMessage(status.target.id, trimmed, { instruction });
-      return { ok: true, target: status.target };
+      const queuedMessageId = useStore.getState().enqueueMessage(status.target.id, trimmed, { instruction });
+      if (!queuedMessageId) return { ok: false, error: 'The message could not be queued.' };
+      return { ok: true, target: status.target, queuedMessageId };
     },
     openConversation: () => {
       if (god) useStore.getState().select(god.id);

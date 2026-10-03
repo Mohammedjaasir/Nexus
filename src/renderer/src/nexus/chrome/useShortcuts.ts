@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
 import { useNexusUi } from '../state/uiStore';
 
-/** Ctrl/⌘K → palette, Ctrl/⌘J → assistant (sheet on compact layouts; focuses
- *  the composer on wide ones). Ignored while an xterm terminal has focus so
- *  terminal shortcuts keep working. */
+/** Ctrl/⌘K → palette, Ctrl/⌘J → focus the intent line. Ignored while an
+ *  xterm terminal has focus so terminal shortcuts keep working. */
 export function useShortcuts(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -12,7 +11,7 @@ export function useShortcuts(): void {
       if (t?.closest('.xterm')) return;
       const k = e.key.toLowerCase();
       if (k === 'k') { e.preventDefault(); useNexusUi.getState().setPaletteOpen(true); }
-      else if (k === 'j') { e.preventDefault(); useNexusUi.getState().focusComposer(); }
+      else if (k === 'j') { e.preventDefault(); useNexusUi.getState().focusIntent(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

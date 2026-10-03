@@ -3,6 +3,7 @@ import type { ProjectTool } from '../router/routes';
 import type { GitState, SpineNode } from './spineModel';
 import { SourceView } from './SourceView';
 import { LegacyPlanHost } from './LegacyPlanHost';
+import { ProjectRuns } from '../runs/ProjectRuns';
 
 export function FocusSurface({ tool, project, node, git, onRetryGit, onRefreshProject }: {
   tool: ProjectTool; project: Project; node: SpineNode; git: GitState; onRetryGit: () => void; onRefreshProject: () => void;
@@ -23,13 +24,6 @@ export function FocusSurface({ tool, project, node, git, onRetryGit, onRefreshPr
       </section>
     );
   }
-  if (tool === 'runs') {
-    return (
-      <section className="nx-surface" aria-labelledby="nx-surface-title">
-        <h1 id="nx-surface-title" className="nx-surface__title" tabIndex={-1}>Runs</h1>
-        <p className="nx-muted" role="status">Runs arrive in the next step.</p>
-      </section>
-    );
-  }
+  if (tool === 'runs') return <ProjectRuns projectId={project.id} />;
   return <SourceView project={project} node={node} git={git} onRetry={onRetryGit} />;
 }

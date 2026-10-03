@@ -3,9 +3,8 @@ import type { NexusIconName } from '../iconNames';
 export interface QuickAction {
   id: 'new-project' | 'analyze-dataset';
   title: string; description: string; icon: NexusIconName;
-  kind: 'new-project' | 'prefill' | 'disabled';
+  kind: 'new-project' | 'prefill';
   prefill?: string;
-  unavailableReason?: string;
 }
 
 export const QUICK_ACTIONS: QuickAction[] = [

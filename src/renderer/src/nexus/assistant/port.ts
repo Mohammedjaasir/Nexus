@@ -3,7 +3,7 @@ export type AssistantStatus =
   | { state: 'unavailable'; reason: string }
   | { state: 'starting'; target: AssistantTarget }
   | { state: 'ready'; target: AssistantTarget; deliveryPaused: boolean };
-export type SendResult = { ok: true; target: AssistantTarget } | { ok: false; error: string };
+export type SendResult = { ok: true; target: AssistantTarget; queuedMessageId: string } | { ok: false; error: string };
 
 /** What the assistant UI needs from whatever answers it. Phase A: the lead
  *  agent. A future provider (e.g. Hermes) implements this same interface and

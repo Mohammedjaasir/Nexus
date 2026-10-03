@@ -2,10 +2,9 @@ import { create } from 'zustand';
 import { browserStorage, readPref, writePref } from './prefs';
 import type { Selection } from '../intent/intentContext';
 
+export type SentRequest = { id: string; agentId: string; queuedMessageId: string; text: string; projectId: string | null; selectionLabel: string | null; sentAt: number };
+
 interface NexusUi {
-  assistantOpen: boolean;
-  setAssistantOpen: (open: boolean) => void;
-  toggleAssistant: () => void;
   paletteOpen: boolean;
   setPaletteOpen: (open: boolean) => void;
   railExpanded: boolean;
@@ -18,8 +17,12 @@ interface NexusUi {
   dismissSetup: () => void;
   draft: string;
   setDraft: (s: string) => void;
-  composerFocusTick: number;
-  focusComposer: () => void;
+  /** Requests sent from the intent line this session (not persisted). */
+  requests: SentRequest[];
+  addRequest: (r: SentRequest) => void;
+  /** Bumped to ask the intent line to take focus (Ctrl/Cmd+J, "Ask" buttons). */
+  intentFocusTick: number;
+  focusIntent: () => void;
   /** What the user has selected on the current surface (not persisted). */
   selection: Selection | null;
   setSelection: (s: Selection | null) => void;
@@ -28,9 +31,6 @@ interface NexusUi {
 const storage = browserStorage();
 
 export const useNexusUi = create<NexusUi>((set) => ({
-  assistantOpen: false,
-  setAssistantOpen: (open) => set({ assistantOpen: open }),
-  toggleAssistant: () => set((s) => ({ assistantOpen: !s.assistantOpen })),
   paletteOpen: false,
   setPaletteOpen: (open) => set({ paletteOpen: open }),
   railExpanded: false,
@@ -43,8 +43,10 @@ export const useNexusUi = create<NexusUi>((set) => ({
   dismissSetup: () => { writePref(storage, 'setupDismissed', '1'); set({ setupDismissed: true }); },
   draft: '',
   setDraft: (s) => set({ draft: s }),
-  composerFocusTick: 0,
-  focusComposer: () => set((s) => ({ composerFocusTick: s.composerFocusTick + 1, assistantOpen: true })),
+  requests: [],
+  addRequest: (r) => set((s) => ({ requests: [...s.requests, r] })),
+  intentFocusTick: 0,
+  focusIntent: () => set((s) => ({ intentFocusTick: s.intentFocusTick + 1 })),
   selection: null,
   setSelection: (s) => set({ selection: s })
 }));

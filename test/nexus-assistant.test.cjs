@@ -26,19 +26,19 @@ test('status: ready reflects delivery pause', () => {
 test('context header contains only provided facts', () => {
   assert.equal(buildContextHeader({}), null);
   assert.equal(buildContextHeader({ page: 'Home' }), null);
-  assert.equal(buildContextHeader({ workspace: 'ML', page: 'Home' }), '[Nexus context — workspace: ML · page: Home]');
+  assert.equal(buildContextHeader({ workspace: 'ML', page: 'Home' }), '[Nexus context: workspace ML; page Home]');
   assert.equal(
     buildContextHeader({ workspace: 'ML', project: { name: 'fraud', rootPath: 'C:\\repos\\fraud' }, page: 'Project' }),
-    '[Nexus context — workspace: ML · project: fraud (C:\\repos\\fraud) · page: Project]'
+    '[Nexus context: workspace ML; project fraud (C:\\repos\\fraud); page Project]'
   );
-  assert.equal(buildContextHeader({ project: { name: 'x', rootPath: '/x' } }), '[Nexus context — project: x (/x)]');
+  assert.equal(buildContextHeader({ project: { name: 'x', rootPath: '/x' } }), '[Nexus context: project x (/x)]');
 });
 
 test('quick actions: every action acts; all icons exist', () => {
   const byId = Object.fromEntries(QUICK_ACTIONS.map((a) => [a.id, a]));
   assert.equal(byId['new-project'].kind, 'new-project');
   assert.equal(byId['analyze-dataset'].kind, 'prefill');
-  assert.equal(QUICK_ACTIONS.some((a) => a.kind === 'disabled'), false);
+  assert.ok(QUICK_ACTIONS.every((a) => a.kind === 'new-project' || a.kind === 'prefill'));
   for (const a of QUICK_ACTIONS) assert.ok(NEXUS_ICON_NAMES.includes(a.icon), a.id);
   for (const s of SUGGESTIONS) { assert.ok(s.prompt.trim().length > 10, s.id); assert.ok(NEXUS_ICON_NAMES.includes(s.icon), s.id); }
 });

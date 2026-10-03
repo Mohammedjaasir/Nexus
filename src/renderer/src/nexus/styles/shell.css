@@ -1,5 +1,5 @@
 /* shell.css */
-.nx-shell { display: grid; grid-template-rows: var(--nx-bar-h) minmax(0, 1fr) auto; height: 100%; background: var(--nx-ground); color: var(--nx-ink); font: 400 14px/1.5 var(--nx-font); }
+.nx-shell { display: grid; grid-template-rows: var(--nx-bar-h) minmax(0, 1fr) auto auto; height: 100%; background: var(--nx-ground); color: var(--nx-ink); font: 400 14px/1.5 var(--nx-font); }
 .nx-bar { display: flex; align-items: center; gap: var(--nx-s2); padding: 0 var(--nx-s3); border-bottom: 1px solid var(--nx-line); background: var(--nx-surface); min-width: 0; }
 .nx-bar__brand { font: 700 15px/1 var(--nx-font-display); }
 .nx-path { display: flex; align-items: center; gap: var(--nx-s1); min-width: 0; overflow: hidden; }

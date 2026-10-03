@@ -1,0 +1,43 @@
+/* agent.css: the intent line and run strips. */
+.nx-intent { position: sticky; bottom: 0; margin: 0 var(--nx-s6) var(--nx-s4); display: grid; gap: 6px; padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-ink); border-radius: var(--nx-r-obj); background: var(--nx-surface); }
+.nx-intent__row { display: flex; align-items: center; gap: var(--nx-s2); }
+.nx-intent__chip { font-size: 11.5px; border: 1px solid var(--nx-line-strong); border-radius: 999px; padding: 1px 8px; white-space: nowrap; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+.nx-intent__field { flex: 1; resize: none; border: 0; background: transparent; font: 400 14px/1.4 var(--nx-font); color: var(--nx-ink); min-height: 22px; max-height: 120px; outline: none; }
+.nx-intent__status { font-size: 12px; color: var(--nx-text-3); }
+.nx-run { border: 1px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-surface); padding: var(--nx-s2) var(--nx-s3) var(--nx-s3); display: grid; gap: var(--nx-s2); }
+.nx-run__stages { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; }
+.nx-run__stages li { display: grid; gap: 4px; font-size: 11px; color: var(--nx-text-3); }
+.nx-run__stages li::before { content: ""; height: 4px; border-radius: 2px; background: var(--nx-line); }
+.nx-run__stages li[data-state="done"]::before { background: var(--nx-ink); }
+.nx-run__stages li[data-state="active"]::before { background: repeating-linear-gradient(-45deg, var(--nx-ink) 0 2px, transparent 2px 5px); outline: 1px solid var(--nx-ink); outline-offset: -1px; }
+.nx-run__stages li[data-state="waiting"]::before { background: var(--nx-warn); }
+.nx-run__stages li[data-state="unreported"]::before { background: repeating-linear-gradient(90deg, var(--nx-line) 0 3px, transparent 3px 6px); }
+.nx-run__stages li[data-state="active"], .nx-run__stages li[data-state="waiting"] { color: var(--nx-ink); font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) {
+  .nx-run__stages li[data-state="active"]::before { background-size: 10px 10px; animation: nx-hatch 0.9s linear infinite; }
+}
+@keyframes nx-hatch { to { background-position: 10px 0; } }
+
+/* Supporting pieces not covered above. */
+.nx-intent:focus-within { box-shadow: 0 0 0 2px var(--nx-ground), 0 0 0 3px var(--nx-ink); }
+.nx-intent__suggest { position: relative; }
+.nx-intent__pop { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 50; list-style: none; margin: 0; padding: 4px; min-width: 300px; display: grid; gap: 2px; border: 1px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-surface); }
+.nx-intent__sugg { display: flex; align-items: center; gap: var(--nx-s2); width: 100%; padding: 6px 8px; border: 0; border-radius: var(--nx-r-ctl); background: none; color: var(--nx-ink); font: 400 13px var(--nx-font); text-align: left; cursor: pointer; }
+.nx-intent__sugg:hover, .nx-intent__sugg:focus-visible { background: var(--nx-sunken); }
+.nx-intent__error { margin: 0; font-size: 12px; color: var(--nx-ink); font-weight: 600; }
+.nx-intent__status { margin: 0; }
+.nx-intent__status a { color: inherit; }
+@media (max-width: 767px) { .nx-intent { margin: 0 var(--nx-s2) var(--nx-s2); } .nx-intent__send-text { display: none; } }
+
+.nx-runs { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--nx-s3); }
+.nx-run__head { display: grid; gap: 2px; }
+.nx-run__title { margin: 0; font: 600 14px/1.35 var(--nx-font); overflow-wrap: anywhere; }
+.nx-run__headline { font-size: 12.5px; color: var(--nx-text-2); }
+.nx-run--needs-input { border-color: var(--nx-warn); }
+.nx-run--needs-input .nx-run__headline { color: var(--nx-ink); font-weight: 600; }
+.nx-run__note { margin: 0; font-size: 11.5px; color: var(--nx-text-3); }
+.nx-run__actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
+
+.nx-runpill { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border: 1px solid var(--nx-ink); border-radius: 999px; font: 600 12px/1 var(--nx-font); color: var(--nx-ink); text-decoration: none; white-space: nowrap; background: repeating-linear-gradient(-45deg, var(--nx-hatch) 0 2px, transparent 2px 6px), var(--nx-surface); }
+.nx-runpill--input { border-color: var(--nx-warn); }
+.nx-runpill:focus-visible { outline: 2px solid var(--nx-ink); outline-offset: 2px; }

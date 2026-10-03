@@ -32,7 +32,7 @@ export function Passport({ project, node, headSha, onRefreshProject, onOpenTermi
   project: Project; node: SpineNode; headSha: string | null; onRefreshProject: () => Promise<void>; onOpenTerminal: () => void; notice: string | null;
 }) {
   const actions = useShellActions();
-  const focusComposer = useNexusUi((s) => s.focusComposer);
+  const focusIntent = useNexusUi((s) => s.focusIntent);
   const isGit = node.kind === 'source' && node.vcs === 'git';
   const commits = useCommits(project.rootPath, isGit, headSha);
   const [busy, setBusy] = useState(false);
@@ -41,7 +41,7 @@ export function Passport({ project, node, headSha, onRefreshProject, onOpenTermi
 
   const run = (a: PassportAction) => {
     setNote(null);
-    if (a === 'ask') focusComposer();
+    if (a === 'ask') focusIntent();
     else if (a === 'files') actions.openIde(project.rootPath);
     else if (a === 'terminal') onOpenTerminal();
     else {

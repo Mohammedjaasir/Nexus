@@ -267,7 +267,9 @@ interface State {
   /** Park a message for an agent. Returns nothing; the flush loop delivers it.
    *  `meta.instruction`, when set, is what gets typed into the PTY instead of
    *  `text` (UI/card surfaces still show `text`). */
-  enqueueMessage: (agentId: string, text: string, meta?: { slack?: { channel: string; thread_ts: string }; instruction?: string }) => void;
+  /** Returns the id of the queued message: the new one, or the already-pending
+   *  compact it was folded into. '' when the text is empty and nothing queued. */
+  enqueueMessage: (agentId: string, text: string, meta?: { slack?: { channel: string; thread_ts: string }; instruction?: string }) => string;
   /** Drop a single queued message (user removed it, or it was just delivered). */
   removeQueuedMessage: (agentId: string, messageId: string) => void;
   /** "Send now" while floor auto-delivery is paused: marks the message manual
@@ -760,7 +762,9 @@ export const useStore = create<State>((set) => ({
   projects: [],
   setActiveProject: (p) => set({ activeProject: p }),
   setProjects: (ps) => set({ projects: ps }),
-  enqueueMessage: (agentId, text, meta) =>
+  enqueueMessage: (agentId, text, meta) => {
+    const id = newQueuedId();
+    let queuedId = '';
     set((s) => {
       const trimmed = text.trim();
       if (!trimmed) return s;
@@ -776,18 +780,23 @@ export const useStore = create<State>((set) => ({
       // by the next path someone adds. The context trigger's own check stays as
       // cheap defence in depth, but this is the one that cannot be routed around.
       const queued = s.messageQueues[agentId] ?? [];
-      if (isCompactionCommand(trimmed) && queued.some((m) => isCompactionCommand(m.text))) {
+      const pendingCompact = isCompactionCommand(trimmed) ? queued.find((m) => isCompactionCommand(m.text)) : undefined;
+      if (pendingCompact) {
+        queuedId = pendingCompact.id;
         return s;
       }
       const msg: QueuedMessage = {
-        id: newQueuedId(), text: trimmed, ts: Date.now(),
+        id, text: trimmed, ts: Date.now(),
         ...(meta?.slack ? { slack: meta.slack } : {}),
         ...(meta?.instruction ? { instruction: meta.instruction } : {})
       };
+      queuedId = id;
       const messageQueues = { ...s.messageQueues, [agentId]: [...(s.messageQueues[agentId] ?? []), msg] };
       persistQueues(messageQueues);
       return { messageQueues };
-    }),
+    });
+    return queuedId;
+  },
   removeQueuedMessage: (agentId, messageId) =>
     set((s) => {
       const current = s.messageQueues[agentId];

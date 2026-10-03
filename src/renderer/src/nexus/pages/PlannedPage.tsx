@@ -10,8 +10,8 @@ import { PLANNED } from './plannedContent';
 export function PlannedPage({ which }: { which: keyof typeof PLANNED }) {
   const c = PLANNED[which];
   const actions = useShellActions();
-  const focusComposer = useNexusUi((s) => s.focusComposer);
-  const go = { files: () => actions.openIde(), projects: () => navigate({ name: 'projects' }), assistant: focusComposer, agents: () => navigate({ name: 'agents' }) }[c.todayAction];
+  const focusIntent = useNexusUi((s) => s.focusIntent);
+  const go = { files: () => actions.openIde(), projects: () => navigate({ name: 'projects' }), assistant: focusIntent, agents: () => navigate({ name: 'agents' }) }[c.todayAction];
   const label = { files: 'Open Files', projects: 'Open Projects', assistant: 'Ask the lead agent', agents: 'Open Agents' }[c.todayAction];
   return (
     <div className="nx-page">

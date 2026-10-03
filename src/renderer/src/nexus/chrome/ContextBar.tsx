@@ -8,6 +8,7 @@ import { useNexusUi } from '../state/uiStore';
 import { pathSegments } from './navItems';
 import { NexusMenu } from './NexusMenu';
 import { PathSwitcher } from './PathSwitcher';
+import { RunsIndicator } from '../runs/RunsIndicator';
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
 
@@ -36,7 +37,7 @@ export function ContextBar() {
         </nav>
       )}
       <span className="nx-bar__spacer" />
-      {/* RunsIndicator mounts here in Task 9. */}
+      <RunsIndicator />
       <span className="nx-bar__version cth-titlebar-nodrag"><UpdateBadge /></span>
       <button type="button" className="nx-btn nx-btn--quiet nx-bar__search cth-titlebar-nodrag" onClick={() => setPaletteOpen(true)} aria-label="Search projects, workspaces and pages">
         <Icon name="search" size={15} />
