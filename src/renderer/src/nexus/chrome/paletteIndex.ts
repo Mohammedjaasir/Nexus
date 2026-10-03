@@ -31,7 +31,7 @@ const ACTIONS: PaletteEntry[] = [
 
 export function buildPaletteIndex(projects: P[]): PaletteEntry[] {
   const ws: PaletteEntry[] = WORKSPACES.map((w) => ({ id: `ws:${w.id}`, group: 'Workspaces', label: w.name, hint: `${w.label} · ${w.tagline}`, route: { name: 'workspace', id: w.id } }));
-  const pr: PaletteEntry[] = recentProjects(projects, projects.length).map((p) => ({ id: `project:${p.id}`, group: 'Projects', label: p.name, hint: p.rootPath, route: { name: 'project', id: p.id } }));
+  const pr: PaletteEntry[] = recentProjects(projects, projects.length).map((p) => ({ id: `project:${p.id}`, group: 'Projects', label: p.name, hint: p.rootPath, route: { name: 'project', id: p.id, tool: 'bench' } }));
   return [...PAGES, ...ws, ...pr, ...ACTIONS];
 }
 

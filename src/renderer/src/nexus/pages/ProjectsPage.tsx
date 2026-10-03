@@ -52,7 +52,7 @@ export function ProjectsPage() {
         ) : shown.length === 0 ? (
           <p className="nx-muted" role="status">No projects match these filters.</p>
         ) : (
-          <div className="nx-rows">{shown.map((p) => <ProjectRow key={p.id} project={p} onOpen={() => navigate({ name: 'project', id: p.id })} />)}</div>
+          <div className="nx-rows">{shown.map((p) => <ProjectRow key={p.id} project={p} onOpen={() => navigate({ name: 'project', id: p.id, tool: 'bench' })} />)}</div>
         )}
     </div>
   );

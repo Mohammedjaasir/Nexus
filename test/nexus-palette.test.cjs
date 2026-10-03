@@ -11,6 +11,7 @@ test('index has pages, workspaces, real projects and actions', () => {
   assert.ok(idx.some((e) => e.group === 'Pages' && e.label === 'Home'));
   assert.equal(idx.filter((e) => e.group === 'Workspaces').length, 8);
   assert.deepEqual(idx.filter((e) => e.group === 'Projects').map((e) => e.route.id), ['p1', 'p2']);
+  assert.ok(idx.filter((e) => e.group === 'Projects').every((e) => e.route.tool === 'bench'));
   assert.ok(idx.some((e) => e.action === 'newProject'));
 });
 

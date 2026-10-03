@@ -246,7 +246,7 @@ export function App() {
           onProjectCreated={(p) => {
             setActiveProject(p);
             void window.cth.projectList().then((l) => setProjects(l ?? []));
-            navigate({ name: 'project', id: p.id });
+            navigate({ name: 'project', id: p.id, tool: 'bench' });
           }}
         />
       )}
@@ -257,7 +257,7 @@ export function App() {
         onImportSuccess={async () => {
           const [list, act] = await Promise.all([window.cth.projectList(), window.cth.projectGetActive()]);
           setProjects(list ?? []);
-          if (act) { setActiveProject(act); navigate({ name: 'project', id: act.id }); }
+          if (act) { setActiveProject(act); navigate({ name: 'project', id: act.id, tool: 'bench' }); }
         }}
       />
 
@@ -302,7 +302,7 @@ export function App() {
         onOpenProject={() => {
           setProjectDashboardOpen(false);
           const p = useStore.getState().activeProject;
-          if (p) navigate({ name: 'project', id: p.id });
+          if (p) navigate({ name: 'project', id: p.id, tool: 'bench' });
         }}
       />
     </>

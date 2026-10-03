@@ -37,7 +37,7 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
         <h2 id="ws-projects" className="nx-h2">Projects in {ws.label}</h2>
         {status === 'error' && projects.length === 0 ? <LoadError error={error} onRetry={refresh} />
           : status === 'loading' && projects.length === 0 ? <RowsSkeleton count={3} />
-          : mine.length > 0 ? <div className="nx-rows">{mine.map((p) => <ProjectRow key={p.id} project={p} onOpen={() => navigate({ name: 'project', id: p.id })} />)}</div>
+          : mine.length > 0 ? <div className="nx-rows">{mine.map((p) => <ProjectRow key={p.id} project={p} onOpen={() => navigate({ name: 'project', id: p.id, tool: 'bench' })} />)}</div>
           : unmappable ? (
             <EmptyState icon={ws.icon} title={`No ${ws.label} projects yet`}
               body={<>Projects are grouped by the domain the analyzer detects, and none map to {ws.label} today. {ws.label} work will arrive through handoffs in a later phase.</>}

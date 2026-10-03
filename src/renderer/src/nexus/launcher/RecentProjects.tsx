@@ -39,7 +39,7 @@ export function RecentProjects() {
               const ws = workspaceForDomain(p.domainId);
               return (
                 <li key={p.id} className="nx-pcard">
-                  <button type="button" className="nx-pcard__open nx-focusable" onClick={() => navigate({ name: 'project', id: p.id })}>
+                  <button type="button" className="nx-pcard__open nx-focusable" onClick={() => navigate({ name: 'project', id: p.id, tool: 'bench' })}>
                     <IconTile icon={ws?.icon ?? 'projects'} hue={ws?.hue ?? 'slate'} size="md" />
                     <span className="nx-pcard__text" title={`${p.name} · ${p.rootPath}`}>
                       <span className="nx-pcard__name">{p.name}</span>
@@ -52,7 +52,7 @@ export function RecentProjects() {
                     <button type="button" className="nx-iconbtn nx-focusable" aria-haspopup="menu" aria-expanded={menu === p.id} aria-label={`More for ${p.name}`} onClick={() => setMenu(menu === p.id ? null : p.id)}><Icon name="more" size={17} /></button>
                     {menu === p.id && (
                       <div className="nx-menu" role="menu" onKeyDown={(e) => { if (e.key === 'Escape') setMenu(null); }}>
-                        <button role="menuitem" type="button" onClick={() => { setMenu(null); navigate({ name: 'project', id: p.id }); }}>Open</button>
+                        <button role="menuitem" type="button" onClick={() => { setMenu(null); navigate({ name: 'project', id: p.id, tool: 'bench' }); }}>Open</button>
                         <button role="menuitem" type="button" onClick={async () => { setMenu(null); const a = await window.cth.projectSetActive(p.id); if (a) setActiveProject(a); navigate({ name: 'agents' }); }}>Open in Agents view</button>
                         <button role="menuitem" type="button" onClick={async () => { setMenu(null); const r = await window.cth.projectRefresh(p.id); if (r) await refresh(); }}>Refresh analysis</button>
                       </div>

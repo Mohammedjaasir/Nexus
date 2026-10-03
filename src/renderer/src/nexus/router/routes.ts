@@ -1,11 +1,15 @@
-import { WORKSPACE_IDS, type WorkspaceId } from '../workspaces/types';
+import { getWorkspace } from '../workspaces/registry';
+import type { WorkspaceId } from '../workspaces/types';
+
+export const PROJECT_TOOLS = ['bench', 'changes', 'plan', 'runs'] as const;
+export type ProjectTool = (typeof PROJECT_TOOLS)[number];
 
 export type Route =
   | { name: 'home' }
   | { name: 'workspaces' }
   | { name: 'workspace'; id: WorkspaceId }
   | { name: 'projects' }
-  | { name: 'project'; id: string }
+  | { name: 'project'; id: string; tool: ProjectTool }
   | { name: 'artifacts' }
   | { name: 'handoffs' }
   | { name: 'deployments' }
@@ -29,11 +33,14 @@ export function parseHash(hash: string): Route {
     const head = parts[0] as (typeof SIMPLE)[number];
     return (SIMPLE as readonly string[]).includes(head) ? ({ name: head } as Route) : notFound;
   }
-  if (parts.length === 2) {
+  if (parts.length === 2 || parts.length === 3) {
     const id = decode(parts[1]);
     if (!id) return notFound;
-    if (parts[0] === 'w') return (WORKSPACE_IDS as readonly string[]).includes(id) ? { name: 'workspace', id: id as WorkspaceId } : notFound;
-    if (parts[0] === 'p') return { name: 'project', id };
+    if (parts[0] === 'w' && parts.length === 2) return getWorkspace(id) ? { name: 'workspace', id: id as WorkspaceId } : notFound;
+    if (parts[0] === 'p') {
+      const tool = (parts[2] ?? 'bench') as ProjectTool;
+      return (PROJECT_TOOLS as readonly string[]).includes(tool) ? { name: 'project', id, tool } : notFound;
+    }
   }
   return notFound;
 }
@@ -42,7 +49,7 @@ export function formatRoute(r: Route): string {
   switch (r.name) {
     case 'home': return '#/';
     case 'workspace': return `#/w/${encodeURIComponent(r.id)}`;
-    case 'project': return `#/p/${encodeURIComponent(r.id)}`;
+    case 'project': return r.tool === 'bench' ? `#/p/${encodeURIComponent(r.id)}` : `#/p/${encodeURIComponent(r.id)}/${r.tool}`;
     case 'not-found': return `#${r.path}`;
     default: return `#/${r.name}`;
   }
@@ -53,11 +60,11 @@ const TITLES: Record<string, string> = {
   artifacts: 'Artifacts', handoffs: 'Handoffs', deployments: 'Deployments', agents: 'Agents', 'not-found': 'Not found'
 };
 
+const TOOL_TITLES: Record<ProjectTool, string> = { bench: 'Project', changes: 'Changes', plan: 'Plan', runs: 'Runs' };
+
 export function routeTitle(r: Route): string {
-  if (r.name === 'workspace') {
-    const label: Record<WorkspaceId, string> = { sde: 'SDE', ml: 'ML', dl: 'DL', data: 'Data Analytics', research: 'Research', qa: 'QA', uiux: 'UI / UX', devops: 'DevOps' };
-    return `${label[r.id]} workspace`;
-  }
+  if (r.name === 'workspace') return `${getWorkspace(r.id)?.label ?? r.id} workspace`;
+  if (r.name === 'project') return TOOL_TITLES[r.tool];
   return TITLES[r.name];
 }
 
