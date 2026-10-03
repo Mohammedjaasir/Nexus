@@ -65,6 +65,7 @@ export function MessageQueueComposer({ agent }: MessageQueueComposerProps) {
   const composerLineHeight = Math.round(composerFontSize * 1.4);
 
   const idle = agent.status === 'idle';
+  const agentLabel = agent.isGod ? 'Lead agent' : agent.name;
 
   // Only the god/Michael agent gets the delegation toggle. Default OFF.
 
@@ -161,16 +162,16 @@ export function MessageQueueComposer({ agent }: MessageQueueComposerProps) {
   const statusHint = queue.length === 0
     ? null
     : !idle
-    ? `${agent.name} is busy — ${queue.length} queued`
+    ? `${agentLabel} is busy — ${queue.length} queued`
     : deliveryPaused && !queue[0]?.manual
     ? 'held — delivery paused floor-wide'
     : block === 'draft'
-    ? `held — ${agent.name}'s terminal has unsent text on its prompt`
+    ? `held — ${agentLabel}'s terminal has unsent text on its prompt`
     : block === 'picker'
-    ? `held — a slash-command picker is open in ${agent.name}'s terminal`
+    ? `held — a slash-command picker is open in ${agentLabel}'s terminal`
     : block === 'exited'
-    ? `held — ${agent.name}'s terminal has exited`
-    : `sending to ${agent.name} one-by-one…`;
+    ? `held — ${agentLabel}'s terminal has exited`
+    : `sending to ${agentLabel} one-by-one…`;
 
   return (
     <div
@@ -336,7 +337,7 @@ export function MessageQueueComposer({ agent }: MessageQueueComposerProps) {
           onKeyDown={onKey}
           onPaste={onPaste}
           rows={5}
-          placeholder={idle ? `Message ${agent.name}` : `${agent.name} is busy — queue a message`}
+          placeholder={idle ? `Message ${agentLabel}` : `${agentLabel} is busy — queue a message`}
           style={{
             width: '100%',
             resize: 'vertical',

@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useStore } from '@/store/store';
 import type { HarnessConfig } from '@/store/config';
-import { PtyTerminalView } from '@/components/PtyTerminalView';
+import { AgentDetailPanel } from '@/components/AgentDetailPanel';
 import { Icon } from '../icons';
 import { agentRows } from './agentList';
 
@@ -16,8 +16,14 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
   const fullscreenAgentId = useStore((s) => s.fullscreenAgentId);
 
   const rows = useMemo(() => agentRows(agents, queues as Record<string, unknown[]>), [agents, queues]);
-  const current = rows.find((r) => r.id === selectedId) ?? rows[0];
-  const ptyId = current ? agents.find((a) => a.id === current.id)?.ptyId ?? null : null;
+  const current = rows.find((r) => r.id === selectedId);
+  const agent = current ? agents.find((a) => a.id === current.id) : undefined;
+
+  // Single source of selection: when nothing valid is selected, pick the lead
+  // agent (rows are lead-first), else the first row.
+  useEffect(() => {
+    if (!current && rows.length > 0) select(rows[0].id);
+  }, [current, rows, select]);
 
   const toggleFullscreen = () => {
     const s = useStore.getState();
@@ -81,12 +87,8 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
               </li>
             ))}
           </ul>
-          <section className="nxa__term" role="region" aria-label={`${current?.title ?? 'Agent'} terminal`}>
-            {ptyId ? (
-              <PtyTerminalView key={ptyId} ptyId={ptyId} embedded />
-            ) : (
-              <p className="nxa__note">This agent has no running terminal.</p>
-            )}
+          <section className="nxa__term" role="region" aria-label={`${current?.title ?? 'Agent'} panel`}>
+            {agent ? <AgentDetailPanel agent={agent} /> : null}
           </section>
         </div>
       )}

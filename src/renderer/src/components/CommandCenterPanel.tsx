@@ -472,7 +472,7 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
       const hive = a.isGod
         ? { id: a.id, name: a.name, cwd: a.cwd, provider, isGod: true, role: 'orchestrator (god)' }
         : a.isAssistant
-        ? { id: a.id, name: a.name, cwd: a.cwd, provider, isAssistant: true, role: "Michael's prep assistant" }
+        ? { id: a.id, name: a.name, cwd: a.cwd, provider, isAssistant: true, role: "Lead agent's prep assistant" }
         : { id: a.id, name: a.name, cwd: a.cwd, provider, role: a.description };
       const res = await window.cth.spawnPty({
         id: a.ptyId,
@@ -605,7 +605,7 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
 
   return (
     <Scroll>
-      <Section title="DISPATCH — VIA MICHAEL">
+      <Section title="DISPATCH — VIA LEAD AGENT">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
           <span style={{ fontFamily: 'var(--cth-font-display)', fontSize: 8, color: 'var(--cth-ink-500)', flexShrink: 0 }}>
             SUGGESTED OWNER
@@ -672,7 +672,7 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
                   border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
                   fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-900)'
                 }}
-              >{a.name}{a.isGod ? ' (god)' : ''}</button>
+              >{a.isGod ? 'Lead agent' : a.name}</button>
               <PixelBadge status={armed ? 'looping' : a.status} />
               {armed && <span title={breaker?.reason} style={{ color: 'var(--cth-coral)', fontSize: 12 }}>⚠</span>}
               <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--cth-ink-500)' }}>
@@ -1001,7 +1001,7 @@ function ArchivedSection() {
             <SpritePortrait character={a.character} scale={1} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-700)' }}>{a.name}</div>
+            <div style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-700)' }}>{a.isGod ? 'Lead agent' : a.name}</div>
             <div style={{ fontSize: 11, color: 'var(--cth-ink-500)', wordBreak: 'break-all' }}>{a.cwd}</div>
           </div>
           <button
@@ -1101,7 +1101,7 @@ function MemoryTab({ godId, who: controlledWho, onWho }: { godId: string; who?: 
 
       <Section title="MEMORY FILE">
         <Select value={who} onChange={setWho}>
-          {agents.map((a) => (<option key={a.id} value={a.id}>{a.name}</option>))}
+          {agents.map((a) => (<option key={a.id} value={a.id}>{a.isGod ? 'Lead agent' : a.name}</option>))}
         </Select>
         <Pre>{mem || 'No memory recorded yet.'}</Pre>
       </Section>

@@ -96,7 +96,7 @@ export function WorkersTab() {
           </span>
         </div>
         <p style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 11, color: 'var(--cth-ink-700)', margin: '2px 0 8px' }}>
-          Isolated workers Michael spins up to handle Slack messages — they run to completion, reply in-thread, then tear down.
+          Isolated workers the lead agent spins up to handle Slack messages — they run to completion, reply in-thread, then tear down.
         </p>
 
         {live.length === 0 ? (
