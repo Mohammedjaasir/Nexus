@@ -21,11 +21,13 @@ export function ReviewSurface({ root, git, refresh }: { root: string; git: GitSt
   const changed = git.status === 'ready' && git.isRepo ? git.changed : NO_CHANGES;
   const groups = useMemo(() => groupChanges(changed), [changed]);
   const [picked, setPicked] = useState<string | null>(null);
+  // Bumped by Refresh and Retry so an explicit request refetches; unrelated git re-reads do not.
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<DiffResult | null>(null);
 
   // The selected file always resolves to a file that is still changed.
   const selected = picked && changed.some((c) => c.path === picked) ? picked : (groups[0]?.paths[0] ?? null);
+  const sig = changed.find((c) => c.path === selected)?.kind ?? '';
   const key = selected ? `${root}\u0000${selected}\u0000${attempt}` : null;
 
   // A result is only shown when its key matches the current file/attempt, and a
@@ -43,7 +45,7 @@ export function ReviewSurface({ root, git, refresh }: { root: string; git: GitSt
       if (!cancelled) setResult({ key, status: 'error', message: e instanceof Error ? e.message : 'The diff could not be read.' });
     });
     return () => { cancelled = true; };
-  }, [root, selected, key, git]);
+  }, [root, selected, sig, key]);
 
   const frame = (body: ReactNode) => (
     <section className="nx-surface nx-review" aria-labelledby="nx-surface-title">
@@ -66,7 +68,7 @@ export function ReviewSurface({ root, git, refresh }: { root: string; git: GitSt
     return frame(
       <>
         <p className="nx-muted">No uncommitted changes. When an agent or you edit files in this project, the changes appear here for review.</p>
-        <div className="nx-review__actions"><Button variant="quiet" icon="refresh" onClick={refresh}>Refresh</Button></div>
+        <div className="nx-review__actions"><Button variant="quiet" icon="refresh" onClick={() => { setAttempt((n) => n + 1); refresh(); }}>Refresh</Button></div>
       </>
     );
   }
@@ -94,7 +96,7 @@ export function ReviewSurface({ root, git, refresh }: { root: string; git: GitSt
           <div className="nx-review__actions">
             <Button onClick={() => actions.openIde(root)}>Open in Files</Button>
             <Button onClick={() => { if (selected) { setSelection({ kind: 'file', label: selected }); focusIntent(); } }}>Ask an agent to revise</Button>
-            <Button variant="quiet" icon="refresh" onClick={refresh}>Refresh</Button>
+            <Button variant="quiet" icon="refresh" onClick={() => { setAttempt((n) => n + 1); refresh(); }}>Refresh</Button>
           </div>
           <div className="nx-review__diff" role="region" aria-label={selected ? `Diff of ${selected}` : 'Diff'}>
             {!current && <p className="nx-muted" role="status">Loading diff…</p>}

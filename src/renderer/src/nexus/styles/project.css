@@ -71,12 +71,12 @@
 .nx-review__files { display: grid; align-content: start; gap: var(--nx-s3); overflow: auto; border: 1px solid var(--nx-line); border-radius: 8px; padding: var(--nx-s2); }
 .nx-review__heading { margin: 0 0 4px; font: 600 12px/1 var(--nx-font); color: var(--nx-text-3); }
 .nx-review__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.nx-review__file { display: block; width: 100%; text-align: left; padding: 5px 8px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--nx-text-2); font: 400 12px/1.3 var(--nx-font-mono, monospace); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.nx-review__file { display: block; width: 100%; text-align: left; padding: 5px 8px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--nx-text-2); font: 400 12px/1.3 var(--nx-font-id); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .nx-review__file:hover { color: var(--nx-ink); }
 .nx-review__file[aria-current="true"] { color: var(--nx-ink); border-color: var(--nx-line-strong); background: var(--nx-surface); }
 .nx-review__file:focus-visible { outline: 2px solid var(--nx-ink); outline-offset: 1px; }
 .nx-review__main { display: flex; flex-direction: column; gap: var(--nx-s2); min-width: 0; min-height: 0; }
 .nx-review__actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
-.nx-review__diff { flex: 1; min-height: 320px; border: 1px solid var(--nx-line); border-radius: 8px; overflow: hidden; }
+.nx-review__diff { height: max(320px, 60vh); border: 1px solid var(--nx-line); border-radius: 8px; overflow: hidden; }
 .nx-review__diff > p, .nx-review__diff > .nx-review__empty { padding: var(--nx-s3); }
 @media (max-width: 767px) { .nx-review__layout { grid-template-columns: minmax(0, 1fr); } }
