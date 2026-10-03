@@ -14,43 +14,46 @@
                                                ink-500    tertiary text / hints (>= 4.5:1)
                                                ink-300    structural borders   (>= 3.0:1)
                                                ink-100    dividers, meant to recede
-   Accents are plain semantic hues: coral=red, mint=green, sky=blue,
+   COLOUR VALUES NOW POINT AT THE NEXUS ROLES. Every colour token below is a
+   var(--nx-*) reference (defined in nexus/styles/tokens.css, loaded globally,
+   switching with the theme). Accents sky/lilac/peach collapse to ink; coral,
+   mint, lemon map to bad, ok, warn. Accents are plain semantic hues: coral=red, mint=green, sky=blue,
    lemon=amber, lilac=violet, peach=orange. */
 :root {
   /* Surfaces */
-  --cth-cream-50:  #FFFFFF;
-  --cth-cream-100: #F6F6F7;
-  --cth-cream-200: #ECECEE;
-  --cth-cream-300: #E0E0E3;
-  --cth-paper-100: #FFFFFF;
-  --cth-paper-200: #F3F3F5;
+  --cth-cream-50:  var(--nx-surface);
+  --cth-cream-100: var(--nx-ground);
+  --cth-cream-200: var(--nx-sunken);
+  --cth-cream-300: var(--nx-line);
+  --cth-paper-100: var(--nx-surface);
+  --cth-paper-200: var(--nx-sunken);
 
   /* Text and lines */
-  --cth-ink-900: #18181B;
-  --cth-ink-700: #3F3F46;
-  --cth-ink-500: #5F5F68;
-  --cth-ink-300: #82828B;
-  --cth-ink-100: #DCDCE0;
+  --cth-ink-900: var(--nx-ink);
+  --cth-ink-700: var(--nx-text-2);
+  --cth-ink-500: var(--nx-text-3);
+  --cth-ink-300: var(--nx-line-strong);
+  --cth-ink-100: var(--nx-line);
 
   /* Semantic accents */
-  --cth-coral: #C8423E;       --cth-coral-light: #F8E1E0;
-  --cth-mint:  #2A7F4E;       --cth-mint-light:  #DDEFE3;
-  --cth-sky:   #2D72B0;       --cth-sky-light:   #DCE8F4;
-  --cth-lemon: #8F6305;       --cth-lemon-light: #F5EAD0;
-  --cth-lilac: #6E5CC0;       --cth-lilac-light: #E7E3F5;
-  --cth-peach: #B05A22;       --cth-peach-light: #F6E3D5;
+  --cth-coral: var(--nx-bad);       --cth-coral-light: color-mix(in oklab, var(--nx-bad) 12%, var(--nx-surface));
+  --cth-mint:  var(--nx-ok);       --cth-mint-light:  color-mix(in oklab, var(--nx-ok) 12%, var(--nx-surface));
+  --cth-sky:   var(--nx-ink);       --cth-sky-light:   color-mix(in oklab, var(--nx-ink) 12%, var(--nx-surface));
+  --cth-lemon: var(--nx-warn);       --cth-lemon-light: color-mix(in oklab, var(--nx-warn) 12%, var(--nx-surface));
+  --cth-lilac: var(--nx-ink);       --cth-lilac-light: color-mix(in oklab, var(--nx-ink) 12%, var(--nx-surface));
+  --cth-peach: var(--nx-ink);       --cth-peach-light: color-mix(in oklab, var(--nx-ink) 12%, var(--nx-surface));
 
   /* Status (hue meanings unchanged) */
-  --cth-status-idle:       #9A9AA2;
-  --cth-status-thinking:   #2D72B0;
-  --cth-status-working:    #8F6305;
-  --cth-status-waiting:    #5A6FCB;
-  --cth-status-blocked:    #C8423E;
-  --cth-status-success:    #2A7F4E;
-  --cth-status-ghost:      #D4D4D9;
-  --cth-status-compacting: #6E5CC0; /* mid-/compact, "boxing up context" */
-  --cth-status-looping:    #B05A22; /* circuit-breaker armed (runaway) */
-  --cth-status-typing:     #A87708; /* unsent text on the prompt — queue is held */
+  --cth-status-idle:       var(--nx-line-strong);
+  --cth-status-thinking:   var(--nx-ink);
+  --cth-status-working:    var(--nx-warn);
+  --cth-status-waiting:    var(--nx-text-2);
+  --cth-status-blocked:    var(--nx-bad);
+  --cth-status-success:    var(--nx-ok);
+  --cth-status-ghost:      var(--nx-line);
+  --cth-status-compacting: var(--nx-text-2); /* mid-/compact, "boxing up context" */
+  --cth-status-looping:    var(--nx-warn); /* circuit-breaker armed (runaway) */
+  --cth-status-typing:     var(--nx-warn); /* unsent text on the prompt — queue is held */
 
   /* Spacing (4px base) */
   --cth-space-0: 0px;
@@ -98,7 +101,7 @@
 
   /* Text on a FULL accent fill (e.g. a selected tab filled with the agent's
      accent). Light-theme accents are mid-dark, so white; >= 4.5:1 on all six. */
-  --cth-on-accent: #FFFFFF;
+  --cth-on-accent: var(--nx-on-ink);
 
   color-scheme: light;
 }
@@ -107,41 +110,41 @@
    Stamped by design/theme.ts as data-cth-theme on <html>. Same contrast floors
    as light: body text >= 4.5:1, structural borders (ink-300) >= 3.0:1. */
 :root[data-cth-theme='dark'] {
-  --cth-cream-50:  #1E1E22;
-  --cth-cream-100: #141416;
-  --cth-cream-200: #232327;
-  --cth-cream-300: #2D2D32;
-  --cth-paper-100: #1A1A1D;
-  --cth-paper-200: #202024;
+  --cth-cream-50:  var(--nx-surface);
+  --cth-cream-100: var(--nx-ground);
+  --cth-cream-200: var(--nx-sunken);
+  --cth-cream-300: var(--nx-line);
+  --cth-paper-100: var(--nx-surface);
+  --cth-paper-200: var(--nx-sunken);
 
-  --cth-ink-900: #E7E7EA;
-  --cth-ink-700: #BCBCC3;
-  --cth-ink-500: #97979F;
-  --cth-ink-300: #74747D;
-  --cth-ink-100: #33333A;
+  --cth-ink-900: var(--nx-ink);
+  --cth-ink-700: var(--nx-text-2);
+  --cth-ink-500: var(--nx-text-3);
+  --cth-ink-300: var(--nx-line-strong);
+  --cth-ink-100: var(--nx-line);
 
-  --cth-coral: #E5736E;       --cth-coral-light: #3A2324;
-  --cth-mint:  #52B97E;       --cth-mint-light:  #1C3326;
-  --cth-sky:   #5C9FDA;       --cth-sky-light:   #1C2B3A;
-  --cth-lemon: #D8A840;       --cth-lemon-light: #352C18;
-  --cth-lilac: #9C8BE0;       --cth-lilac-light: #29243F;
-  --cth-peach: #E08F57;       --cth-peach-light: #3A2A1E;
+  --cth-coral: var(--nx-bad);       --cth-coral-light: color-mix(in oklab, var(--nx-bad) 12%, var(--nx-surface));
+  --cth-mint:  var(--nx-ok);       --cth-mint-light:  color-mix(in oklab, var(--nx-ok) 12%, var(--nx-surface));
+  --cth-sky:   var(--nx-ink);       --cth-sky-light:   color-mix(in oklab, var(--nx-ink) 12%, var(--nx-surface));
+  --cth-lemon: var(--nx-warn);       --cth-lemon-light: color-mix(in oklab, var(--nx-warn) 12%, var(--nx-surface));
+  --cth-lilac: var(--nx-ink);       --cth-lilac-light: color-mix(in oklab, var(--nx-ink) 12%, var(--nx-surface));
+  --cth-peach: var(--nx-ink);       --cth-peach-light: color-mix(in oklab, var(--nx-ink) 12%, var(--nx-surface));
 
-  --cth-status-idle:       #6E6E77;
-  --cth-status-thinking:   #5C9FDA;
-  --cth-status-working:    #D8A840;
-  --cth-status-waiting:    #7F90DE;
-  --cth-status-blocked:    #E5736E;
-  --cth-status-success:    #52B97E;
-  --cth-status-ghost:      #5E5E67;
-  --cth-status-compacting: #9C8BE0;
-  --cth-status-looping:    #E08F57;
-  --cth-status-typing:     #CFA03E;
+  --cth-status-idle:       var(--nx-line-strong);
+  --cth-status-thinking:   var(--nx-ink);
+  --cth-status-working:    var(--nx-warn);
+  --cth-status-waiting:    var(--nx-text-2);
+  --cth-status-blocked:    var(--nx-bad);
+  --cth-status-success:    var(--nx-ok);
+  --cth-status-ghost:      var(--nx-line);
+  --cth-status-compacting: var(--nx-text-2);
+  --cth-status-looping:    var(--nx-warn);
+  --cth-status-typing:     var(--nx-warn);
 
   --cth-shadow-hard: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
 
   /* Dark-theme accents are light, so text on them is dark. */
-  --cth-on-accent: #141416;
+  --cth-on-accent: var(--nx-on-ink);
 
   color-scheme: dark;
 }

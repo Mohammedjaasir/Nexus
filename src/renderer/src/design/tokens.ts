@@ -2,45 +2,45 @@
 // Any change here must also update tokens.css.
 
 export const colors = {
-  // Interim neutral values (see tokens.css for the legacy-name mapping).
+  // SRGB equivalents of the light-theme Nexus roles (tokens.css points the legacy names at var(--nx-*)).
   cream: {
-    50: 0xffffff,
-    100: 0xf6f6f7,
-    200: 0xececee,
-    300: 0xe0e0e3
+    50: 0xfbfdfd,
+    100: 0xf3f7f7,
+    200: 0xe9eff0,
+    300: 0xd5dadb
   },
   paper: {
-    100: 0xffffff,
-    200: 0xf3f3f5
+    100: 0xfbfdfd,
+    200: 0xe9eff0
   },
   ink: {
-    900: 0x18181b,
-    700: 0x3f3f46,
-    500: 0x5f5f68,
-    300: 0x82828b,
-    100: 0xdcdce0
+    900: 0x161e22,
+    700: 0x40494d,
+    500: 0x5a6266,
+    300: 0x868e90,
+    100: 0xd5dadb
   },
   accent: {
-    coral: 0xc8423e,
-    coralLight: 0xf8e1e0,
-    mint: 0x2a7f4e,
-    mintLight: 0xddefe3,
-    sky: 0x2d72b0,
-    skyLight: 0xdce8f4,
-    lemon: 0x8f6305,
-    lemonLight: 0xf5ead0,
-    lilac: 0x6e5cc0,
-    lilacLight: 0xe7e3f5,
-    peach: 0xb05a22,
-    peachLight: 0xf6e3d5
+    coral: 0xb6322b,
+    coralLight: 0xf3e5e4,
+    mint: 0x14764a,
+    mintLight: 0xdfede8,
+    sky: 0x161e22,
+    skyLight: 0xe0e2e3,
+    lemon: 0x9b5f00,
+    lemonLight: 0xefeadf,
+    lilac: 0x161e22,
+    lilacLight: 0xe0e2e3,
+    peach: 0x161e22,
+    peachLight: 0xe0e2e3
   },
   status: {
-    idle: 0x9a9aa2,
-    thinking: 0x2d72b0,
-    working: 0x8f6305,
-    blocked: 0xc8423e,
-    success: 0x2a7f4e,
-    ghost: 0xd4d4d9
+    idle: 0x868e90,
+    thinking: 0x161e22,
+    working: 0x9b5f00,
+    blocked: 0xb6322b,
+    success: 0x14764a,
+    ghost: 0xd5dadb
   },
   // Legacy office-floor scene colours (the floor is an isolated legacy view).
   world: {
@@ -59,9 +59,9 @@ export const space = {
 
 export const type = {
   // No separate display face any more; kept as a name for existing callers.
-  display: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
-  ui: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
-  mono: '"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace'
+  display: '"Instrument Sans Variable", "Segoe UI", system-ui, sans-serif',
+  ui: '"Instrument Sans Variable", "Segoe UI", system-ui, sans-serif',
+  mono: '"JetBrains Mono", ui-monospace, Consolas, monospace'
 } as const;
 
 export const tileSize = 32; // px — the world is built from 32×32 tiles

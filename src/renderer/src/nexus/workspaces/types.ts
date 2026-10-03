@@ -15,6 +15,7 @@ export interface WorkspaceConfig {
   description: string;    // one sentence for tooltips and the workspace page
   icon: NexusIconName;
   hue: Hue;
+  hueSlot: number; // permanent; a new workspace takes max+1
   /** Analysed project domains that belong to this workspace (may be empty). */
   domainIds: DomainId[];
   /** Preset for "New project"; omitted when no domain maps here. */

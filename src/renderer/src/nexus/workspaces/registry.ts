@@ -10,7 +10,7 @@ const ENTRIES: WorkspaceConfig[] = [
   {
     id: 'sde', label: 'SDE', name: 'Software Engineering', tagline: 'Code · APIs · Build',
     description: 'Write, review and ship code, services and APIs with your agents.',
-    icon: 'sde', hue: 'violet',
+    icon: 'sde', hueSlot: 0, hue: 'violet',
     domainIds: ['software-engineering', 'web-app-dev', 'mobile-dev', 'game-dev', 'embedded-systems', 'robotics-iot', 'blockchain-web3', 'automation-rpa'],
     defaultDomainId: 'software-engineering', island: { x: 20, y: 32 }, order: 1,
     plannedModules: ['Repositories', 'APIs', 'Builds']
@@ -18,43 +18,43 @@ const ENTRIES: WorkspaceConfig[] = [
   {
     id: 'ml', label: 'ML', name: 'Machine Learning', tagline: 'Datasets · Models · Deploy',
     description: 'Prepare data, train and evaluate models, and get them ready to serve.',
-    icon: 'ml', hue: 'blue', domainIds: ['ai-ml'], defaultDomainId: 'ai-ml',
+    icon: 'ml', hueSlot: 1, hue: 'blue', domainIds: ['ai-ml'], defaultDomainId: 'ai-ml',
     island: { x: 50, y: 22 }, order: 2, plannedModules: ['Datasets', 'Experiments', 'Models']
   },
   {
     id: 'dl', label: 'DL', name: 'Deep Learning', tagline: 'Training · Experiments',
     description: 'Run training jobs, compare experiments and manage checkpoints.',
-    icon: 'dl', hue: 'orange', domainIds: ['computer-vision'], defaultDomainId: 'computer-vision',
+    icon: 'dl', hueSlot: 2, hue: 'orange', domainIds: ['computer-vision'], defaultDomainId: 'computer-vision',
     island: { x: 80, y: 32 }, order: 3, plannedModules: ['Training runs', 'Checkpoints', 'Evaluations']
   },
   {
     id: 'data', label: 'Data Analytics', name: 'Data Analytics', tagline: 'Dashboards · Insights',
     description: 'Query data, build dashboards and turn analysis into reports.',
-    icon: 'data', hue: 'teal', domainIds: ['data-analytics', 'data-science', 'gis-geospatial'], defaultDomainId: 'data-analytics',
+    icon: 'data', hueSlot: 3, hue: 'teal', domainIds: ['data-analytics', 'data-science', 'gis-geospatial'], defaultDomainId: 'data-analytics',
     island: { x: 86, y: 58 }, order: 4, plannedModules: ['Data sources', 'Queries', 'Dashboards']
   },
   {
     id: 'research', label: 'Research', name: 'Research', tagline: 'Explore · Innovate',
     description: 'Investigate ideas, run studies and write up findings.',
-    icon: 'research', hue: 'green', domainIds: ['research-scientific'], defaultDomainId: 'research-scientific',
+    icon: 'research', hueSlot: 4, hue: 'green', domainIds: ['research-scientific'], defaultDomainId: 'research-scientific',
     island: { x: 14, y: 58 }, order: 5, plannedModules: ['Notes', 'Studies', 'Papers']
   },
   {
     id: 'qa', label: 'QA', name: 'Quality Assurance', tagline: 'Test · Automate',
     description: 'Plan and automate tests, and track quality across projects.',
-    icon: 'qa', hue: 'amber', domainIds: [],
+    icon: 'qa', hueSlot: 5, hue: 'amber', domainIds: [],
     island: { x: 26, y: 84 }, order: 6, plannedModules: ['Test plans', 'Test runs', 'Reports']
   },
   {
     id: 'uiux', label: 'UI / UX', name: 'UI / UX Design', tagline: 'Design · Prototype',
     description: 'Design interfaces, build prototypes and maintain design systems.',
-    icon: 'uiux', hue: 'pink', domainIds: [],
+    icon: 'uiux', hueSlot: 6, hue: 'pink', domainIds: [],
     island: { x: 74, y: 84 }, order: 7, plannedModules: ['Designs', 'Prototypes', 'Design systems']
   },
   {
     id: 'devops', label: 'DevOps', name: 'DevOps', tagline: 'Deploy · Monitor',
     description: 'Manage environments, pipelines and the services you run.',
-    icon: 'devops', hue: 'slate', domainIds: ['devops-cloud'], defaultDomainId: 'devops-cloud',
+    icon: 'devops', hueSlot: 7, hue: 'slate', domainIds: ['devops-cloud'], defaultDomainId: 'devops-cloud',
     island: { x: 50, y: 86 }, order: 8, plannedModules: ['Environments', 'Pipelines', 'Monitoring']
   }
 ];
