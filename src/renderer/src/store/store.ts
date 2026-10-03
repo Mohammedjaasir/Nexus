@@ -171,6 +171,9 @@ interface State {
    *  Callers therefore state their intent, and `selectedId` stays as the
    *  fallback for anything that genuinely has no particular agent in mind. */
   ideAgentId: string | null;
+  /** A folder the opener asked the IDE to show (e.g. a Nexus project root).
+   *  When null the IDE resolves its root from the agent, exactly as before. */
+  ideRoot: string | null;
   sidebarWidth: number;
   sidebarTab: SidebarTab;
   godStatus: GodStatus;
@@ -281,7 +284,7 @@ interface State {
   /** Open/close the IDE. `agentId` names the agent whose workspace it should
    *  show; omit it only when the caller truly has no specific agent (the IDE
    *  then falls back to the selection and says so in its title). */
-  setIdeOpen: (open: boolean, agentId?: string | null) => void;
+  setIdeOpen: (open: boolean, agentId?: string | null, root?: string | null) => void;
   setIdeInitialFile: (path: string | null) => void;
   setSidebarWidth: (px: number) => void;
   setSidebarTab: (tab: SidebarTab) => void;
@@ -597,6 +600,7 @@ export const useStore = create<State>((set) => ({
   ideInitialFile: null,
   ideOpen: false,
   ideAgentId: null,
+  ideRoot: null,
   sidebarWidth: initialSidebarWidth,
   sidebarTab: initialSidebarTab,
   godStatus: 'booting',
@@ -846,7 +850,7 @@ export const useStore = create<State>((set) => ({
   // Closing CLEARS the target: the id is scoped to one IDE session, and a stale
   // one left behind would silently win over the selection on the next open from
   // a caller that passes nothing.
-  setIdeOpen: (open, agentId) => set({ ideOpen: open, ideAgentId: open ? (agentId ?? null) : null }),
+  setIdeOpen: (open, agentId, root) => set({ ideOpen: open, ideAgentId: open ? (agentId ?? null) : null, ideRoot: open ? (root ?? null) : null }),
   setIdeInitialFile: (path) => set({ ideInitialFile: path }),
   setSidebarWidth: (px) => {
     const clamped = Math.min(1200, Math.max(320, Math.round(px)));

@@ -19,6 +19,7 @@ export const MENU_GROUPS: { label: string; items: NavItem[] }[] = [
     { id: 'deployments', label: 'Deployments', icon: 'deployments', route: { name: 'deployments' }, planned: true }
   ] },
   { label: 'App', items: [
+    { id: 'files', label: 'Files', icon: 'files', action: 'openIde' },
     { id: 'integrations', label: 'Integrations', icon: 'integrations', action: 'openSettings' },
     { id: 'settings', label: 'Settings', icon: 'settings', action: 'openSettings' }
   ] }

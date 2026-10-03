@@ -3,6 +3,7 @@ import {
   Plug, Settings, Search, Sun, Moon, Sparkles, PanelRight, ChevronRight, ChevronLeft, Ellipsis,
   SendHorizontal, Plus, FolderInput, RefreshCw, Lock, Check, Circle, X, CodeXml, Brain, Atom,
   ChartColumn, BookOpen, CircleCheckBig, Palette, Cloud, FolderOpen, Database, Package, LifeBuoy,
+  LayoutPanelLeft, FileDiff, ListChecks, Activity, Terminal,
   type LucideIcon
 } from 'lucide-react';
 import type { NexusIconName } from './iconNames';
@@ -20,7 +21,8 @@ export const ICONS: Record<NexusIconName, LucideIcon> = {
   lock: Lock, check: Check, circle: Circle, close: X, sparkles: Sparkles,
   sde: CodeXml, ml: Brain, dl: Atom, data: ChartColumn, research: BookOpen, qa: CircleCheckBig,
   uiux: Palette, devops: Cloud, yourProjects: FolderOpen, dataset: Database, appBox: Package,
-  rocket: Rocket, help: LifeBuoy
+  rocket: Rocket, help: LifeBuoy,
+  bench: LayoutPanelLeft, changes: FileDiff, plan: ListChecks, runs: Activity, terminal: Terminal
 };
 
 export function Icon({ name, size = 18, className }: { name: NexusIconName; size?: number; className?: string }) {

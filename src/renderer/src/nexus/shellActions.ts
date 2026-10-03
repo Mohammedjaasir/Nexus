@@ -6,7 +6,7 @@ export interface ShellActions {
   openSettings: (section?: SettingsSection) => void;
   openNewProject: (domainId?: DomainId) => void;
   openImport: () => void;
-  openIde: () => void;
+  openIde: (root?: string) => void;
   openProjectManager: () => void;
 }
 

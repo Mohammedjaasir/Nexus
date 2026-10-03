@@ -14,6 +14,7 @@ export function NexusMenu() {
     if (item.route) { navigate(item.route); return; }
     if (item.id === 'integrations') { actions.openSettings('Connections'); return; }
     if (item.action === 'openSettings') { actions.openSettings(); return; }
+    if (item.action === 'openIde') { actions.openIde(); return; }
     if (item.action) actions[item.action]();
   };
 

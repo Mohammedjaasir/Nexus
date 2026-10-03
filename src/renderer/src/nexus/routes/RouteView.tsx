@@ -7,7 +7,7 @@ import { NotFoundPage } from '../pages/NotFoundPage';
 import { WorkspacesPage } from '../pages/WorkspacesPage';
 import { WorkspacePage } from '../pages/WorkspacePage';
 import { ProjectsPage } from '../pages/ProjectsPage';
-import { ProjectPage } from '../pages/ProjectPage';
+import { ProjectBench } from '../project/ProjectBench';
 import { PlannedPage } from '../pages/PlannedPage';
 import { LauncherPage } from '../launcher/LauncherPage';
 
@@ -28,7 +28,7 @@ export function RouteView({ config }: { config: HarnessConfig }) {
     case 'workspaces': page = <WorkspacesPage />; break;
     case 'workspace': page = <WorkspacePage id={route.id} />; break;
     case 'projects': page = <ProjectsPage />; break;
-    case 'project': page = <ProjectPage id={route.id} />; break;
+    case 'project': page = <ProjectBench id={route.id} tool={route.tool} />; break;
     case 'artifacts': page = <PlannedPage which="artifacts" />; break;
     case 'handoffs': page = <PlannedPage which="handoffs" />; break;
     case 'deployments': page = <PlannedPage which="deployments" />; break;

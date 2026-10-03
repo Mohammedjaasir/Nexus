@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { browserStorage, readPref, writePref } from './prefs';
+import type { Selection } from '../intent/intentContext';
 
 interface NexusUi {
   assistantOpen: boolean;
@@ -19,6 +20,9 @@ interface NexusUi {
   setDraft: (s: string) => void;
   composerFocusTick: number;
   focusComposer: () => void;
+  /** What the user has selected on the current surface (not persisted). */
+  selection: Selection | null;
+  setSelection: (s: Selection | null) => void;
 }
 
 const storage = browserStorage();
@@ -40,5 +44,7 @@ export const useNexusUi = create<NexusUi>((set) => ({
   draft: '',
   setDraft: (s) => set({ draft: s }),
   composerFocusTick: 0,
-  focusComposer: () => set((s) => ({ composerFocusTick: s.composerFocusTick + 1, assistantOpen: true }))
+  focusComposer: () => set((s) => ({ composerFocusTick: s.composerFocusTick + 1, assistantOpen: true })),
+  selection: null,
+  setSelection: (s) => set({ selection: s })
 }));

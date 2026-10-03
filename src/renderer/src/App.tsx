@@ -208,10 +208,10 @@ export function App() {
     openSettings: (section) => { setSettingsSection(section); setSettingsOpen(true); },
     openNewProject: (domainId) => { setNewProjectDomain(domainId); setNewProjectWizardOpen(true); },
     openImport: () => setImportOpen(true),
-    openIde: () => {
+    openIde: (root?: string) => {
       const s = useStore.getState();
       const target = s.agents.find((a) => a.id === s.selectedId) ?? s.agents.find((a) => a.isGod) ?? null;
-      s.setIdeOpen(true, target?.id ?? null);
+      s.setIdeOpen(true, target?.id ?? null, root ?? null);
     },
     openProjectManager: () => setProjectDashboardOpen(true)
   }), []);

@@ -13,9 +13,11 @@ export interface ProjectCommandCenterProps {
   project: Project;
   onBackToHome: () => void;
   onRefreshProject?: () => void;
+  /** Hosted inside Nexus: omit the "Floor Office View" tab and its panel. */
+  hideFloorTab?: boolean;
 }
 
-export function ProjectCommandCenter({ project, onBackToHome, onRefreshProject }: ProjectCommandCenterProps) {
+export function ProjectCommandCenter({ project, onBackToHome, onRefreshProject, hideFloorTab }: ProjectCommandCenterProps) {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'office'>('dashboard');
 
   return (
@@ -76,7 +78,7 @@ export function ProjectCommandCenter({ project, onBackToHome, onRefreshProject }
             >
               Command Center
             </button>
-            <button
+            {!hideFloorTab && <button
               type="button"
               onClick={() => setActiveTab('office')}
               style={{
@@ -90,7 +92,7 @@ export function ProjectCommandCenter({ project, onBackToHome, onRefreshProject }
               }}
             >
               Floor Office View
-            </button>
+            </button>}
           </div>
 
           <PixelButton variant="secondary" size="sm" onClick={onRefreshProject}>
@@ -101,7 +103,7 @@ export function ProjectCommandCenter({ project, onBackToHome, onRefreshProject }
 
       {/* Main Content Area */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
-        {activeTab === 'dashboard' ? (
+        {activeTab === 'dashboard' || hideFloorTab ? (
           <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Phase 9A / 9B Verified Execution Coordinator */}
             <ProjectCompletionPanel projectId={project.id} />
