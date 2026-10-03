@@ -17,7 +17,7 @@ const PAGES: PaletteEntry[] = [
   { id: 'page:home', group: 'Pages', label: 'Home', route: { name: 'home' } },
   { id: 'page:workspaces', group: 'Pages', label: 'Workspaces', route: { name: 'workspaces' } },
   { id: 'page:projects', group: 'Pages', label: 'Projects', route: { name: 'projects' } },
-  { id: 'page:agents', group: 'Pages', label: 'Agents', hint: 'terminals, floor', route: { name: 'agents' } },
+  { id: 'page:agents', group: 'Pages', label: 'Agents', hint: 'lead agent and terminals', route: { name: 'agents' } },
   { id: 'page:artifacts', group: 'Pages', label: 'Artifacts', hint: 'planned', route: { name: 'artifacts' } },
   { id: 'page:handoffs', group: 'Pages', label: 'Handoffs', hint: 'planned', route: { name: 'handoffs' } },
   { id: 'page:deployments', group: 'Pages', label: 'Deployments', hint: 'planned', route: { name: 'deployments' } }
