@@ -3,11 +3,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const loadTs = require('./load-ts.cjs');
 
-const { WORKSPACES, LAUNCHER_SHORTCUTS, UNMAPPED_DOMAINS, getWorkspace, WORKSPACE_IDS } =
+const { WORKSPACES, UNMAPPED_DOMAINS, getWorkspace, WORKSPACE_IDS } =
   loadTs('src/renderer/src/nexus/workspaces/registry.ts');
 const { workspaceForDomain, projectsForWorkspace, countsByWorkspace } =
   loadTs('src/renderer/src/nexus/workspaces/mapping.ts');
-const { NEXUS_ICON_NAMES, HUES } = loadTs('src/renderer/src/nexus/iconNames.ts');
+const { NEXUS_ICON_NAMES } = loadTs('src/renderer/src/nexus/iconNames.ts');
 const { listDomainDefinitions } = loadTs('src/shared/domain.ts');
 
 const ALL_DOMAINS = listDomainDefinitions().map((d) => d.id);
@@ -31,23 +31,19 @@ test('registry: defaultDomainId is one of the workspace domains', () => {
   for (const w of WORKSPACES) if (w.defaultDomainId) assert.ok(w.domainIds.includes(w.defaultDomainId), w.id);
 });
 
-test('registry: icons and hues are known; copy fields are non-empty', () => {
+test('registry: icons are known; copy fields are non-empty', () => {
   for (const w of WORKSPACES) {
     assert.ok(NEXUS_ICON_NAMES.includes(w.icon), `${w.id} icon ${w.icon}`);
-    assert.ok(HUES.includes(w.hue), `${w.id} hue ${w.hue}`);
     for (const k of ['label', 'name', 'tagline', 'description']) assert.ok(w[k] && w[k].trim(), `${w.id}.${k}`);
   }
-  for (const s of LAUNCHER_SHORTCUTS) assert.ok(NEXUS_ICON_NAMES.includes(s.icon), s.id);
 });
 
-test('registry: island points are inside the safe area and not crowded', () => {
-  const pts = [...WORKSPACES.map((w) => ({ id: w.id, ...w.island })), ...LAUNCHER_SHORTCUTS.map((s) => ({ id: s.id, ...s.island }))];
-  for (const p of pts) {
-    assert.ok(p.x >= 10 && p.x <= 90 && p.y >= 10 && p.y <= 90, `${p.id} at ${p.x},${p.y}`);
-  }
-  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
-    const d = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
-    assert.ok(d >= 15, `${pts[i].id} and ${pts[j].id} only ${d.toFixed(1)} apart`);
+test('registry: no launcher-scene fields remain', () => {
+  for (const w of WORKSPACES) {
+    const known = ['id', 'label', 'name', 'tagline', 'description', 'icon', 'hueSlot', 'domainIds', 'defaultDomainId', 'order', 'plannedModules'];
+    assert.deepEqual(Object.keys(w).filter((k) => !known.includes(k)), [], `${w.id} has fields outside the config`);
+    assert.equal('hue' in w, false);
+    assert.ok(Array.isArray(w.plannedModules) && w.plannedModules.length > 0, `${w.id} has vocabulary`);
   }
 });
 

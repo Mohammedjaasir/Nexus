@@ -34,12 +34,11 @@ test('context header contains only provided facts', () => {
   assert.equal(buildContextHeader({ project: { name: 'x', rootPath: '/x' } }), '[Nexus context — project: x (/x)]');
 });
 
-test('quick actions: real ones act, unbuilt ones are disabled; all icons exist', () => {
+test('quick actions: every action acts; all icons exist', () => {
   const byId = Object.fromEntries(QUICK_ACTIONS.map((a) => [a.id, a]));
   assert.equal(byId['new-project'].kind, 'new-project');
   assert.equal(byId['analyze-dataset'].kind, 'prefill');
-  assert.equal(byId['model-to-app'].kind, 'disabled');
-  assert.equal(byId['deploy'].kind, 'disabled');
+  assert.equal(QUICK_ACTIONS.some((a) => a.kind === 'disabled'), false);
   for (const a of QUICK_ACTIONS) assert.ok(NEXUS_ICON_NAMES.includes(a.icon), a.id);
   for (const s of SUGGESTIONS) { assert.ok(s.prompt.trim().length > 10, s.id); assert.ok(NEXUS_ICON_NAMES.includes(s.icon), s.id); }
 });

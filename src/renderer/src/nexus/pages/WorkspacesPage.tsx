@@ -17,7 +17,7 @@ export function WorkspacesPage() {
       <div className="nx-grid">
         {WORKSPACES.map((w) => (
           <button key={w.id} type="button" className="nx-card nx-card--link nx-focusable" onClick={() => { setLast(w.id); navigate({ name: 'workspace', id: w.id }); }}>
-            <IconTile icon={w.icon} hue={w.hue} size="lg" />
+            <IconTile icon={w.icon} slot={w.hueSlot} size="lg" />
             <span className="nx-card__title">{w.name}</span>
             <span className="nx-card__body">{w.description}</span>
             <span className="nx-card__meta">

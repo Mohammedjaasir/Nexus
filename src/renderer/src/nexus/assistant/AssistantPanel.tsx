@@ -92,7 +92,7 @@ export function AssistantPanel({ headingId }: { headingId: string }) {
             return (
               <li key={a.id}>
                 <button type="button" className="nx-qa__item nx-focusable" onClick={run} disabled={disabled} aria-disabled={disabled} title={a.unavailableReason}>
-                  <IconTile icon={a.icon} hue={a.hue} size="md" />
+                  <IconTile icon={a.icon} slot={null} size="md" />
                   <span className="nx-qa__text">
                     <span className="nx-qa__title">{a.title}</span>
                     <span className="nx-qa__desc">{a.description}</span>

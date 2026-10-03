@@ -11,6 +11,8 @@ interface NexusUi {
   setRailExpanded: (b: boolean) => void;
   lastWorkspace: string | null;
   setLastWorkspace: (id: string) => void;
+  lastProject: string | null;
+  setLastProject: (id: string) => void;
   setupDismissed: boolean;
   dismissSetup: () => void;
   draft: string;
@@ -31,6 +33,8 @@ export const useNexusUi = create<NexusUi>((set) => ({
   setRailExpanded: (b) => set({ railExpanded: b }),
   lastWorkspace: readPref(storage, 'lastWorkspace'),
   setLastWorkspace: (id) => { writePref(storage, 'lastWorkspace', id); set({ lastWorkspace: id }); },
+  lastProject: readPref(storage, 'lastProject'),
+  setLastProject: (id) => { writePref(storage, 'lastProject', id); set({ lastProject: id }); },
   setupDismissed: readPref(storage, 'setupDismissed') === '1',
   dismissSetup: () => { writePref(storage, 'setupDismissed', '1'); set({ setupDismissed: true }); },
   draft: '',

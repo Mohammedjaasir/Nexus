@@ -1,21 +1,17 @@
-import type { Hue, NexusIconName } from '../iconNames';
+import type { NexusIconName } from '../iconNames';
 
 export interface QuickAction {
-  id: 'new-project' | 'analyze-dataset' | 'model-to-app' | 'deploy';
-  title: string; description: string; icon: NexusIconName; hue: Hue;
+  id: 'new-project' | 'analyze-dataset';
+  title: string; description: string; icon: NexusIconName;
   kind: 'new-project' | 'prefill' | 'disabled';
   prefill?: string;
   unavailableReason?: string;
 }
 
 export const QUICK_ACTIONS: QuickAction[] = [
-  { id: 'new-project', title: 'Create a new project', description: 'Set up a folder your agents work in', icon: 'sde', hue: 'violet', kind: 'new-project' },
-  { id: 'analyze-dataset', title: 'Analyze a dataset', description: 'Ask the lead agent to explore your data', icon: 'dataset', hue: 'green', kind: 'prefill',
+  { id: 'new-project', title: 'Create a new project', description: 'Set up a folder your agents work in', icon: 'sde', kind: 'new-project' },
+  { id: 'analyze-dataset', title: 'Analyze a dataset', description: 'Ask the lead agent to explore your data', icon: 'dataset', kind: 'prefill',
     prefill: 'Analyze the dataset at <path in this project>: summarize its columns, data quality issues and the most interesting patterns, and save the notebook or script you use.' },
-  { id: 'model-to-app', title: 'Turn a model into a web app', description: 'Generate API + UI + deploy', icon: 'appBox', hue: 'orange', kind: 'disabled',
-    unavailableReason: 'Not available yet — arrives with artifacts and the Turn into App flow.' },
-  { id: 'deploy', title: 'Deploy an application', description: 'Build, test and publish', icon: 'rocket', hue: 'blue', kind: 'disabled',
-    unavailableReason: 'Not available yet — no deployment target is connected.' }
 ];
 
 export interface Suggestion { id: string; label: string; icon: NexusIconName; prompt: string }

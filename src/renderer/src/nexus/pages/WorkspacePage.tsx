@@ -24,7 +24,7 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
   return (
     <div className="nx-page">
       <header className="nx-pagehead">
-        <IconTile icon={ws.icon} hue={ws.hue} size="lg" />
+        <IconTile icon={ws.icon} slot={ws.hueSlot} size="lg" />
         <div className="nx-pagehead__text">
           <h1 tabIndex={-1}>{ws.name}</h1>
           <p className="nx-lead">{ws.description}</p>

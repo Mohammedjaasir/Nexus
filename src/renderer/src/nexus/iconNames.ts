@@ -9,6 +9,3 @@ export const NEXUS_ICON_NAMES = [
   'dataset', 'appBox', 'rocket', 'help'
 ] as const;
 export type NexusIconName = (typeof NEXUS_ICON_NAMES)[number];
-
-export const HUES = ['violet', 'blue', 'orange', 'teal', 'green', 'amber', 'pink', 'slate'] as const;
-export type Hue = (typeof HUES)[number];
