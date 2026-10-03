@@ -1,25 +1,75 @@
-# Design — interim neutral foundation
+# Design: the Spine system
 
-The previous visual identity (warm "cream paper", pixel display font, hard offset
-shadows, stepped motion) has been retired. What remains is a deliberately neutral
-foundation that keeps every existing screen working until the new visual system
-is defined.
+Nexus is the app's shell. Its design system is called Spine. Dials: variance 6, motion 5, density 6.
+
+## Principles
+
+1. **The spine is built from real state only.** The project spine lists nodes derived from the project's folder and git working tree (a source node, a changes node when the tree is dirty). No placeholder artifacts, versions, users, metrics, deployments or runs. Empty states say so plainly.
+2. **Colour means provenance.** A hue identifies which workspace something came from. There is no decorative colour, no gradient identity and no run accent. A workspace's hue comes from its permanent slot (see the slot rule), never from how many workspaces exist.
+3. **Unavailable is stated, never faked.** Where the lead agent does not report a plan, output, review or approval, the UI says "Not reported by this agent". Actions the app cannot perform (Accept, Discard, Promote) are not rendered as buttons.
+4. **One intent line, bound to the selection.** A single docked line (Ctrl/Cmd J) carries a context chip built from the current selection (workspace, project, spine node). Suggestions prefill; they never send on their own.
+5. **Offline, keyboard-first, accessible.** Fonts ship in the bundle. Every surface is reachable by keyboard, motion respects `prefers-reduced-motion`, and hue never carries meaning without a text label.
+
+## Tokens
+
+- `src/renderer/src/nexus/styles/tokens.css` is the source of truth: the `--nx-*` tokens, in OKLCH. Dark values apply under `:root[data-cth-theme="dark"]`, the app's existing theme switch (`design/theme.ts`).
+- Colour roles: `--nx-ground`, `--nx-surface`, `--nx-sunken`, `--nx-ink`, `--nx-text-2`, `--nx-text-3`, `--nx-line`, `--nx-line-strong`, `--nx-on-ink`, `--nx-ok`, `--nx-warn`, `--nx-bad`, `--nx-hatch`, `--nx-shadow-float`.
+- Other tokens: `--nx-font-*`, `--nx-r-*`, `--nx-s*`, `--nx-t-*`, `--nx-ease-*`, `--nx-bar-h` (48px).
+- Contrast floors, enforced by `test/nexus-tokens.test.cjs` in both themes: body text 4.5:1, structural borders (`--nx-line-strong`) 3:1, text on an ink fill 4.5:1.
+- Borders over shadows. `--nx-shadow-float` is used only on floating layers (palette, menus, sheets).
+
+### Provenance rule and slot rule
+
+- Provenance colour for an element is `oklch(var(--nx-ws-l) var(--nx-ws-c) var(--ws-h))`. `--nx-ws-l` and `--nx-ws-c` are per theme (light 0.56 / 0.13, dark 0.74 / 0.12). `--ws-h` is set inline on the element (`.nx-prov`, rendered by `ProvenanceMark`).
+- Slot rule: `nexus/design/provenance.ts` exports `provenanceHue(slot) = round(((265 + slot * 137.508) % 360) * 10) / 10`. Each workspace in `nexus/workspaces/registry.ts` has a permanent `hueSlot` (0 to 7 today; a new workspace takes max+1). Slots walk the golden angle from base hue 265, so existing hues never change when workspaces are added.
+- A project whose domain maps to no workspace is "Unassigned" and uses `.nx-prov--none` (neutral `--nx-line-strong`), not a hue.
+- Marks always sit beside a text label and meet 3:1 against surfaces.
+
+## Typography
+
+Four families, bundled through Fontsource (OFL-1.1, listed in `THIRD_PARTY_FONTS.md`), imported in `src/renderer/src/main.tsx`. No network font loading, and no Google Fonts entries in the CSP.
+
+| Role | Family (package) | Token |
+|---|---|---|
+| Names people give (workspace, project titles) | Bricolage Grotesque Variable (`@fontsource-variable/bricolage-grotesque`) | `--nx-font-display` |
+| Interface | Instrument Sans Variable (`@fontsource-variable/instrument-sans`) | `--nx-font` |
+| Versions, commit shas, ids, paths in chips | Martian Mono, weights 400 and 500 (`@fontsource/martian-mono`) | `--nx-font-id` |
+| Code, diffs, terminals | JetBrains Mono, weights 400, 500 and 700 (`@fontsource/jetbrains-mono`) | `--nx-font-code` |
+
+Scale: 12 / 13 / 15 / 18 / 26 / 34 / 44 px. JetBrains Mono is loaded as a static family so the literal `"JetBrains Mono"` used by the terminal pool and Monaco keeps working.
+
+## Spacing and shape
+
+- Base unit 4px: `--nx-s1` 4, `--nx-s2` 8, `--nx-s3` 12, `--nx-s4` 16, `--nx-s6` 24, `--nx-s8` 32, `--nx-s12` 48.
+- Radius: `--nx-r-ctl` 4px for controls, `--nx-r-obj` 8px for objects. Fully round only for status chips.
+- Breakpoints: 1280 and 768. At 1280 and up: context bar, spine, tool rail, focus surface and passport column. From 768 to 1279: the tool rail becomes a segmented control and the passport opens as a right sheet. Below 768: mobile tabs, a vertical spine with runs first, and no IDE, terminal or diff.
+
+## Motion
+
+- Durations: `--nx-t-fast` 120ms, `--nx-t-base` 200ms, `--nx-t-shift` 320ms. Easing `--nx-ease-in` and `--nx-ease-out` (cubic-bezier).
+- Every animation communicates a state change. No decorative loops.
+- Transitions and keyframes live inside `@media (prefers-reduced-motion: no-preference)`.
+- Route changes use a document view transition through `nexus/ui/viewTransition.ts` (`withViewTransition`). It is skipped under `prefers-reduced-motion: reduce` and when the browser lacks `startViewTransition`; navigation always happens. A `reduce` rule in `styles/project.css` also removes view-transition animations.
+- `design/global.css` additionally zeroes all animation and transition durations under `reduce`, which covers legacy screens.
+
+## Accessibility
+
+- Launcher: ARIA combobox and listbox (`aria-activedescendant`, `aria-selected`); the preview is an `aria-live="polite"` region.
+- Spine: one tab stop with roving tabindex; arrow keys, Home and End move; each node has a full accessible name.
+- Run strip: an ordered list of stages with `aria-current="step"`; the headline is a polite live region; "Not reported" stages are text, not colour.
+- Focus: a visible `:focus-visible` ring on interactive elements, a skip link, and focus moves to the page `h1` on route change.
 
 ## Where things live
 
-- `src/renderer/src/design/tokens.css` holds all colour, type, spacing and elevation tokens, plus the dark theme.
-- `src/renderer/src/design/tokens.ts` mirrors the colour values for the Pixi canvas. Update both together.
-- `src/renderer/src/design/global.css` holds the reset, focus ring, scrollbars, keyframes and markdown preview styles.
-- `src/renderer/src/design/theme.ts` handles the light/dark switch (`data-cth-theme` on `<html>`).
+- `src/renderer/src/nexus/`: all Spine UI. Subfolders: `agents`, `assistant`, `chrome`, `components`, `data`, `design` (provenance), `intent`, `launcher`, `pages`, `project`, `review`, `router`, `routes`, `runs`, `state`, `styles`, `ui`, `workspaces`.
+- Pure models (no React or `window`, loadable by `test/load-ts.cjs`) include `provenance.ts`, `launcher/indexModel.ts`, `router/routes.ts`, `project/spineModel.ts`, `project/passport.ts`, `runs/runModel.ts`, `review/reviewModel.ts`, `intent/intentContext.ts`.
+- `src/renderer/src/design/tokens.css`: the legacy `--cth-*` tokens, now references to `--nx-*`.
+- `src/renderer/src/design/tokens.ts`: sRGB mirror of the light-theme values, read only by the retired office floor. Update with `tokens.css`.
+- `src/renderer/src/design/global.css`: reset, focus ring, scrollbars, keyframes, markdown preview, reduced-motion rule.
+- `test/nexus-decoupling.test.cjs`: guards `nexus/` against the retired office scene, pixel components, persona names and the old product identity, and against `"Inter"` and horizontal gradients in Nexus CSS.
 
-## Rules while this is interim
+## Legacy screens
 
-- **Token names are legacy.** `--cth-cream-*`, `--cth-paper-*` and `--cth-ink-*` describe the old palette, not the current values. The mapping to roles (surface, text, border) is documented at the top of `tokens.css`. Do not add new tokens to the legacy set. The new system will introduce a semantic layer.
-- **Contrast floors** apply in both themes:
-  - body text: 4.5:1 or better
-  - structural borders (`ink-300`): 3.0:1 or better
-  - text on a full accent fill (`--cth-on-accent`): 4.5:1 or better
-- **No new pixel-art styling.** The office floor (`scene/office/*`) is an isolated legacy view and keeps its sprite art until it is replaced.
-- **The legacy label shim** at the end of `global.css` lifts old 7–10px display labels to 11px. Delete it once nothing uses `--cth-font-display`.
-- **Fonts:** Inter (UI) and JetBrains Mono (code and terminals).
-- **Motion:** 120–200ms ease. Honour `prefers-reduced-motion`; `global.css` already zeroes durations.
+The IDE, settings, modals, terminals and the project Command Center are not redesigned. They are re-skinned: every `--cth-*` colour token points at a `--nx-*` role, and `--cth-font-ui` is Instrument Sans, so they follow the Spine palette and both themes. The `--cth-*` names are legacy (`cream`, `paper`, `ink` describe the old palette); the role mapping is documented at the top of `design/tokens.css`. Do not add new tokens to the `--cth-*` set; add `--nx-*` tokens instead.
+
+The office floor (`scene/office/*`) is isolated legacy code. It is not rendered by any Nexus surface.

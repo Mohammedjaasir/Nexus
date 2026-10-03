@@ -11,7 +11,7 @@
 .nx-run__stages li[data-state="done"]::before { background: var(--nx-ink); }
 .nx-run__stages li[data-state="active"]::before { background: repeating-linear-gradient(-45deg, var(--nx-ink) 0 2px, transparent 2px 5px); outline: 1px solid var(--nx-ink); outline-offset: -1px; }
 .nx-run__stages li[data-state="waiting"]::before { background: var(--nx-warn); }
-.nx-run__stages li[data-state="unreported"]::before { background: repeating-linear-gradient(90deg, var(--nx-line) 0 3px, transparent 3px 6px); }
+.nx-run__stages li[data-state="unreported"]::before { background: repeating-linear-gradient(0deg, var(--nx-line) 0 3px, transparent 3px 6px); }
 .nx-run__stages li[data-state="active"], .nx-run__stages li[data-state="waiting"] { color: var(--nx-ink); font-weight: 600; }
 @media (prefers-reduced-motion: no-preference) {
   .nx-run__stages li[data-state="active"]::before { background-size: 10px 10px; animation: nx-hatch 0.9s linear infinite; }
