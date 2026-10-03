@@ -3,6 +3,7 @@ import type { ProjectTool } from '../router/routes';
 import type { GitState, SpineNode } from './spineModel';
 import { SourceView } from './SourceView';
 import { LegacyPlanHost } from './LegacyPlanHost';
+import { ReviewSurface } from '../review/ReviewSurface';
 import { ProjectRuns } from '../runs/ProjectRuns';
 
 export function FocusSurface({ tool, project, node, git, onRetryGit, onRefreshProject }: {
@@ -16,14 +17,7 @@ export function FocusSurface({ tool, project, node, git, onRetryGit, onRefreshPr
       </section>
     );
   }
-  if (tool === 'changes') {
-    return (
-      <section className="nx-surface" aria-labelledby="nx-surface-title">
-        <h1 id="nx-surface-title" className="nx-surface__title" tabIndex={-1}>Changes</h1>
-        <p className="nx-muted" role="status">Change review arrives in the next step.</p>
-      </section>
-    );
-  }
+  if (tool === 'changes') return <ReviewSurface root={project.rootPath} git={git} refresh={onRetryGit} />;
   if (tool === 'runs') return <ProjectRuns projectId={project.id} />;
   return <SourceView project={project} node={node} git={git} onRetry={onRetryGit} />;
 }
