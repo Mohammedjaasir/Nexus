@@ -24,6 +24,9 @@ export function ProjectBench({ id, tool }: { id: string; tool: ProjectTool }) {
   const [err, setErr] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
+  // A new project id starts clean: no error carried over from another project.
+  useEffect(() => { setErr(null); }, [id]);
+
   useEffect(() => {
     if (!known || active?.id === id) return;
     let alive = true;
@@ -85,13 +88,20 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   }, [project.id, setActiveProject, refresh]);
 
   const head = git.status === 'ready' ? git.head : null;
+  const [notice, setNotice] = useState<string | null>(null);
+  const openTerminal = useCallback(() => {
+    setNotice(null);
+    window.cth.openTerminalAt(project.rootPath)
+      .then((r) => { if (!r.ok) setNotice(r.error ?? 'The terminal could not be opened.'); })
+      .catch((e) => setNotice(e instanceof Error ? e.message : String(e)));
+  }, [project.rootPath]);
   return (
     <div className="nx-workbench">
       <Spine groups={groups} selectedId={node.id} onSelect={onSelect} />
       <div className="nx-bench">
-        <ToolRail projectId={project.id} rootPath={project.rootPath} tool={tool} hasChanges={hasChanges} />
-        <FocusSurface tool={tool} project={project} node={sourceNode} head={head} onRetryGit={refresh} onRefreshProject={refreshProject} />
-        <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} />
+        <ToolRail projectId={project.id} rootPath={project.rootPath} tool={tool} hasChanges={hasChanges} onOpenTerminal={openTerminal} />
+        <FocusSurface tool={tool} project={project} node={sourceNode} git={git} onRetryGit={refresh} onRefreshProject={refreshProject} />
+        <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} />
       </div>
     </div>
   );

@@ -28,7 +28,7 @@ export function RouteView({ config }: { config: HarnessConfig }) {
     case 'workspaces': page = <WorkspacesPage />; break;
     case 'workspace': page = <WorkspacePage id={route.id} />; break;
     case 'projects': page = <ProjectsPage />; break;
-    case 'project': page = <ProjectBench id={route.id} tool={route.tool} />; break;
+    case 'project': page = <ProjectBench key={route.id} id={route.id} tool={route.tool} />; break;
     case 'artifacts': page = <PlannedPage which="artifacts" />; break;
     case 'handoffs': page = <PlannedPage which="handoffs" />; break;
     case 'deployments': page = <PlannedPage which="deployments" />; break;

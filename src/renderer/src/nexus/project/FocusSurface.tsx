@@ -4,13 +4,16 @@ import type { GitState, SpineNode } from './spineModel';
 import { SourceView } from './SourceView';
 import { LegacyPlanHost } from './LegacyPlanHost';
 
-type Head = Extract<GitState, { status: 'ready' }>['head'];
-
-export function FocusSurface({ tool, project, node, head, onRetryGit, onRefreshProject }: {
-  tool: ProjectTool; project: Project; node: SpineNode; head: Head; onRetryGit: () => void; onRefreshProject: () => void;
+export function FocusSurface({ tool, project, node, git, onRetryGit, onRefreshProject }: {
+  tool: ProjectTool; project: Project; node: SpineNode; git: GitState; onRetryGit: () => void; onRefreshProject: () => void;
 }) {
   if (tool === 'plan') {
-    return <section className="nx-surface nx-surface--legacy" aria-label="Plan"><LegacyPlanHost project={project} onRefreshProject={onRefreshProject} /></section>;
+    return (
+      <section className="nx-surface nx-surface--legacy" aria-labelledby="nx-surface-title">
+        <h1 id="nx-surface-title" className="nx-visually-hidden" tabIndex={-1}>Plan</h1>
+        <LegacyPlanHost project={project} onRefreshProject={onRefreshProject} />
+      </section>
+    );
   }
   if (tool === 'changes') {
     return (
@@ -28,5 +31,5 @@ export function FocusSurface({ tool, project, node, head, onRetryGit, onRefreshP
       </section>
     );
   }
-  return <SourceView project={project} node={node} head={head} onRetry={onRetryGit} />;
+  return <SourceView project={project} node={node} git={git} onRetry={onRetryGit} />;
 }

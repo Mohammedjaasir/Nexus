@@ -4,7 +4,9 @@ export type ChangeKind = 'modified' | 'added' | 'deleted' | 'renamed' | 'untrack
 export type GitState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; isRepo: boolean; branch: string | null; head: { sha: string; shortSha: string; subject: string; time: number } | null; changed: { path: string; kind: ChangeKind }[] };
+  | { status: 'ready'; isRepo: boolean; branch: string | null; head: { sha: string; shortSha: string; subject: string; time: number } | null; changed: { path: string; kind: ChangeKind }[];
+      /** Set when a branch or log read failed, so null means "unknown", not "none". */
+      unknown?: { branch?: boolean; head?: boolean } };
 
 export type SpineNode =
   | { kind: 'source'; id: 'source'; vcs: 'git' | 'none' | 'unknown' | 'error'; branch: string | null; head: { shortSha: string; subject: string } | null }

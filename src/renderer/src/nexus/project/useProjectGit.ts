@@ -21,7 +21,12 @@ export function useProjectGit(rootPath: string | null): { git: GitState; refresh
       const seen = new Map<string, ChangeKind>();
       for (const e of [...st.staged, ...st.unstaged]) seen.set(e.path, kindOf(e.index, e.worktree));
       for (const p of st.untracked) seen.set(p, 'untracked');
-      setGit({ status: 'ready', isRepo: true, branch, head, changed: [...seen].map(([path, kind]) => ({ path, kind })) });
+      const branchUnknown = 'error' in b;
+      const headUnknown = !Array.isArray(log);
+      const changed = [...seen].map(([path, kind]) => ({ path, kind }));
+      setGit(branchUnknown || headUnknown
+        ? { status: 'ready', isRepo: true, branch, head, changed, unknown: { branch: branchUnknown, head: headUnknown } }
+        : { status: 'ready', isRepo: true, branch, head, changed });
     } catch (e) {
       if (live()) setGit({ status: 'error', message: e instanceof Error ? e.message : String(e) });
     }

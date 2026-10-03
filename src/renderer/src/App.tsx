@@ -210,8 +210,10 @@ export function App() {
     openImport: () => setImportOpen(true),
     openIde: (root?: string) => {
       const s = useStore.getState();
+      // A folder was named: open it without claiming any agent owns it.
+      if (root) { s.setIdeOpen(true, null, root); return; }
       const target = s.agents.find((a) => a.id === s.selectedId) ?? s.agents.find((a) => a.isGod) ?? null;
-      s.setIdeOpen(true, target?.id ?? null, root ?? null);
+      s.setIdeOpen(true, target?.id ?? null);
     },
     openProjectManager: () => setProjectDashboardOpen(true)
   }), []);

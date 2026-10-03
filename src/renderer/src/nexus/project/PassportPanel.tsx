@@ -26,7 +26,11 @@ function useCommits(root: string, isGit: boolean, headSha: string | null): Commi
   return commits;
 }
 
-export function Passport({ project, node, headSha, onRefreshProject }: { project: Project; node: SpineNode; headSha: string | null; onRefreshProject: () => Promise<void> }) {
+/** `notice` carries bench-level errors (opening the terminal from the rail or
+ *  from here), shown in the same alert line as the passport's own errors. */
+export function Passport({ project, node, headSha, onRefreshProject, onOpenTerminal, notice }: {
+  project: Project; node: SpineNode; headSha: string | null; onRefreshProject: () => Promise<void>; onOpenTerminal: () => void; notice: string | null;
+}) {
   const actions = useShellActions();
   const focusComposer = useNexusUi((s) => s.focusComposer);
   const isGit = node.kind === 'source' && node.vcs === 'git';
@@ -39,11 +43,8 @@ export function Passport({ project, node, headSha, onRefreshProject }: { project
     setNote(null);
     if (a === 'ask') focusComposer();
     else if (a === 'files') actions.openIde(project.rootPath);
-    else if (a === 'terminal') {
-      window.cth.openTerminalAt(project.rootPath)
-        .then((r) => { if (!r.ok) setNote(r.error ?? 'The terminal could not be opened.'); })
-        .catch((e) => setNote(e instanceof Error ? e.message : String(e)));
-    } else {
+    else if (a === 'terminal') onOpenTerminal();
+    else {
       setBusy(true);
       onRefreshProject()
         .catch((e) => setNote(e instanceof Error ? e.message : String(e)))
@@ -83,7 +84,7 @@ export function Passport({ project, node, headSha, onRefreshProject }: { project
           </Button>
         ))}
       </div>
-      {note && <p className="nx-passport__note" role="alert">{note}</p>}
+      {(note ?? notice) && <p className="nx-passport__note" role="alert">{note ?? notice}</p>}
     </aside>
   );
 }

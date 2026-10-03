@@ -11,7 +11,7 @@ const ROUTES: { tool: ProjectTool; label: string; icon: NexusIconName }[] = [
 ];
 
 /** Vertical project tools: the routed tools, then the two app actions. */
-export function ToolRail({ projectId, rootPath, tool, hasChanges }: { projectId: string; rootPath: string; tool: ProjectTool; hasChanges: boolean }) {
+export function ToolRail({ projectId, rootPath, tool, hasChanges, onOpenTerminal }: { projectId: string; rootPath: string; tool: ProjectTool; hasChanges: boolean; onOpenTerminal: () => void }) {
   const actions = useShellActions();
   const items = ROUTES.filter((r) => r.tool !== 'changes' || hasChanges || tool === 'changes');
   return (
@@ -27,7 +27,7 @@ export function ToolRail({ projectId, rootPath, tool, hasChanges }: { projectId:
       <button type="button" className="nx-rail__item" title="Files" aria-label="Open files" onClick={() => actions.openIde(rootPath)}>
         <Icon name="files" size={17} />
       </button>
-      <button type="button" className="nx-rail__item" title="Terminal" aria-label="Open terminal" onClick={() => { void window.cth.openTerminalAt(rootPath).catch(() => undefined); }}>
+      <button type="button" className="nx-rail__item" title="Terminal" aria-label="Open terminal" onClick={onOpenTerminal}>
         <Icon name="terminal" size={17} />
       </button>
     </nav>

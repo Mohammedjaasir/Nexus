@@ -87,10 +87,9 @@ function pickIdeTarget(): IdeTarget {
   const byId = (id: string | null): Agent | null => (id ? s.agents.find((a) => a.id === id) ?? null : null);
   const named = byId(s.ideAgentId);
   if (s.ideRoot) {
-    // The opener named a folder (a Nexus project root): show it. The agent is
-    // kept only as git context and is not claimed as the folder's owner.
-    const guess = named ?? byId(s.selectedId) ?? s.agents.find((a) => a.isGod) ?? s.agents[0] ?? null;
-    return { agent: guess ?? null, root: s.ideRoot, inferred: false };
+    // The opener named a folder (a Nexus project root), not an agent: show the
+    // folder and name no agent, since no agent is known to own it.
+    return { agent: null, root: s.ideRoot, inferred: false };
   }
   if (named?.cwd) return { agent: named, root: named.cwd, inferred: false };
   const guess = byId(s.selectedId) ?? s.agents.find((a) => a.isGod) ?? s.agents[0] ?? null;
@@ -409,11 +408,11 @@ export function IdePanel() {
               </span>
             )}
           </span>
-        ) : (
+        ) : !root ? (
           <span style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 13, color: 'var(--cth-ink-500)' }}>
             no agent
           </span>
-        )}
+        ) : null /* opened at a folder: the folder below is the identity */}
         <span title={root ?? ''} style={{
           fontFamily: 'var(--cth-font-mono)', fontSize: 13, color: 'var(--cth-ink-500)',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '30vw'
