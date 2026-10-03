@@ -24,6 +24,7 @@ export function Spine({ groups, selectedId, onSelect }: { groups: SpineGroup[]; 
             {g.nodes.map((n) => {
               i += 1; const idx = i;
               const sel = n.id === selectedId;
+              const nodeName = n.kind === 'changes' ? `${n.fileCount} ${n.fileCount === 1 ? 'file' : 'files'}` : n.kind === 'source' && n.branch ? n.branch : 'Project files';
               return (
                 <li key={n.id} className="nx-spine__item">
                   {idx > 0 && <span className="nx-spine__link" aria-hidden="true" />}
@@ -31,7 +32,7 @@ export function Spine({ groups, selectedId, onSelect }: { groups: SpineGroup[]; 
                     className={`nx-node${n.kind === 'changes' ? ' nx-node--draft' : ''}`} aria-current={sel ? 'true' : undefined}
                     aria-label={nodeLabel(n)} tabIndex={n.id === active ? 0 : -1} onClick={(e) => onSelect(n.id, e.currentTarget)} onKeyDown={(e) => onKey(e, idx)}>
                     <span className="nx-node__k">{n.kind === 'changes' ? 'changes' : n.vcs === 'git' ? 'repository' : 'folder'}</span>
-                    <span className="nx-node__n">{n.kind === 'changes' ? `${n.fileCount} ${n.fileCount === 1 ? 'file' : 'files'}` : n.kind === 'source' && n.branch ? n.branch : 'Project files'}</span>
+                    <span className="nx-node__n" title={nodeName}>{nodeName}</span>
                     {n.kind === 'source' && n.head && <span className="nx-node__v nx-id">{n.head.shortSha}</span>}
                   </button>
                 </li>
