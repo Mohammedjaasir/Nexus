@@ -22,7 +22,8 @@ import { Passport } from './PassportPanel';
 
 /** The project route: opens the project, then shows the Spine workbench. */
 export function ProjectBench({ id, tool }: { id: string; tool: ProjectTool }) {
-  const { status } = useProjectsLoader();
+  const { status, error: loadError, refresh: reloadProjects } = useProjectsLoader();
+  const projectCount = useStore((s) => s.projects.length);
   const known = useStore((s) => s.projects.find((p) => p.id === id) ?? null);
   const active = useStore((s) => s.activeProject);
   const setActiveProject = useStore((s) => s.setActiveProject);
@@ -42,6 +43,9 @@ export function ProjectBench({ id, tool }: { id: string; tool: ProjectTool }) {
     return () => { alive = false; };
   }, [id, known, active?.id, setActiveProject, attempt]);
 
+  if (!known && status === 'error' && projectCount === 0) {
+    return <div className="nx-page"><EmptyState icon="refresh" title="Couldn't load your projects" body={loadError ?? 'The project list could not be loaded.'} actions={<Button variant="primary" onClick={() => { void reloadProjects(); }}>Retry</Button>} /></div>;
+  }
   if (!known && status !== 'loading') {
     return <div className="nx-page"><EmptyState icon="projects" title="That project isn't in your list" body="It may have been removed. Open Projects to pick another."
       actions={<Button variant="primary" onClick={() => navigate({ name: 'projects' })}>Back to Projects</Button>} /></div>;
@@ -132,7 +136,7 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   return (
     <div className="nx-workbench">
       {mobile && <MobileRuns projectId={project.id} />}
-      <Spine groups={groups} selectedId={node.id} onSelect={onSelect} />
+      <Spine groups={groups} selectedId={tool === 'plan' || tool === 'runs' ? '' : node.id} onSelect={onSelect} />
       <div className="nx-bench">
         <ToolRail projectId={project.id} rootPath={project.rootPath} tool={tool} hasChanges={hasChanges} onOpenTerminal={openTerminal}
           extra={!wide && (
@@ -143,7 +147,7 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
       </div>
       {!wide && (
         <Sheet open={detailsOpen} onClose={closeDetails} side={mobile ? 'bottom' : 'right'} labelledBy="nx-passport-title">
-          <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} />
+          <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} onBeforeAction={closeDetails} />
         </Sheet>
       )}
     </div>

@@ -28,8 +28,10 @@ function useCommits(root: string, isGit: boolean, headSha: string | null): Commi
 
 /** `notice` carries bench-level errors (opening the terminal from the rail or
  *  from here), shown in the same alert line as the passport's own errors. */
-export function Passport({ project, node, headSha, onRefreshProject, onOpenTerminal, notice }: {
+export function Passport({ project, node, headSha, onRefreshProject, onOpenTerminal, notice, onBeforeAction }: {
   project: Project; node: SpineNode; headSha: string | null; onRefreshProject: () => Promise<void>; onOpenTerminal: () => void; notice: string | null;
+  /** Called before an action runs; the modal sheet uses it to close first. */
+  onBeforeAction?: () => void;
 }) {
   const actions = useShellActions();
   const focusIntent = useNexusUi((s) => s.focusIntent);
@@ -40,6 +42,14 @@ export function Passport({ project, node, headSha, onRefreshProject, onOpenTermi
   const p = passportFor({ project, node, commits });
 
   const run = (a: PassportAction) => {
+    if (onBeforeAction) {
+      // Close the modal sheet first; run on the next tick so its focus return
+      // does not steal focus from where the action sends it.
+      onBeforeAction();
+      setTimeout(() => act(a), 0);
+    } else act(a);
+  };
+  const act = (a: PassportAction) => {
     setNote(null);
     if (a === 'ask') focusIntent();
     else if (a === 'files') actions.openIde(project.rootPath);
