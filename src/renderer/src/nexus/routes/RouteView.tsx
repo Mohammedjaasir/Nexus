@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { HarnessConfig } from '@/store/config';
 import { useRoute } from '../router/useRoute';
 import { formatRoute, routeTitle } from '../router/routes';
-import { AgentsView } from '../pages/AgentsView';
+import { AgentsPage } from '../agents/AgentsPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { WorkspacesPage } from '../pages/WorkspacesPage';
 import { WorkspacePage } from '../pages/WorkspacePage';
@@ -23,7 +23,7 @@ export function RouteView({ config }: { config: HarnessConfig }) {
   }, [key]);
   let page;
   switch (route.name) {
-    case 'agents': page = <AgentsView config={config} />; break;
+    case 'agents': page = <AgentsPage config={config} />; break;
     case 'not-found': page = <NotFoundPage />; break;
     case 'workspaces': page = <WorkspacesPage />; break;
     case 'workspace': page = <WorkspacePage id={route.id} />; break;

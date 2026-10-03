@@ -1,0 +1,95 @@
+import { useMemo } from 'react';
+import { useStore } from '@/store/store';
+import type { HarnessConfig } from '@/store/config';
+import { PtyTerminalView } from '@/components/PtyTerminalView';
+import { Icon } from '../icons';
+import { agentRows } from './agentList';
+
+/** Agents: a plain list plus the selected agent's real terminal. */
+export function AgentsPage({ config }: { config: HarnessConfig }) {
+  const agents = useStore((s) => s.agents);
+  const queues = useStore((s) => s.messageQueues);
+  const selectedId = useStore((s) => s.selectedId);
+  const select = useStore((s) => s.select);
+  const godStatus = useStore((s) => s.godStatus);
+  const setAddAgentOpen = useStore((s) => s.setAddAgentOpen);
+  const fullscreenAgentId = useStore((s) => s.fullscreenAgentId);
+
+  const rows = useMemo(() => agentRows(agents, queues as Record<string, unknown[]>), [agents, queues]);
+  const current = rows.find((r) => r.id === selectedId) ?? rows[0];
+  const ptyId = current ? agents.find((a) => a.id === current.id)?.ptyId ?? null : null;
+
+  const toggleFullscreen = () => {
+    const s = useStore.getState();
+    if (fullscreenAgentId) { s.setFullscreen(null); return; }
+    const target = s.agents.find((x) => x.id === s.selectedId && x.ptyId) ?? s.agents.find((x) => x.isGod && x.ptyId) ?? s.agents.find((x) => x.ptyId);
+    if (target) s.setFullscreen(target.id);
+  };
+
+  const addButton = (primary: boolean) => (
+    <button type="button" className={`nx-btn nx-focusable${primary ? ' nx-btn--primary' : ''}`} onClick={() => setAddAgentOpen(true)}>
+      <Icon name="plus" /> Add agent
+    </button>
+  );
+
+  return (
+    <div className="nxa">
+      <div className="nxa__bar">
+        <h1 className="nxa__title">Agents</h1>
+        <span className="nxa__auto">{config.autoMode ? 'Auto mode is on: agents skip their CLI approval prompts' : 'Auto mode is off'}</span>
+        <div className="nxa__actions">
+          {addButton(false)}
+          <button type="button" className="nx-btn nx-btn--quiet nx-focusable" onClick={toggleFullscreen}>
+            <Icon name="panel" /> {fullscreenAgentId ? 'Exit fullscreen' : 'Fullscreen terminal'}
+          </button>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        godStatus === 'booting' ? (
+          <div className="nxa__empty" role="status">
+            <p className="nxa__note">The lead agent is starting. Its terminal appears here when it is ready.</p>
+          </div>
+        ) : (
+          <div className="nxa__empty">
+            <div className="nx-empty">
+              <h2 className="nx-empty__title">No agents yet</h2>
+              <p className="nx-empty__body">No agents are running. Add one to see its terminal here.</p>
+              <div className="nx-empty__actions">{addButton(true)}</div>
+            </div>
+          </div>
+        )
+      ) : (
+        <div className="nxa__body">
+          <ul className="nxa__list" aria-label="Agents">
+            {rows.map((r) => (
+              <li key={r.id}>
+                <button
+                  type="button"
+                  className="nxa__row nx-focusable"
+                  aria-current={r.id === current?.id ? 'true' : undefined}
+                  onClick={() => select(r.id)}
+                >
+                  <span className="nxa__row-title">{r.title}</span>
+                  <span className="nxa__row-role">{r.role}</span>
+                  <span className="nxa__row-meta">
+                    <span>{r.provider}</span>
+                    <span>Status: {r.status}</span>
+                    {r.queued > 0 && <span>{r.queued} queued</span>}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <section className="nxa__term" role="region" aria-label={`${current?.title ?? 'Agent'} terminal`}>
+            {ptyId ? (
+              <PtyTerminalView key={ptyId} ptyId={ptyId} embedded />
+            ) : (
+              <p className="nxa__note">This agent has no running terminal.</p>
+            )}
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
