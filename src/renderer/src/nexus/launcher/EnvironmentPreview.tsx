@@ -15,7 +15,8 @@ export function EnvironmentPreview({ id }: { id: string | null }) {
   const mine = recentProjects(projectsForWorkspace(projects, ws.id), 5);
   const now = Date.now();
   return (
-    <aside className="nx-preview nx-prov" style={provenanceStyle(ws.hueSlot)} aria-live="polite" aria-labelledby="nx-preview-name">
+    <aside className="nx-preview nx-prov" style={provenanceStyle(ws.hueSlot)} aria-labelledby="nx-preview-name">
+      <p className="nx-visually-hidden" role="status" aria-live="polite">{ws.name}</p>
       <p className="nx-preview__kicker">Environment</p>
       <h2 id="nx-preview-name" className="nx-preview__name">{ws.name}</h2>
       <p className="nx-preview__desc">{ws.description}</p>
