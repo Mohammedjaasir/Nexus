@@ -27,11 +27,9 @@ test('non-git folder: plain folder node, never a changes node', () => {
   assert.deepEqual(nodes(g).map((n) => [n.kind, n.vcs]), [['source', 'none']]);
 });
 
-test('loading or error: source node with unknown vcs', () => {
-  for (const git of [{ status: 'loading' }, { status: 'error', message: 'boom' }]) {
-    const g = buildSpine({ domainId: 'ai-ml', git });
-    assert.deepEqual(nodes(g).map((n) => [n.kind, n.vcs]), [['source', 'unknown']]);
-  }
+test('loading: source node with unknown vcs', () => {
+  const g = buildSpine({ domainId: 'ai-ml', git: { status: 'loading' } });
+  assert.deepEqual(nodes(g).map((n) => [n.kind, n.vcs]), [['source', 'unknown']]);
 });
 
 test('unassigned domain: neutral group', () => {
@@ -46,4 +44,30 @@ test('labels describe real state only', () => {
   assert.equal(nodeLabel(folder), 'Project folder, not a git repository');
   const g = buildSpine({ domainId: 'ai-ml', git: ready({ changed: [{ path: 'a', kind: 'modified' }] }) });
   assert.equal(nodeLabel(nodes(g)[1]), 'Uncommitted changes, 1 file');
+});
+
+const { tabStopId, kindOf } = loadTs('src/renderer/src/nexus/project/spineModel.ts');
+
+test('tabStopId: selected present, missing, empty', () => {
+  assert.equal(tabStopId(['source', 'changes'], 'changes'), 'changes');
+  assert.equal(tabStopId(['source', 'changes'], 'nope'), 'source');
+  assert.equal(tabStopId([], 'source'), null);
+});
+
+test('error state: distinguishable and honest label', () => {
+  const [n] = nodes(buildSpine({ domainId: 'ai-ml', git: { status: 'error', message: 'boom' } }));
+  assert.equal(n.vcs, 'error');
+  assert.equal(nodeLabel(n), 'Project folder, git status unavailable');
+  const [l] = nodes(buildSpine({ domainId: 'ai-ml', git: { status: 'loading' } }));
+  assert.equal(nodeLabel(l), 'Project folder, reading git status');
+});
+
+test('kindOf maps porcelain columns', () => {
+  assert.equal(kindOf(' ', 'M'), 'modified');
+  assert.equal(kindOf('M', ' '), 'modified');
+  assert.equal(kindOf('A', ' '), 'added');
+  assert.equal(kindOf('A', 'M'), 'added');
+  assert.equal(kindOf('D', ' '), 'deleted');
+  assert.equal(kindOf(' ', 'D'), 'deleted');
+  assert.equal(kindOf('R', ' '), 'renamed');
 });
