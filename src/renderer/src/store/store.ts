@@ -181,6 +181,12 @@ interface State {
    *  Lets the user keep "talking" to a busy agent: messages park here and are
    *  drained to the terminal one-by-one once the agent is free. */
   messageQueues: Record<string, QueuedMessage[]>;
+  /** Session-only delivery record (not persisted): queued message ids the
+   *  drain acknowledged writing to their agent's terminal, and per agent the
+   *  last such id. Lets UI tell "delivered" apart from "left the queue". */
+  deliveredIds: Record<string, true>;
+  lastDelivered: Record<string, string>;
+  markDelivered: (agentId: string, messageId: string) => void;
   /** Per-agent tool-call count this session — a lightweight activity/usage proxy
    *  shown in the command center (interactive sessions don't expose billed $). */
   toolCounts: Record<string, number>;
@@ -607,6 +613,8 @@ export const useStore = create<State>((set) => ({
   sidebarTab: initialSidebarTab,
   godStatus: 'booting',
   messageQueues: initialQueues,
+  deliveredIds: {},
+  lastDelivered: {},
   toolCounts: {},
   bumpToolCount: (id) =>
     set((s) => ({ toolCounts: { ...s.toolCounts, [id]: (s.toolCounts[id] ?? 0) + 1 } })),
@@ -797,6 +805,11 @@ export const useStore = create<State>((set) => ({
     });
     return queuedId;
   },
+  markDelivered: (agentId, messageId) =>
+    set((s) => ({
+      deliveredIds: { ...s.deliveredIds, [messageId]: true },
+      lastDelivered: { ...s.lastDelivered, [agentId]: messageId }
+    })),
   removeQueuedMessage: (agentId, messageId) =>
     set((s) => {
       const current = s.messageQueues[agentId];

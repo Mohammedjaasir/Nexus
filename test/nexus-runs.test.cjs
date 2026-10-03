@@ -2,67 +2,95 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const loadTs = require('./load-ts.cjs');
-const { leadAgentRun } = loadTs('src/renderer/src/nexus/runs/runModel.ts');
+const { leadAgentRun, runsFor, isRunLive } = loadTs('src/renderer/src/nexus/runs/runModel.ts');
 const req = { id: 'r1', text: 'Run the tests and fix failures', sentAt: 1 };
 const states = (r) => Object.fromEntries(r.stages.map((s) => [s.id, s.state]));
+const base = { request: req, queued: false, delivered: false, isLatestDelivered: false, agentPresent: true, agentStatus: 'idle', blocked: false };
+const run = (o) => leadAgentRun({ ...base, ...o });
 
 test('queued request: context done, execute pending, the rest unreported', () => {
-  const r = leadAgentRun({ request: req, queued: true, agentPresent: true, agentStatus: 'idle', blocked: false });
+  const r = run({ queued: true });
   assert.deepEqual(states(r), { context: 'done', plan: 'unreported', execute: 'pending', output: 'unreported', review: 'unreported' });
   assert.equal(r.headline, 'Queued for the lead agent');
 });
 
-test('delivered and working: execute active', () => {
-  const r = leadAgentRun({ request: req, queued: false, agentPresent: true, agentStatus: 'working', blocked: false });
+test('latest delivered and working: execute active', () => {
+  const r = run({ delivered: true, isLatestDelivered: true, agentStatus: 'working' });
   assert.equal(states(r).execute, 'active');
   assert.equal(r.headline, 'The lead agent is working');
+  assert.equal(states(run({ delivered: true, isLatestDelivered: true, agentStatus: 'thinking' })).execute, 'active');
 });
 
-test('waiting for input in the terminal', () => {
-  const r = leadAgentRun({ request: req, queued: false, agentPresent: true, agentStatus: 'waiting', blocked: true });
+test('latest delivered and blocked: waiting for input in the terminal', () => {
+  const r = run({ delivered: true, isLatestDelivered: true, agentStatus: 'blocked', blocked: true });
   assert.equal(states(r).execute, 'waiting');
   assert.equal(r.needsInput, true);
   assert.equal(r.headline, 'Waiting for you in its terminal');
 });
 
 test('delivered and idle: no claim that the work finished', () => {
-  const r = leadAgentRun({ request: req, queued: false, agentPresent: true, agentStatus: 'idle', blocked: false });
+  const r = run({ delivered: true, isLatestDelivered: true, agentStatus: 'idle' });
   assert.equal(states(r).execute, 'unreported');
   assert.equal(r.headline, 'Delivered. See the lead agent’s terminal for the result');
 });
 
+test('delivered but not the latest delivery: the agent’s live status is not claimed', () => {
+  for (const o of [{ agentStatus: 'working' }, { agentStatus: 'blocked', blocked: true }]) {
+    const r = run({ delivered: true, isLatestDelivered: false, ...o });
+    assert.equal(states(r).execute, 'unreported');
+    assert.equal(r.needsInput, false);
+    assert.equal(r.headline, 'Delivered. See the lead agent’s terminal for the result');
+  }
+});
+
+test('left the queue without delivery (removed, cleared or dropped): never "delivered"', () => {
+  const r = run({ queued: false, delivered: false, agentStatus: 'working' });
+  assert.equal(states(r).execute, 'unreported');
+  assert.equal(r.headline, 'Left the queue without being delivered');
+});
+
 test('agent offline: still queued, never working', () => {
-  const r = leadAgentRun({ request: req, queued: true, agentPresent: false, agentStatus: null, blocked: false });
+  const r = run({ queued: true, agentPresent: false, agentStatus: null });
   assert.equal(r.agentOffline, true);
   assert.equal(states(r).execute, 'pending');
   assert.equal(r.headline, 'Queued. The lead agent is not running');
 });
 
-test('title is the request text, trimmed to 80 characters', () => {
-  const r = leadAgentRun({ request: { ...req, text: 'x'.repeat(120) }, queued: true, agentPresent: true, agentStatus: 'idle', blocked: false });
-  assert.equal(r.title.length, 80);
-});
-
-test('agent gone and message no longer queued: not tracked, not queued', () => {
-  const r = leadAgentRun({ request: req, queued: false, agentPresent: false, agentStatus: null, blocked: false });
+test('agent gone and message neither queued nor delivered: not tracked', () => {
+  const r = run({ agentPresent: false, agentStatus: null });
   assert.equal(states(r).execute, 'unreported');
   assert.equal(r.agentOffline, true);
   assert.equal(r.headline, 'Not tracked. The lead agent it was sent to is no longer running');
 });
 
-test('runsFor: queued vs delivered from the real queue; only the newest delivered request is live', () => {
-  const { runsFor, isRunLive } = loadTs('src/renderer/src/nexus/runs/runModel.ts');
+test('title is the request text, trimmed to 80 characters', () => {
+  const r = run({ request: { ...req, text: 'x'.repeat(120) }, queued: true });
+  assert.equal(r.title.length, 80);
+});
+
+test('runsFor: queued from the queue, delivered from the delivery record, live status only for the latest delivery', () => {
   const reqs = [
-    { id: 'a', agentId: 'g', queuedMessageId: 'q1', text: 'old', sentAt: 1 },
-    { id: 'b', agentId: 'g', queuedMessageId: 'q2', text: 'new', sentAt: 2 },
-    { id: 'c', agentId: 'g', queuedMessageId: 'q3', text: 'waiting', sentAt: 3 }
+    { id: 'a', agentId: 'g', queuedMessageId: 'q1', text: 'delivered earlier', sentAt: 1 },
+    { id: 'b', agentId: 'g', queuedMessageId: 'q2', text: 'latest delivered', sentAt: 2 },
+    { id: 'c', agentId: 'g', queuedMessageId: 'q3', text: 'still queued', sentAt: 3 },
+    { id: 'd', agentId: 'g', queuedMessageId: 'q4', text: 'removed by the user', sentAt: 4 }
   ];
   const agents = [{ id: 'g', status: 'working', running: true, blocked: false }];
-  const [a, b, c] = runsFor(reqs, agents, { g: [{ id: 'q3' }] });
-  assert.equal(states(c).execute, 'pending');
-  assert.equal(states(b).execute, 'active');
+  const delivery = { deliveredIds: { q1: true, q2: true }, lastDelivered: { g: 'q2' } };
+  const [a, b, c, d] = runsFor(reqs, agents, { g: [{ id: 'q3' }] }, delivery);
   assert.equal(states(a).execute, 'unreported');
-  assert.deepEqual([a, b, c].map(isRunLive), [false, true, true]);
-  const [, blocked] = runsFor(reqs.slice(0, 2), [{ id: 'g', status: 'blocked', running: true, blocked: true }], {});
-  assert.equal(blocked.needsInput, true);
+  assert.equal(states(b).execute, 'active');
+  assert.equal(states(c).execute, 'pending');
+  assert.equal(d.headline, 'Left the queue without being delivered');
+  assert.deepEqual([a, b, c, d].map(isRunLive), [false, true, true, false]);
+});
+
+test('runsFor: a later non-intent delivery takes the live status away from the intent request', () => {
+  const reqs = [{ id: 'a', agentId: 'g', queuedMessageId: 'q1', text: 'mine', sentAt: 1 }];
+  const agents = [{ id: 'g', status: 'blocked', running: true, blocked: true }];
+  const [a] = runsFor(reqs, agents, {}, { deliveredIds: { q1: true, other: true }, lastDelivered: { g: 'other' } });
+  assert.equal(states(a).execute, 'unreported');
+  assert.equal(a.needsInput, false);
+  const [a2] = runsFor(reqs, agents, {}, { deliveredIds: { q1: true }, lastDelivered: { g: 'q1' } });
+  assert.equal(a2.needsInput, true);
 });

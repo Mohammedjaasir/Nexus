@@ -13,7 +13,7 @@ export function RunsIndicator() {
   const text = `${live.length} ${live.length === 1 ? 'request' : 'requests'}`;
   return (
     <a className={`nx-runpill cth-titlebar-nodrag${needsInput ? ' nx-runpill--input' : ''}`} href={href}
-      aria-label={`${text} in progress${needsInput ? ', one needs your input' : ''}. Open runs`}>
+      aria-label={`${live.length} open ${live.length === 1 ? 'request' : 'requests'}${needsInput ? ', waiting for your input' : ''}. Open runs`}>
       {text}
     </a>
   );

@@ -86,6 +86,7 @@ export function IntentLine({ summoned = false, onClose }: { summoned?: boolean; 
 
   const send = () => {
     const text = draft.trim();
+    if (!text) return;
     const res = port.send({ text: draft, contextHeader: header });
     if (!res.ok) { setError(res.error); setSent(null); return; }
     const projectId = ctx.project?.id ?? null;
@@ -130,7 +131,8 @@ export function IntentLine({ summoned = false, onClose }: { summoned?: boolean; 
         />
         <div className="nx-intent__suggest" ref={popRef}>
           <button type="button" className="nx-btn nx-btn--quiet nx-iconbtn" aria-label="Suggestions" title="Suggestions"
-            aria-expanded={suggestOpen} aria-controls={ids.pop} onClick={() => setSuggestOpen((v) => !v)}>
+            aria-expanded={suggestOpen} aria-controls={ids.pop} onClick={() => setSuggestOpen((v) => !v)}
+            onKeyDown={(e) => { if (e.key === 'Escape' && suggestOpen) { e.preventDefault(); e.stopPropagation(); setSuggestOpen(false); } }}>
             <Icon name="sparkles" size={15} />
           </button>
           {suggestOpen && (

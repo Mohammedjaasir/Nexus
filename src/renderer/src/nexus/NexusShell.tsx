@@ -25,6 +25,8 @@ function IntentSlot() {
     if (tick !== lastTick.current) { lastTick.current = tick; setSummonedOn(key); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick]);
+  // A summoned line belongs to the route it was summoned on; leaving clears it.
+  useEffect(() => { setSummonedOn((cur) => (cur === key ? cur : null)); }, [key]);
   const docked = route.name === 'workspace' || route.name === 'project';
   if (docked) return <IntentLine key="docked" />;
   if (summonedOn === key) return <IntentLine key={`summoned:${key}`} summoned onClose={() => setSummonedOn(null)} />;

@@ -740,6 +740,9 @@ export function useHive(config: HarnessConfig | null): void {
             inferAgentProvider(target.command, target.provider)
           ),
           () => {
+            // Acknowledged write: record it before the message leaves the queue
+            // so the Nexus run strips never see it as neither queued nor delivered.
+            useStore.getState().markDelivered(target.id, next.id);
             removeQueuedMessage(srcId, next.id);
             // Zero the gauge on a DELIVERED /clear — the new session's context
             // isn't known until statusLine fires after the first post-clear

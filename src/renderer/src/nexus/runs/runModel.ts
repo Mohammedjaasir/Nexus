@@ -5,19 +5,30 @@ export type RunView = { id: string; title: string; headline: string; stages: { i
 const LABELS: Record<StageId, string> = { context: 'Context', plan: 'Plan', execute: 'Execute', output: 'Output', review: 'Review' };
 const WORKING = new Set(['working', 'thinking']);
 
-/** The lead agent reports only queue state and its terminal status. Plan,
- *  output and review stay "unreported" until an AgentRuntime provides them. */
-export function leadAgentRun(input: { request: { id: string; text: string; sentAt: number }; queued: boolean; agentPresent: boolean; agentStatus: string | null; blocked: boolean }): RunView {
-  const { queued, agentPresent, agentStatus, blocked } = input;
+/** The lead agent reports only queue state, acknowledged deliveries and its
+ *  terminal status. Plan, output and review stay "unreported" until an
+ *  AgentRuntime provides them.
+ *  - queued: the message is still in the agent's queue;
+ *  - delivered: the drain acknowledged writing it to the agent's terminal;
+ *  - isLatestDelivered: it is the last message delivered to that agent, so the
+ *    agent's live status (working / blocked) can be attributed to it. */
+export function leadAgentRun(input: {
+  request: { id: string; text: string; sentAt: number };
+  queued: boolean; delivered: boolean; isLatestDelivered: boolean;
+  agentPresent: boolean; agentStatus: string | null; blocked: boolean;
+}): RunView {
+  const { queued, delivered, isLatestDelivered, agentPresent, agentStatus, blocked } = input;
+  const live = delivered && isLatestDelivered && agentPresent;
   let execute: StageState; let headline: string;
-  // A message leaves the queue when it is delivered, or when its agent is
-  // removed (the queue goes with it). Without the agent we cannot tell which.
-  if (!agentPresent && !queued) { execute = 'unreported'; headline = 'Not tracked. The lead agent it was sent to is no longer running'; }
-  else if (!agentPresent) { execute = 'pending'; headline = 'Queued. The lead agent is not running'; }
+  if (queued && !agentPresent) { execute = 'pending'; headline = 'Queued. The lead agent is not running'; }
   else if (queued) { execute = 'pending'; headline = 'Queued for the lead agent'; }
-  else if (blocked) { execute = 'waiting'; headline = 'Waiting for you in its terminal'; }
-  else if (agentStatus && WORKING.has(agentStatus)) { execute = 'active'; headline = 'The lead agent is working'; }
-  else { execute = 'unreported'; headline = 'Delivered. See the lead agent’s terminal for the result'; }
+  else if (live && blocked) { execute = 'waiting'; headline = 'Waiting for you in its terminal'; }
+  else if (live && agentStatus && WORKING.has(agentStatus)) { execute = 'active'; headline = 'The lead agent is working'; }
+  else if (delivered) { execute = 'unreported'; headline = 'Delivered. See the lead agent’s terminal for the result'; }
+  // Removing an agent deletes its queue, so without the agent we cannot say more.
+  else if (!agentPresent) { execute = 'unreported'; headline = 'Not tracked. The lead agent it was sent to is no longer running'; }
+  // Removed or cleared by the user, or dropped by the drain after failed writes.
+  else { execute = 'unreported'; headline = 'Left the queue without being delivered'; }
   const state: Record<StageId, StageState> = { context: 'done', plan: 'unreported', execute, output: 'unreported', review: 'unreported' };
   return {
     id: input.request.id,
@@ -31,29 +42,26 @@ export function leadAgentRun(input: { request: { id: string; text: string; sentA
 
 export type RunRequest = { id: string; agentId: string; queuedMessageId: string; text: string; sentAt: number };
 export type RunAgent = { id: string; status: string; running: boolean; blocked: boolean };
+export type DeliveryRecord = { deliveredIds: Record<string, true>; lastDelivered: Record<string, string> };
 
-/** Derives each request's run from real store state only. A request is queued
- *  while its message id is still in its agent's queue. Only the newest
- *  delivered request per agent takes the agent's live status; older delivered
- *  ones cannot be told apart from later work, so they report nothing live. */
-export function runsFor(requests: RunRequest[], agents: RunAgent[], queues: Record<string, { id: string }[] | undefined>): RunView[] {
-  const isQueued = (r: RunRequest) => !!queues[r.agentId]?.some((m) => m.id === r.queuedMessageId);
-  const latestDelivered = new Map<string, RunRequest>();
-  for (const r of requests) {
-    if (isQueued(r)) continue;
-    const cur = latestDelivered.get(r.agentId);
-    if (!cur || r.sentAt >= cur.sentAt) latestDelivered.set(r.agentId, r);
-  }
+/** Derives each request's run from real store state only: the agent's queue,
+ *  the drain's acknowledged deliveries, and the agent record. */
+export function runsFor(
+  requests: RunRequest[],
+  agents: RunAgent[],
+  queues: Record<string, { id: string }[] | undefined>,
+  delivery: DeliveryRecord
+): RunView[] {
   return requests.map((r) => {
     const agent = agents.find((a) => a.id === r.agentId);
-    const queued = isQueued(r);
-    const live = queued || latestDelivered.get(r.agentId) === r;
     return leadAgentRun({
       request: r,
-      queued,
+      queued: !!queues[r.agentId]?.some((m) => m.id === r.queuedMessageId),
+      delivered: !!delivery.deliveredIds[r.queuedMessageId],
+      isLatestDelivered: delivery.lastDelivered[r.agentId] === r.queuedMessageId,
       agentPresent: !!agent?.running,
-      agentStatus: live && agent ? agent.status : null,
-      blocked: live && !queued && !!agent?.blocked
+      agentStatus: agent ? agent.status : null,
+      blocked: !!agent?.blocked
     });
   });
 }
