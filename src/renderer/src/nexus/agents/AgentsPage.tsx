@@ -91,7 +91,7 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
           </ul>
           <details className="nxa__mem">
             <summary className="nxa__mem-sum nx-focusable">Semantic memory</summary>
-            <div className="nxa__mem-body"><MemoryPanel /></div>
+            <div className="nxa__mem-body"><MemoryPanel defaultOpen /></div>
           </details>
           </div>
           <section className="nxa__term" role="region" aria-label={`${current?.title ?? 'Agent'} panel`}>

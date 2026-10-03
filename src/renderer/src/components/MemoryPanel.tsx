@@ -26,8 +26,9 @@ const MODELS: { id: ModelId; title: string; detail: string }[] = [
  * it on/off, and pick how it searches. Agents read/write it directly; this is
  * the human-facing window into the same memory.
  */
-export function MemoryPanel() {
-  const [open, setOpen] = useState(false);
+/** `defaultOpen` is for hosts that provide their own toggle: it starts expanded and hides the inner Close. */
+export function MemoryPanel({ defaultOpen }: { defaultOpen?: boolean } = {}) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
   const [status, setStatus] = useState<MemoryStatus | null>(null);
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<string>('');
@@ -142,7 +143,7 @@ export function MemoryPanel() {
                       window.dispatchEvent(new CustomEvent('cth:open-settings', {
                         detail: { section: 'Prerequisites' }
                       }));
-                      setOpen(false);
+                      if (!defaultOpen) setOpen(false);
                     }}
                   >
                     set it up in Prerequisites →
@@ -224,9 +225,11 @@ export function MemoryPanel() {
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--cth-ink-300)', paddingTop: 10 }}>
-              <PixelButton variant="ghost" size="sm" onClick={() => setOpen(false)}>Close</PixelButton>
-            </div>
+            {!defaultOpen && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--cth-ink-300)', paddingTop: 10 }}>
+                <PixelButton variant="ghost" size="sm" onClick={() => setOpen(false)}>Close</PixelButton>
+              </div>
+            )}
           </div>
         </PixelPanel>
       )}
