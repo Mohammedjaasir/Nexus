@@ -2,7 +2,7 @@
 // Any change here must also update tokens.css.
 
 export const colors = {
-  // SRGB equivalents of the light-theme Nexus roles (tokens.css points the legacy names at var(--nx-*)).
+  // sRGB equivalents of the light-theme Nexus roles (accents at ring hues 28/158/240/85/300/55 at L .56 C .13) (tokens.css points the legacy names at var(--nx-*)).
   cream: {
     50: 0xfbfdfd,
     100: 0xf3f7f7,
@@ -21,24 +21,24 @@ export const colors = {
     100: 0xd5dadb
   },
   accent: {
-    coral: 0xb6322b,
-    coralLight: 0xf3e5e4,
-    mint: 0x14764a,
-    mintLight: 0xdfede8,
-    sky: 0x161e22,
-    skyLight: 0xe0e2e3,
-    lemon: 0x9b5f00,
-    lemonLight: 0xefeadf,
-    lilac: 0x161e22,
-    lilacLight: 0xe0e2e3,
-    peach: 0x161e22,
-    peachLight: 0xe0e2e3
+    coral: 0xb45248,
+    coralLight: 0xf2e8e7,
+    mint: 0x048b56,
+    mintLight: 0xddefe9,
+    sky: 0x007cb8,
+    skyLight: 0xddeef5,
+    lemon: 0x976c00,
+    lemonLight: 0xefecdf,
+    lilac: 0x8160b5,
+    lilacLight: 0xeceaf4,
+    peach: 0xad5c15,
+    peachLight: 0xf2eae1
   },
   status: {
     idle: 0x868e90,
-    thinking: 0x161e22,
+    thinking: 0x007cb8,
     working: 0x9b5f00,
-    blocked: 0xb6322b,
+    blocked: 0xab517f,
     success: 0x14764a,
     ghost: 0xd5dadb
   },

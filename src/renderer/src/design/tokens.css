@@ -1,10 +1,9 @@
 /* Design tokens — mirrors tokens.ts. Update both together.
 
-   INTERIM NEUTRAL FOUNDATION. The previous warm "cream paper + pixel" identity
-   has been retired. Token NAMES are kept unchanged because ~85 components
-   reference them inline; only the VALUES are neutral now. The names are legacy
-   (cream/paper/ink describe the old palette, not these values) and will be
-   replaced by a semantic token layer when the new visual system lands.
+   Token NAMES are legacy (~85 components reference them inline): cream/paper/
+   ink describe the retired palette, not these values. Every colour token is now
+   a reference to the Nexus roles in nexus/styles/tokens.css (loaded globally,
+   switching with the theme), so the legacy UI follows the Nexus system.
 
    Mapping, so the legacy names stay readable:
      cream-50   raised surface (dialogs)       paper-100  content surface (cards, inputs, terminals)
@@ -14,11 +13,11 @@
                                                ink-500    tertiary text / hints (>= 4.5:1)
                                                ink-300    structural borders   (>= 3.0:1)
                                                ink-100    dividers, meant to recede
-   COLOUR VALUES NOW POINT AT THE NEXUS ROLES. Every colour token below is a
-   var(--nx-*) reference (defined in nexus/styles/tokens.css, loaded globally,
-   switching with the theme). Accents sky/lilac/peach collapse to ink; coral,
-   mint, lemon map to bad, ok, warn. Accents are plain semantic hues: coral=red, mint=green, sky=blue,
-   lemon=amber, lilac=violet, peach=orange. */
+   Categorical accents (coral, mint, sky, lemon, lilac, peach) must stay
+   mutually distinct: each sits at its own hue on the provenance ring, using
+   the theme's --nx-ws-l/--nx-ws-c. Statuses are likewise pairwise distinct;
+   semantic ones use --nx-ok/--nx-warn/--nx-bad (success, working, looping)
+   and the rest use ring hues or neutrals. -light tints mix 12% toward surface. */
 :root {
   /* Surfaces */
   --cth-cream-50:  var(--nx-surface);
@@ -36,24 +35,24 @@
   --cth-ink-100: var(--nx-line);
 
   /* Semantic accents */
-  --cth-coral: var(--nx-bad);       --cth-coral-light: color-mix(in oklab, var(--nx-bad) 12%, var(--nx-surface));
-  --cth-mint:  var(--nx-ok);       --cth-mint-light:  color-mix(in oklab, var(--nx-ok) 12%, var(--nx-surface));
-  --cth-sky:   var(--nx-ink);       --cth-sky-light:   color-mix(in oklab, var(--nx-ink) 12%, var(--nx-surface));
-  --cth-lemon: var(--nx-warn);       --cth-lemon-light: color-mix(in oklab, var(--nx-warn) 12%, var(--nx-surface));
-  --cth-lilac: var(--nx-ink);       --cth-lilac-light: color-mix(in oklab, var(--nx-ink) 12%, var(--nx-surface));
-  --cth-peach: var(--nx-ink);       --cth-peach-light: color-mix(in oklab, var(--nx-ink) 12%, var(--nx-surface));
+  --cth-coral: oklch(var(--nx-ws-l) var(--nx-ws-c) 28);       --cth-coral-light: color-mix(in oklab, oklch(var(--nx-ws-l) var(--nx-ws-c) 28) 12%, var(--nx-surface));
+  --cth-mint:  oklch(var(--nx-ws-l) var(--nx-ws-c) 158);       --cth-mint-light:  color-mix(in oklab, oklch(var(--nx-ws-l) var(--nx-ws-c) 158) 12%, var(--nx-surface));
+  --cth-sky:   oklch(var(--nx-ws-l) var(--nx-ws-c) 240);       --cth-sky-light:   color-mix(in oklab, oklch(var(--nx-ws-l) var(--nx-ws-c) 240) 12%, var(--nx-surface));
+  --cth-lemon: oklch(var(--nx-ws-l) var(--nx-ws-c) 85);       --cth-lemon-light: color-mix(in oklab, oklch(var(--nx-ws-l) var(--nx-ws-c) 85) 12%, var(--nx-surface));
+  --cth-lilac: oklch(var(--nx-ws-l) var(--nx-ws-c) 300);       --cth-lilac-light: color-mix(in oklab, oklch(var(--nx-ws-l) var(--nx-ws-c) 300) 12%, var(--nx-surface));
+  --cth-peach: oklch(var(--nx-ws-l) var(--nx-ws-c) 55);       --cth-peach-light: color-mix(in oklab, oklch(var(--nx-ws-l) var(--nx-ws-c) 55) 12%, var(--nx-surface));
 
   /* Status (hue meanings unchanged) */
   --cth-status-idle:       var(--nx-line-strong);
-  --cth-status-thinking:   var(--nx-ink);
+  --cth-status-thinking:   oklch(var(--nx-ws-l) var(--nx-ws-c) 240);
   --cth-status-working:    var(--nx-warn);
-  --cth-status-waiting:    var(--nx-text-2);
-  --cth-status-blocked:    var(--nx-bad);
+  --cth-status-waiting:    oklch(var(--nx-ws-l) var(--nx-ws-c) 270);
+  --cth-status-blocked:    oklch(var(--nx-ws-l) var(--nx-ws-c) 350);
   --cth-status-success:    var(--nx-ok);
   --cth-status-ghost:      var(--nx-line);
-  --cth-status-compacting: var(--nx-text-2); /* mid-/compact, "boxing up context" */
-  --cth-status-looping:    var(--nx-warn); /* circuit-breaker armed (runaway) */
-  --cth-status-typing:     var(--nx-warn); /* unsent text on the prompt — queue is held */
+  --cth-status-compacting: oklch(var(--nx-ws-l) var(--nx-ws-c) 300); /* mid-/compact, "boxing up context" */
+  --cth-status-looping:    var(--nx-bad); /* circuit-breaker armed (runaway) */
+  --cth-status-typing:     oklch(var(--nx-ws-l) var(--nx-ws-c) 105); /* unsent text on the prompt — queue is held */
 
   /* Spacing (4px base) */
   --cth-space-0: 0px;
@@ -123,23 +122,23 @@
   --cth-ink-300: var(--nx-line-strong);
   --cth-ink-100: var(--nx-line);
 
-  --cth-coral: var(--nx-bad);       --cth-coral-light: color-mix(in oklab, var(--nx-bad) 12%, var(--nx-surface));
-  --cth-mint:  var(--nx-ok);       --cth-mint-light:  color-mix(in oklab, var(--nx-ok) 12%, var(--nx-surface));
-  --cth-sky:   var(--nx-ink);       --cth-sky-light:   color-mix(in oklab, var(--nx-ink) 12%, var(--nx-surface));
-  --cth-lemon: var(--nx-warn);       --cth-lemon-light: color-mix(in oklab, var(--nx-warn) 12%, var(--nx-surface));
-  --cth-lilac: var(--nx-ink);       --cth-lilac-light: color-mix(in oklab, var(--nx-ink) 12%, var(--nx-surface));
-  --cth-peach: var(--nx-ink);       --cth-peach-light: color-mix(in oklab, var(--nx-ink) 12%, var(--nx-surface));
+  --cth-coral: oklch(var(--nx-ws-l) var(--nx-ws-c) 28);       --cth-coral-light: color-mix(in oklab, oklch(var(--nx-ws-l) var(--nx-ws-c) 28) 12%, var(--nx-surface));
+  --cth-mint:  oklch(var(--nx-ws-l) var(--nx-ws-c) 158);       --cth-mint-light:  color-mix(in oklab, oklch(var(--nx-ws-l) var(--nx-ws-c) 158) 12%, var(--nx-surface));
+  --cth-sky:   oklch(var(--nx-ws-l) var(--nx-ws-c) 240);       --cth-sky-light:   color-mix(in oklab, oklch(var(--nx-ws-l) var(--nx-ws-c) 240) 12%, var(--nx-surface));
+  --cth-lemon: oklch(var(--nx-ws-l) var(--nx-ws-c) 85);       --cth-lemon-light: color-mix(in oklab, oklch(var(--nx-ws-l) var(--nx-ws-c) 85) 12%, var(--nx-surface));
+  --cth-lilac: oklch(var(--nx-ws-l) var(--nx-ws-c) 300);       --cth-lilac-light: color-mix(in oklab, oklch(var(--nx-ws-l) var(--nx-ws-c) 300) 12%, var(--nx-surface));
+  --cth-peach: oklch(var(--nx-ws-l) var(--nx-ws-c) 55);       --cth-peach-light: color-mix(in oklab, oklch(var(--nx-ws-l) var(--nx-ws-c) 55) 12%, var(--nx-surface));
 
   --cth-status-idle:       var(--nx-line-strong);
-  --cth-status-thinking:   var(--nx-ink);
+  --cth-status-thinking:   oklch(var(--nx-ws-l) var(--nx-ws-c) 240);
   --cth-status-working:    var(--nx-warn);
-  --cth-status-waiting:    var(--nx-text-2);
-  --cth-status-blocked:    var(--nx-bad);
+  --cth-status-waiting:    oklch(var(--nx-ws-l) var(--nx-ws-c) 270);
+  --cth-status-blocked:    oklch(var(--nx-ws-l) var(--nx-ws-c) 350);
   --cth-status-success:    var(--nx-ok);
   --cth-status-ghost:      var(--nx-line);
-  --cth-status-compacting: var(--nx-text-2);
-  --cth-status-looping:    var(--nx-warn);
-  --cth-status-typing:     var(--nx-warn);
+  --cth-status-compacting: oklch(var(--nx-ws-l) var(--nx-ws-c) 300);
+  --cth-status-looping:    var(--nx-bad);
+  --cth-status-typing:     oklch(var(--nx-ws-l) var(--nx-ws-c) 105);
 
   --cth-shadow-hard: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
 

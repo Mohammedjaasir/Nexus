@@ -54,3 +54,30 @@ test('tokens: no gradient identity token', () => {
 test('tokens: nexus tokens do not mention Inter', () => {
   assert.ok(!/\bInter\b/.test(read('src/renderer/src/nexus/styles/tokens.css')));
 });
+
+function legacyBlock(css, selector) {
+  return css.split(selector + ' {')[1].split(/\n}/)[0];
+}
+function legacyValues(css, selector, names) {
+  const block = legacyBlock(css, selector);
+  const out = {};
+  for (const n of names) {
+    const m = block.match(new RegExp('--cth-' + n + ':\s*([^;]+);'));
+    if (m) out[n] = m[1].trim().replace(/\s+/g, ' ');
+  }
+  return out;
+}
+
+test('tokens: legacy accents and statuses stay mutually distinct', () => {
+  const css = read('src/renderer/src/design/tokens.css');
+  const accents = ['coral', 'mint', 'sky', 'lemon', 'lilac', 'peach'];
+  const statuses = ['idle', 'thinking', 'working', 'waiting', 'blocked', 'success', 'ghost', 'compacting', 'looping', 'typing'].map((n) => 'status-' + n);
+  for (const sel of [':root', ":root[data-cth-theme='dark']"]) {
+    for (const group of [accents, accents.map((n) => n + '-light'), statuses]) {
+      const v = legacyValues(css, sel, group);
+      const vals = Object.values(v);
+      assert.equal(vals.length, group.length, `${sel}: ${group.join(',')} all defined`);
+      assert.equal(new Set(vals).size, vals.length, `${sel}: duplicate values in ${JSON.stringify(v)}`);
+    }
+  }
+});
