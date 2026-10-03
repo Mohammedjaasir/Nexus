@@ -1,11 +1,10 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { PixelPanel } from './PixelPanel';
 import { PixelButton } from './PixelButton';
-import { SpritePortrait } from './SpritePortrait';
 import { Icon } from './Icon';
 import { ProviderLogo } from './ProviderLogo';
 import { useStore, type Agent } from '@/store/store';
-import { OFFICE_CAST, DEFAULT_CHARACTER, type OfficeCharacterName } from '@/scene/office/cast';
+import { DEFAULT_CHARACTER } from '@/scene/office/cast';
 import { type AccentColorName } from '@/design/tokens';
 import type { HireManifest } from '@shared/hire';
 import { MCP_CATALOG } from '@shared/mcpCatalog';
@@ -86,7 +85,7 @@ Return EXACTLY this shape (omit optional fields you don't need; keep the spec st
 
 {
   "spec": "munder-difflin/hire@1",
-  "name": "Jim",
+  "name": "Ada",
   "description": "one-line role — what this agent is for",
   "goal": "standing directive injected on every prompt — specific and outcome-oriented",
   "provider": "claude",
@@ -115,7 +114,7 @@ Repos, tools, style, or constraints to respect:
 // isn't a field here — it rides an imported hire manifest (the pinned banner).
 type SectionKey = 'identity' | 'workspace' | 'engine' | 'briefing';
 const SECTIONS: { key: SectionKey; label: string; hint: string }[] = [
-  { key: 'identity',  label: 'Identity',  hint: 'name · character · color' },
+  { key: 'identity',  label: 'Identity',  hint: 'name · color' },
   { key: 'workspace', label: 'Workspace', hint: 'folder · isolation · resume' },
   { key: 'engine',    label: 'Engine',    hint: 'provider · model · command' },
   { key: 'briefing',  label: 'Briefing',  hint: 'description · goal' }
@@ -143,8 +142,6 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
   // NEVER auto-spawn — the human reviews every field (esp. the command) first.
   const pendingHire = useStore(s => s.pendingHire);
 
-  const knownCharacter = (c?: string): OfficeCharacterName =>
-    (OFFICE_CAST.some(m => m.name === c) ? (c as OfficeCharacterName) : DEFAULT_CHARACTER);
   const knownAccent = (a?: string): AccentColorName =>
     (ACCENTS.includes(a as AccentColorName) ? (a as AccentColorName) : 'sky');
   /** The locally-built spawn command for a manifest: provider preset + model
@@ -161,8 +158,9 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
   const initialProvider = inferAgentProvider(config.defaultCommand);
   const initialModel = isClaudeProvider(initialProvider) ? config.defaultModel : undefined;
 
-  const [name, setName] = useState(pendingHire?.name ?? 'Jim');
-  const [character, setCharacter] = useState<OfficeCharacterName>(knownCharacter(pendingHire?.character));
+  const [name, setName] = useState(pendingHire?.name ?? 'Agent');
+  // The character picker is not offered on Nexus; every new agent keeps the default.
+  const character = DEFAULT_CHARACTER;
   const [accent, setAccent] = useState<AccentColorName>(knownAccent(pendingHire?.accent));
   const [cwd, setCwd] = useState<string>(config.registeredRepos[0] ?? '');
   // Local mirror of the registered projects so one added from here shows as a
@@ -311,7 +309,6 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
   const applyManifest = (m: HireManifest) => {
     setHireMeta(m);
     setName(m.name);
-    setCharacter(knownCharacter(m.character));
     setAccent(knownAccent(m.accent));
     if (m.provider) setProvider(m.provider);
     setModel(m.model);
@@ -601,33 +598,6 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                         placeholder="Ada"
                         style={inputStyle}
                       />
-                    </Row>
-
-                    <Row label="Character">
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {OFFICE_CAST.map(c => (
-                          <button
-                            key={c.name}
-                            onClick={() => { setCharacter(c.name); setName(c.displayName); }}
-                            title={c.blurb}
-                            style={{
-                              padding: 4,
-                              background: character === c.name ? `var(--cth-${accent}-light)` : 'var(--cth-cream-100)',
-                              boxShadow: character === c.name
-                                ? 'inset 0 0 0 1.5px var(--cth-ink-500)'
-                                : 'inset 0 0 0 1px var(--cth-ink-100)',
-                              cursor: 'pointer',
-                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                              border: 'none', width: 56
-                            }}
-                          >
-                            <div style={{ width: 44, height: 56, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden' }}>
-                              <SpritePortrait character={c.name} scale={2} />
-                            </div>
-                            <span style={{ fontSize: 11, color: 'var(--cth-ink-700)' }}>{c.displayName}</span>
-                          </button>
-                        ))}
-                      </div>
                     </Row>
 
                     <Row label="Color">
