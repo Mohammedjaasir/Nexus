@@ -65,9 +65,9 @@
 
   /* Type. There is no separate display face any more: `display` is kept as a
      name for existing label call sites and resolves to the UI face. */
-  --cth-font-ui:      "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --cth-font-ui:      "Instrument Sans Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
   --cth-font-display: var(--cth-font-ui);
-  --cth-font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --cth-font-mono:    "JetBrains Mono", ui-monospace, Consolas, Menlo, monospace;
 
   --cth-text-display-lg: 16px;
   --cth-text-display-md: 12px;
