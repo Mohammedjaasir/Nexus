@@ -5,6 +5,7 @@ import { groupChanges, REVIEW_PHASE_NOTE } from './reviewModel';
 import { useNexusUi } from '../state/uiStore';
 import { useShellActions } from '../shellActions';
 import { Button } from '../ui/Button';
+import { useMedia } from '../ui/useMedia';
 
 type DiffResult =
   | { key: string; status: 'error'; message: string }
@@ -16,6 +17,8 @@ const NO_CHANGES: { path: string; kind: 'modified' }[] = [];
 /** Read-only review of the project's uncommitted changes: real diff, no accept/discard. */
 export function ReviewSurface({ root, git, refresh }: { root: string; git: GitState; refresh: () => void }) {
   const actions = useShellActions();
+  // Below 768px the diff editor is not mounted at all, and no diff is fetched.
+  const mobile = useMedia('(max-width: 767px)');
   const setSelection = useNexusUi((s) => s.setSelection);
   const focusIntent = useNexusUi((s) => s.focusIntent);
   const changed = git.status === 'ready' && git.isRepo ? git.changed : NO_CHANGES;
@@ -33,7 +36,7 @@ export function ReviewSurface({ root, git, refresh }: { root: string; git: GitSt
   // A result is only shown when its key matches the current file/attempt, and a
   // superseded request is ignored, so a quick file switch never shows a stale diff.
   useEffect(() => {
-    if (!selected || !key) return;
+    if (!selected || !key || mobile) return;
     let cancelled = false;
     window.cth.gitDiff(root, selected).then((res) => {
       if (cancelled) return;
@@ -45,7 +48,7 @@ export function ReviewSurface({ root, git, refresh }: { root: string; git: GitSt
       if (!cancelled) setResult({ key, status: 'error', message: e instanceof Error ? e.message : 'The diff could not be read.' });
     });
     return () => { cancelled = true; };
-  }, [root, selected, sig, key]);
+  }, [root, selected, sig, key, mobile]);
 
   const frame = (body: ReactNode) => (
     <section className="nx-surface nx-review" aria-labelledby="nx-surface-title">
@@ -98,6 +101,7 @@ export function ReviewSurface({ root, git, refresh }: { root: string; git: GitSt
             <Button onClick={() => { if (selected) { setSelection({ kind: 'file', label: selected }); focusIntent(); } }}>Ask an agent to revise</Button>
             <Button variant="quiet" icon="refresh" onClick={() => { setAttempt((n) => n + 1); refresh(); }}>Refresh</Button>
           </div>
+          {mobile ? <p className="nx-muted">Diffs are available on desktop.</p> : (
           <div className="nx-review__diff" role="region" aria-label={selected ? `Diff of ${selected}` : 'Diff'}>
             {!current && <p className="nx-muted" role="status">Loading diff…</p>}
             {current?.status === 'error' && (
@@ -109,6 +113,7 @@ export function ReviewSurface({ root, git, refresh }: { root: string; git: GitSt
             {current?.status === 'binary' && <p className="nx-muted">Binary file, not shown</p>}
             {current?.status === 'ready' && selected && <MonacoDiff key={selected} path={selected} original={current.head} modified={current.working} />}
           </div>
+          )}
         </div>
       </div>
     </>

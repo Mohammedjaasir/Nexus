@@ -54,13 +54,27 @@
 .nx-passport__kind { margin: 0; font-size: 11px; color: var(--nx-text-3); }
 .nx-passport__actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
 .nx-passport__note { margin: 0; color: var(--nx-text-2); }
-@media (max-width: 1023px) { .nx-bench { grid-template-columns: 48px minmax(0, 1fr); } .nx-passport { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--nx-line); } .nx-bench { overflow: auto; } }
-@media (max-width: 767px) {
-  .nx-bench { grid-template-columns: minmax(0, 1fr); }
-  .nx-rail { grid-auto-flow: column; justify-content: start; border-right: 0; border-bottom: 1px solid var(--nx-line); padding: 6px var(--nx-s2); }
+.nx-surface__title { view-transition-name: nx-focus; }
+::view-transition-group(nx-focus) { animation-duration: var(--nx-t-shift); animation-timing-function: var(--nx-ease-in); }
+@media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }
+
+.nx-passport-btn { display: none; margin-left: auto; height: 34px; padding: 0 10px; align-items: center; border: 1px solid var(--nx-line-strong); border-radius: var(--nx-r-ctl); background: var(--nx-surface); color: var(--nx-ink); font: 500 12.5px var(--nx-font); cursor: pointer; }
+.nx-sheet .nx-passport { display: grid; border: 0; flex: 1; min-height: 0; }
+@media (max-width: 1279px) {
+  .nx-bench { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); overflow: auto; }
+  .nx-rail { grid-auto-flow: column; justify-content: start; align-content: center; border-right: 0; border-bottom: 1px solid var(--nx-line); padding: 6px var(--nx-s3); }
   .nx-rail__item { width: 40px; }
   .nx-rail__sep { width: 1px; height: auto; margin: 4px; }
-  .nx-surface { padding: var(--nx-s4) 16px 120px; }
+  .nx-rail__item[aria-current="page"] { box-shadow: inset 0 -2px 0 var(--nx-ink); }
+  .nx-passport { display: none; }
+  .nx-passport-btn { display: inline-flex; }
+}
+@media (min-width: 1280px) { .nx-passport-btn { display: none; } }
+@media (max-width: 767px) {
+  .nx-rail [data-desktop-only] { display: none; }
+  .nx-surface { padding: var(--nx-s4) var(--nx-s4) 140px; }
+  .nx-intent { margin: 0 var(--nx-s3) var(--nx-s3); }
+  .nx-mruns { padding: var(--nx-s3) var(--nx-s4) 0; background: var(--nx-surface); }
 }
 
 /* Read-only change review */

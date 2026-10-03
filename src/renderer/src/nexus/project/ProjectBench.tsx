@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { Project } from '@shared/project';
 import { useStore } from '@/store/store';
 import type { ProjectTool } from '../router/routes';
@@ -7,6 +8,10 @@ import { useProjectsLoader } from '../data/useProjects';
 import { useNexusUi } from '../state/uiStore';
 import { EmptyState } from '../ui/EmptyState';
 import { Button } from '../ui/Button';
+import { Sheet } from '../ui/Sheet';
+import { useMedia } from '../ui/useMedia';
+import { withViewTransition } from '../ui/viewTransition';
+import { MobileRuns } from './MobileRuns';
 import { buildSpine, nodeLabel } from './spineModel';
 import type { SpineNode } from './spineModel';
 import { useProjectGit } from './useProjectGit';
@@ -76,9 +81,26 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   useEffect(() => { setSelection({ kind: node.kind, label }); }, [node.kind, label, setSelection]);
   useEffect(() => () => setSelection(null), [setSelection]);
 
-  const onSelect = (nodeId: string) => {
-    setSelected(nodeId);
-    navigate({ name: 'project', id: project.id, tool: nodeId === 'changes' ? 'changes' : 'bench' });
+  const wide = useMedia('(min-width: 1280px)');
+  const mobile = useMedia('(max-width: 767px)');
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const closeDetails = useCallback(() => setDetailsOpen(false), []);
+  useEffect(() => { if (wide) setDetailsOpen(false); }, [wide]);
+
+  // The clicked node carries the shared transition name only for this one
+  // transition; the surface title carries it in steady state. The router is
+  // hash-based, so the hashchange is dispatched synchronously inside flushSync
+  // and the new snapshot shows the rendered surface.
+  const onSelect = (nodeId: string, el?: HTMLElement) => {
+    el?.style.setProperty('view-transition-name', 'nx-focus');
+    withViewTransition(() => {
+      el?.style.removeProperty('view-transition-name');
+      flushSync(() => {
+        setSelected(nodeId);
+        navigate({ name: 'project', id: project.id, tool: nodeId === 'changes' ? 'changes' : 'bench' });
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+    });
   };
 
   const refreshProject = useCallback(async () => {
@@ -97,12 +119,21 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   }, [project.rootPath]);
   return (
     <div className="nx-workbench">
+      {mobile && <MobileRuns projectId={project.id} />}
       <Spine groups={groups} selectedId={node.id} onSelect={onSelect} />
       <div className="nx-bench">
-        <ToolRail projectId={project.id} rootPath={project.rootPath} tool={tool} hasChanges={hasChanges} onOpenTerminal={openTerminal} />
+        <ToolRail projectId={project.id} rootPath={project.rootPath} tool={tool} hasChanges={hasChanges} onOpenTerminal={openTerminal}
+          extra={!wide && (
+            <button type="button" className="nx-passport-btn" aria-haspopup="dialog" aria-expanded={detailsOpen} onClick={() => setDetailsOpen(true)}>Details</button>
+          )} />
         <FocusSurface tool={tool} project={project} node={sourceNode} git={git} onRetryGit={refresh} onRefreshProject={refreshProject} />
-        <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} />
+        {wide && <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} />}
       </div>
+      {!wide && (
+        <Sheet open={detailsOpen} onClose={closeDetails} side={mobile ? 'bottom' : 'right'} labelledBy="nx-passport-title">
+          <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} />
+        </Sheet>
+      )}
     </div>
   );
 }
