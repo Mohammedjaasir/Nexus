@@ -193,7 +193,7 @@ export function ProjectCompletionPanel({ projectId, onPlanUpdated }: ProjectComp
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, fontSize: 10, background: 'var(--cth-cream-100)', padding: 8 }}>
             <div>
               <span style={{ color: 'var(--cth-ink-500)' }}>ROLE:</span>
-              <div style={{ fontWeight: 600 }}>{executionPlan.role.title} (@{executionPlan.role.character})</div>
+              <div style={{ fontWeight: 600 }}>{executionPlan.role.title}</div>
             </div>
             <div>
               <span style={{ color: 'var(--cth-ink-500)' }}>MODEL:</span>

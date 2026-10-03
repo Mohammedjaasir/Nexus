@@ -230,9 +230,6 @@ export function ContextPreviewModal({
                     <span style={{ fontFamily: 'var(--cth-font-display)', fontSize: 13, fontWeight: 700, color: 'var(--cth-ink-900)' }}>
                       {currentRole.title}
                     </span>
-                    <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--cth-ink-600)' }}>
-                      @{currentRole.character}
-                    </span>
                   </div>
 
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -314,7 +311,7 @@ export function ContextPreviewModal({
                             fontFamily: 'var(--cth-font-ui)'
                           }}
                         >
-                          <strong>{r.title}</strong> (@{r.character})
+                          <strong>{r.title}</strong>
                         </button>
                       ))}
                     </div>
@@ -445,7 +442,7 @@ export function ContextPreviewModal({
                     }}
                   >
                     <div>
-                      <strong>{alt.role.title}</strong> (@{alt.role.character}) — Score: {alt.score}
+                      <strong>{alt.role.title}</strong> — Score: {alt.score}
                       <div style={{ fontSize: 9, color: 'var(--cth-ink-500)' }}>
                         {alt.reasons.join(' • ')}
                       </div>
