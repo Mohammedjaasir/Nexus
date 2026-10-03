@@ -133,6 +133,12 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
       .then((r) => { if (!r.ok) setNotice(r.error ?? 'The terminal could not be opened.'); })
       .catch((e) => setNotice(e instanceof Error ? e.message : String(e)));
   }, [project.rootPath]);
+  // The sheet's Passport unmounts when the sheet closes, so its own error line
+  // cannot show a failed refresh: route it to the bench-level notice instead.
+  const refreshFromSheet = useCallback(() => {
+    setNotice(null);
+    return refreshProject().catch((e) => setNotice(e instanceof Error ? e.message : String(e)));
+  }, [refreshProject]);
   return (
     <div className="nx-workbench">
       {mobile && <MobileRuns projectId={project.id} />}
@@ -142,12 +148,13 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
           extra={!wide && (
             <button type="button" className="nx-passport-btn" aria-haspopup="dialog" aria-expanded={detailsOpen} onClick={() => setDetailsOpen(true)}>Details</button>
           )} />
+        {!wide && notice && <p className="nx-passport__note" role="alert">{notice}</p>}
         <FocusSurface tool={tool} project={project} node={sourceNode} git={git} onRetryGit={refresh} onRefreshProject={refreshProject} />
         {wide && <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} />}
       </div>
       {!wide && (
         <Sheet open={detailsOpen} onClose={closeDetails} side={mobile ? 'bottom' : 'right'} labelledBy="nx-passport-title">
-          <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} onBeforeAction={closeDetails} />
+          <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshFromSheet} onOpenTerminal={openTerminal} notice={null} onBeforeAction={closeDetails} />
         </Sheet>
       )}
     </div>
