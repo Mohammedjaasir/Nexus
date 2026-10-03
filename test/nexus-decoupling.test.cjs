@@ -20,9 +20,17 @@ test('nexus copy has no personas or old product identity', () => {
   for (const [f, s] of src) assert.ok(!banned.test(s), `${f} contains banned copy`);
 });
 
+const HORIZONTAL_GRADIENT = /(?<!repeating-)linear-gradient\(\s*90deg/;
+
 test('no Inter or gradient identity in nexus styles', () => {
   for (const [f, s] of src.filter(([f]) => f.endsWith('.css'))) {
     assert.ok(!/"Inter"/.test(s), `${f} references Inter`);
-    assert.ok(!/linear-gradient\(\s*90deg/.test(s), `${f} has a horizontal gradient`);
+    // Repeating gradients are textures (hatching) and are allowed; only plain horizontal gradients are identity.
+    assert.ok(!HORIZONTAL_GRADIENT.test(s), `${f} has a horizontal gradient`);
   }
+});
+
+test('horizontal-gradient rule flags plain gradients but allows repeating textures', () => {
+  assert.ok(HORIZONTAL_GRADIENT.test('background: linear-gradient(90deg, red, blue)'));
+  assert.ok(!HORIZONTAL_GRADIENT.test('background: repeating-linear-gradient(90deg, red 0 3px, transparent 3px 6px)'));
 });

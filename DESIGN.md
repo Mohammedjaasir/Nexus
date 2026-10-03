@@ -66,7 +66,7 @@ Scale: 12 / 13 / 15 / 18 / 26 / 34 / 44 px. JetBrains Mono is loaded as a static
 - `src/renderer/src/design/tokens.css`: the legacy `--cth-*` tokens, now references to `--nx-*`.
 - `src/renderer/src/design/tokens.ts`: sRGB mirror of the light-theme values, read only by the retired office floor. Update with `tokens.css`.
 - `src/renderer/src/design/global.css`: reset, focus ring, scrollbars, keyframes, markdown preview, reduced-motion rule.
-- `test/nexus-decoupling.test.cjs`: guards `nexus/` against the retired office scene, pixel components, persona names and the old product identity, and against `"Inter"` and horizontal gradients in Nexus CSS.
+- `test/nexus-decoupling.test.cjs`: guards `nexus/` against the retired office scene, pixel components, persona names and the old product identity, and against `"Inter"` and plain horizontal gradients in Nexus CSS (repeating gradients are textures and are allowed).
 
 ## Legacy screens
 
