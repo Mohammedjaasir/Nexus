@@ -30,6 +30,7 @@ export function AgentDetailPanel({ agent }: AgentDetailPanelProps) {
   const fullscreenAgentId = useStore(s => s.fullscreenAgentId);
   const sidebarTab = useStore(s => s.sidebarTab);
   const setSidebarTab = useStore(s => s.setSidebarTab);
+  const agentLabel = agent.isGod ? 'Lead agent' : agent.name;
   const isReal = !!agent.ptyId;
   // While this agent is shown in the fullscreen overlay, the fullscreen view
   // owns the pty (it sizes it to fill the screen). Keeping the embedded terminal
@@ -65,7 +66,7 @@ export function AgentDetailPanel({ agent }: AgentDetailPanelProps) {
 
   const onKill = async () => {
     if (!agent.ptyId) return;
-    if (!confirm(`Close ${agent.name}? The PTY process will terminate and the agent is archived (kept in history).`)) return;
+    if (!confirm(`Close ${agentLabel}? The PTY process will terminate and the agent is archived (kept in history).`)) return;
     await window.cth.killPty(agent.ptyId);
     disposeTerminal(agent.ptyId);
     archiveAgent(agent.id);
@@ -106,7 +107,7 @@ export function AgentDetailPanel({ agent }: AgentDetailPanelProps) {
             fontSize: 10, lineHeight: '14px',
             color: 'var(--cth-ink-900)',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-          }}>{agent.name.toUpperCase()}</div>
+          }}>{agentLabel.toUpperCase()}</div>
           <div style={{
             display: 'flex', gap: 6, alignItems: 'center', marginTop: 1
           }}>
