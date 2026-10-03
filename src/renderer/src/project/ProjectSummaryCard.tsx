@@ -274,9 +274,6 @@ export function ProjectSummaryCard({
                   <span style={{ fontFamily: 'var(--cth-font-display)', fontSize: 10, fontWeight: 700, color: 'var(--cth-ink-900)' }}>
                     {role.title}
                   </span>
-                  <span style={{ fontSize: 9, color: 'var(--cth-ink-500)', fontFamily: 'monospace' }}>
-                    @{role.character}
-                  </span>
                 </div>
                 <div
                   style={{
