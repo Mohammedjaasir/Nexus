@@ -1,0 +1,23 @@
+.nx-spine { display: flex; align-items: flex-end; gap: var(--nx-s4); padding: var(--nx-s3) var(--nx-s4); border-bottom: 1px solid var(--nx-line); background: var(--nx-surface); overflow-x: auto; }
+.nx-spine__group { display: grid; gap: var(--nx-s2); }
+.nx-spine__label { display: flex; align-items: center; gap: 6px; margin: 0; font: 600 11px/1 var(--nx-font); letter-spacing: 0.04em; text-transform: uppercase; color: var(--nx-text-3); }
+.nx-spine__label::after { content: ""; flex: 1; min-width: 24px; height: 2px; border-radius: 1px; background: currentColor; color: oklch(var(--nx-ws-l) var(--nx-ws-c) var(--ws-h)); }
+.nx-prov--none .nx-spine__label::after { background: var(--nx-line-strong); }
+.nx-spine__nodes { display: flex; align-items: center; list-style: none; margin: 0; padding: 0; }
+.nx-spine__item { display: flex; align-items: center; }
+.nx-spine__link { width: 22px; height: 1px; background: var(--nx-line-strong); }
+.nx-node { display: grid; gap: 1px; min-width: 120px; padding: 7px 10px 8px; position: relative; text-align: left; border: 1px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-surface); color: var(--nx-ink); font: 400 13px var(--nx-font); cursor: pointer; }
+.nx-node[aria-current="true"] { border-color: var(--nx-ink); box-shadow: inset 0 0 0 1px var(--nx-ink); }
+.nx-node--draft { border-style: dashed; background: repeating-linear-gradient(-45deg, var(--nx-hatch) 0 2px, transparent 2px 7px); }
+.nx-node__k { font-size: 11px; color: var(--nx-text-3); }
+.nx-node__n { font-weight: 600; white-space: nowrap; }
+.nx-node__v { position: absolute; top: 6px; right: 8px; color: var(--nx-text-2); }
+.nx-spine__future { margin: 0 0 9px; font-size: 12.5px; color: var(--nx-text-3); white-space: nowrap; }
+@media (prefers-reduced-motion: no-preference) { .nx-node { transition: transform var(--nx-t-fast) var(--nx-ease-in), border-color var(--nx-t-fast); } .nx-node:hover { transform: translateY(-1px); } }
+@media (max-width: 767px) {
+  .nx-spine { flex-direction: column; align-items: stretch; overflow: visible; }
+  .nx-spine__nodes { flex-direction: column; align-items: stretch; }
+  .nx-spine__item { flex-direction: column; align-items: stretch; }
+  .nx-spine__link { width: 1px; height: 12px; margin-left: 16px; }
+  .nx-spine__future { white-space: normal; }
+}
