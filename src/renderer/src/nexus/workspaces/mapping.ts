@@ -21,3 +21,7 @@ export function countsByWorkspace(projects: Pick<Project, 'domainId'>[]): Record
   }
   return counts;
 }
+
+export function workspaceTabs(ws: WorkspaceConfig): { id: string; label: string; available: boolean }[] {
+  return [{ id: 'projects', label: 'Projects', available: true }, ...ws.plannedModules.map((m) => ({ id: m.toLowerCase().replace(/\s+/g, '-'), label: m, available: false }))];
+}

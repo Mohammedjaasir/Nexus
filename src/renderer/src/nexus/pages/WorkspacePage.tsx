@@ -1,15 +1,16 @@
 // WorkspacePage.tsx
+import { useEffect } from 'react';
 import { useStore } from '@/store/store';
 import type { WorkspaceId } from '../workspaces/types';
 import { getWorkspace } from '../workspaces/registry';
-import { projectsForWorkspace } from '../workspaces/mapping';
+import { projectsForWorkspace, workspaceTabs } from '../workspaces/mapping';
 import { recentProjects } from '../data/selectors';
 import { useProjectsLoader } from '../data/useProjects';
 import { navigate } from '../router/useRoute';
 import { useShellActions } from '../shellActions';
-import { ProvenanceMark } from '../ui/ProvenanceMark';
+import { useNexusUi } from '../state/uiStore';
+import { ProvenanceMark, provenanceStyle } from '../ui/ProvenanceMark';
 import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
 import { EmptyState } from '../ui/EmptyState';
 import { ProjectRow } from '../components/ProjectRow';
 import { LoadError, RowsSkeleton } from '../components/LoadStates';
@@ -19,21 +20,42 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
   const projects = useStore((s) => s.projects);
   const { status, error, refresh } = useProjectsLoader();
   const actions = useShellActions();
+  const setLast = useNexusUi((s) => s.setLastWorkspace);
+  useEffect(() => { setLast(id); }, [id, setLast]);
   const mine = recentProjects(projectsForWorkspace(projects, id), Infinity);
   const unmappable = ws.domainIds.length === 0;
+  const tabs = workspaceTabs(ws);
+  const planned = tabs.filter((t) => !t.available);
   return (
     <div className="nx-page">
       <header className="nx-pagehead">
         <div className="nx-pagehead__text">
-          <h1 tabIndex={-1}><ProvenanceMark slot={ws.hueSlot} size={10} /> {ws.name}</h1>
+          <h1 tabIndex={-1}><ProvenanceMark slot={ws.hueSlot} size={12} /> {ws.name}</h1>
           <p className="nx-lead">{ws.description}</p>
         </div>
         <div className="nx-pagehead__actions">
+          <Button icon="import" onClick={actions.openImport}>Import</Button>
           <Button variant="primary" icon="plus" onClick={() => actions.openNewProject(ws.defaultDomainId)}>New project</Button>
         </div>
       </header>
-      <section aria-labelledby="ws-projects">
-        <h2 id="ws-projects" className="nx-h2">Projects in {ws.label}</h2>
+      <div className="nx-wstabs nx-prov" style={provenanceStyle(ws.hueSlot)}>
+        <div role="tablist" aria-label={`${ws.label} workspace`} className="nx-wstabs__list">
+          <button type="button" role="tab" id="ws-tab-projects" aria-selected="true" aria-controls="ws-panel-projects" className="nx-wstab nx-focusable">Projects</button>
+        </div>
+        {planned.length > 0 && (
+          <>
+            <p id="ws-planned-note" className="nx-visually-hidden">These open once this workspace has artifacts.</p>
+            <div className="nx-wstabs__planned">
+              {planned.map((t) => (
+                <span key={t.id} className="nx-wstab nx-wstab--planned" aria-describedby="ws-planned-note">
+                  {t.label} <span className="nx-wstab__note">Planned</span>
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+      <section role="tabpanel" id="ws-panel-projects" aria-labelledby="ws-tab-projects">
         {status === 'error' && projects.length === 0 ? <LoadError error={error} onRetry={refresh} />
           : status === 'loading' && projects.length === 0 ? <RowsSkeleton count={3} />
           : mine.length > 0 ? <div className="nx-rows">{mine.map((p) => <ProjectRow key={p.id} project={p} onOpen={() => navigate({ name: 'project', id: p.id, tool: 'bench' })} />)}</div>
@@ -45,10 +67,6 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
             <EmptyState icon={ws.icon} title={`No ${ws.label} projects yet`} body="Create one here, or import a folder; it joins this workspace when its domain matches."
               actions={<><Button variant="primary" icon="plus" onClick={() => actions.openNewProject(ws.defaultDomainId)}>New project</Button><Button icon="import" onClick={actions.openImport}>Import</Button></>} />
           )}
-      </section>
-      <section aria-labelledby="ws-planned">
-        <h2 id="ws-planned" className="nx-h2">Coming to this workspace</h2>
-        <div className="nx-chips">{ws.plannedModules.map((m) => <span key={m} className="nx-chip">{m} <Badge>Planned</Badge></span>)}</div>
       </section>
     </div>
   );

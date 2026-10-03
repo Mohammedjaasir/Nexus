@@ -17,11 +17,11 @@ export function WorkspacesPage() {
       <div className="nx-grid">
         {WORKSPACES.map((w) => (
           <button key={w.id} type="button" className="nx-card nx-card--link nx-focusable" onClick={() => { setLast(w.id); navigate({ name: 'workspace', id: w.id }); }}>
-            <span className="nx-card__title"><ProvenanceMark slot={w.hueSlot} /> {w.name}</span>
+            <span className="nx-card__title"><ProvenanceMark slot={w.hueSlot} size={10} /> {w.name}</span>
             <span className="nx-card__body">{w.description}</span>
             <span className="nx-card__meta">
               {counts[w.id] > 0 ? `${counts[w.id]} project${counts[w.id] === 1 ? '' : 's'}` : 'No projects yet'}
-              {w.domainIds.length > 0 && <> · <span className="nx-mono">{w.domainIds.join(', ')}</span></>}
+              {w.domainIds.length > 0 && <> · <span className="nx-id">{w.domainIds.join(', ')}</span></>}
             </span>
           </button>
         ))}
