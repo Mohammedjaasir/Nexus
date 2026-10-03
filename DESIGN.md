@@ -1,6 +1,6 @@
 # Design: the Spine system
 
-Nexus is the app's shell. Its design system is called Spine. Dials: variance 6, motion 5, density 6.
+Nexus is the app's shell. Its design system is called Spine.
 
 ## Principles
 
@@ -36,7 +36,7 @@ Four families, bundled through Fontsource (OFL-1.1, listed in `THIRD_PARTY_FONTS
 | Versions, commit shas, ids, paths in chips | Martian Mono, weights 400 and 500 (`@fontsource/martian-mono`) | `--nx-font-id` |
 | Code, diffs, terminals | JetBrains Mono, weights 400, 500 and 700 (`@fontsource/jetbrains-mono`) | `--nx-font-code` |
 
-Scale: 12 / 13 / 15 / 18 / 26 / 34 / 44 px. JetBrains Mono is loaded as a static family so the literal `"JetBrains Mono"` used by the terminal pool and Monaco keeps working.
+Sizes are not tokenised; each stylesheet sets its own `font` shorthand. In practice UI text runs from 11px to about 15px (12px and 12.5px are the most common for controls and labels, 13 to 14px for body text). Headings step up from there: the project surface title is 26px (`styles/project.css`) and the launcher query is 44px (`styles/launcher.css`). JetBrains Mono is loaded as a static family so the literal `"JetBrains Mono"` used by the terminal pool and Monaco keeps working.
 
 ## Spacing and shape
 
@@ -46,7 +46,7 @@ Scale: 12 / 13 / 15 / 18 / 26 / 34 / 44 px. JetBrains Mono is loaded as a static
 
 ## Motion
 
-- Durations: `--nx-t-fast` 120ms, `--nx-t-base` 200ms, `--nx-t-shift` 320ms. Easing `--nx-ease-in` and `--nx-ease-out` (cubic-bezier).
+- Durations: `--nx-t-fast` 120ms, `--nx-t-base` 200ms, `--nx-t-shift` 320ms. Easing: `--nx-ease-in` is `cubic-bezier(0.2, 0, 0, 1)`, which decelerates and is used for entering and opening; `--nx-ease-out` is `cubic-bezier(0.4, 0, 1, 1)`, which accelerates and is used for exits. The names describe the motion's role (in = arriving, out = leaving), not the CSS easing convention.
 - Every animation communicates a state change. No decorative loops.
 - Transitions and keyframes live inside `@media (prefers-reduced-motion: no-preference)`.
 - Route changes use a document view transition through `nexus/ui/viewTransition.ts` (`withViewTransition`). It is skipped under `prefers-reduced-motion: reduce` and when the browser lacks `startViewTransition`; navigation always happens. A `reduce` rule in `styles/project.css` also removes view-transition animations.
@@ -56,7 +56,7 @@ Scale: 12 / 13 / 15 / 18 / 26 / 34 / 44 px. JetBrains Mono is loaded as a static
 
 - Launcher: ARIA combobox and listbox (`aria-activedescendant`, `aria-selected`); the preview is an `aria-live="polite"` region.
 - Spine: one tab stop with roving tabindex; arrow keys, Home and End move; each node has a full accessible name.
-- Run strip: an ordered list of stages with `aria-current="step"`; the headline is a polite live region; "Not reported" stages are text, not colour.
+- Run strip: an `article` labelled by its title, with an ordered list of stages (`aria-label="Stages"`). Each stage's state is carried by a visually hidden text suffix (done, in progress, waiting for you, not started, not reported by this agent) plus a `data-state` bar style, so state never relies on colour or pattern alone. The headline is a polite live region.
 - Focus: a visible `:focus-visible` ring on interactive elements, a skip link, and focus moves to the page `h1` on route change.
 
 ## Where things live
@@ -64,7 +64,7 @@ Scale: 12 / 13 / 15 / 18 / 26 / 34 / 44 px. JetBrains Mono is loaded as a static
 - `src/renderer/src/nexus/`: all Spine UI. Subfolders: `agents`, `assistant`, `chrome`, `components`, `data`, `design` (provenance), `intent`, `launcher`, `pages`, `project`, `review`, `router`, `routes`, `runs`, `state`, `styles`, `ui`, `workspaces`.
 - Pure models (no React or `window`, loadable by `test/load-ts.cjs`) include `provenance.ts`, `launcher/indexModel.ts`, `router/routes.ts`, `project/spineModel.ts`, `project/passport.ts`, `runs/runModel.ts`, `review/reviewModel.ts`, `intent/intentContext.ts`.
 - `src/renderer/src/design/tokens.css`: the legacy `--cth-*` tokens, now references to `--nx-*`.
-- `src/renderer/src/design/tokens.ts`: sRGB mirror of the light-theme values, read only by the retired office floor. Update with `tokens.css`.
+- `src/renderer/src/design/tokens.ts`: sRGB mirror of the light-theme values. Its runtime colours are read only by `scene/office`; `AddAgentModal`, `AgentCard`, `PixelPanel`, `SidebarTabs`, `store` and `memoryGraph/buildGraph` import only its types (`AccentColorName`). Update with `tokens.css`.
 - `src/renderer/src/design/global.css`: reset, focus ring, scrollbars, keyframes, markdown preview, reduced-motion rule.
 - `test/nexus-decoupling.test.cjs`: guards `nexus/` against the retired office scene, pixel components, persona names and the old product identity, and against `"Inter"` and plain horizontal gradients in Nexus CSS (repeating gradients are textures and are allowed).
 
