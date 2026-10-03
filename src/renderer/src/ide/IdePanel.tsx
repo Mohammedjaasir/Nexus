@@ -386,20 +386,14 @@ export function IdePanel() {
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
             <span
               title={target.inferred
-                ? `No agent was named when the IDE opened — showing ${target.agent.name}'s workspace (the current selection)`
-                : `${target.agent.name}'s workspace`}
+                ? `No agent was named when the IDE opened — showing ${target.agent.isGod ? 'the lead agent' : target.agent.name}'s workspace (the current selection)`
+                : `${target.agent.isGod ? 'Lead agent' : target.agent.name}'s workspace`}
               style={{
                 fontFamily: 'var(--cth-font-ui)', fontSize: 13, fontWeight: 600,
                 color: 'var(--cth-ink-900)',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '22vw'
               }}
-            >{target.agent.name}</span>
-            {target.agent.isGod && (
-              <span style={{
-                fontFamily: 'var(--cth-font-display)', fontSize: 7, padding: '1px 3px',
-                background: 'var(--cth-lilac-light)', color: 'var(--cth-ink-900)'
-              }}>god</span>
-            )}
+            >{target.agent.isGod ? 'Lead agent' : target.agent.name}</span>
             {target.inferred && (
               // Never assert a name we had to guess at. One quiet word is enough
               // to stop someone trusting the wrong agent's directory.
