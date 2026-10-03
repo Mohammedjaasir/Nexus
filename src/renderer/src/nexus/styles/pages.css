@@ -23,7 +23,7 @@ button.nx-wstab { cursor: pointer; }
 .nx-wstab--planned { color: var(--nx-text-3); font-weight: 500; cursor: default; }
 .nx-wstab__note { font: 550 11px/1 var(--nx-font); color: var(--nx-text-3); padding: 3px 6px; border: 1px dashed var(--nx-line-strong); border-radius: 999px; }
 
-.nx-rows { display: grid; gap: var(--nx-s2); }
+.nx-rows { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--nx-s2); }
 .nx-skel-row { height: 64px; }
 .nx-row { width: 100%; display: flex; align-items: center; gap: var(--nx-s3); padding: var(--nx-s3) var(--nx-s4); text-align: left; border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); background: var(--nx-surface); color: var(--nx-ink); cursor: pointer; }
 .nx-row:hover { border-color: var(--nx-line-strong); background: var(--nx-sunken); }

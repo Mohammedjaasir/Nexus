@@ -35,7 +35,7 @@
 .nx-skip { position: absolute; left: -999px; top: 8px; z-index: 500; background: var(--nx-surface); color: var(--nx-ink); padding: 8px 12px; border: 1px solid var(--nx-line-strong); border-radius: var(--nx-r-ctl); }
 .nx-skip:focus { left: 8px; }
 .nx-main:focus { outline: none; }
-.nx-page { padding: var(--nx-s6) var(--nx-s8) var(--nx-s12); display: grid; gap: var(--nx-s6); align-content: start; max-width: 1280px; }
+.nx-page { padding: var(--nx-s6) var(--nx-s8) var(--nx-s12); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--nx-s6); align-content: start; max-width: 1280px; }
 .nx-page h1 { outline: none; }
 @media (max-width: 767px) { .nx-page { padding: var(--nx-s4) var(--nx-s4) var(--nx-s8); } }
 

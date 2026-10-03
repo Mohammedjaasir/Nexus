@@ -46,9 +46,9 @@
 .nx-surface__ref { color: var(--nx-text-2); }
 .nx-surface__provline { display: flex; align-items: center; gap: var(--nx-s2); }
 .nx-surface__prov { display: flex; align-items: center; flex-wrap: wrap; gap: var(--nx-s2); margin: 0; color: var(--nx-text-2); }
-.nx-fact { display: grid; gap: var(--nx-s2); }
+.nx-fact { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--nx-s2); }
 .nx-fact__title { font: 600 12px/1 var(--nx-font); color: var(--nx-text-3); margin: 0; }
-.nx-fact__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.nx-fact__list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
 .nx-passport header { display: grid; gap: 4px; }
 .nx-passport .nx-passport__title { font: 700 16px/1.2 var(--nx-font-display); color: var(--nx-ink); margin: 0; }
 .nx-passport__kind { margin: 0; font-size: 11px; color: var(--nx-text-3); }
