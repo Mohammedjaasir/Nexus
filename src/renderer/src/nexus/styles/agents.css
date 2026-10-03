@@ -6,6 +6,13 @@
 .nxa__actions { margin-left: auto; display: flex; gap: var(--nx-s2); flex-wrap: wrap; }
 .nxa__body { flex: 1; min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: var(--nx-s4); padding: var(--nx-s4); }
 .nxa__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--nx-s2); overflow-y: auto; min-height: 0; }
+.nxa__side { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--nx-s3); overflow-y: auto; }
+.nxa__side > .nxa__list { overflow-y: visible; flex: 0 0 auto; }
+.nxa__mem { border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); background: var(--nx-surface); flex: 0 0 auto; }
+.nxa__mem-sum { padding: var(--nx-s2) var(--nx-s3); font: 650 14px var(--nx-font); color: var(--nx-ink); cursor: pointer; border-radius: var(--nx-r-obj); }
+.nxa__mem-body { padding: var(--nx-s2); }
+/* MemoryPanel positions itself as a floating card; inside the column it flows. */
+.nxa__mem-body > div { position: static !important; width: auto !important; }
 .nxa__row { width: 100%; display: grid; gap: 2px; text-align: left; padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line); border-radius: var(--nx-r-ctl); background: var(--nx-surface); color: var(--nx-ink); font: 400 13px var(--nx-font); cursor: pointer; }
 .nxa__row:hover { background: var(--nx-sunken); }
 .nxa__row[aria-current="true"] { border-color: var(--nx-ink); background: var(--nx-sunken); }
@@ -18,5 +25,5 @@
 .nxa__note { margin: 0; padding: var(--nx-s4); font: 400 14px/1.55 var(--nx-font); color: var(--nx-text-2); }
 @media (max-width: 767px) {
   .nxa__body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(320px, 1fr); }
-  .nxa__list { max-height: 40vh; }
+  .nxa__side { max-height: 50vh; }
 }

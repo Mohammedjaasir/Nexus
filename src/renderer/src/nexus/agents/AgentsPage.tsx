@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useStore } from '@/store/store';
 import type { HarnessConfig } from '@/store/config';
 import { AgentDetailPanel } from '@/components/AgentDetailPanel';
+import { MemoryPanel } from '@/components/MemoryPanel';
 import { Icon } from '../icons';
 import { agentRows } from './agentList';
 
@@ -67,6 +68,7 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
         )
       ) : (
         <div className="nxa__body">
+          <div className="nxa__side">
           <ul className="nxa__list" aria-label="Agents">
             {rows.map((r) => (
               <li key={r.id}>
@@ -87,6 +89,11 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
               </li>
             ))}
           </ul>
+          <details className="nxa__mem">
+            <summary className="nxa__mem-sum nx-focusable">Semantic memory</summary>
+            <div className="nxa__mem-body"><MemoryPanel /></div>
+          </details>
+          </div>
           <section className="nxa__term" role="region" aria-label={`${current?.title ?? 'Agent'} panel`}>
             {agent ? <AgentDetailPanel agent={agent} /> : null}
           </section>

@@ -60,7 +60,7 @@ export function MemoryPanel() {
   };
 
   const active = status?.active;
-  const pill = active ? `🧠 memory · ${status?.model}` : '🧠 memory';
+  const pill = active ? `Memory · ${status?.model}` : 'Memory';
 
   // One clear state line: is memory working, off, or not set up?
   const state: { dot: string; label: string } = !status?.available
@@ -93,7 +93,7 @@ export function MemoryPanel() {
           {pill}
         </button>
       ) : (
-        <PixelPanel variant="dialog" title="HIVE MEMORY" noPadding>
+        <PixelPanel variant="dialog" title="Semantic memory" noPadding>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 14 }}>
 
             {/* What this is — one plain line. */}
