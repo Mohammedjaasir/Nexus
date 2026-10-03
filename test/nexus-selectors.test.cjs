@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const loadTs = require('./load-ts.cjs');
-const { recentProjects, repoHealth, relativeTime, setupSteps, setupProgress } =
+const { recentProjects, repoHealth, relativeTime } =
   loadTs('src/renderer/src/nexus/data/selectors.ts');
 
 test('recentProjects: newest first, limit 4, stable ties by name, input untouched', () => {
@@ -37,13 +37,4 @@ test('relativeTime: boundaries', () => {
   assert.match(relativeTime(now - 40 * 86_400_000, now), /^[A-Z][a-z]{2} \d{1,2}$/);
   assert.equal(relativeTime(NaN, now), '');
   assert.equal(relativeTime(now + 60_000, now), 'just now'); // clock skew
-});
-
-test('setupSteps: two real steps, two locked', () => {
-  const fresh = setupSteps({ lastWorkspace: null, projectCount: 0 });
-  assert.deepEqual(fresh.map((s) => [s.id, s.state]), [['workspace', 'todo'], ['project', 'todo'], ['artifact', 'locked'], ['deploy', 'locked']]);
-  const done = setupSteps({ lastWorkspace: 'ml', projectCount: 3 });
-  assert.deepEqual(done.map((s) => s.state), ['done', 'done', 'locked', 'locked']);
-  assert.deepEqual(setupProgress(done), { done: 2, available: 2, total: 4 });
-  assert.deepEqual(setupProgress(fresh), { done: 0, available: 2, total: 4 });
 });

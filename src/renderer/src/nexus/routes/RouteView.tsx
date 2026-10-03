@@ -34,5 +34,5 @@ export function RouteView({ config }: { config: HarnessConfig }) {
     case 'deployments': page = <PlannedPage which="deployments" />; break;
     case 'home': page = <LauncherPage />; break;
   }
-  return <main ref={mainRef} className={`nx-main${route.name === 'agents' || route.name === 'project' ? ' nx-main--flush' : ''}`} id="nx-main">{page}</main>;
+  return <main ref={mainRef} className={`nx-main${route.name === 'agents' || route.name === 'project' ? ' nx-main--flush' : ''}`} id="nx-main" tabIndex={-1}>{page}</main>;
 }

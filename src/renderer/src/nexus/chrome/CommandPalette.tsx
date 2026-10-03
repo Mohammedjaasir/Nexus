@@ -31,7 +31,7 @@ export function CommandPalette() {
 
   return (
     <div className="nx-palette-layer" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="nx-palette" role="dialog" aria-modal="true" aria-label="Search">
+      <div className="nx-palette nx-float" role="dialog" aria-modal="true" aria-label="Search">
         <div className="nx-palette__input">
           <Icon name="search" size={18} />
           <input

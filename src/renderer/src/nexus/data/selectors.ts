@@ -24,27 +24,3 @@ export function relativeTime(ts: number, now: number): string {
   if (d < 7) return `${d}d ago`;
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
-
-export type SetupStep = {
-  id: 'workspace' | 'project' | 'artifact' | 'deploy';
-  label: string;
-  state: 'done' | 'todo' | 'locked';
-  hint: string;
-};
-
-export function setupSteps(input: { lastWorkspace: string | null; projectCount: number }): SetupStep[] {
-  return [
-    { id: 'workspace', label: 'Choose a workspace', state: input.lastWorkspace ? 'done' : 'todo', hint: 'Pick the kind of work you are doing on Home.' },
-    { id: 'project', label: 'Create or import a project', state: input.projectCount > 0 ? 'done' : 'todo', hint: 'Point Nexus at a folder you want agents to work in.' },
-    { id: 'artifact', label: 'Register an artifact', state: 'locked', hint: 'Available in a later phase.' },
-    { id: 'deploy', label: 'Deploy an app', state: 'locked', hint: 'Available in a later phase.' }
-  ];
-}
-
-export function setupProgress(steps: SetupStep[]) {
-  return {
-    done: steps.filter((s) => s.state === 'done').length,
-    available: steps.filter((s) => s.state !== 'locked').length,
-    total: steps.length
-  };
-}

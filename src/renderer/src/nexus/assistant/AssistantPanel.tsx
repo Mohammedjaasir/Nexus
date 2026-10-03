@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '@/store/store';
 import { Icon } from '../icons';
-import { IconTile } from '../ui/IconTile';
 import { Badge } from '../ui/Badge';
 import { useRoute } from '../router/useRoute';
 import { routeTitle } from '../router/routes';
@@ -92,11 +91,11 @@ export function AssistantPanel({ headingId }: { headingId: string }) {
             return (
               <li key={a.id}>
                 <button type="button" className="nx-qa__item nx-focusable" onClick={run} disabled={disabled} aria-disabled={disabled} title={a.unavailableReason}>
-                  <IconTile icon={a.icon} slot={null} size="md" />
+                  <Icon name={a.icon} size={18} />
                   <span className="nx-qa__text">
                     <span className="nx-qa__title">{a.title}</span>
                     <span className="nx-qa__desc">{a.description}</span>
-                    {disabled && <span className="nx-qa__badge"><Badge tone="planned">Not available yet</Badge></span>}
+                    {disabled && <span className="nx-qa__badge"><Badge>Not available yet</Badge></span>}
                   </span>
                 </button>
               </li>
@@ -133,7 +132,7 @@ export function AssistantPanel({ headingId }: { headingId: string }) {
             {ctx.project && <button type="button" className={`nx-ctxchip nx-focusable${useProject ? '' : ' is-off'}`} aria-pressed={useProject} onClick={() => setUseProject((v) => !v)}>{ctx.project.name}{useProject && <Icon name="close" size={12} />}</button>}
           </div>
         )}
-        <label className="nx-sr-only" htmlFor="nx-composer-input">Message the lead agent</label>
+        <label className="nx-visually-hidden" htmlFor="nx-composer-input">Message the lead agent</label>
         <textarea
           id="nx-composer-input" ref={ta} className="nx-composer__input nx-focusable" rows={3}
           placeholder="Ask your lead agent…" value={draft} disabled={s.state === 'unavailable'}

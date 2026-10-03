@@ -41,7 +41,7 @@ export function ProjectsPage() {
             {WORKSPACES.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
             <option value="unassigned">Unassigned</option>
           </select>
-          <Button variant="ghost" onClick={actions.openProjectManager}>Manage projects</Button>
+          <Button variant="quiet" onClick={actions.openProjectManager}>Manage projects</Button>
         </div>
       )}
       {status === 'error' && projects.length === 0 ? <LoadError error={error} onRetry={refresh} />

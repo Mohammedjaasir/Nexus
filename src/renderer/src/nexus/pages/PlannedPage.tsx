@@ -18,7 +18,7 @@ export function PlannedPage({ which }: { which: keyof typeof PLANNED }) {
       <header className="nx-pagehead">
         <span className="nx-empty__icon"><Icon name={c.icon} size={22} /></span>
         <h1 tabIndex={-1}>{c.title}</h1>
-        <Badge tone="planned">Planned · not available yet</Badge>
+        <Badge>Planned · not available yet</Badge>
       </header>
       <section className="nx-planned">
         <div><h2 className="nx-h3">What this will do</h2><p>{c.what}</p></div>

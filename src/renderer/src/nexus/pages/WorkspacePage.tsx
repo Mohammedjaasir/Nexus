@@ -7,7 +7,7 @@ import { recentProjects } from '../data/selectors';
 import { useProjectsLoader } from '../data/useProjects';
 import { navigate } from '../router/useRoute';
 import { useShellActions } from '../shellActions';
-import { IconTile } from '../ui/IconTile';
+import { ProvenanceMark } from '../ui/ProvenanceMark';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { EmptyState } from '../ui/EmptyState';
@@ -24,9 +24,8 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
   return (
     <div className="nx-page">
       <header className="nx-pagehead">
-        <IconTile icon={ws.icon} slot={ws.hueSlot} size="lg" />
         <div className="nx-pagehead__text">
-          <h1 tabIndex={-1}>{ws.name}</h1>
+          <h1 tabIndex={-1}><ProvenanceMark slot={ws.hueSlot} size={10} /> {ws.name}</h1>
           <p className="nx-lead">{ws.description}</p>
         </div>
         <div className="nx-pagehead__actions">
@@ -49,7 +48,7 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
       </section>
       <section aria-labelledby="ws-planned">
         <h2 id="ws-planned" className="nx-h2">Coming to this workspace</h2>
-        <div className="nx-chips">{ws.plannedModules.map((m) => <span key={m} className="nx-chip">{m} <Badge tone="planned">Planned</Badge></span>)}</div>
+        <div className="nx-chips">{ws.plannedModules.map((m) => <span key={m} className="nx-chip">{m} <Badge>Planned</Badge></span>)}</div>
       </section>
     </div>
   );
