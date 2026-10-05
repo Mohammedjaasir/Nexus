@@ -85,6 +85,7 @@ The launcher (`nexus/launcher/*`, `styles/launcher.css`) is the one surface wher
   - Typed letters are underlined where they matched (`launcher/highlight.ts`).
   - The preview emblem morphs between shapes: every shape in `launcher/emblems.ts` has the same point count, so the browser interpolates its CSS `d` property.
   - The search line types example searches while it is empty and idle (`launcher/typewriter.ts`).
+- **Start (Home).** `#/` is an intent-first Start page (`nexus/start/*`, `styles/start.css`): describe, then confirm, then start. Detection (`start/startModel.ts`, tested) maps the words to a registry environment, or to none and never a guess. Step 2 picks or creates a real project; step 3 shows exactly what goes to the lead agent, and nothing is sent until "Start building". It has its own violet-to-blue palette, waves, a laptop and glass tiles drawn in code. The environment picker moved to `#/browse`.
 - **Reduced motion.** Every keyframe and transition sits under `prefers-reduced-motion: no-preference`, and the typewriter is switched off in JS. With `reduce`, the launcher is static and fully usable.
 - **Still enforced.** No plain horizontal gradients (the heading uses a 110° gradient), no Inter, and the combobox/listbox semantics are unchanged. `test/nexus-launcher-motion.test.cjs` covers the helpers.
 

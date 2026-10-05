@@ -6,6 +6,7 @@ export type ProjectTool = (typeof PROJECT_TOOLS)[number];
 
 export type Route =
   | { name: 'home' }
+  | { name: 'browse' }
   | { name: 'workspaces' }
   | { name: 'workspace'; id: WorkspaceId }
   | { name: 'projects' }
@@ -16,7 +17,7 @@ export type Route =
   | { name: 'agents' }
   | { name: 'not-found'; path: string };
 
-const SIMPLE = ['workspaces', 'projects', 'artifacts', 'handoffs', 'deployments', 'agents'] as const;
+const SIMPLE = ['browse', 'workspaces', 'projects', 'artifacts', 'handoffs', 'deployments', 'agents'] as const;
 
 function decode(s: string): string | null {
   try { return decodeURIComponent(s); } catch { return null; }
@@ -56,7 +57,7 @@ export function formatRoute(r: Route): string {
 }
 
 const TITLES: Record<string, string> = {
-  home: 'Home', workspaces: 'Workspaces', projects: 'Projects', project: 'Project',
+  home: 'Home', browse: 'Environments', workspaces: 'Workspaces', projects: 'Projects', project: 'Project',
   artifacts: 'Artifacts', handoffs: 'Handoffs', deployments: 'Deployments', agents: 'Agents', 'not-found': 'Not found'
 };
 

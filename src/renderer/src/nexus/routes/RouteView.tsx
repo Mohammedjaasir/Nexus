@@ -10,6 +10,7 @@ import { ProjectsPage } from '../pages/ProjectsPage';
 import { ProjectBench } from '../project/ProjectBench';
 import { PlannedPage } from '../pages/PlannedPage';
 import { LauncherPage } from '../launcher/LauncherPage';
+import { StartPage } from '../start/StartPage';
 
 export function RouteView({ config }: { config: HarnessConfig }) {
   const route = useRoute();
@@ -32,7 +33,8 @@ export function RouteView({ config }: { config: HarnessConfig }) {
     case 'artifacts': page = <PlannedPage which="artifacts" />; break;
     case 'handoffs': page = <PlannedPage which="handoffs" />; break;
     case 'deployments': page = <PlannedPage which="deployments" />; break;
-    case 'home': page = <LauncherPage />; break;
+    case 'home': page = <StartPage />; break;
+    case 'browse': page = <LauncherPage />; break;
   }
   return <main ref={mainRef} className={`nx-main${route.name === 'agents' || route.name === 'project' ? ' nx-main--flush' : ''}`} id="nx-main" tabIndex={-1}>{page}</main>;
 }
