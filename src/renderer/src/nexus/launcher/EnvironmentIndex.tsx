@@ -1,10 +1,12 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import type { IndexEntry } from './indexModel';
-import { matchEntries, moveActive, resolveEnter } from './indexModel';
-import { ProvenanceMark, provenanceStyle } from '../ui/ProvenanceMark';
+import { matchEntries, resolveEnter } from './indexModel';
+import { provenanceStyle } from '../ui/ProvenanceMark';
 import { getWorkspace } from '../workspaces/registry';
 import { highlightSegments } from './highlight';
 import { typewriterText } from './typewriter';
+import { gridMove } from './gridNav';
+import { TileScene } from './TileScene';
 
 const STATIC_PLACEHOLDER = 'Type a kind of work, or a thing like "model" or "dashboard"';
 
@@ -27,6 +29,21 @@ function useTypedPlaceholder(active: boolean): string {
   return active ? `Type a kind of work, like "${typewriterText(tick)}"` : STATIC_PLACEHOLDER;
 }
 
+/** Tilt toward the pointer and move the sheen, written straight to CSS
+ *  variables so hovering never re-renders the grid. */
+function tilt(e: PointerEvent<HTMLDivElement>) {
+  const el = e.currentTarget; const r = el.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+  el.style.setProperty('--ry', `${((x - 0.5) * 9).toFixed(2)}deg`);
+  el.style.setProperty('--rx', `${((0.5 - y) * 9).toFixed(2)}deg`);
+  el.style.setProperty('--mx', `${(x * 100).toFixed(1)}%`);
+  el.style.setProperty('--my', `${(y * 100).toFixed(1)}%`);
+}
+function untilt(e: PointerEvent<HTMLDivElement>) {
+  e.currentTarget.style.setProperty('--rx', '0deg');
+  e.currentTarget.style.setProperty('--ry', '0deg');
+}
+
 export function EnvironmentIndex({ entries, initialId, onActive, onOpen }: {
   entries: IndexEntry[];
   initialId: string | null;
@@ -36,79 +53,61 @@ export function EnvironmentIndex({ entries, initialId, onActive, onOpen }: {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const [active, setActive] = useState(() => Math.max(0, entries.findIndex((e) => e.id === initialId)));
-  const [glide, setGlide] = useState<{ y: number; h: number } | null>(null);
   const listId = useId();
-  const input = useRef<HTMLInputElement>(null);
-  const wrap = useRef<HTMLDivElement>(null);
-  const rows = useRef<Map<string, HTMLLIElement>>(new Map());
+  const grid = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
   const shown = useMemo(() => matchEntries(entries, query), [entries, query]);
   const placeholder = useTypedPlaceholder(!reduced && !focused && query === '');
 
-  const setActiveIndex = (i: number) => { setActive(i); onActive(shown[i]?.id ?? null); };
+  const setActiveIndex = (i: number) => { if (i === active) return; setActive(i); onActive(shown[i]?.id ?? null); };
   const onQuery = (q: string) => { setQuery(q); const next = matchEntries(entries, q); setActive(next.length ? 0 : -1); onActive(next[0]?.id ?? null); };
+  const columns = () => (grid.current ? getComputedStyle(grid.current).gridTemplateColumns.split(' ').filter(Boolean).length : 1);
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(moveActive(active, 1, shown.length)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex(moveActive(active, -1, shown.length)); }
-    else if (e.key === 'Enter') { const id = resolveEnter(shown, active); if (id) onOpen(id); }
-    else if (e.key === 'Escape') { onQuery(''); }
+    if (e.key === 'Enter') { const id = resolveEnter(shown, active); if (id) onOpen(id); return; }
+    if (e.key === 'Escape') { onQuery(''); return; }
+    // Left/right belong to the text caret while there is text to move through.
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && query) return;
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+    e.preventDefault();
+    setActiveIndex(gridMove(active, e.key, columns(), shown.length));
   };
   const optionId = (id: string) => `${listId}-${id}`;
-
-  // The highlight is one element that glides to the active row, rather than
-  // a background that jumps between rows.
-  const activeKey = shown[active]?.id ?? null;
-  useLayoutEffect(() => {
-    const el = activeKey ? rows.current.get(activeKey) : null;
-    setGlide(el ? { y: el.offsetTop, h: el.offsetHeight } : null);
-  }, [activeKey, shown]);
-
-  // Cursor spotlight: written straight to CSS variables, no re-render.
-  const onMove = (e: MouseEvent<HTMLDivElement>) => {
-    const el = wrap.current; if (!el) return;
-    const r = el.getBoundingClientRect();
-    el.style.setProperty('--mx', `${e.clientX - r.left}px`);
-    el.style.setProperty('--my', `${e.clientY - r.top}px`);
-  };
-
-  const activeWs = activeKey ? getWorkspace(activeKey) : null;
 
   return (
     <div className="nx-index">
       <label className="nx-typeline">
         <span className="nx-visually-hidden">Find an environment</span>
-        <input ref={input} className="nx-typeline__input" role="combobox" aria-expanded="true" aria-controls={listId}
+        <input className="nx-typeline__input" role="combobox" aria-expanded="true" aria-controls={listId}
           aria-activedescendant={shown[active] ? optionId(shown[active].id) : undefined} aria-autocomplete="list"
           value={query} onChange={(e) => onQuery(e.target.value)} onKeyDown={onKey}
           onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
           placeholder={placeholder} />
         <span className="nx-typeline__count" aria-hidden="true">{shown.length}/{entries.length}</span>
       </label>
-      <div ref={wrap} className="nx-index__stage" onMouseMove={onMove}>
-        <span className="nx-index__spot" aria-hidden="true" />
-        {glide && (
-          <span className="nx-glide nx-prov" aria-hidden="true"
-            style={{ transform: `translateY(${glide.y}px)`, height: glide.h, ...provenanceStyle(activeWs?.hueSlot ?? null) } as CSSProperties} />
-        )}
-        <ul id={listId} role="listbox" aria-label="Environments" className="nx-index__list">
-          {shown.map((e, i) => {
-            const ws = getWorkspace(e.id);
-            const selected = i === active;
-            return (
-              <li key={e.id} id={optionId(e.id)} role="option" aria-selected={selected}
-                ref={(el) => { if (el) rows.current.set(e.id, el); else rows.current.delete(e.id); }}
-                className="nx-index__row nx-prov" style={{ ['--i' as string]: i, ...provenanceStyle(ws?.hueSlot ?? null) } as CSSProperties}
-                onMouseEnter={() => setActiveIndex(i)} onClick={() => onOpen(e.id)}>
-                <ProvenanceMark slot={ws?.hueSlot ?? null} size={10} />
-                <span className="nx-index__name">
-                  {highlightSegments(e.name, query).map((s, k) => (s.hit ? <mark key={k} className="nx-hit">{s.text}</mark> : <span key={k}>{s.text}</span>))}
+      <div ref={grid} id={listId} role="listbox" aria-label="Environments" className="nx-tiles">
+        {shown.map((e, i) => {
+          const ws = getWorkspace(e.id);
+          const selected = i === active;
+          return (
+            <div key={e.id} id={optionId(e.id)} role="option" aria-selected={selected}
+              className={`nx-tile${ws ? ' nx-prov' : ' nx-prov nx-prov--none'}`}
+              style={{ ['--i' as string]: i, ...provenanceStyle(ws?.hueSlot ?? null) } as CSSProperties}
+              onMouseEnter={() => setActiveIndex(i)} onClick={() => onOpen(e.id)}
+              onPointerMove={reduced ? undefined : tilt} onPointerLeave={reduced ? undefined : untilt}>
+              <span className="nx-tile__clouds" aria-hidden="true"><i /><i /></span>
+              <span className="nx-tile__sheen" aria-hidden="true" />
+              <div className="nx-tile__scene"><TileScene id={e.id} /></div>
+              <div className="nx-tile__meta">
+                <span className="nx-tile__name">
+                  <span className="nx-tile__mark" aria-hidden="true" />
+                  <span>{highlightSegments(e.name, query).map((s, k) => (s.hit ? <mark key={k} className="nx-hit">{s.text}</mark> : <span key={k}>{s.text}</span>))}</span>
                 </span>
-                <span className="nx-index__vocab">{e.vocabulary.join(', ').toLowerCase()}</span>
-                <span className="nx-index__go" aria-hidden="true">↵</span>
-              </li>
-            );
-          })}
-        </ul>
+                <span className="nx-tile__vocab">{e.vocabulary.join(', ').toLowerCase()}</span>
+              </div>
+              <span className="nx-tile__go" aria-hidden="true">↵ open</span>
+            </div>
+          );
+        })}
       </div>
       {shown.length === 0 && <p className="nx-index__none" role="status">No environment matches "{query.trim()}". Press Escape to see all.</p>}
     </div>

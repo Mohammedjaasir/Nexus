@@ -8,6 +8,7 @@ import { useShellActions } from '../shellActions';
 import { provenanceStyle } from '../ui/ProvenanceMark';
 import { Button } from '../ui/Button';
 import { emblemPath } from './emblems';
+import { PreviewStars } from './PreviewStars';
 
 /** The environment's emblem. The path element persists across selections and
  *  its `d` is set as a CSS property, so the browser morphs one shape into the
@@ -41,6 +42,7 @@ export function EnvironmentPreview({ id }: { id: string | null }) {
   return (
     <aside className="nx-preview nx-prov" style={provenanceStyle(ws.hueSlot)} aria-labelledby="nx-preview-name">
       <p className="nx-visually-hidden" role="status" aria-live="polite">{ws.name}</p>
+      <PreviewStars />
       <Emblem id={ws.id} />
       {/* Keyed so the text re-enters for each environment; the emblem above
           is not keyed, so it morphs instead of re-mounting. */}

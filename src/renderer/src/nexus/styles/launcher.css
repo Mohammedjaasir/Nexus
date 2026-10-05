@@ -7,14 +7,14 @@
 
 @property --nx-live-h { syntax: '<number>'; inherits: true; initial-value: 265; }
 
-.nx-launcher { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); min-height: calc(100dvh - var(--nx-bar-h));
+.nx-launcher { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); min-height: calc(100dvh - var(--nx-bar-h));
   --live: oklch(var(--nx-ws-l) var(--nx-ws-c) var(--nx-live-h));
   --live-2: oklch(var(--nx-ws-l) var(--nx-ws-c) calc(var(--nx-live-h) + 48));
   --live-3: oklch(var(--nx-ws-l) var(--nx-ws-c) calc(var(--nx-live-h) - 52));
   --aurora-a: 0.42; }
 :root[data-cth-theme="dark"] .nx-launcher { --aurora-a: 0.3; }
 
-/* Aurora: three soft blobs in the live hue and its neighbours, plus grain. */
+/* Aurora: three soft blobs in the live hue and its neighbours. */
 .nx-aurora { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
 .nx-aurora__blob { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(60px); opacity: var(--aurora-a); }
 .nx-aurora__blob--a { left: -12vmax; top: -18vmax; background: radial-gradient(circle at center, var(--live) 0%, transparent 62%); }
@@ -33,32 +33,59 @@
 .nx-typeline__input::placeholder { color: var(--nx-text-3); }
 .nx-typeline__count { font: 500 11px/1 var(--nx-font-id); color: var(--nx-text-3); padding: 4px 7px; border: 1px solid var(--nx-line); border-radius: 999px; background: var(--nx-surface); }
 
-/* Index: a stage holding the gliding highlight and a cursor spotlight. */
-.nx-index { display: grid; gap: var(--nx-s3); }
-.nx-index__stage { position: relative; border-radius: var(--nx-r-obj); }
-.nx-index__spot { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0;
-  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), color-mix(in oklch, var(--live) 16%, transparent), transparent 70%); }
-.nx-index__stage:hover .nx-index__spot { opacity: 1; }
-.nx-glide { position: absolute; left: 0; right: 0; top: 0; border-radius: 10px; pointer-events: none;
-  background: color-mix(in oklch, currentColor 12%, var(--nx-surface));
-  box-shadow: inset 3px 0 0 currentColor, 0 0 0 1px color-mix(in oklch, currentColor 30%, transparent), 0 10px 28px -12px color-mix(in oklch, currentColor 55%, transparent); }
-.nx-index__list { position: relative; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
-.nx-index__row { position: relative; display: grid; grid-template-columns: 14px minmax(0, auto) minmax(0, 1fr) auto; align-items: baseline; gap: var(--nx-s3); padding: 9px var(--nx-s3); border-radius: 10px; cursor: pointer; }
-.nx-index__row .nx-prov { align-self: center; }
-.nx-index__name { font: 600 26px/1.15 var(--nx-font-display); letter-spacing: -0.01em; color: var(--nx-text-2); white-space: nowrap; }
-.nx-hit { background: none; color: currentColor; text-decoration: underline 3px; text-decoration-color: color-mix(in oklch, currentColor 45%, transparent); text-underline-offset: 5px; }
-.nx-index__vocab { font-size: 12.5px; color: var(--nx-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nx-index__go { font: 500 12px/1 var(--nx-font-id); color: currentColor; opacity: 0; padding: 3px 6px; border: 1px solid currentColor; border-radius: var(--nx-r-ctl); align-self: center; }
-.nx-index__row[aria-selected="true"] .nx-index__name { color: var(--nx-ink); }
-.nx-index__row[aria-selected="true"] .nx-index__vocab { color: var(--nx-text-2); }
-.nx-index__row[aria-selected="true"] .nx-index__go { opacity: 1; }
-.nx-index__none { color: var(--nx-text-3); }
+/* Tiles: one living tile per environment. Each tile carries its own hue in
+   currentColor (.nx-prov); the selected tile glows and fills with soft
+   colour clouds. Hover tilts the tile toward the pointer with a sheen. */
+.nx-index { display: grid; gap: var(--nx-s4); }
+.nx-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.nx-tile { position: relative; overflow: hidden; display: grid; gap: 10px; padding: 12px; border-radius: 16px; cursor: pointer;
+  border: 1px solid var(--nx-line); background: color-mix(in oklch, var(--nx-surface) 92%, transparent); backdrop-filter: blur(6px);
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
+.nx-tile[aria-selected="true"] { border-color: currentColor; box-shadow: 0 0 0 1px currentColor, 0 18px 40px -16px currentColor; }
+.nx-tile__clouds { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.nx-tile__clouds i { position: absolute; width: 70%; aspect-ratio: 1; border-radius: 50%; filter: blur(28px); background: currentColor; }
+.nx-tile__clouds i:nth-child(1) { left: -20%; top: -30%; }
+.nx-tile__clouds i:nth-child(2) { right: -25%; bottom: -35%; background: oklch(var(--nx-ws-l) var(--nx-ws-c) calc(var(--ws-h) + 40)); }
+.nx-tile[aria-selected="true"] .nx-tile__clouds { opacity: 0.22; }
+.nx-tile__sheen { position: absolute; inset: 0; pointer-events: none; opacity: 0; mix-blend-mode: soft-light;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), color-mix(in oklch, white 30%, transparent), transparent 60%); }
+.nx-tile:hover .nx-tile__sheen { opacity: 1; }
+.nx-tile__scene { position: relative; height: 96px; border-radius: 10px; overflow: hidden; background: color-mix(in oklch, currentColor 8%, var(--nx-sunken)); }
+.nx-scene { width: 100%; height: 100%; display: block; }
+.nx-tile__meta { position: relative; display: grid; gap: 3px; min-width: 0; }
+.nx-tile__name { display: flex; align-items: center; gap: 8px; font: 700 17px/1.15 var(--nx-font-display); letter-spacing: -0.01em; color: var(--nx-ink); }
+.nx-tile__mark { width: 9px; height: 9px; border-radius: 3px; background: oklch(var(--nx-ws-l) var(--nx-ws-c) var(--ws-h)); flex: none; }
+.nx-prov--none .nx-tile__mark { background: var(--nx-line-strong); }
+.nx-tile__vocab { font-size: 12px; color: var(--nx-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nx-tile[aria-selected="true"] .nx-tile__vocab { color: var(--nx-text-2); }
+.nx-tile__go { position: absolute; right: 18px; top: 18px; font: 500 11px/1 var(--nx-font-id); color: currentColor; border: 1px solid currentColor; border-radius: var(--nx-r-ctl); padding: 3px 6px; opacity: 0; background: var(--nx-surface); }
+.nx-tile[aria-selected="true"] .nx-tile__go { opacity: 1; }
+.nx-hit { background: none; color: inherit; text-decoration: underline 3px; text-decoration-color: color-mix(in oklch, currentColor 55%, transparent); text-underline-offset: 4px; }
+.nx-index__none { color: var(--nx-text-3); margin: 0; }
+
+/* Scene palette: the tile's hue (currentColor) on a sunken plate. */
+.nx-sc-fill { fill: currentColor; }
+.nx-sc-soft { fill: color-mix(in oklch, currentColor 30%, transparent); }
+.nx-sc-stroke { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.nx-sc-line { stroke: color-mix(in oklch, currentColor 40%, transparent); stroke-width: 1.5; }
+.nx-sc-box { fill: none; }
+.nx-sc-text { fill: var(--nx-text-3); }
+.nx-sc-dim { opacity: 0.55; }
+.nx-sc-faint { opacity: 0.35; }
+.nx-sc-thick { stroke-width: 5; }
+.nx-sc-glass { fill: color-mix(in oklch, currentColor 12%, transparent); }
+.nx-sc-flame { fill: oklch(0.8 0.15 70); }
+.nx-sc-pulse { opacity: 0.75; }
+/* Resting frame for the cursor scene when it is not animating. */
+.nx-sc-cursor { transform: translate(150px, 86px); }
 
 /* Preview: a morphing emblem over the environment's details. */
 .nx-preview { position: relative; border-left: 1px solid var(--nx-line); padding: var(--nx-s8) var(--nx-s6); display: grid; align-content: start; gap: var(--nx-s4);
   background: radial-gradient(120% 70% at 100% 0%, color-mix(in oklch, currentColor 14%, transparent), transparent 60%), color-mix(in oklch, var(--nx-surface) 86%, transparent);
   backdrop-filter: blur(10px); }
 .nx-preview::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: currentColor; }
+.nx-preview__stars { position: absolute; left: 0; top: 0; width: 100%; height: 280px; pointer-events: none; color: inherit; opacity: 0.9; }
+.nx-preview > :not(.nx-preview__stars) { position: relative; }
 .nx-preview__body { display: grid; gap: var(--nx-s4); }
 .nx-preview__body > * { color: var(--nx-ink); }
 .nx-preview__kicker { font: 500 12px/1 var(--nx-font); letter-spacing: 0.04em; text-transform: uppercase; color: var(--nx-text-3); margin: 0 0 var(--nx-s2); }
@@ -94,13 +121,24 @@
   .nx-aurora__blob--c { animation: nx-aurora-c 29s ease-in-out infinite alternate; }
   .nx-launcher__q span { animation: nx-sheen 9s linear infinite; }
   .nx-typeline::after { transition: transform var(--nx-t-shift) var(--nx-ease-in); }
-  .nx-index__spot { transition: opacity var(--nx-t-base) var(--nx-ease-in); }
-  .nx-glide { transition: transform 360ms cubic-bezier(0.2, 0.9, 0.25, 1.12), height 360ms cubic-bezier(0.2, 0.9, 0.25, 1.12), color 500ms var(--nx-ease-in), background-color 500ms var(--nx-ease-in); }
-  .nx-index__row { animation: nx-row-in 520ms var(--nx-ease-in) both; animation-delay: calc(var(--i, 0) * 45ms); }
-  .nx-index__name { transition: color var(--nx-t-base) var(--nx-ease-in), transform var(--nx-t-shift) var(--nx-ease-in); }
-  .nx-index__row[aria-selected="true"] .nx-index__name { transform: translateX(6px); }
-  .nx-index__go { transition: opacity var(--nx-t-base) var(--nx-ease-in); }
-  .nx-index__row[aria-selected="true"] .nx-prov { animation: nx-mark 1.8s ease-in-out infinite; }
+  .nx-tile { animation: nx-tile-in 560ms var(--nx-ease-in) both; animation-delay: calc(var(--i, 0) * 45ms);
+    transition: transform 250ms var(--nx-ease-in), border-color 350ms var(--nx-ease-in), box-shadow 350ms var(--nx-ease-in); }
+  .nx-tile__clouds, .nx-tile__sheen, .nx-tile__go { transition: opacity 400ms var(--nx-ease-in); }
+  .nx-tile__clouds i:nth-child(1) { animation: nx-cloud 8s ease-in-out infinite alternate; }
+  .nx-tile__clouds i:nth-child(2) { animation: nx-cloud 10s ease-in-out infinite alternate-reverse; }
+  .nx-tile[aria-selected="true"] .nx-tile__mark { animation: nx-mark 1.8s ease-in-out infinite; }
+  .nx-sc-type { animation: nx-sc-type 3.6s steps(14) infinite; transform-box: fill-box; transform-origin: left center; }
+  .nx-sc-caret { animation: nx-blink 1s steps(1) infinite; }
+  .nx-sc-flow { stroke-dasharray: 4 6; animation: nx-sc-flow 1.2s linear infinite; }
+  .nx-sc-pulse { animation: nx-sc-pulse 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .nx-sc-draw { stroke-dasharray: 260; stroke-dashoffset: 260; animation: nx-sc-draw 4s ease-out infinite; }
+  .nx-sc-grow { animation: nx-sc-grow 3s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: bottom; }
+  .nx-sc-scan { animation: nx-sc-scan 5s ease-in-out infinite alternate; }
+  .nx-sc-tick { stroke-dasharray: 24; stroke-dashoffset: 24; animation: nx-sc-tick 4s ease-out infinite; }
+  .nx-sc-frame { stroke-dasharray: 300; stroke-dashoffset: 300; animation: nx-sc-frame 4s ease-in-out infinite; }
+  .nx-sc-cursor { animation: nx-sc-cursor 4s ease-in-out infinite; }
+  .nx-sc-stage { animation: nx-sc-stage 3s ease-in-out infinite; }
+  .nx-sc-rocket { animation: nx-sc-rocket 3s ease-in infinite; }
   .nx-emblem__shape, .nx-emblem__glow, .nx-emblem__shine { transition: d 620ms cubic-bezier(0.3, 0.8, 0.2, 1.05), fill 500ms var(--nx-ease-in); }
   .nx-emblem__svg { animation: nx-float 7s ease-in-out infinite; }
   .nx-emblem__sats { animation: nx-orbit 18s linear infinite; }
@@ -120,7 +158,20 @@
 @keyframes nx-aurora-b { to { transform: translate(-12vmax, 8vmax) scale(0.85); } }
 @keyframes nx-aurora-c { to { transform: translate(-10vmax, -12vmax) scale(1.1); } }
 @keyframes nx-sheen { to { background-position: -220% 0; } }
-@keyframes nx-row-in { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } }
+@keyframes nx-tile-in { from { opacity: 0; transform: translateY(12px) scale(0.98); filter: blur(4px); } }
+@keyframes nx-cloud { to { transform: translate(20%, 16%) scale(1.2); } }
+@keyframes nx-sc-type { 0% { transform: scaleX(0); } 60%, 100% { transform: scaleX(1); } }
+@keyframes nx-blink { 50% { opacity: 0; } }
+@keyframes nx-sc-flow { to { stroke-dashoffset: -20; } }
+@keyframes nx-sc-pulse { 50% { transform: scale(1.5); opacity: 1; } }
+@keyframes nx-sc-draw { 70%, 100% { stroke-dashoffset: 0; } }
+@keyframes nx-sc-grow { from { transform: scaleY(0.25); } }
+@keyframes nx-sc-scan { to { transform: translate(90px, 30px); } }
+@keyframes nx-sc-tick { 20%, 100% { stroke-dashoffset: 0; } }
+@keyframes nx-sc-frame { 60%, 100% { stroke-dashoffset: 0; } }
+@keyframes nx-sc-cursor { 0% { transform: translate(40px, 30px); } 60%, 100% { transform: translate(150px, 86px); } }
+@keyframes nx-sc-stage { 0%, 100% { opacity: 0.22; } 10%, 55% { opacity: 1; } 70% { opacity: 0.22; } }
+@keyframes nx-sc-rocket { 0%, 60% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-62px); opacity: 0; } }
 @keyframes nx-mark { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.35); } }
 @keyframes nx-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-6px) rotate(3deg); } }
 @keyframes nx-orbit { to { transform: rotate(360deg); } }
@@ -128,12 +179,13 @@
 @keyframes nx-rise { from { opacity: 0; transform: translateY(8px); } }
 @keyframes nx-pop { from { opacity: 0; transform: translateY(6px) scale(0.92); } }
 
+@media (max-width: 1279px) { .nx-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1100px) { .nx-launcher { grid-template-columns: minmax(0, 1fr) 280px; } .nx-preview { padding: var(--nx-s6) var(--nx-s4); } .nx-emblem { width: 140px; height: 140px; } .nx-preview__name { font-size: 26px; } }
+
 @media (max-width: 767px) {
   .nx-launcher { grid-template-columns: 1fr; }
   .nx-preview { display: none; }
   .nx-launcher__q { font-size: 32px; }
-  .nx-index__name { font-size: 22px; }
-  .nx-index__row { grid-template-columns: 14px minmax(0, 1fr) auto; }
-  .nx-index__vocab { grid-column: 2 / -1; grid-row: 2; }
   .nx-launcher__main { padding: var(--nx-s6) var(--nx-s4); }
 }
+@media (max-width: 480px) { .nx-tiles { grid-template-columns: minmax(0, 1fr); } }

@@ -79,8 +79,9 @@ The launcher (`nexus/launcher/*`, `styles/launcher.css`) is the one surface wher
   - The emblem floats, with an orbiting ring of dots.
   - These are the only decorative loops in Nexus.
 - **State motion.**
-  - One highlight glides between rows.
-  - Rows cascade in.
+  - Environments are living tiles (`launcher/TileScene.tsx`, `sceneKinds.ts`). Each plays a small loop of its own work: code typing, a network pulsing, a loss curve falling, bars rising, a lens scanning, checks ticking, a frame being drawn, a pipeline firing. A future workspace gets a generic scene.
+  - The selected tile glows and fills with soft colour clouds. Hover tilts a tile toward the pointer with a sheen. Arrow keys move in two dimensions (`launcher/gridNav.ts`).
+  - Tiles cascade in.
   - Typed letters are underlined where they matched (`launcher/highlight.ts`).
   - The preview emblem morphs between shapes: every shape in `launcher/emblems.ts` has the same point count, so the browser interpolates its CSS `d` property.
   - The search line types example searches while it is empty and idle (`launcher/typewriter.ts`).
