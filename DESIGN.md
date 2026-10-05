@@ -70,24 +70,19 @@ Sizes are not tokenised; each stylesheet sets its own `font` shorthand. In pract
 
 ## Launcher motion exception
 
-The launcher (`nexus/launcher/*`, `styles/launcher.css`) is the one surface where ambient motion is allowed. It was requested explicitly so the front door feels alive. Every other surface keeps the Motion rules above.
+The launcher surfaces are the one place ambient motion is allowed: the Start page at `#/` (`nexus/start/*`, `styles/start.css`) and the environment picker at `#/browse` (`nexus/launcher/*`, `styles/launcher.css`). It was requested explicitly so the front door feels alive. Every other surface keeps the Motion rules above.
 
-- **Live hue.** The page is tinted by `--nx-live-h`, the selected environment's provenance hue. It is registered with `@property` so the whole page eases between environments. Colour still means provenance: it always follows the selected environment.
-- **Ambient.**
-  - Three blurred aurora blobs drift slowly in the live hue and its two neighbours.
-  - The heading's "working on?" carries a slow sheen.
-  - The emblem floats, with an orbiting ring of dots.
-  - These are the only decorative loops in Nexus.
-- **State motion.**
-  - Environments are living tiles (`launcher/TileScene.tsx`, `sceneKinds.ts`). Each plays a small loop of its own work: code typing, a network pulsing, a loss curve falling, bars rising, a lens scanning, checks ticking, a frame being drawn, a pipeline firing. A future workspace gets a generic scene.
-  - The selected tile glows and fills with soft colour clouds. Hover tilts a tile toward the pointer with a sheen. Arrow keys move in two dimensions (`launcher/gridNav.ts`).
-  - Tiles cascade in.
-  - Typed letters are underlined where they matched (`launcher/highlight.ts`).
-  - The preview emblem morphs between shapes: every shape in `launcher/emblems.ts` has the same point count, so the browser interpolates its CSS `d` property.
-  - The search line types example searches while it is empty and idle (`launcher/typewriter.ts`).
-- **Start (Home).** `#/` is an intent-first Start page (`nexus/start/*`, `styles/start.css`): describe, then confirm, then start. Detection (`start/startModel.ts`, tested) maps the words to a registry environment, or to none and never a guess. Step 2 picks or creates a real project; step 3 shows exactly what goes to the lead agent, and nothing is sent until "Start building". It has its own violet-to-blue palette, waves, a laptop and glass tiles drawn in code. The environment picker moved to `#/browse`.
-- **Reduced motion.** Every keyframe and transition sits under `prefers-reduced-motion: no-preference`, and the typewriter is switched off in JS. With `reduce`, the launcher is static and fully usable.
-- **Still enforced.** No plain horizontal gradients (the heading uses a 110° gradient), no Inter, and the combobox/listbox semantics are unchanged. `test/nexus-launcher-motion.test.cjs` covers the helpers.
+- **Start (Home), `#/`.** An intent-first page: describe, then confirm, then start.
+  - Detection (`start/startModel.ts`, tested) maps the words to a registry environment, or to none and never a guess.
+  - Step 2 picks or creates a real project. Step 3 shows exactly what goes to the lead agent, and nothing is sent until "Start building".
+  - It has its own violet-to-blue palette. Waves, a laptop and glass tiles are drawn in code and drift gently. The chosen environment's emblem (`launcher/emblems.ts`) and provenance colour appear in steps 2 and 3.
+- **Environment picker, `#/browse`: an instrument wall.**
+  - A dense console of panels separated by hairlines, always dark in both themes. Inside it, the `--nx-*` roles are re-pointed at the console palette, so provenance colours and scenes render dark-tuned.
+  - Each panel has a `~/environment` header with a live LED, a real project count and a 1–9 key. It plays a looping scene of its own work (`launcher/TileScene.tsx`, `sceneKinds.ts`); future workspaces get a generic scene.
+  - A sticky status bar carries the selection's description, project count, last activity, Open and New project.
+  - Keyboard: `/` focuses the filter, arrows move in two dimensions (`launcher/gridNav.ts`), number keys jump (`launcher/wallModel.ts`), Enter opens. Typed letters are underlined where they matched (`launcher/highlight.ts`), and the idle filter types example searches (`launcher/typewriter.ts`).
+- **Reduced motion.** Every keyframe and transition sits under `prefers-reduced-motion: no-preference`, and the typewriter is switched off in JS. With `reduce`, both pages are static and fully usable. Scenes rest on a readable frame.
+- **Still enforced.** No plain horizontal gradients and no Inter. The combobox/listbox semantics are unchanged. `test/nexus-launcher-*.test.cjs` and `test/nexus-start.test.cjs` cover the helpers.
 
 ## Legacy screens
 
