@@ -68,6 +68,25 @@ Sizes are not tokenised; each stylesheet sets its own `font` shorthand. In pract
 - `src/renderer/src/design/global.css`: reset, focus ring, scrollbars, keyframes, markdown preview, reduced-motion rule.
 - `test/nexus-decoupling.test.cjs`: guards `nexus/` against the retired office scene, pixel components, persona names and the old product identity, and against `"Inter"` and plain horizontal gradients in Nexus CSS (repeating gradients are textures and are allowed).
 
+## Launcher motion exception
+
+The launcher (`nexus/launcher/*`, `styles/launcher.css`) is the one surface where ambient motion is allowed. It was requested explicitly so the front door feels alive. Every other surface keeps the Motion rules above.
+
+- **Live hue.** The page is tinted by `--nx-live-h`, the selected environment's provenance hue. It is registered with `@property` so the whole page eases between environments. Colour still means provenance: it always follows the selected environment.
+- **Ambient.**
+  - Three blurred aurora blobs drift slowly in the live hue and its two neighbours.
+  - The heading's "working on?" carries a slow sheen.
+  - The emblem floats, with an orbiting ring of dots.
+  - These are the only decorative loops in Nexus.
+- **State motion.**
+  - One highlight glides between rows.
+  - Rows cascade in.
+  - Typed letters are underlined where they matched (`launcher/highlight.ts`).
+  - The preview emblem morphs between shapes: every shape in `launcher/emblems.ts` has the same point count, so the browser interpolates its CSS `d` property.
+  - The search line types example searches while it is empty and idle (`launcher/typewriter.ts`).
+- **Reduced motion.** Every keyframe and transition sits under `prefers-reduced-motion: no-preference`, and the typewriter is switched off in JS. With `reduce`, the launcher is static and fully usable.
+- **Still enforced.** No plain horizontal gradients (the heading uses a 110° gradient), no Inter, and the combobox/listbox semantics are unchanged. `test/nexus-launcher-motion.test.cjs` covers the helpers.
+
 ## Legacy screens
 
 The IDE, settings, modals, terminals and the project Command Center are not redesigned. They are re-skinned: every `--cth-*` colour token points at a `--nx-*` role, and `--cth-font-ui` is Instrument Sans, so they follow the Spine palette and both themes. The `--cth-*` names are legacy (`cream`, `paper`, `ink` describe the old palette); the role mapping is documented at the top of `design/tokens.css`. Do not add new tokens to the `--cth-*` set; add `--nx-*` tokens instead.
