@@ -139,7 +139,9 @@ test('index.ts wires pty:spawn, the worker watcher, voice spawns and config:upda
   assert.doesNotMatch(spawnHandler, /spawnAgentCore\(opts/);
   assert.match(idx, /resolveWorkerCommand\(raw, readConfig\(\)\)/);
   assert.match(idx, /command\?: string;\s*\/\/ a provider preset id only/);
-  assert.match(idx, /trustedEngineCommands = shrinkTrustedEngines\(/);
+  // Task 12: config:update runs the key allow-list, where trustedEngineCommands is shrink-only.
+  assert.match(idx, /applyRendererConfigPatch\(patch, evt\.sender\)/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'src/main/configPolicy.ts'), 'utf8'), /apply\[key\] = shrinkTrustedEngines\(value, have\);/);
   const voice = idx.slice(idx.indexOf('spawnAgent: async (opts)'), idx.indexOf('spawnAgent: async (opts)') + 600);
   assert.match(voice, /ensureAllowedEngine\(/);
 });
@@ -147,5 +149,6 @@ test('index.ts wires pty:spawn, the worker watcher, voice spawns and config:upda
 test('config: trustedEngineCommands defaults to an empty list', () => {
   const cfg = fs.readFileSync(path.join(__dirname, '..', 'src/main/config.ts'), 'utf8');
   assert.match(cfg, /trustedEngineCommands\?: string\[\]/);
-  assert.match(cfg, /trustedEngineCommands: \[\]/);
+  // Task 12 moved the defaults to configDefaults.ts.
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'src/main/configDefaults.ts'), 'utf8'), /trustedEngineCommands: \[\]/);
 });

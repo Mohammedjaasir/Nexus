@@ -22,6 +22,13 @@
 .nxa__term { min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); background: var(--nx-surface); overflow: hidden; }
 .nxa__term > * { flex: 1; min-height: 0; }
 .nxa__empty { flex: 1; display: grid; place-items: start; padding: var(--nx-s4); }
+/* One-time auto mode review (O.9 #10): a bordered row, no shadow, warn edge. */
+.nxa__banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s3); margin: var(--nx-s3) var(--nx-s4) 0; padding: var(--nx-s3) var(--nx-s4); border: 1px solid var(--nx-line); border-left: 3px solid var(--nx-warn); border-radius: var(--nx-r-obj); background: var(--nx-surface); }
+.nxa__banner-text { flex: 1 1 320px; min-width: 0; }
+.nxa__banner-title { margin: 0 0 var(--nx-s1); font: 650 14px/1.3 var(--nx-font); color: var(--nx-ink); }
+.nxa__banner-body { margin: 0; font: 400 13px/1.5 var(--nx-font); color: var(--nx-text-2); }
+.nxa__banner-error { margin: var(--nx-s1) 0 0; font: 400 13px/1.5 var(--nx-font); color: var(--nx-ink); }
+.nxa__banner-actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
 .nxa__restore { margin: 0; padding: var(--nx-s2) var(--nx-s4); font: 400 13px/1.5 var(--nx-font); color: var(--nx-text-2); }
 .nxa__note { margin: 0; padding: var(--nx-s4); font: 400 14px/1.55 var(--nx-font); color: var(--nx-text-2); }
 @media (max-width: 767px) {

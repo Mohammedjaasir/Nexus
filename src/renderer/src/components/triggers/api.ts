@@ -149,6 +149,12 @@ export async function getOrgTrigger(): Promise<OrgTriggerConfig | null> {
   }
 }
 
-export function setOrgTrigger(cfg: OrgTriggerConfig): void {
-  void window.cth.setOrgTrigger(cfg).catch(() => { /* optimistic */ });
+/** Persist; resolves to main's redacted answer (`apiKey` '' + `hasApiKey`), or
+ *  null on failure. `apiKey`: '' = unchanged, null = remove. */
+export async function setOrgTrigger(cfg: Omit<OrgTriggerConfig, 'apiKey'> & { apiKey: string | null }): Promise<OrgTriggerConfig | null> {
+  try {
+    return (await window.cth.setOrgTrigger(cfg)) ?? null;
+  } catch {
+    return null;
+  }
 }

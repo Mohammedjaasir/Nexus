@@ -84,7 +84,9 @@ export interface RealtimeActionDeps {
    *  table in THIS file is the only path from voice to config — never expose a
    *  raw patch. */
   getConfigValue(key: string): unknown;
-  patchConfig(patch: Record<string, unknown>): void;
+  /** Applies only keys the config allow-list lets through without a dialog
+   *  (O.9 #22); returns false when the change was refused. */
+  patchConfig(patch: Record<string, unknown>): boolean | void;
 }
 
 /** The result every action / confirm / cancel returns to the renderer tool, which
@@ -744,13 +746,17 @@ function proposeDestructive(deps: RealtimeActionDeps, verb: string, a: Record<st
         return { ok: false, spoken: `${key} must be one of: ${policy.values.join(', ')}.` };
       }
     }
+    // O.9 #10: voice may turn auto mode OFF, never on; turning it on needs the
+    // confirmation in Settings. The same holds for the Free Flow microphone.
+    if (key === 'autoMode' && value === true) return { ok: false, spoken: 'Turning auto mode on needs a confirmation in Settings.' };
+    if (key === 'freeflowEnabled' && value === true) return { ok: false, spoken: 'Turning Free Flow on needs Settings.' };
     const oldValue = deps.getConfigValue(key);
     const describe = (v: unknown): string => typeof v === 'boolean' ? (v ? 'on' : 'off') : String(v ?? 'unset');
     if (describe(oldValue) === describe(value)) {
       return { ok: true, spoken: `${key} is already ${describe(value)} — nothing to change.` };
     }
     const applyNow = (): string => {
-      deps.patchConfig({ [key]: value });
+      if (deps.patchConfig({ [key]: value }) === false) return `I couldn't change ${key}: that value isn't allowed. Use the Settings screen.`;
       attribute(deps, 'update_setting', key, { action: `${describe(oldValue)} → ${describe(value)}` });
       return `Done — ${key} is now ${describe(value)} (was ${describe(oldValue)}).`;
     };

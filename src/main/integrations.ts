@@ -17,7 +17,7 @@
  * Contract: hive/docs/integrations-spec.md.
  */
 import { app, safeStorage } from 'electron';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import {
   type IntegrationRecord,
@@ -26,6 +26,7 @@ import {
   secretRefFor
 } from '../shared/integrations';
 import { readConfig, writeConfig } from './config';
+import { writeFileAtomic } from './atomicWrite';
 
 // ─── Registry (config-backed) ────────────────────────────────────────────────
 
@@ -99,7 +100,14 @@ function readSecretBlob(): Record<string, string> {
 function writeSecretBlob(blob: Record<string, string>): void {
   const p = secretsPath();
   mkdirSync(dirname(p), { recursive: true });
-  writeFileSync(p, JSON.stringify(blob, null, 2), { encoding: 'utf8', mode: 0o600 });
+  // Atomic (temp + fsync + rename): this file now also holds the config
+  // secrets (O.9 #8), so a torn write must never lose them. Same format.
+  writeFileAtomic(p, JSON.stringify(blob, null, 2), undefined, { mode: 0o600 });
+}
+
+/** Whether OS secret encryption works on this system (main-only). */
+export function encryptionAvailable(): boolean {
+  try { return safeStorage.isEncryptionAvailable(); } catch { return false; }
 }
 
 /** Store a secret ENCRYPTED. Fail closed if OS encryption is unavailable (never

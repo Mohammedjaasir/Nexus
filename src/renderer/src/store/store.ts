@@ -234,7 +234,7 @@ interface State {
    *  mic button reactively (set by App on config load and by Settings on save). */
   freeflowEnabled: boolean;
   setFreeflowEnabled: (on: boolean) => void;
-  /** Mirror of `!!config.groqApiKey` — boolean presence ONLY; the key value never
+  /** Mirror of `config.secretsPresent.groqApiKey` — boolean presence ONLY; the key value never
    *  enters the store. Lets the composer show the voice button disabled (with a
    *  "add a Groq key" tooltip) instead of hiding it. Set by App on config load and
    *  by Settings on save. */
@@ -256,15 +256,17 @@ interface State {
    *  setter after persisting, and the other one repaints without a refetch.
    *  Seeded by App from getConfig() (main deep-fills the field on every read).
    *
-   *  Holds per-endpoint secrets, because a secret is what the UI has to show for
-   *  reveal/copy to mean anything. Renderer memory only — never persisted to
-   *  localStorage or the roster file, never logged, masked in every surface. */
+   *  Main never sends a stored secret (O.9 #8): rows arrive with secret '' and
+   *  `hasSecret`. Only a secret minted this session is held here, so the user can
+   *  copy it once. Renderer memory only — never persisted to localStorage or the
+   *  roster file, never logged, masked in every surface. */
   webhookTriggers: WebhookTrigger[];
   setWebhookTriggers: (list: WebhookTrigger[]) => void;
   /** Mirror of config.orgTrigger (peer messaging between teammates' clone nodes).
    *  Same two-way contract as `webhookTriggers`, and the same handling for
-   *  `apiKey` — in memory for the two surfaces that display it masked, nowhere
-   *  else. Configuration only for now: no transport reads the key yet. */
+   *  `apiKey` — main never sends the stored key (O.9 #8: '' plus `hasApiKey`);
+   *  only a key typed this session is held here, masked. Configuration only for
+   *  now: no transport reads the key yet. */
   orgTrigger: OrgTriggerConfig;
   setOrgTrigger: (cfg: OrgTriggerConfig) => void;
   /** Active Project for domain-specialized workspace */
@@ -897,5 +899,5 @@ export function selectedAgent(s: State): Agent | undefined {
  *  the two mirrors rather than stored beside them, so it cannot fall out of step
  *  with the thing it describes. Use as `useStore(triggerHistoryVisible)`. */
 export function triggerHistoryVisible(s: State): boolean {
-  return s.webhookTriggers.length > 0 || s.orgTrigger.apiKey.trim() !== '';
+  return s.webhookTriggers.length > 0 || s.orgTrigger.hasApiKey === true || s.orgTrigger.apiKey.trim() !== '';
 }

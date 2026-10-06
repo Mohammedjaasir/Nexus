@@ -61,14 +61,29 @@ export function WebhooksSection({ onSummary }: { onSummary?: (s: string) => void
   const apply = (next: WebhookTrigger[], persist = true) => {
     setHooks(next);
     if (!persist) return;
-    void saveWebhooks(next).then((canonical) => { if (canonical) setHooks(canonical); });
+    // Main answers redacted (secret '' + hasSecret, O.9 #8). A secret minted in
+    // this session stays in memory so it can be copied once; nothing else is.
+    void saveWebhooks(next).then((canonical) => {
+      if (!canonical) return;
+      setHooks(canonical.map((c) => {
+        const minted = next.find((n) => n.id === c.id)?.secret;
+        return minted ? { ...c, secret: minted } : c;
+      }));
+    });
   };
   const patch = (id: string, fields: Partial<WebhookTrigger>, persist = true) =>
     apply(hooks.map((w) => (w.id === id ? { ...w, ...fields } : w)), persist);
 
   const remove = (id: string) => {
-    setHooks(hooks.filter((w) => w.id !== id));
-    void deleteWebhook(id).then((canonical) => { if (canonical) setHooks(canonical); });
+    const kept = hooks.filter((w) => w.id !== id);
+    setHooks(kept);
+    void deleteWebhook(id).then((canonical) => {
+      if (!canonical) return;
+      setHooks(canonical.map((c) => {
+        const minted = kept.find((n) => n.id === c.id)?.secret;
+        return minted ? { ...c, secret: minted } : c;
+      }));
+    });
   };
 
   const add = async () => {
@@ -151,6 +166,14 @@ function WebhookRow({ hook, url, serverRunning, onPatch, onDelete }: {
 
   useEffect(() => () => { if (copyTimer.current) clearTimeout(copyTimer.current); }, []);
 
+  /** Mint a new secret for this endpoint; it is shown once, then only stored. */
+  const regenerate = async () => {
+    const secret = await generateWebhookSecret();
+    if (!secret) return;
+    setRevealed(true);
+    onPatch({ secret });
+  };
+
   const copy = (what: 'url' | 'secret', text: string) => {
     void window.cth.copyToClipboard(text).catch(() => { /* noop */ });
     setCopied(what);
@@ -221,14 +244,25 @@ function WebhookRow({ hook, url, serverRunning, onPatch, onDelete }: {
           </Field>
 
           <Field label="SECRET">
-            <SecretField
-              value={hook.secret}
-              revealed={revealed}
-              onReveal={() => setRevealed((r) => !r)}
-              onCopy={() => copy('secret', hook.secret)}
-              copied={copied === 'secret'}
-            />
-            <Hint>Callers echo this in the x-md-webhook-secret header.</Hint>
+            {hook.secret ? (
+              <SecretField
+                value={hook.secret}
+                revealed={revealed}
+                onReveal={() => setRevealed((r) => !r)}
+                onCopy={() => copy('secret', hook.secret)}
+                copied={copied === 'secret'}
+              />
+            ) : (
+              // Main never sends a saved secret back (O.9 #8). It is shown once,
+              // right after it is generated; a new one replaces it for good.
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ flex: 1, fontSize: 12, color: 'var(--cth-ink-700)' }}>
+                  {hook.hasSecret ? 'Saved. Generate a new secret to see one.' : 'No secret yet.'}
+                </span>
+                <MiniButton onClick={() => { void regenerate(); }}>generate secret</MiniButton>
+              </div>
+            )}
+            <Hint>Callers echo this in the x-md-webhook-secret header.{hook.secret ? ' Copy it now: it is shown only this once.' : ''}</Hint>
           </Field>
 
           <Field label="TRUST">

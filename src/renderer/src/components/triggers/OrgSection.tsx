@@ -30,16 +30,20 @@ export function OrgSection({ onSummary }: { onSummary?: (s: string) => void }) {
     });
   }, [mirror]);
 
+  // Main never sends the stored key (O.9 #8): `hasApiKey` says one is saved.
+  const hasKey = cfg.apiKey.trim().length > 0 || cfg.hasApiKey === true;
+
   useEffect(() => {
-    onSummary?.(!cfg.apiKey.trim() ? 'no key' : cfg.enabled ? 'on' : 'off');
-  }, [cfg, onSummary]);
+    onSummary?.(!hasKey ? 'no key' : cfg.enabled ? 'on' : 'off');
+  }, [cfg, hasKey, onSummary]);
 
   const apply = (next: OrgTriggerConfig, persist = true) => {
     mirror(next);
-    if (persist) persistOrgTrigger(next);
+    if (!persist) return;
+    void persistOrgTrigger(next).then((stored) => {
+      if (stored && typeof stored.hasApiKey === 'boolean') mirror({ ...next, hasApiKey: stored.hasApiKey });
+    });
   };
-
-  const hasKey = cfg.apiKey.trim().length > 0;
 
   return (
     <>
@@ -55,7 +59,7 @@ export function OrgSection({ onSummary }: { onSummary?: (s: string) => void }) {
           value={cfg.apiKey}
           revealed={revealed}
           onReveal={() => setRevealed((r) => !r)}
-          placeholder="paste your key"
+          placeholder={cfg.hasApiKey ? 'Saved. Enter a new value to replace it.' : 'paste your key'}
           onChange={(apiKey) => apply({ ...cfg, apiKey }, false)}
           onBlur={() => apply(cfg)}
         />

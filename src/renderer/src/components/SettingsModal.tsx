@@ -21,6 +21,8 @@ import { AiEnginesSettings } from './AiEnginesSettings';
 import { REALTIME_MODEL } from '@shared/realtimePricing';
 import { RealtimeDevicePicker } from '@/realtime/DevicePicker';
 import { CostHud } from '@/realtime/CostHud';
+import { AUTO_MODE_BANNER } from '@shared/autoModeReview';
+import { useAutoModeReview, syncAutoModeReview } from '@/nexus/agents/useAutoModeReview';
 
 export interface SettingsModalProps {
   config: HarnessConfig;
@@ -42,10 +44,39 @@ interface TriggersApi {
   listWebhooks: () => Promise<WebhookTrigger[]>;
   saveWebhooks: (list: WebhookTrigger[]) => Promise<{ ok: boolean; error?: string }>;
   deleteWebhook: (id: string) => Promise<{ ok: boolean; error?: string }>;
-  generateWebhookSecret: () => Promise<{ ok: boolean; secret?: string }>;
+  /** Preload resolves the bare secret string (older builds: `{ ok, secret }`). */
+  generateWebhookSecret: () => Promise<string | { ok: boolean; secret?: string }>;
   webhooksStatus: () => Promise<{ running: boolean; url?: string }>;
   getOrgTrigger: () => Promise<OrgTriggerConfig>;
-  setOrgTrigger: (cfg: OrgTriggerConfig) => Promise<{ ok: boolean; error?: string }>;
+  setOrgTrigger: (cfg: Omit<OrgTriggerConfig, 'apiKey'> & { apiKey: string | null }) => Promise<{ ok: boolean; error?: string }>;
+}
+
+/** A freshly minted webhook secret, whichever shape the bridge returned. */
+function mintedSecret(res: string | { ok: boolean; secret?: string } | null | undefined): string {
+  if (typeof res === 'string') return res;
+  return res && res.ok && res.secret ? res.secret : '';
+}
+
+/** Placeholder for a secret input whose value main holds (O.9 #8). */
+const SAVED_SECRET_PLACEHOLDER = 'Saved. Enter a new value to replace it.';
+
+type SecretsPresent = NonNullable<HarnessConfig['secretsPresent']>;
+const NO_SECRETS: SecretsPresent = { slackSigningSecret: false, slackBotToken: false, groqApiKey: false, webhookSecret: false, orgApiKey: false };
+
+/** Snapshot of the renderer's local keys, so a cancelled home change can put
+ *  them back after clearLocalState (main may now refuse in its dialog). */
+function snapshotLocalState(): Array<[string, string]> {
+  const out: Array<[string, string]> = [];
+  try {
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && (k.startsWith('cth.') || k.startsWith('nx.'))) out.push([k, window.localStorage.getItem(k) ?? '']);
+    }
+  } catch { /* noop */ }
+  return out;
+}
+function restoreLocalState(saved: Array<[string, string]>): void {
+  try { for (const [k, v] of saved) window.localStorage.setItem(k, v); } catch { /* noop */ }
 }
 const triggersApi = (): TriggersApi => window.cth as unknown as TriggersApi;
 
@@ -201,12 +232,39 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     try { await window.cth.updateConfig({ audience: next ? 'non-technical' : 'technical' } as Partial<HarnessConfig>); }
     catch { setSimpleMode(!next); }
   };
-  const [autoModeOn, setAutoModeOn] = useState<boolean>(cfgX.autoMode !== false);
+  const [autoModeOn, setAutoModeOn] = useState<boolean>(cfgX.autoMode === true);
+  // Turning auto mode ON opens main's confirmation dialog; OFF never does. The
+  // switch follows what main stored, so a Cancel leaves it off.
   const toggleAutoMode = async () => {
-    const next = !autoModeOn;
-    setAutoModeOn(next);
-    try { await window.cth.updateConfig({ autoMode: next } as Partial<HarnessConfig>); }
-    catch { setAutoModeOn(!next); }
+    const want = !autoModeOn;
+    try {
+      const next = await window.cth.updateConfig({ autoMode: want } as Partial<HarnessConfig>);
+      setAutoModeOn(next.autoMode === true);
+      syncAutoModeReview(next);
+    } catch { /* keep the current state */ }
+  };
+  const autoReview = useAutoModeReview();
+  const answerAutoReview = async (turnOff: boolean) => {
+    const next = await (turnOff ? autoReview.turnOff() : autoReview.keep());
+    if (next) setAutoModeOn(next.autoMode === true);
+  };
+  // "Restore my Claude settings" (O.9 #9): main asks, then removes the two keys
+  // older builds added to ~/.claude/settings.json.
+  const [claudeRestoreNote, setClaudeRestoreNote] = useState('');
+  const [claudeRestoreBusy, setClaudeRestoreBusy] = useState(false);
+  const restoreClaude = async () => {
+    setClaudeRestoreBusy(true); setClaudeRestoreNote('');
+    try {
+      const r = await window.cth.restoreClaudeSettings();
+      if (r.ok) {
+        const n = r.removed?.length ?? 0;
+        setClaudeRestoreNote(n > 0 ? `Removed ${n} setting(s). A backup is next to the file.` : 'Nothing to remove.');
+      } else if (r.error !== 'cancelled') {
+        setClaudeRestoreNote(`Could not update the file: ${r.error ?? 'unknown error'}`);
+      }
+    } catch (e) {
+      setClaudeRestoreNote(`Could not update the file: ${e instanceof Error ? e.message : String(e)}`);
+    } finally { setClaudeRestoreBusy(false); }
   };
   const [defaultModelSel, setDefaultModelSel] = useState<string>(cfgX.defaultModel ?? 'claude-fable-5');
   const [defaultModelNote, setDefaultModelNote] = useState('');
@@ -294,8 +352,20 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
 
   // --- Slack integration ---
   const [slackEnabled, setSlackEnabled] = useState(config.slackEnabled ?? false);
-  const [slackSecret, setSlackSecret] = useState(config.slackSigningSecret ?? '');
-  const [slackBotToken, setSlackBotToken] = useState(config.slackBotToken ?? '');
+  // Secret inputs start empty (O.9 #8): main never sends a stored secret. An
+  // empty field on Save means "unchanged"; Remove sends null.
+  const [secretsPresent, setSecretsPresent] = useState<SecretsPresent>(config.secretsPresent ?? NO_SECRETS);
+  const [secretStorage, setSecretStorage] = useState(config.secretStorage);
+  const refreshSecretsPresent = async () => {
+    try {
+      const c = await window.cth.getConfig();
+      setSecretsPresent(c.secretsPresent ?? NO_SECRETS);
+      setSecretStorage(c.secretStorage);
+      return c.secretsPresent ?? NO_SECRETS;
+    } catch { return null; }
+  };
+  const [slackSecret, setSlackSecret] = useState('');
+  const [slackBotToken, setSlackBotToken] = useState('');
   const [slackChannel, setSlackChannel] = useState(config.slackChannelId ?? '');
   const [slackPort, setSlackPort] = useState(String(config.slackPort ?? 3847));
   // App/voice-initiated proactive posting (the "queued" ack). Default OFF —
@@ -434,7 +504,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
   // v0.3.4 fix: the config default is ON ('now on by default', 0.2.7) — seeding
   // with `?? false` displayed OFF while the feature was actually running.
   const [freeflowEnabled, setFreeflowEnabled] = useState(config.freeflowEnabled !== false);
-  const [groqKey, setGroqKey] = useState(config.groqApiKey ?? '');
+  const [groqKey, setGroqKey] = useState('');
   const [freeflowModel, setFreeflowModel] = useState(config.freeflowModel ?? 'whisper-large-v3-turbo');
   const [showGroqKey, setShowGroqKey] = useState(false);
   const [freeflowBusy, setFreeflowBusy] = useState(false);
@@ -456,15 +526,18 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
       setAgentBudget(cc.costCapTokens != null ? String(cc.costCapTokens) : '');
       setVelocityCeiling(cc.circuitBreaker?.tokenVelocityPerMin != null ? String(cc.circuitBreaker.tokenVelocityPerMin) : '');
       setSlackEnabled(cc.slackEnabled ?? false);
-      setSlackSecret(cc.slackSigningSecret ?? '');
-      setSlackBotToken(cc.slackBotToken ?? '');
+      setSlackSecret('');
+      setSlackBotToken('');
+      setSecretsPresent(c.secretsPresent ?? NO_SECRETS);
+      setSecretStorage(c.secretStorage);
+      setAutoModeOn(c.autoMode === true);
       setSlackChannel(cc.slackChannelId ?? '');
       setSlackPort(String(cc.slackPort ?? 3847));
       setSlackProactivePosting(cc.slackProactivePosting ?? false);
       const kgOn = (cc as { knowledgeGraph?: { enabled?: boolean } }).knowledgeGraph?.enabled === true;
       setKgEnabled(kgOn);
       setFreeflowEnabled(cc.freeflowEnabled !== false);
-      setGroqKey(cc.groqApiKey ?? '');
+      setGroqKey('');
       setFreeflowModel(cc.freeflowModel ?? 'whisper-large-v3-turbo');
       setIdleDisconnectMs((c as HarnessConfig).realtimeIdleDisconnectMs ?? 180_000);
     }).catch(() => { /* keep prop-seeded values */ });
@@ -510,11 +583,18 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     proactivePosting: slackProactivePosting
   });
 
+  /** After a save the typed secrets live in main; clear the fields. */
+  const afterSlackSave = async () => {
+    setSlackSecret(''); setSlackBotToken('');
+    await refreshSecretsPresent();
+  };
+
   const saveSlack = async () => {
     setSlackBusy(true); setSlackNote('');
     try {
-      await window.cth.slackSetConfig(slackPatch(slackEnabled));
-      setSlackNote('saved');
+      const r = await window.cth.slackSetConfig(slackPatch(slackEnabled));
+      await afterSlackSave();
+      setSlackNote(r.ok ? 'saved' : (r.error ?? 'saved'));
     } catch (e) {
       setSlackNote(e instanceof Error ? e.message : String(e));
     } finally { setSlackBusy(false); }
@@ -525,6 +605,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     try {
       // Persist first so the server starts with the latest secret/port/channel.
       await window.cth.slackSetConfig(slackPatch(true));
+      await afterSlackSave();
       setSlackEnabled(true);
       const res = await window.cth.slackStart();
       if (res.ok) {
@@ -535,6 +616,19 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
       } else {
         setSlackNote(res.error ?? 'failed to start');
       }
+    } catch (e) {
+      setSlackNote(e instanceof Error ? e.message : String(e));
+    } finally { setSlackBusy(false); }
+  };
+
+  /** Remove one stored Slack secret (the explicit action; an empty field never erases). */
+  const removeSlackSecret = async (which: 'signingSecret' | 'botToken') => {
+    setSlackBusy(true); setSlackNote('');
+    try {
+      await window.cth.slackSetConfig({ [which]: null });
+      if (which === 'signingSecret') { setSlackSecret(''); setRunning(false); } else setSlackBotToken('');
+      await refreshSecretsPresent();
+      setSlackNote('removed');
     } catch (e) {
       setSlackNote(e instanceof Error ? e.message : String(e));
     } finally { setSlackBusy(false); }
@@ -576,8 +670,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     setWebhookBusy(true); setWebhookNote('');
     let secret = '';
     try {
-      const res = await triggersApi().generateWebhookSecret();
-      secret = res.ok && res.secret ? res.secret : '';
+      secret = mintedSecret(await triggersApi().generateWebhookSecret());
     } catch (e) {
       setWebhookNote(e instanceof Error ? e.message : String(e));
     } finally { setWebhookBusy(false); }
@@ -601,8 +694,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     setWebhookBusy(true); setWebhookNote('');
     let secret = '';
     try {
-      const res = await triggersApi().generateWebhookSecret();
-      secret = res.ok && res.secret ? res.secret : '';
+      secret = mintedSecret(await triggersApi().generateWebhookSecret());
     } catch (e) {
       setWebhookNote(e instanceof Error ? e.message : String(e));
     } finally { setWebhookBusy(false); }
@@ -640,7 +732,23 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     try {
       const res = await triggersApi().setOrgTrigger(next);
       if (res && res.ok === false) { setOrgNote(res.error ?? 'could not save'); return; }
+      // Main answers redacted; adopt only whether a key is now stored.
+      const stored = (res as unknown as OrgTriggerConfig | null)?.hasApiKey;
+      if (typeof stored === 'boolean') setOrgTriggerStore({ ...next, hasApiKey: stored });
       setOrgNote('saved');
+      setTimeout(() => setOrgNote(''), 1500);
+    } catch (e) {
+      setOrgNote(e instanceof Error ? e.message : String(e));
+    } finally { setOrgBusy(false); }
+  };
+
+  /** Remove the stored org key (explicit; an empty field never erases). */
+  const removeOrgKey = async () => {
+    setOrgBusy(true); setOrgNote('');
+    try {
+      await triggersApi().setOrgTrigger({ ...orgTrigger, apiKey: null });
+      setOrgTriggerStore({ ...orgTrigger, apiKey: '', hasApiKey: false });
+      setOrgNote('removed');
       setTimeout(() => setOrgNote(''), 1500);
     } catch (e) {
       setOrgNote(e instanceof Error ? e.message : String(e));
@@ -654,16 +762,36 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     const enabled = enabledOverride ?? freeflowEnabled;
     setFreeflowBusy(true); setFreeflowNote('');
     try {
-      await window.cth.freeflowSetConfig({
+      // apiKey '' = keep the stored key (O.9 #8). Turning Free Flow on asks in
+      // main the first time (microphone); a Cancel leaves it off.
+      const r = await window.cth.freeflowSetConfig({
         enabled,
         apiKey: groqKey,
         model: freeflowModel.trim() || 'whisper-large-v3-turbo'
       });
-      setFreeflowEnabledStore(enabled);
+      const on = enabled && r.ok;
+      if (!r.ok) setFreeflowEnabled(false);
+      setFreeflowEnabledStore(on);
+      setGroqKey('');
       // Mirror boolean key-presence so the voice button enables/disables live
       // without an app restart (presence only — never the key value).
-      setHasGroqKeyStore(!!groqKey.trim());
-      setFreeflowNote('saved');
+      const present = await refreshSecretsPresent();
+      setHasGroqKeyStore(present ? present.groqApiKey : !!groqKey.trim());
+      setFreeflowNote(r.ok ? 'saved' : (r.error ?? 'not saved'));
+    } catch (e) {
+      setFreeflowNote(e instanceof Error ? e.message : String(e));
+    } finally { setFreeflowBusy(false); }
+  };
+
+  /** Remove the stored Groq key (explicit; an empty field never erases). */
+  const removeGroqKey = async () => {
+    setFreeflowBusy(true); setFreeflowNote('');
+    try {
+      await window.cth.freeflowSetConfig({ apiKey: null });
+      setGroqKey('');
+      await refreshSecretsPresent();
+      setHasGroqKeyStore(false);
+      setFreeflowNote('removed');
     } catch (e) {
       setFreeflowNote(e instanceof Error ? e.message : String(e));
     } finally { setFreeflowBusy(false); }
@@ -703,12 +831,16 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     // Moving copies the hive (incl. its .git) + palace, so the new home owns the
     // same renderer-side roster - keep localStorage. A 'fresh' home starts empty,
     // so clear the renderer cache to match.
+    // Main now asks before changing the home (O.9 #22); a Cancel returns ok:false,
+    // so the cleared keys are put back.
+    const savedLocal = changeMode === 'fresh' ? snapshotLocalState() : [];
     if (changeMode === 'fresh') clearLocalState();
     try {
       const res = await window.cth.changeHome(changeHome, changeMode);
-      if (!res.ok) { setChangeErr(res.error ?? 'Could not change the home folder.'); setChangeBusy(false); }
+      if (!res.ok) { restoreLocalState(savedLocal); setChangeErr(res.error ?? 'Could not change the home folder.'); setChangeBusy(false); }
       // ok === true never returns (the process relaunches).
     } catch (e) {
+      restoreLocalState(savedLocal);
       setChangeErr(e instanceof Error ? e.message : String(e));
       setChangeBusy(false);
     }
@@ -1125,6 +1257,28 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
 
                       <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
 
+                      {/* O.9 #9: Nexus no longer edits ~/.claude. This undoes what
+                          older builds added there; main asks first. */}
+                      <div>
+                        <div style={{
+                          fontFamily: 'var(--cth-font-display)', fontSize: 8, lineHeight: '12px',
+                          color: 'var(--cth-ink-500)', textTransform: 'uppercase', marginBottom: 10
+                        }}>
+                          Claude settings
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <PixelButton variant="secondary" size="sm" onClick={() => void restoreClaude()} disabled={claudeRestoreBusy}>
+                            Restore my Claude settings
+                          </PixelButton>
+                          <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
+                            Older versions added two approval settings to ~/.claude/settings.json. This removes them.
+                          </span>
+                        </div>
+                        {claudeRestoreNote && <div role="status" style={{ marginTop: 6, fontSize: 12, color: 'var(--cth-ink-700)' }}>{claudeRestoreNote}</div>}
+                      </div>
+
+                      <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
+
                       {/* Advanced */}
                       <div>
                         <div style={{
@@ -1158,17 +1312,31 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                         }}>
                           Autonomy
                         </div>
+                        {autoReview.needs && (
+                          <div role="region" aria-label={AUTO_MODE_BANNER.title} style={{
+                            display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12, padding: '10px 12px',
+                            background: 'var(--cth-cream-100)', boxShadow: 'inset 3px 0 0 var(--cth-coral), inset 0 0 0 1px var(--cth-ink-300)'
+                          }}>
+                            <span style={{ fontSize: 13, lineHeight: '20px', fontWeight: 600, color: 'var(--cth-ink-900)' }}>{AUTO_MODE_BANNER.title}</span>
+                            <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-700)' }}>{AUTO_MODE_BANNER.body}</span>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <PixelButton variant="primary" size="sm" onClick={() => void answerAutoReview(true)} disabled={autoReview.busy}>{AUTO_MODE_BANNER.turnOff}</PixelButton>
+                              <PixelButton variant="secondary" size="sm" onClick={() => void answerAutoReview(false)} disabled={autoReview.busy}>{AUTO_MODE_BANNER.keep}</PixelButton>
+                            </div>
+                            {autoReview.error && <span role="alert" style={{ fontSize: 12, color: 'var(--cth-coral)' }}>{autoReview.error}</span>}
+                          </div>
+                        )}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <span style={{ fontSize: 13, lineHeight: '20px', color: 'var(--cth-ink-900)' }}>
-                              {autoModeOn ? 'Autonomous — agents act without asking' : 'Ask-first — agents pause for tool approval'}
+                              Auto mode: agents skip their CLI approval prompts
                             </span>
                             <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
-                              Applies to newly spawned agents (each agent's command can still override).
+                              Agents can run commands and change files in their folders without asking. Turning it on asks you to confirm.
                             </span>
                           </div>
-                          <PixelButton variant={autoModeOn ? 'primary' : 'secondary'} size="sm" onClick={toggleAutoMode}>
-                            {autoModeOn ? 'autonomous' : 'ask-first'}
+                          <PixelButton variant={autoModeOn ? 'primary' : 'secondary'} size="sm" onClick={toggleAutoMode} aria-pressed={autoModeOn}>
+                            {autoModeOn ? 'on' : 'off'}
                           </PixelButton>
                         </div>
                       </div>
@@ -1335,6 +1503,21 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                           blocks below stay as-is. */}
                       <IntegrationsRegistry />
 
+                      {/* Where the Slack, webhook, Groq and org secrets live (O.9 #8). */}
+                      {secretStorage && !secretStorage.available && Object.values(secretsPresent).some(Boolean) && (
+                        <span role="status" style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-coral)' }}>
+                          Secrets stay in config.json because this system has no secure storage available.
+                        </span>
+                      )}
+                      {secretStorage && secretStorage.backups.length > 0 && (
+                        <span role="status" style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-700)' }}>
+                          Nexus moved your secrets into secure storage. A copy of the old settings file, with the secrets in plain text, is at{' '}
+                          <code style={{ wordBreak: 'break-all' }}>{secretStorage.backups[secretStorage.backups.length - 1]}</code>
+                          {secretStorage.backups.length > 1 ? ` (and ${secretStorage.backups.length - 1} older copy${secretStorage.backups.length > 2 ? 'ies' : ''} beside it)` : ''}.
+                          {' '}Delete it once Slack and webhooks work.
+                        </span>
+                      )}
+
                       <div style={{ height: 2, background: 'var(--cth-ink-300)' }} />
 
                       {/* Slack integration */}
@@ -1405,24 +1588,36 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                             <div style={{ display: 'flex', gap: 16 }}>
                               <label style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
                                 <span style={slackLabelStyle}>Signing secret</span>
-                                <input
-                                  type="password"
-                                  value={slackSecret}
-                                  onChange={(e) => setSlackSecret(e.target.value)}
-                                  placeholder="Slack app -> Basic Information -> Signing Secret"
-                                  style={{ ...slackInputStyle, fontFamily: 'var(--cth-font-mono)' }}
-                                />
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <input
+                                    type="password"
+                                    value={slackSecret}
+                                    onChange={(e) => setSlackSecret(e.target.value)}
+                                    placeholder={secretsPresent.slackSigningSecret ? SAVED_SECRET_PLACEHOLDER : 'Slack app -> Basic Information -> Signing Secret'}
+                                    autoComplete="off"
+                                    style={{ ...slackInputStyle, fontFamily: 'var(--cth-font-mono)' }}
+                                  />
+                                  {secretsPresent.slackSigningSecret && (
+                                    <PixelButton variant="ghost" size="sm" onClick={() => void removeSlackSecret('signingSecret')} disabled={slackBusy}>Remove</PixelButton>
+                                  )}
+                                </div>
                               </label>
                               {/* Bot token: stays in main; never leaves the main process. */}
                               <label style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
                                 <span style={slackLabelStyle}>Bot token</span>
-                                <input
-                                  type="password"
-                                  value={slackBotToken}
-                                  onChange={(e) => setSlackBotToken(e.target.value)}
-                                  placeholder="xoxb-..."
-                                  style={{ ...slackInputStyle, fontFamily: 'var(--cth-font-mono)' }}
-                                />
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <input
+                                    type="password"
+                                    value={slackBotToken}
+                                    onChange={(e) => setSlackBotToken(e.target.value)}
+                                    placeholder={secretsPresent.slackBotToken ? SAVED_SECRET_PLACEHOLDER : 'xoxb-...'}
+                                    autoComplete="off"
+                                    style={{ ...slackInputStyle, fontFamily: 'var(--cth-font-mono)' }}
+                                  />
+                                  {secretsPresent.slackBotToken && (
+                                    <PixelButton variant="ghost" size="sm" onClick={() => void removeSlackSecret('botToken')} disabled={slackBusy}>Remove</PixelButton>
+                                  )}
+                                </div>
                               </label>
                             </div>
 
@@ -1467,7 +1662,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
 
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                               {/* Start disabled once connected; Stop only when running. */}
-                              <PixelButton variant="primary" size="sm" onClick={startSlack} disabled={slackBusy || !slackSecret.trim() || running}>
+                              <PixelButton variant="primary" size="sm" onClick={startSlack} disabled={slackBusy || !(slackSecret.trim() || secretsPresent.slackSigningSecret) || running}>
                                 {slackBusy ? '...' : running ? 'connected' : 'start'}
                               </PixelButton>
                               <PixelButton variant="secondary" size="sm" onClick={stopSlack} disabled={slackBusy || !running}>
@@ -1652,9 +1847,16 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                                     </PixelButton>
                                   </div>
 
-                                  {/* Masked by default; never in a title attribute. */}
+                                  {/* Masked by default; never in a title attribute. A
+                                      saved secret is never sent back by main (O.9 #8):
+                                      it is shown only right after it was minted. */}
                                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                     <span style={{ ...slackLabelStyle, width: 56, flexShrink: 0 }}>Secret</span>
+                                    {!w.secret ? (
+                                      <span style={{ flex: 1, fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
+                                        {w.hasSecret ? 'Saved. Rotate to get a new secret to copy.' : 'No secret yet. Rotate to create one.'}
+                                      </span>
+                                    ) : (<>
                                     <input
                                       type={shown ? 'text' : 'password'}
                                       readOnly
@@ -1676,6 +1878,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                                     >
                                       copy
                                     </PixelButton>
+                                    </>)}
                                     <PixelButton
                                       variant="ghost"
                                       size="sm"
@@ -1757,7 +1960,8 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                               value={orgTrigger.apiKey}
                               onChange={(e) => { void applyOrg({ ...orgTrigger, apiKey: e.target.value }, false); }}
                               onBlur={() => { void applyOrg(orgTrigger); }}
-                              placeholder="paste your organisation key"
+                              placeholder={orgTrigger.hasApiKey ? SAVED_SECRET_PLACEHOLDER : 'paste your organisation key'}
+                              autoComplete="off"
                               style={{ ...slackInputStyle, fontFamily: 'var(--cth-font-mono)' }}
                             />
                             <PixelButton
@@ -1768,6 +1972,9 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                             >
                               {showOrgKey ? 'hide' : 'show'}
                             </PixelButton>
+                            {orgTrigger.hasApiKey && (
+                              <PixelButton variant="ghost" size="sm" onClick={() => void removeOrgKey()} disabled={orgBusy}>Remove</PixelButton>
+                            )}
                           </div>
                         </label>
 
@@ -1849,12 +2056,16 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                                   type={showGroqKey ? 'text' : 'password'}
                                   value={groqKey}
                                   onChange={(e) => setGroqKey(e.target.value)}
-                                  placeholder="gsk_... (get a free key at console.groq.com)"
+                                  placeholder={secretsPresent.groqApiKey ? SAVED_SECRET_PLACEHOLDER : 'gsk_... (get a free key at console.groq.com)'}
+                                  autoComplete="off"
                                   style={{ ...slackInputStyle, fontFamily: 'var(--cth-font-mono)' }}
                                 />
                                 <PixelButton variant="secondary" size="sm" onClick={() => setShowGroqKey((v) => !v)} disabled={!groqKey}>
                                   {showGroqKey ? 'hide' : 'show'}
                                 </PixelButton>
+                                {secretsPresent.groqApiKey && (
+                                  <PixelButton variant="ghost" size="sm" onClick={() => void removeGroqKey()} disabled={freeflowBusy}>Remove</PixelButton>
+                                )}
                               </div>
                             </label>
 

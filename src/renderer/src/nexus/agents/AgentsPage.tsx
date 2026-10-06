@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '@/store/store';
 import type { HarnessConfig } from '@/store/config';
 import { AgentWorkbench } from './workbench/AgentWorkbench';
@@ -9,6 +9,7 @@ import { useRegistryIds } from './agentIdentity';
 import { leadAgentId } from '@shared/agentDisplay';
 import { useRestoreTeam } from '@/hooks/useRestoreTeam';
 import { restoreStatusLine, type RestoreStatus } from '@/hooks/restoreTeamPolicy';
+import { AutoModeBanner } from './AutoModeBanner';
 
 /** Agents: a plain list plus the selected agent's real terminal. */
 export function AgentsPage({ config }: { config: HarnessConfig }) {
@@ -21,6 +22,14 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
   const fullscreenAgentId = useStore((s) => s.fullscreenAgentId);
 
   const hint = useRegistryIds();
+  // App's config prop is read once at launch; the auto mode line follows main
+  // (fresh read here, and the banner's answer) so it never goes stale.
+  const [autoOn, setAutoOn] = useState<boolean>(config.autoMode === true);
+  useEffect(() => {
+    let alive = true;
+    window.cth.getConfig().then((c) => { if (alive) setAutoOn(c.autoMode === true); }).catch(() => { /* keep the prop value */ });
+    return () => { alive = false; };
+  }, []);
   const restorable = useStore((s) => s.restorableAgents);
   const archived = useStore((s) => s.archivedAgents);
   const { restoring, autoRestoring, pendingCount, restoreNote } = useRestoreTeam(config);
@@ -60,7 +69,7 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
     <div className="nxa">
       <div className="nxa__bar">
         <h1 className="nxa__title">Agents</h1>
-        <span className="nxa__auto">{config.autoMode ? 'Auto mode is on: agents skip their CLI approval prompts' : 'Auto mode is off'}</span>
+        <span className="nxa__auto">{autoOn ? 'Auto mode is on: agents skip their CLI approval prompts' : 'Auto mode is off: agents use their CLI approval prompts'}</span>
         <div className="nxa__actions">
           {addButton(false)}
           <button type="button" className="nx-btn nx-btn--quiet nx-focusable" onClick={toggleFullscreen}>
@@ -68,6 +77,8 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
           </button>
         </div>
       </div>
+
+      <AutoModeBanner onAnswered={setAutoOn} />
 
       {restoreLine ? <p className="nxa__restore" role="status">{restoreLine}</p> : null}
 

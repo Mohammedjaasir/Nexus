@@ -159,8 +159,13 @@ export const DEFAULT_CONTEXT_TRIGGER: ContextTriggerConfig = {
 export interface WebhookTrigger {
   id: string;
   name: string;
-  /** Shared secret the caller echoes in `x-md-webhook-secret`. Never logged. */
+  /** Shared secret the caller echoes in `x-md-webhook-secret`. Never logged.
+   *  Kept in the encrypted store by main: what the renderer reads is always ''
+   *  (with `hasSecret`), and a '' sent back means "keep the stored secret". */
   secret: string;
+  /** Read-only, renderer-facing: a secret is stored for this endpoint. Never
+   *  persisted. */
+  hasSecret?: boolean;
   enabled: boolean;
   mode: TriggerMode;
   /** User-editable JSON Schema (serialised) that inbound bodies are checked against. */
@@ -200,7 +205,11 @@ export const DEFAULT_WEBHOOK_SCHEMA = JSON.stringify(DEFAULT_WEBHOOK_SCHEMA_OBJE
  * nothing reads `apiKey` beyond the settings surfaces that display it.
  */
 export interface OrgTriggerConfig {
+  /** Kept in the encrypted store by main; the renderer always reads ''. On save,
+   *  '' means "unchanged". */
   apiKey: string;
+  /** Read-only, renderer-facing: an org key is stored. Never persisted. */
+  hasApiKey?: boolean;
   enabled: boolean;
   mode: TriggerMode;
 }

@@ -62,6 +62,8 @@ export interface HarnessConfig {
   recentHives?: string[];
   registeredRepos: string[];
   autoMode: boolean;
+  /** The "Auto mode is on" banner was answered (O.9 #10). Mirrors main. */
+  autoModeReviewedV1?: boolean;
   defaultCommand: string;
   /** Agent engines the user allowed in main's confirmation dialog (O.9 #6).
    *  Read-only mirror: main ignores additions from the renderer and only
@@ -93,8 +95,20 @@ export interface HarnessConfig {
    *  Mirrors the main-process field (src/main/config.ts). */
   telemetryEnabled?: boolean;
   slackEnabled?: boolean;
+  /** Never filled by config:get (O.9 #8): main redacts secrets and reports
+   *  presence in `secretsPresent`. */
   slackSigningSecret?: string;
   slackBotToken?: string;
+  /** Opt-in public tunnels (task 13). Turning one on asks in main. */
+  slackPublicTunnel?: boolean;
+  webhookPublicTunnel?: boolean;
+  /** Which secrets main holds (read-only; config:get is redacted). */
+  readonly secretsPresent?: {
+    slackSigningSecret: boolean; slackBotToken: boolean; groqApiKey: boolean; webhookSecret: boolean; orgApiKey: boolean;
+  };
+  /** `available` false: no secure storage, secrets stay in config.json.
+   *  `backups`: plaintext config.pre-secrets-*.json copies (read-only). */
+  readonly secretStorage?: { available: boolean; backups: string[] };
   slackChannelId?: string;
   slackPort?: number;
   /** Opt-in app/voice-initiated proactive Slack posting (default OFF). Mirrors

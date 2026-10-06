@@ -552,6 +552,10 @@ export class HiveManager {
        *  old env-var spelling. */
       kgCliPath?: string;
       theme?: 'light' | 'dark';
+      /** The floor's auto mode (config.autoMode). When on, the Claude bypass
+       *  warning is pre-accepted in THIS agent's --settings file only (O.9 #9),
+       *  never in the user's global ~/.claude/settings.json. */
+      autoMode?: boolean;
       /** Consent state for the default-MCP bundle (W3). Threaded from the live
        *  HarnessConfig by the caller; undefined → catalog defaults apply. */
       mcpDefaults?: { [id: string]: { enabled: boolean } };
@@ -788,7 +792,7 @@ export class HiveManager {
     if (sock && shim) {
       env.HIVE_SOCK = sock;
       const settingsPath = join(dir, 'settings.json');
-      this.writeJson(settingsPath, this.hookSettings(shim, meta.cwd, opts.mcpDefaults, opts.theme));
+      this.writeJson(settingsPath, this.hookSettings(shim, meta.cwd, opts.mcpDefaults, opts.theme, opts.autoMode === true));
       args.push('--settings', settingsPath);
     }
     return { args, env };
@@ -847,7 +851,7 @@ export class HiveManager {
    *  (W3) the default MCP bundle merged into this PER-SESSION settings file. cwd
    *  scopes the filesystem/git servers; cfg (the consent map) gates which servers
    *  are written. Claude-only — this is invoked solely on the Claude spawn path. */
-  private hookSettings(shim: string, cwd: string, cfg: McpDefaultsMap, theme?: 'light' | 'dark'): unknown {
+  private hookSettings(shim: string, cwd: string, cfg: McpDefaultsMap, theme?: 'light' | 'dark', autoMode = false): unknown {
     // Bundled node, NOT bare `node` — see nodeLauncherPath(). Claude runs each of
     // these through `sh -c` with a stripped PATH, where `node` is often absent.
     const cmd = this.nodeRun(shim);
@@ -861,6 +865,11 @@ export class HiveManager {
       // PER SESSION, so the user's global Claude theme (their own terminals
       // outside the app) is never touched.
       ...(theme ? { theme } : {}),
+      // O.9 #9: auto mode spawns Claude with --permission-mode bypassPermissions,
+      // which shows a one-time "Bypass Permissions mode" warning the PTY cannot
+      // answer. Older builds pre-accepted it in the user's GLOBAL settings; now
+      // it is accepted here, per agent, and only while auto mode is on.
+      ...(autoMode ? { skipDangerousModePermissionPrompt: true, skipAutoPermissionPrompt: true } : {}),
       // W3 — default skills/MCP bundle. Written into the PER-SESSION settings file
       // only (never ~/.claude), so the user's own MCP servers are never clobbered;
       // Claude merges this additively. Omitted entirely when empty so a settings

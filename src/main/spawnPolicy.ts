@@ -115,8 +115,10 @@ type FlagRule =
   | { kind: 'value'; re: RegExp }          // takes one value matching `re`
   | { kind: 'exact'; values: string[] };   // takes one of these exact values
 
-const MODEL_VALUE = /^[A-Za-z0-9 ._()[\]/:@+-]{1,80}$/;
-const SESSION_VALUE = /^[A-Za-z0-9._:-]{1,128}$/;
+/** A model or session value must start with a letter or digit, so it can never
+ *  read as a flag (`--model --settings=x`) to the CLI that receives it. */
+export const MODEL_VALUE = /^[A-Za-z0-9][A-Za-z0-9 ._()[\]/:@+-]{0,79}$/;
+export const SESSION_VALUE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 /**
  * The flags a renderer may pass to a preset CLI without a confirmation: exactly

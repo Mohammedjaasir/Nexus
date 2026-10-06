@@ -87,7 +87,8 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
   const [home, setHome] = useState<string>('');
   const [repos, setRepos] = useState<string[]>([]);
-  const [autoMode, setAutoMode] = useState<boolean>(true);
+  // O.9 #10: auto mode starts off; onboarding is where the user may opt in.
+  const [autoMode, setAutoMode] = useState<boolean>(false);
   // Anonymous usage stats (TELEMETRY.md). Default ON (opt-out); persisted by
   // finish() so unchecking before finishing means nothing is ever sent.
   const [shareStats, setShareStats] = useState<boolean>(true);
@@ -550,7 +551,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 <div style={{ fontSize: 12, color: 'var(--cth-ink-500)' }}>
                   {plain
                     ? 'Best when agents work in their own projects. You can change this later, including for individual agents.'
-                    : 'The right default for the "control room" experience; a foot-gun on production repos. Override per agent in the Add Agent dialog.'}
+                    : 'Off by default. Useful when agents work in their own folders; risky on production repos. Override per agent in the Add Agent dialog.'}
                 </div>
 
                 <div style={{ height: 1, background: 'var(--cth-ink-300)', margin: '2px 0' }} />

@@ -15,14 +15,18 @@ import { resolveCommand as resolveCliCommand } from './shellEnv';
 import { initAutoUpdater } from './updater';
 import { RealtimeFloorWatcher } from './realtimeFloorWatcher';
 import {
-  readConfig, writeConfig, resetConfig, ensureHarnessHome, ensureClaudePermissionsAccepted,
+  readConfig, writeConfig, resetConfig, ensureHarnessHome, persistConfig, configFilePath, readConfigSecrets, readConfigSecret,
+  deleteConfigSecrets,
   modelForRole, OPS_STANDUP_MISSION, HEARTBEAT_MISSION, COMPACT_MAINTENANCE_MISSION, type HarnessConfig, type ScheduledMission
 } from './config';
+import { classifyConfigPatch, confirmPrompt, confirmedPatch, type SecretField } from './configPolicy';
+import { redactConfig, migrateConfigSecrets, secretRef, webhookSecretRef, ORG_API_KEY_REF, type RedactedConfig } from './configSecrets';
+import { restoreClaudeSettings, claudeSettingsKeysPresent } from './claudeSettings';
 import { listDir, readFileText, readFileBinary, writeFileText, statAbs, expandTilde } from './fs';
 import { resolveAllowedRoot, derivedRootListsFolder } from './fsRoots';
 import { decidePermission, decidePermissionCheck, isAllowedExternalUrl, isInAppNavigation, externalUrlForShell } from './windowPolicy';
 import {
-  sanitizeSpawnRequest, classifySpawn, commandLineKey, resolveWorkerCommand, shrinkTrustedEngines, addTrustedEngine,
+  sanitizeSpawnRequest, classifySpawn, commandLineKey, resolveWorkerCommand, addTrustedEngine,
   engineConfirmText, ENGINE_NOT_ALLOWED, ENGINE_INVALID, ENGINE_FORBIDDEN
 } from './spawnPolicy';
 import {
@@ -1443,7 +1447,7 @@ function slackDoneSummary(task: HiveTask): string {
  *  never throw into the timer, and the bot token never leaves this function. */
 async function pollSlackDoneTasks(): Promise<void> {
   if (slackDonePolling) return;
-  const botToken = readConfig().slackBotToken;
+  const botToken = readConfigSecret('slackBotToken');
   if (!botToken) return; // can't post without the token — nothing to do
   let tasks: HiveTask[];
   try {
@@ -1520,13 +1524,16 @@ function stopSlackDoneObserver(): void {
  *  disabled or the signing secret is unset. */
 async function startSlackServer(): Promise<{ ok: boolean; url?: string; error?: string }> {
   const cfg = readConfig();
-  if (!cfg.slackEnabled || !cfg.slackSigningSecret) {
+  // Secrets come from the encrypted store (plaintext fallback before the
+  // migration), never from the renderer (O.9 #8).
+  const signingSecret = readConfigSecret('slackSigningSecret', cfg);
+  if (!cfg.slackEnabled || !signingSecret) {
     return { ok: false, error: 'slack disabled or missing signing secret' };
   }
   slackServer?.stop();
   slackServer = new SlackWebhookServer({
     port: cfg.slackPort && cfg.slackPort > 0 ? cfg.slackPort : 3847,
-    signingSecret: cfg.slackSigningSecret,
+    signingSecret,
     channelId: cfg.slackChannelId,
     // Fires from the HTTP server's event loop (not the IPC thread); route through
     // liveWebContents() so a message arriving during window teardown can't throw.
@@ -1534,7 +1541,7 @@ async function startSlackServer(): Promise<{ ok: boolean; url?: string; error?: 
     onMessage: async (m) => {
       const localFiles = await downloadSlackFiles(
         m._rawFiles ?? [],
-        readConfig().slackBotToken
+        readConfigSecret('slackBotToken')
       );
       // `text` stays the user's RAW Slack text → drives the readable kanban card
       // title. `autonomyPreamble` is the authoritative policy block the renderer
@@ -1576,7 +1583,7 @@ async function startSlackReplyServer(): Promise<void> {
   const token = randomBytes(24).toString('hex');
   slackReplyServer = new SlackReplyServer({
     token,
-    getBotToken: () => readConfig().slackBotToken,
+    getBotToken: () => readConfigSecret('slackBotToken'),
     // An agent posted a DIRECT substantive reply into this thread → record it so the
     // done-summary poller skips it (the poller is a fallback, not a duplicator).
     onReplied: (thread_ts) => { directlyRepliedThreads.add(thread_ts); }
@@ -1624,7 +1631,13 @@ const WEBHOOK_DEFAULT_PORT = 3849;
  *  rejected at the door — it is never handed to the server, so its id does not
  *  exist on the wire and its secret is not in memory on the request path. */
 function enabledWebhookEndpoints(): WebhookTrigger[] {
-  return (readConfig().webhookTriggers ?? []).filter((t) => t.enabled && !!t.secret);
+  // Each endpoint's secret is read from the encrypted store (plaintext
+  // fallback before the migration) and handed to the server only here.
+  const cfg = readConfig();
+  const secrets = readConfigSecrets(cfg).webhookSecrets;
+  return (cfg.webhookTriggers ?? [])
+    .filter((t) => t.enabled && !!secrets[t.id])
+    .map((t) => ({ ...t, secret: secrets[t.id] }));
 }
 
 /** SHA-256 hex of a capability token. The raw token is returned to the caller
@@ -2639,6 +2652,7 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
           // Windows floor. Empty when the KG is off (the line isn't emitted then).
           kgCliPath: knowledge.env().KG_CLI,
           theme: readConfig().terminalTheme ?? 'light',
+          autoMode: readConfig().autoMode === true,
           // W3 — default-MCP consent state + the bundled skills source dir.
           mcpDefaults: readConfig().mcpDefaults,
           skillsDir: skillsResourceDir()
@@ -2773,13 +2787,10 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
   // Remember which agent owns this PTY so closing the tab can archive it. A
   // live terminal means active — ensureAgent above already cleared `archived`.
   if (opts.hive?.id) ptyToAgent.set(opts.id, opts.hive.id);
-  // Pre-accept Claude Code's bypass-mode warning + folder-trust dialog so the
-  // agent (spawned with --permission-mode bypassPermissions) doesn't stall on an
-  // interactive prompt it can't answer and exit code 1. Best-effort, never blocks.
-  // Claude-only — other CLIs handle their own permission UX.
-  if (claudeProvider) {
-    try { ensureClaudePermissionsAccepted(opts.cwd); } catch { /* never block spawn */ }
-  }
+  // O.9 #9: no writes to ~/.claude/settings.json or ~/.claude.json any more.
+  // In auto mode the bypass warning is pre-accepted in the agent's own
+  // --settings file (hive.ensureAgent autoMode below). A never-trusted folder
+  // shows Claude's own trust prompt in the agent's terminal.
   // Suppress first-run interactive prompts for providers that need it (e.g. Codex
   // directory-trust gate via CODEX_NON_INTERACTIVE). Merges into any env already
   // set on opts.
@@ -3037,9 +3048,135 @@ ipcMain.handle('integrations:test', async (_evt, payload: unknown) => {
   }
 });
 
+// ─── Config hardening helpers (O.9 #8, #22) ─────────────────────────────────
+
+/** Store one config secret encrypted. True when it is in safeStorage (the
+ *  caller then strips the plaintext); false when this system has no secure
+ *  storage, in which case the caller keeps the plaintext so the feature keeps
+ *  working, and any older encrypted copy is dropped so it cannot shadow the
+ *  newer plaintext value. The value is never logged. */
+function storeConfigSecret(ref: string, value: string): boolean {
+  const r = integrations.setSecret(ref, value);
+  if (r.ok) return true;
+  console.warn('[config] secure storage unavailable; a secret stays in config.json:', ref);
+  try { integrations.deleteSecret(ref); } catch { /* best-effort */ }
+  return false;
+}
+
+/** The config patch for secret writes: '' never reaches here (it means
+ *  "unchanged"); null removes from both places; a value goes to the store and
+ *  its plaintext field is cleared, or stays plaintext without secure storage. */
+function configSecretWrites(secrets: Array<{ field: SecretField; value: string | null }>): Partial<HarnessConfig> {
+  const out: Record<string, unknown> = {};
+  for (const { field, value } of secrets) {
+    if (value === null) {
+      integrations.deleteSecret(secretRef(field));
+      out[field] = undefined;
+    } else {
+      out[field] = storeConfigSecret(secretRef(field), value) ? undefined : value;
+    }
+  }
+  return out as Partial<HarnessConfig>;
+}
+
+/** Main-process confirmation for one security-relevant key (configPolicy). */
+async function confirmConfigChange(key: keyof HarnessConfig, value: unknown, sender: Electron.WebContents | null): Promise<boolean> {
+  const { message, detail, confirmLabel } = confirmPrompt(key, value);
+  const parent = (sender && !sender.isDestroyed() ? BrowserWindow.fromWebContents(sender) : null)
+    ?? BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null;
+  const boxOpts: Electron.MessageBoxOptions = {
+    type: 'question', message, detail, buttons: [confirmLabel, 'Cancel'], defaultId: 1, cancelId: 1, noLink: true
+  };
+  try {
+    const res = parent ? await dialog.showMessageBox(parent, boxOpts) : await dialog.showMessageBox(boxOpts);
+    return res.response === 0;
+  } catch (e) {
+    console.error('[config] confirmation failed:', e);
+    return false;
+  }
+}
+
+/**
+ * The one path for renderer config writes (config:update, slack:setConfig,
+ * webhook:setConfig, freeflow:setConfig). classifyConfigPatch decides per key;
+ * confirm keys wait for the dialog (one at a time); secrets go to the store;
+ * everything accepted is written in one writeConfig. Refused keys are logged
+ * (names only) and dropped.
+ */
+async function applyRendererConfigPatch(
+  patch: unknown,
+  sender: Electron.WebContents | null
+): Promise<{ next: HarnessConfig; declined: Array<keyof HarnessConfig>; rejected: string[] }> {
+  const c = classifyConfigPatch((patch && typeof patch === 'object' ? patch : {}) as Record<string, unknown>, readConfig());
+  if (c.rejected.length) console.warn('[config] renderer update refused for keys:', c.rejected.join(', '));
+  const confirmed: Partial<HarnessConfig> = {};
+  const declined: Array<keyof HarnessConfig> = [];
+  for (const item of c.confirm) {
+    if (await confirmConfigChange(item.key, item.value, sender)) Object.assign(confirmed, confirmedPatch(item.key, item.value));
+    else declined.push(item.key);
+  }
+  const next = writeConfig({ ...c.apply, ...confirmed, ...configSecretWrites(c.secrets) });
+  return { next, declined, rejected: c.rejected };
+}
+
+/** The renderer's webhook list: secrets removed, `hasSecret` instead. */
+function redactedWebhooks(): WebhookTrigger[] {
+  return redactConfig(readConfig(), integrations.hasSecret).webhookTriggers ?? [];
+}
+
+/** The renderer's org trigger: key removed, `hasApiKey` instead. */
+function redactedOrgTrigger(): OrgTriggerConfig {
+  return redactConfig(readConfig(), integrations.hasSecret).orgTrigger ?? { ...DEFAULT_ORG_TRIGGER, hasApiKey: false };
+}
+
+/** config.pre-secrets-*.json backups next to config.json (they hold plaintext
+ *  secrets, like config.json did; Settings says so and that they can go). */
+function secretBackups(): string[] {
+  try {
+    const dir = dirname(configFilePath());
+    return readdirSync(dir).filter((f) => /^config\.pre-secrets-\d{14}(-\d+)?\.json$/.test(f)).map((f) => join(dir, f));
+  } catch {
+    return [];
+  }
+}
+
+/** Redacted config plus where the secrets live, for Settings → Connections. */
+function withSecretStorage(cfg: RedactedConfig): RedactedConfig & { secretStorage: { available: boolean; backups: string[] } } {
+  return { ...cfg, secretStorage: { available: integrations.encryptionAvailable(), backups: secretBackups() } };
+}
+
+/** O.9 #8 boot step: plaintext secrets → safeStorage, never losing one. */
+function runConfigSecretMigration(): void {
+  try {
+    const r = migrateConfigSecrets(readConfig(), {
+      encryptionAvailable: () => integrations.encryptionAvailable(),
+      backup: () => {
+        const src = configFilePath();
+        const d = new Date();
+        const p2 = (n: number): string => String(n).padStart(2, '0');
+        const ts = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
+        let dst = join(dirname(src), `config.pre-secrets-${ts}.json`);
+        for (let i = 1; existsSync(dst); i++) dst = join(dirname(src), `config.pre-secrets-${ts}-${i}.json`);
+        copyFileSync(src, dst);
+        return dst;
+      },
+      setSecret: (ref, v) => integrations.setSecret(ref, v),
+      getSecret: (ref) => integrations.getSecret(ref),
+      write: (next) => { persistConfig(next); }
+    });
+    if (r.status === 'nothing') return;
+    if (r.status === 'migrated') console.log('[config] secrets moved to secure storage; backup:', r.backup);
+    else if (r.status === 'encryption-unavailable') console.warn('[config] no secure storage on this system; secrets stay in config.json');
+    else console.error('[config] secret migration stopped (config.json unchanged):', r.status, r.error ?? '', r.backup ? `backup: ${r.backup}` : '');
+  } catch (e) {
+    console.error('[config] secret migration failed (config.json unchanged):', e);
+  }
+}
+
 // ─── IPC: config ────────────────────────────────────────────────────────────
-ipcMain.handle('config:get', (): HarnessConfig => readConfig());
-ipcMain.handle('config:update', (_evt, patch: Partial<HarnessConfig>) => {
+// O.9 #8: the renderer never receives a secret value, only `secretsPresent`.
+ipcMain.handle('config:get', () => withSecretStorage(redactConfig(readConfig(), integrations.hasSecret)));
+ipcMain.handle('config:update', async (evt, patch: Partial<HarnessConfig>) => {
   // FIRST RUN: every hive-bound service is started by bootstrapHiveServices(),
   // which runs once at app-ready and early-returns on `!hive.enabled()` — i.e.
   // whenever harnessHome is still null, which is exactly the state a fresh
@@ -3057,21 +3194,39 @@ ipcMain.handle('config:update', (_evt, patch: Partial<HarnessConfig>) => {
   // relaunch, so bootstrap here on the null → set transition. Gated on the
   // transition so ordinary config writes never re-enter it.
   const hiveWasEnabled = hive.enabled();
-  // O.9 #6: allowed agent engines are main-only. The renderer may remove
-  // entries (Settings → Agents & Models) but never add one; adding happens only
-  // through the main-process confirmation dialog in ensureAllowedEngine.
-  if (patch && typeof patch === 'object' && 'trustedEngineCommands' in patch) {
-    patch = { ...patch };
-    patch.trustedEngineCommands = shrinkTrustedEngines(patch.trustedEngineCommands, readConfig().trustedEngineCommands);
-  }
-  const next = writeConfig(patch);
+  // O.9 #22: every key goes through the allow-list (configPolicy). Security-
+  // relevant keys (auto mode on, home, engine, ports, tunnels, microphone) wait
+  // for a main-process dialog; secrets go to the encrypted store; internal keys
+  // and unknown keys are refused. trustedEngineCommands stays shrink-only
+  // (O.9 #6): adding happens only in ensureAllowedEngine's dialog.
+  const { next } = await applyRendererConfigPatch(patch, evt.sender);
   // Live opt-in/out from Settings → Privacy (TELEMETRY.md).
   if (typeof patch?.telemetryEnabled === 'boolean') analytics.setEnabled(patch.telemetryEnabled);
   if (!hiveWasEnabled && hive.enabled()) {
     console.log('[hive] harnessHome configured — bootstrapping hive services');
     try { bootstrapHiveServices(); } catch (e) { console.error('[hive] bootstrap after onboarding:', e); }
   }
-  return next;
+  // Same return type as before, redacted, so renderer callers are unchanged.
+  return withSecretStorage(redactConfig(next, integrations.hasSecret));
+});
+
+// O.9 #9: undo the two keys older builds wrote into ~/.claude/settings.json.
+// The only new IPC channel of this phase. Main asks first; nothing else in the
+// file changes and a backup is kept next to it.
+ipcMain.handle('config:restoreClaudeSettings', async (evt) => {
+  const home = homedir();
+  if (claudeSettingsKeysPresent(home).length === 0) return { ok: true, removed: [] };
+  const owner = BrowserWindow.fromWebContents(evt.sender) ?? BrowserWindow.getFocusedWindow() ?? null;
+  const boxOpts: Electron.MessageBoxOptions = {
+    type: 'question',
+    message: 'Remove the two settings Nexus added to your Claude configuration?',
+    detail: 'Nexus will remove skipDangerousModePermissionPrompt and skipAutoPermissionPrompt from ~/.claude/settings.json and keep a backup next to it. Nothing else in the file changes.',
+    buttons: ['Remove them', 'Cancel'], defaultId: 1, cancelId: 1, noLink: true
+  };
+  const res = owner ? await dialog.showMessageBox(owner, boxOpts) : await dialog.showMessageBox(boxOpts);
+  if (res.response !== 0) return { ok: false, error: 'cancelled' };
+  const r = restoreClaudeSettings(home);
+  return r.ok ? { ok: true, removed: r.removed } : { ok: false, error: r.error };
 });
 ipcMain.handle('config:ensureHome', (_evt, path: unknown) => {
   if (typeof path !== 'string' || path.length === 0) return { ok: false, error: 'invalid path' };
@@ -3083,7 +3238,7 @@ ipcMain.handle('config:ensureHome', (_evt, path: unknown) => {
 // optionally MOVING the existing hive + palace and relaunching so every service
 // re-binds against the new root. mode: 'move' copies the data (old kept as a
 // safety net), 'fresh' just re-points and bootstraps an empty home.
-ipcMain.handle('config:changeHome', async (_evt, payload: unknown) => {
+ipcMain.handle('config:changeHome', async (evt, payload: unknown) => {
   const p = (payload ?? {}) as { newHome?: unknown; mode?: unknown };
   if (typeof p.newHome !== 'string' || !p.newHome) return { ok: false, error: 'invalid newHome' };
   const mode: 'move' | 'fresh' = p.mode === 'fresh' ? 'fresh' : 'move';
@@ -3098,6 +3253,11 @@ ipcMain.handle('config:changeHome', async (_evt, payload: unknown) => {
     if (a.startsWith(b) || b.startsWith(a)) {
       return { ok: false, error: 'Pick a folder that is not inside (or a parent of) the current home.' };
     }
+  }
+
+  // O.9 #22: the home folder changes only after main's confirmation.
+  if (!(await confirmConfigChange('harnessHome', newHome, evt.sender))) {
+    return { ok: false, error: 'The home folder was not changed.' };
   }
 
   const ensured = ensureHarnessHome(newHome);
@@ -3137,7 +3297,7 @@ ipcMain.handle('config:changeHome', async (_evt, payload: unknown) => {
       // repointed) so the user loses nothing, and surface the error — no relaunch.
       bootstrapHiveServices();
       const cfg = readConfig();
-      if (cfg.slackEnabled && cfg.slackSigningSecret) void startSlackServer();
+      if (cfg.slackEnabled && readConfigSecret('slackSigningSecret', cfg)) void startSlackServer();
       reconcileWebhookServer();
       return { ok: false, error: `Could not copy data: ${e instanceof Error ? e.message : String(e)}` };
     }
@@ -3889,7 +4049,11 @@ ipcMain.handle('app:resetAll', () => {
   try { roster.archive(); }
   catch (e) { console.error('[reset] roster.archive:', e); }
   // Back to first-run defaults, then relaunch clean so all in-memory services
-  // re-bootstrap from scratch and the renderer lands on onboarding.
+  // re-bootstrap from scratch and the renderer lands on onboarding. The config
+  // secrets used to live in config.json and went with it; they now live in the
+  // encrypted store, so they are dropped explicitly (integration and provider
+  // keys stay, as before).
+  try { deleteConfigSecrets(); } catch (e) { console.error('[reset] config secrets:', e); }
   resetConfig();
   app.relaunch();
   app.exit(0);
@@ -4133,7 +4297,7 @@ ipcMain.handle('slack:reply', (_evt, arg: unknown) => {
   // round-trip (done-poller) and an agent's own direct /reply are NOT routed
   // through here, so they are unaffected and always stay on.
   if (!cfg.slackProactivePosting) return { ok: false, error: 'app-initiated Slack posting disabled (enable in Settings → Slack)' };
-  const botToken = cfg.slackBotToken;
+  const botToken = readConfigSecret('slackBotToken', cfg);
   if (!botToken) return { ok: false, error: 'no bot token' };
   if (typeof p.channel !== 'string' || typeof p.thread_ts !== 'string' || typeof p.text !== 'string') {
     return { ok: false, error: 'channel, thread_ts, text required' };
@@ -4146,26 +4310,30 @@ ipcMain.handle('slack:reply', (_evt, arg: unknown) => {
   }
   return postSlackReply({ botToken, channel: p.channel, thread_ts: p.thread_ts, text: p.text });
 });
-ipcMain.handle('slack:setConfig', (_evt, patch: unknown) => {
+ipcMain.handle('slack:setConfig', async (evt, patch: unknown) => {
   const p = (patch ?? {}) as {
     signingSecret?: unknown; botToken?: unknown; channelId?: unknown; port?: unknown; enabled?: unknown;
     proactivePosting?: unknown;
   };
-  const next: Partial<HarnessConfig> = {};
-  // Trim string fields; an emptied field clears back to undefined.
-  if (typeof p.signingSecret === 'string') next.slackSigningSecret = p.signingSecret.trim() || undefined;
-  if (typeof p.botToken === 'string') next.slackBotToken = p.botToken.trim() || undefined;
+  const next: Record<string, unknown> = {};
+  // Secrets (O.9 #8): '' means "unchanged" (Settings never sees the stored
+  // value, so it sends '' back), null removes, a value goes to the encrypted store.
+  if (typeof p.signingSecret === 'string' || p.signingSecret === null) next.slackSigningSecret = p.signingSecret;
+  if (typeof p.botToken === 'string' || p.botToken === null) next.slackBotToken = p.botToken;
   if (typeof p.channelId === 'string') next.slackChannelId = p.channelId.trim() || undefined;
   if (typeof p.port === 'number' && Number.isFinite(p.port)) next.slackPort = p.port;
   if (typeof p.enabled === 'boolean') next.slackEnabled = p.enabled;
   if (typeof p.proactivePosting === 'boolean') next.slackProactivePosting = p.proactivePosting;
-  writeConfig(next);
-  // Reconcile the running server: disabling (or clearing the secret) stops it. We
-  // deliberately do NOT auto-(re)start here — the user presses Start in Settings
-  // to fetch the fresh (ephemeral) tunnel URL.
+  const portBefore = readConfig().slackPort;
+  const r = await applyRendererConfigPatch(next, evt.sender);
+  // Reconcile the running server: disabling (or removing the secret) stops it. We
+  // deliberately do NOT auto-start here — the user presses Start in Settings
+  // to fetch the fresh (ephemeral) tunnel URL. A confirmed port change restarts
+  // a server that is already running, as the dialog says.
   const cfg = readConfig();
-  if (!cfg.slackEnabled || !cfg.slackSigningSecret) stopSlackServer();
-  return { ok: true };
+  if (!cfg.slackEnabled || !readConfigSecret('slackSigningSecret', cfg)) stopSlackServer();
+  else if (slackServer && cfg.slackPort !== portBefore) void startSlackServer();
+  return r.declined.includes('slackPort') ? { ok: false, error: 'The port was not changed.' } : { ok: true };
 });
 
 // ─── IPC: Triggers — context (auto-compact / auto-clear) ────────────────────
@@ -4202,30 +4370,39 @@ function sanitizeContextRule(patch: Partial<ContextRule> | undefined, current: C
 }
 
 // ─── IPC: Triggers — webhooks (many endpoints, one server, one tunnel) ──────
-ipcMain.handle('webhooks:list', () => readConfig().webhookTriggers ?? []);
+// Lists go to the renderer redacted (secret '' + hasSecret, O.9 #8).
+ipcMain.handle('webhooks:list', () => redactedWebhooks());
 ipcMain.handle('webhooks:save', (_evt, arg: unknown) => {
   const incoming = Array.isArray(arg) ? arg : [];
-  const existing = readConfig().webhookTriggers ?? [];
+  const cfg = readConfig();
+  const existing = cfg.webhookTriggers ?? [];
+  const stored = readConfigSecrets(cfg).webhookSecrets;
   const list: WebhookTrigger[] = [];
   const seen = new Set<string>();
   for (const raw of incoming) {
-    const t = sanitizeWebhookTrigger(raw, existing);
+    const t = sanitizeWebhookTrigger(raw, existing, (id) => !!stored[id]);
     if (!t || seen.has(t.id)) continue; // an id is a URL path segment — one owner each
     seen.add(t.id);
+    // A new secret goes to the encrypted store; config keeps '' (plaintext
+    // only when this system has no secure storage).
+    if (t.secret) t.secret = storeConfigSecret(webhookSecretRef(t.id), t.secret) ? '' : t.secret;
     list.push(t);
   }
+  // A dropped endpoint takes its secret with it, as it did in plaintext.
+  for (const old of existing) if (!seen.has(old.id)) integrations.deleteSecret(webhookSecretRef(old.id));
   writeConfig({ webhookTriggers: list });
   reconcileWebhookServer();
-  return list;
+  return redactedWebhooks();
 });
 ipcMain.handle('webhooks:delete', (_evt, arg: unknown) => {
   const id = typeof arg === 'string' ? arg : '';
   const list = (readConfig().webhookTriggers ?? []).filter((t) => t.id !== id);
   writeConfig({ webhookTriggers: list });
+  if (id) integrations.deleteSecret(webhookSecretRef(id));
   // Revoking one endpoint must not disturb the others: the live server is
   // re-pointed, not restarted, so every remaining caller's URL keeps working.
   reconcileWebhookServer();
-  return list;
+  return redactedWebhooks();
 });
 /** Mint a strong (256-bit) secret for the operator to paste into their caller.
  *  Not persisted here — it belongs to whichever endpoint the UI saves it onto. */
@@ -4241,7 +4418,7 @@ ipcMain.handle('webhooks:status', () => ({
 /** Normalise one endpoint coming back from the renderer. Unknown/blank fields
  *  fall back to what is already persisted, so a UI that round-trips a partially
  *  filled row can never blank a live secret or silently widen a mode. */
-function sanitizeWebhookTrigger(raw: unknown, existing: WebhookTrigger[]): WebhookTrigger | null {
+function sanitizeWebhookTrigger(raw: unknown, existing: WebhookTrigger[], hasStoredSecret: (id: string) => boolean = () => false): WebhookTrigger | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Partial<WebhookTrigger>;
   const id = typeof r.id === 'string' ? r.id.trim() : '';
@@ -4250,14 +4427,17 @@ function sanitizeWebhookTrigger(raw: unknown, existing: WebhookTrigger[]): Webho
   // no encoded traversal, nothing that could make two endpoints alias.
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(id)) return null;
   const prior = existing.find((t) => t.id === id);
+  // '' (what the renderer always holds after a redacted read) keeps the stored
+  // secret; only a non-empty value replaces it.
   const secret = typeof r.secret === 'string' && r.secret.trim() ? r.secret.trim() : prior?.secret ?? '';
+  const hasSecret = !!secret || (!!prior && hasStoredSecret(id));
   const mode = isTriggerMode(r.mode) ? r.mode : prior?.mode ?? DEFAULT_TRIGGER_MODE;
   return {
     id,
     name: typeof r.name === 'string' && r.name.trim() ? r.name.trim() : prior?.name ?? id,
     secret,
     // A secretless endpoint can never be enabled — it would be an open door.
-    enabled: secret ? (typeof r.enabled === 'boolean' ? r.enabled : prior?.enabled ?? false) : false,
+    enabled: hasSecret ? (typeof r.enabled === 'boolean' ? r.enabled : prior?.enabled ?? false) : false,
     mode,
     schema: typeof r.schema === 'string' && r.schema.trim() ? r.schema : prior?.schema ?? DEFAULT_WEBHOOK_SCHEMA,
     createdAt: typeof r.createdAt === 'number' && r.createdAt > 0 ? r.createdAt : prior?.createdAt ?? Date.now()
@@ -4269,20 +4449,28 @@ function isTriggerMode(v: unknown): v is TriggerMode {
 }
 
 // ─── IPC: Triggers — organisation (persistence only; no transport yet) ──────
-ipcMain.handle('org:getTrigger', () => readConfig().orgTrigger ?? DEFAULT_ORG_TRIGGER);
+ipcMain.handle('org:getTrigger', () => redactedOrgTrigger());
 ipcMain.handle('org:setTrigger', (_evt, arg: unknown) => {
   const current = readConfig().orgTrigger ?? DEFAULT_ORG_TRIGGER;
-  const p = (arg ?? {}) as Partial<OrgTriggerConfig>;
+  const p = (arg ?? {}) as { apiKey?: unknown; enabled?: unknown; mode?: unknown };
   // PERSIST ONLY — the peer messaging service does not exist yet, so nothing
-  // reads `apiKey` beyond the settings surface that shows it. Deliberately no
-  // start/stop, no network, no side effect of any kind.
+  // reads `apiKey`. Deliberately no start/stop, no network, no side effect.
+  // The key (O.9 #8): '' or absent = unchanged, null = remove, a value goes to
+  // the encrypted store (plaintext only without secure storage).
+  let apiKey = current.apiKey;
+  if (p.apiKey === null) {
+    integrations.deleteSecret(ORG_API_KEY_REF);
+    apiKey = '';
+  } else if (typeof p.apiKey === 'string' && p.apiKey.trim()) {
+    apiKey = storeConfigSecret(ORG_API_KEY_REF, p.apiKey.trim()) ? '' : p.apiKey.trim();
+  }
   const next: OrgTriggerConfig = {
-    apiKey: typeof p.apiKey === 'string' ? p.apiKey.trim() : current.apiKey,
+    apiKey,
     enabled: typeof p.enabled === 'boolean' ? p.enabled : current.enabled,
     mode: isTriggerMode(p.mode) ? p.mode : current.mode
   };
   writeConfig({ orgTrigger: next });
-  return next;
+  return redactedOrgTrigger();
 });
 
 // ─── IPC: Triggers — history ledger + the approval gate ─────────────────────
@@ -4350,26 +4538,30 @@ ipcMain.handle('webhook:status', () => ({ running: webhookServer != null, url: l
  *  it for the user to copy into their client. The previous secret is replaced. */
 ipcMain.handle('webhook:generateSecret', () => {
   const secret = randomBytes(32).toString('hex');
-  writeConfig({ webhookSecret: secret });
+  // Shown to the user once (this return); stored encrypted (O.9 #8).
+  writeConfig(configSecretWrites([{ field: 'webhookSecret', value: secret }]));
   upsertLegacyWebhookTrigger({ secret });
   return { ok: true, secret };
 });
-ipcMain.handle('webhook:setConfig', (_evt, patch: unknown) => {
+ipcMain.handle('webhook:setConfig', async (evt, patch: unknown) => {
   const p = (patch ?? {}) as { secret?: unknown; port?: unknown; enabled?: unknown };
-  const next: Partial<HarnessConfig> = {};
-  if (typeof p.secret === 'string') next.webhookSecret = p.secret.trim() || undefined;
+  const next: Record<string, unknown> = {};
+  if (typeof p.secret === 'string' || p.secret === null) next.webhookSecret = p.secret;
   if (typeof p.port === 'number' && Number.isFinite(p.port)) next.webhookPort = p.port;
   if (typeof p.enabled === 'boolean') next.webhookEnabled = p.enabled;
-  writeConfig(next);
+  const portBefore = readConfig().webhookPort;
+  const r = await applyRendererConfigPatch(next, evt.sender);
   upsertLegacyWebhookTrigger({
     secret: typeof p.secret === 'string' ? p.secret.trim() : undefined,
     enabled: typeof p.enabled === 'boolean' ? p.enabled : undefined
   });
-  // Disabling (or clearing the secret) stops the public surface immediately; the
-  // reconcile also picks up the case where OTHER endpoints are still enabled, in
-  // which case the server stays up minus the legacy one.
+  // A confirmed port change rebinds a running server, as the dialog says.
+  if (webhookServer && readConfig().webhookPort !== portBefore) stopWebhookServer();
+  // Disabling stops the public surface immediately; the reconcile also picks up
+  // the case where OTHER endpoints are still enabled, in which case the server
+  // stays up minus the legacy one.
   reconcileWebhookServer();
-  return { ok: true };
+  return r.declined.includes('webhookPort') ? { ok: false, error: 'The port was not changed.' } : { ok: true };
 });
 
 /** Mirror a legacy `webhook:setConfig` / `webhook:generateSecret` edit onto the
@@ -4377,10 +4569,14 @@ ipcMain.handle('webhook:setConfig', (_evt, patch: unknown) => {
  *  enabled endpoint without a secret would be an open door, so a bare "enable"
  *  against a never-configured webhook is deliberately a no-op. */
 function upsertLegacyWebhookTrigger(patch: { secret?: string; enabled?: boolean }): void {
-  const list = readConfig().webhookTriggers ?? [];
+  const cfg = readConfig();
+  const list = cfg.webhookTriggers ?? [];
   const prior = list.find((t) => t.id === 'legacy');
-  const secret = patch.secret !== undefined ? patch.secret : prior?.secret ?? '';
-  if (!secret) return;
+  // '' keeps the stored secret (O.9 #8); only a value replaces it.
+  const fresh = patch.secret?.trim() ?? '';
+  const hasSecret = !!fresh || !!readConfigSecrets(cfg).webhookSecrets.legacy;
+  if (!hasSecret) return;
+  const secret = fresh ? (storeConfigSecret(webhookSecretRef('legacy'), fresh) ? '' : fresh) : prior?.secret ?? '';
   const row: WebhookTrigger = {
     id: 'legacy',
     name: prior?.name ?? 'Default webhook',
@@ -4401,14 +4597,17 @@ function upsertLegacyWebhookTrigger(patch: { secret?: string; enabled?: boolean 
 // the Fn key to Electron (electron#16714) and a faithful native Fn helper
 // (CGEventTap) is deferred; hold-Option is the human-chosen v1 activation.
 
-ipcMain.handle('freeflow:setConfig', (_evt, patch: unknown) => {
+ipcMain.handle('freeflow:setConfig', async (evt, patch: unknown) => {
   const p = (patch ?? {}) as { enabled?: unknown; apiKey?: unknown; model?: unknown };
-  const next: Partial<HarnessConfig> = {};
+  const next: Record<string, unknown> = {};
+  // Turning Free Flow on opens the microphone gate, so the first time it goes
+  // through main's confirmation (configPolicy, freeflowEnabled).
   if (typeof p.enabled === 'boolean') next.freeflowEnabled = p.enabled;
-  // Trim string fields; an emptied key clears back to undefined.
-  if (typeof p.apiKey === 'string') next.groqApiKey = p.apiKey.trim() || undefined;
+  // The Groq key (O.9 #8): '' = unchanged, null = remove, a value is stored encrypted.
+  if (typeof p.apiKey === 'string' || p.apiKey === null) next.groqApiKey = p.apiKey;
   if (typeof p.model === 'string') next.freeflowModel = p.model.trim() || DEFAULT_GROQ_MODEL;
-  writeConfig(next);
+  const r = await applyRendererConfigPatch(next, evt.sender);
+  if (r.declined.includes('freeflowEnabled')) return { ok: false, error: 'Free Flow stays off: the microphone was not allowed.' };
   return { ok: true };
 });
 
@@ -4418,13 +4617,14 @@ ipcMain.handle('freeflow:setConfig', (_evt, patch: unknown) => {
 ipcMain.handle('freeflow:transcribe', async (_evt, arg: unknown) => {
   const cfg = readConfig();
   if (!cfg.freeflowEnabled) return { ok: false, error: 'Free Flow is disabled' };
-  if (!cfg.groqApiKey) return { ok: false, error: 'no Groq API key set' };
+  const groqApiKey = readConfigSecret('groqApiKey', cfg);
+  if (!groqApiKey) return { ok: false, error: 'no Groq API key set' };
   const a = (arg ?? {}) as { audio?: unknown; mimeType?: unknown; filename?: unknown; language?: unknown };
   if (!(a.audio instanceof ArrayBuffer) && !(a.audio instanceof Uint8Array)) {
     return { ok: false, error: 'no audio' };
   }
   const out = await transcribeWithGroq({
-    apiKey: cfg.groqApiKey,
+    apiKey: groqApiKey,
     audio: a.audio,
     mimeType: typeof a.mimeType === 'string' ? a.mimeType : undefined,
     filename: typeof a.filename === 'string' ? a.filename : undefined,
@@ -4539,7 +4739,17 @@ registerRealtimeActionIpc({
     try { liveWebContents()?.send('realtime:enqueue', { agentId: id, text }); } catch { /* window gone */ }
   },
   getConfigValue: (key) => (readConfig() as unknown as Record<string, unknown>)[key],
-  patchConfig: (patch) => { writeConfig(patch as Partial<HarnessConfig>); }
+  // Voice goes through the same allow-list as the renderer and never gets a
+  // dialog: only keys that apply directly are written (O.9 #22).
+  patchConfig: (patch) => {
+    const c = classifyConfigPatch(patch, readConfig());
+    if (c.confirm.length || c.rejected.length || c.secrets.length) {
+      console.warn('[voice] setting refused:', [...c.confirm.map((x) => x.key), ...c.rejected, ...c.secrets.map((x) => x.field)].join(', '));
+      return false;
+    }
+    writeConfig(c.apply);
+    return true;
+  }
 });
 
 // rt-12 seam: push detected completions to the live floor; bridge live-flag, queue
@@ -5164,6 +5374,10 @@ app.whenReady().then(() => {
   // never restarts on its own. Falls back to a notify-only releases/latest
   // check where native updating isn't possible (win-portable, dev-ish builds).
   initAutoUpdater(() => liveWebContents());
+  // O.9 #8: move plaintext secrets into safeStorage BEFORE any service reads
+  // them. Backs config.json up first, verifies every secret, and leaves the file
+  // untouched on any failure (readers fall back to the plaintext).
+  runConfigSecretMigration();
   // Bootstrap the hive (if harnessHome is configured) and start the message router.
   bootstrapHiveServices();
   // Survive sleep/lock. macOS freezes libuv timers during true system sleep, so a
@@ -5183,7 +5397,7 @@ app.whenReady().then(() => {
   // failure (offline) is logged, not fatal. The tunnel URL is ephemeral and
   // changes per restart, so the user re-pastes it via Settings → Start.
   const slackCfg = readConfig();
-  if (slackCfg.slackEnabled && slackCfg.slackSigningSecret) {
+  if (slackCfg.slackEnabled && readConfigSecret('slackSigningSecret', slackCfg)) {
     void startSlackServer().then((r) => {
       if (!r.ok) console.error('[slack] auto-start failed:', r.error);
       else console.log('[slack] webhook listening', r.url ? `(tunnel: ${r.url})` : '(no tunnel)');

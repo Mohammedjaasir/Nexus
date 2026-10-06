@@ -162,3 +162,25 @@ test('voice spawns map spoken names to supported presets', () => {
   assert.match(src, /PROVIDER_ALIAS: Record<string, string> = \{ gemini: 'antigravity', agy: 'antigravity' \}/);
   assert.match(src, /const provider = PROVIDER_ALIAS\[spoken\] \?\? spoken;/);
 });
+
+// ── 6. model / session values cannot read as a flag (task 12 carry-over) ──
+test('model and session values must start with a letter or digit', () => {
+  const cfg = { defaultCommand: 'claude', autoMode: false };
+  for (const v of ['-x', '--settings=evil.json', '--settings', '.hidden', '/abs', ' leading', '(x)', '[1m]', ':x', '@x', '+x', '_x']) {
+    assert.deepEqual(s.classifySpawn('claude', ['--model', v], cfg), { ok: false, reason: 'needs-confirmation' }, `model ${JSON.stringify(v)}`);
+    assert.deepEqual(s.classifySpawn('claude', [`--model=${v}`], cfg), { ok: false, reason: 'needs-confirmation' }, `model= ${JSON.stringify(v)}`);
+  }
+  for (const v of ['-abc', '.abc', ':abc', '_abc']) {
+    assert.deepEqual(s.classifySpawn('claude', ['--resume', v], cfg), { ok: false, reason: 'needs-confirmation' }, `session ${v}`);
+    assert.deepEqual(s.classifySpawn('pi', ['--session', v], cfg), { ok: false, reason: 'needs-confirmation' }, `session ${v}`);
+  }
+  // Real values still pass.
+  for (const v of ['claude-fable-5', 'claude-sonnet-4-6[1m]', 'Gemini 3.1 Pro (High)', 'gpt-5.5', 'local/qwen2.5-coder:7b', '4o']) {
+    assert.deepEqual(s.classifySpawn('claude', ['--model', v], cfg), { ok: true, source: 'preset' }, v);
+  }
+  assert.deepEqual(s.classifySpawn('claude', ['--resume', '0b5c6e1a-1234-4abc-9def-123456789abc'], cfg), { ok: true, source: 'preset' });
+  assert.match('a'.repeat(80), s.MODEL_VALUE);
+  assert.doesNotMatch('a'.repeat(81), s.MODEL_VALUE);
+  assert.match('a'.repeat(128), s.SESSION_VALUE);
+  assert.doesNotMatch('a'.repeat(129), s.SESSION_VALUE);
+});

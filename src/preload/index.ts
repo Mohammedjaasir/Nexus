@@ -365,6 +365,8 @@ export interface HarnessConfig {
   recentHives?: string[];
   registeredRepos: string[];
   autoMode: boolean;
+  /** The "Auto mode is on" banner was answered (O.9 #10). Mirrors main. */
+  autoModeReviewedV1?: boolean;
   defaultCommand: string;
   /** Agent engines the user allowed in main's confirmation dialog (O.9 #6).
    *  Read-only mirror: main ignores additions from the renderer and only
@@ -393,14 +395,27 @@ export interface HarnessConfig {
    *  Mirrors main + renderer HarnessConfig. */
   telemetryEnabled?: boolean;
   slackEnabled?: boolean;
+  /** Never filled by config:get (O.9 #8): main redacts every secret and
+   *  reports presence in `secretsPresent`. Kept for the write side only. */
   slackSigningSecret?: string;
   slackBotToken?: string;
   slackChannelId?: string;
   slackPort?: number;
   slackProactivePosting?: boolean;
+  /** Opt-in public tunnels (task 13). Turning one on asks in main. */
+  slackPublicTunnel?: boolean;
+  webhookPublicTunnel?: boolean;
   webhookEnabled?: boolean;
   webhookSecret?: string;
   webhookPort?: number;
+  /** Which secrets main holds (config:get is redacted, O.9 #8). Read-only. */
+  readonly secretsPresent?: {
+    slackSigningSecret: boolean; slackBotToken: boolean; groqApiKey: boolean; webhookSecret: boolean; orgApiKey: boolean;
+  };
+  /** Where the secrets live: `available` false means this system has no secure
+   *  storage and they stay in config.json; `backups` are the plaintext
+   *  config.pre-secrets-*.json copies made before the move. Read-only. */
+  readonly secretStorage?: { available: boolean; backups: string[] };
   /** Free Flow voice dictation — master flag (default off), user Groq key, model.
    *  Entry point B (hold-Option-to-talk) is handled in the renderer, no hotkey. */
   freeflowEnabled?: boolean;
@@ -760,6 +775,11 @@ const api = {
    *  on failure (e.g. copy error) returns { ok: false, error }. */
   changeHome: (newHome: string, mode: 'move' | 'fresh'): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('config:changeHome', { newHome, mode }),
+  /** Remove the two keys older builds added to ~/.claude/settings.json, after
+   *  main's confirmation dialog (O.9 #9). Keeps a backup next to the file.
+   *  `error: 'cancelled'` when the user said no. */
+  restoreClaudeSettings: (): Promise<{ ok: boolean; removed?: string[]; error?: string }> =>
+    ipcRenderer.invoke('config:restoreClaudeSettings'),
 
   // ─── Filesystem (sandboxed to cwd) ───────────────────────────────────────
   listDir: (root: string, rel: string): Promise<
@@ -1218,11 +1238,13 @@ const api = {
    *  end-of-run "post your summary back to Slack" instruction. */
   slackReplyScriptPath: (): Promise<string> =>
     ipcRenderer.invoke('slack:replyScriptPath'),
-  /** Persist Slack settings (and stop the server if disabled / secret cleared). */
+  /** Persist Slack settings (and stop the server if disabled / secret removed).
+   *  Secrets: '' = unchanged, null = remove, a value replaces the stored one.
+   *  A port change asks in main; `ok: false` when the user kept the old port. */
   slackSetConfig: (patch: {
-    signingSecret?: string; botToken?: string; channelId?: string; port?: number; enabled?: boolean;
+    signingSecret?: string | null; botToken?: string | null; channelId?: string; port?: number; enabled?: boolean;
     proactivePosting?: boolean;
-  }): Promise<{ ok: boolean }> =>
+  }): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('slack:setConfig', patch),
 
   // ─── Generic webhook + status API (POST → work, GET → status) ────────────────
@@ -1241,8 +1263,8 @@ const api = {
     ipcRenderer.invoke('webhook:generateSecret'),
   /** Persist webhook settings (and stop the server if disabled / secret cleared). */
   webhookSetConfig: (patch: {
-    secret?: string; port?: number; enabled?: boolean;
-  }): Promise<{ ok: boolean }> =>
+    secret?: string | null; port?: number; enabled?: boolean;
+  }): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('webhook:setConfig', patch),
 
   // ─── Triggers: context (auto-compact / auto-clear) ──────────────────────────
@@ -1285,7 +1307,9 @@ const api = {
   /** PERSISTENCE ONLY — the peer transport does not exist yet, so setting this
    *  stores the key and mode and starts nothing. */
   getOrgTrigger: (): Promise<OrgTriggerConfig> => ipcRenderer.invoke('org:getTrigger'),
-  setOrgTrigger: (cfg: OrgTriggerConfig): Promise<OrgTriggerConfig> =>
+  /** `apiKey`: '' = unchanged, null = remove, a value replaces the stored key.
+   *  Resolves redacted (`apiKey` '' + `hasApiKey`). */
+  setOrgTrigger: (cfg: Omit<OrgTriggerConfig, 'apiKey'> & { apiKey: string | null }): Promise<OrgTriggerConfig> =>
     ipcRenderer.invoke('org:setTrigger', cfg),
 
   // ─── Triggers: history ledger + approval gate ───────────────────────────────
@@ -1313,8 +1337,8 @@ const api = {
   /** Persist Free Flow settings (flag / Groq key / model). The Groq key is stored
    *  in main config; entry point B (hold-Option) is renderer-side, no hotkey here. */
   freeflowSetConfig: (patch: {
-    enabled?: boolean; apiKey?: string; model?: string;
-  }): Promise<{ ok: boolean }> =>
+    enabled?: boolean; apiKey?: string | null; model?: string;
+  }): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('freeflow:setConfig', patch),
   /** Transcribe one captured audio clip via Groq (the key stays in main; only the
    *  audio bytes go in and the transcript comes back). Gated on the flag + a key. */

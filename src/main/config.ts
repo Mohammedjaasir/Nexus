@@ -1,7 +1,6 @@
 import { app } from 'electron';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { homedir } from 'node:os';
 import {
   autoModeFlagForProvider,
   defaultCommandForProvider,
@@ -9,8 +8,12 @@ import {
   providerPreset,
   type AgentProvider
 } from '../shared/agentProvider';
-import { defaultMcpDefaults } from '../shared/mcpCatalog';
 import { expandTilde, normalizeHiveHome } from './fs';
+import { writeFileAtomic } from './atomicWrite';
+import { CONFIG_DEFAULTS } from './configDefaults';
+import { ORG_API_KEY_REF, secretRef, webhookSecretRef } from './configSecrets';
+import type { SecretField } from './configPolicy';
+import { getSecret, deleteSecret } from './integrations';
 import type { IntegrationRecord } from '../shared/integrations';
 import {
   DEFAULT_CONTEXT_TRIGGER,
@@ -52,31 +55,7 @@ export interface ScheduledMission {
   quietThresholdMs?: number;
 }
 
-/** The built-in hourly ops standup: god reviews who's doing what + whether tasks
- *  are on track and agents are running, and every terminal's context is compacted.
- *  Shipped enabled by default; users can toggle it off in the Command Center. */
-export const OPS_STANDUP_MISSION: ScheduledMission = {
-  id: 'ops-standup',
-  label: 'Hourly ops standup',
-  intervalMs: 3_600_000,
-  to: 'god',
-  body:
-    'Hourly ops standup. Review every agent: who is doing what, and confirm each ' +
-    'is still running (not stalled or idle-stale). Check the task board — are ' +
-    'in-flight tasks on track, and is anything blocked or unowned? Flag stale ' +
-    'agents and at-risk tasks, and keep the board accurate. (As part of this ' +
-    "standup each working agent is asked to summarise its current task and the " +
-    'next step, then compact and resume from the same point — so terminal ' +
-    'contexts stay bounded without losing work. The compaction is queued and ' +
-    'runs when an agent is idle, so it never interrupts work mid-step.)',
-  enabled: true
-  // NO autoCompact. Compaction belongs to contextTrigger.compact and nothing else.
-  // This flag used to live here as well, which meant a default install asked for
-  // compaction on TWO cadences — hourly from this standup and 2-hourly from the
-  // trigger — the exact "two controls that disagree" the maint-1 retirement below
-  // was written to end. The standup's own prose still describes compaction, and
-  // that stays true: the trigger does it, just not on this mission's clock.
-};
+export { OPS_STANDUP_MISSION } from './configDefaults';
 
 /** The built-in heartbeat (Lane A #1). A context-aware beat that, each tick,
  *  observes live floor state and — only when the floor has gone quiet — drops a
@@ -181,8 +160,14 @@ export interface HarnessConfig {
   recentHives?: string[];
   /** Folders the user registered during onboarding (used as quick-picks). */
   registeredRepos: string[];
-  /** When true, new agents are spawned with --permission-mode bypassPermissions. */
+  /** When true, new agents are spawned with their CLI's approval-skipping flag
+   *  (Claude: --permission-mode bypassPermissions). Default false for new
+   *  installs (O.9 #10). Turning it on needs a main-process confirmation. */
   autoMode: boolean;
+  /** One-time review of an existing install's auto mode (O.9 #10). Set when the
+   *  user answers the "Auto mode is on" banner (keep or turn off), or turns auto
+   *  mode on through the confirmation. Never flips autoMode by itself. */
+  autoModeReviewedV1?: boolean;
   /** The command we run when spawning a new agent. */
   defaultCommand: string;
   /** Engine binaries the user allowed to run as agents through the main-process
@@ -386,6 +371,22 @@ export interface HarnessConfig {
   /** One-time guard for `migrateTriggersV1` (legacy webhook → webhookTriggers,
    *  1h → 2h compact cadence). Set once the migration has run to completion. */
   triggersMigratedV1?: boolean;
+  /** Set once every plaintext secret in this file has been moved into the
+   *  encrypted store (configSecrets.migrateConfigSecrets). Main-only. */
+  secretsMigratedV1?: boolean;
+  /** One-time server posture seed (O.9 #12, task 13). Main-only. */
+  serverPostureV1?: boolean;
+  /** Opt-in public tunnel for the Slack server (task 13). Turning it on needs a
+   *  main-process confirmation; turning it off never does. */
+  slackPublicTunnel?: boolean;
+  /** Opt-in public tunnel for the webhook server (task 13). Same rule. */
+  webhookPublicTunnel?: boolean;
+  /** The user allowed Free Flow to use the microphone in main's confirmation
+   *  dialog. Main-only; after it, the Settings toggle turns Free Flow on directly. */
+  micConfirmedFreeflowV1?: boolean;
+  /** The user allowed realtime voice to use the microphone in main's
+   *  confirmation dialog. Main-only. */
+  micConfirmedRealtimeV1?: boolean;
 
   // ─── Memory reflection (the janitor's condense half) ───────────────────────
   /** Master toggle for the in-process MemoryReflector. Default on. */
@@ -404,73 +405,7 @@ export interface HarnessConfig {
   reflectMinBytes?: number;
 }
 
-const DEFAULTS: HarnessConfig = {
-  onboardingComplete: false,
-  harnessHome: null,
-  recentHives: [],
-  registeredRepos: [],
-  autoMode: true,
-  defaultCommand: 'claude',
-  trustedEngineCommands: [],
-  godProvider: 'claude',
-  godModel: 'claude-opus-4-8',
-  // Global default model for every agent that hasn't picked one explicitly — wins
-  // over the role-based tiers (modelForRole) in the spawn handler, so all agents
-  // (incl. god) default to Fable 5. A per-agent model choice still overrides it.
-  defaultModel: 'claude-fable-5',
-  // Seeded from the MCP catalog so the consent defaults never drift from it
-  // (safe-readonly ON, write/secret OFF).
-  mcpDefaults: defaultMcpDefaults(),
-  maxConcurrentWorkers: 4,
-  workerIdleTimeoutMinutes: 20,
-  integrations: [],
-  defaultWorkerTokenCap: 0, // 0 = unlimited (human directive: NO per-worker cap)
-  semanticMemory: true,
-  embeddingModel: 'minilm',
-  missions: [OPS_STANDUP_MISSION],
-  notifications: false,
-  strongKeepalive: false,
-  autoUpdate: true,
-  telemetryEnabled: true,
-  multiWindow: true,
-  tvShowOffices: false,
-  officeTheme: 'office',
-  slackEnabled: false,
-  slackSigningSecret: undefined,
-  slackBotToken: undefined,
-  slackChannelId: undefined,
-  slackPort: undefined,
-  slackProactivePosting: false,
-  freeflowEnabled: true,
-  groqApiKey: undefined,
-  freeflowModel: 'whisper-large-v3-turbo',
-  realtimeVoiceEnabled: false,
-  realtimeIdleDisconnectMs: 180_000,
-  webhookEnabled: false,
-  webhookSecret: undefined,
-  webhookPort: undefined,
-  // Triggers. These three are the ONLY object/array defaults that get handed
-  // straight back out of `readConfig` for a config that never persisted them, so
-  // `withTriggerDefaults` re-copies them on every read — see the note there.
-  contextTrigger: DEFAULT_CONTEXT_TRIGGER,
-  webhookTriggers: [],
-  orgTrigger: DEFAULT_ORG_TRIGGER,
-  triggersMigratedV1: false,
-  // Memory reflection — preventive; nobody is over threshold today, so it sits
-  // dark until an agent's memory crosses one of these (the verify gate is the
-  // safety for the LLM step). Thresholds DECIDED by god 2026-06-06.
-  reflectEnabled: true,
-  reflectIntervalMs: 1_800_000,
-  reflectByteTriggerPct: 50,
-  reflectSectionTrigger: 50,
-  reflectRecentKeep: 12,
-  reflectMinBytes: 16_384,
-  // Enterprise Knowledge Graph — opt-in; dark until the user enables it.
-  // v0.3.4 fix: default OFF, matching the field's own documentation ("Default
-  // OFF / dark until enabled") — the true default contradicted it. Existing
-  // installs keep their persisted value.
-  knowledgeGraph: { enabled: false }
-};
+const DEFAULTS: HarnessConfig = CONFIG_DEFAULTS;
 
 function configPath(): string {
   return join(app.getPath('userData'), 'config.json');
@@ -579,17 +514,30 @@ export function readConfig(): HarnessConfig {
   try {
     const raw = readFileSync(p, 'utf8');
     const parsed = JSON.parse(raw);
-    return migrateTriggersV1(withTriggerDefaults({ ...DEFAULTS, ...parsed }));
+    // O.9 #10: the default flipped to false for NEW installs only. An onboarded
+    // config that never persisted `autoMode` ran with the old default (true);
+    // keep that, so the banner asks instead of the value changing silently.
+    const legacyAuto = parsed && typeof parsed === 'object' && !('autoMode' in parsed) && parsed.onboardingComplete === true
+      ? { autoMode: true }
+      : {};
+    return migrateTriggersV1(withTriggerDefaults({ ...DEFAULTS, ...legacyAuto, ...parsed }));
   } catch {
     return withTriggerDefaults({ ...DEFAULTS });
   }
 }
 
-function persistConfig(next: HarnessConfig): HarnessConfig {
+/** Write config.json atomically (temp file + fsync + rename, O.9 #8): a crash
+ *  mid-write leaves the previous file, never a truncated one. */
+export function persistConfig(next: HarnessConfig): HarnessConfig {
   const p = configPath();
   mkdirSync(dirname(p), { recursive: true });
-  writeFileSync(p, JSON.stringify(next, null, 2), 'utf8');
+  writeFileAtomic(p, JSON.stringify(next, null, 2));
   return next;
+}
+
+/** Absolute path of config.json (main-only; the boot migration backs it up). */
+export function configFilePath(): string {
+  return configPath();
 }
 
 export function writeConfig(patch: Partial<HarnessConfig>): HarnessConfig {
@@ -628,7 +576,7 @@ export function writeConfig(patch: Partial<HarnessConfig>): HarnessConfig {
 export function resetConfig(): HarnessConfig {
   const p = configPath();
   mkdirSync(dirname(p), { recursive: true });
-  writeFileSync(p, JSON.stringify(DEFAULTS, null, 2), 'utf8');
+  writeFileAtomic(p, JSON.stringify(DEFAULTS, null, 2));
   // Drop the migration latch too: the file on disk is back to `triggersMigratedV1:
   // false`, and a latch left set would keep the flag from ever being written again
   // in this process. The migration itself is a no-op on defaults either way.
@@ -702,49 +650,57 @@ export function ensureHarnessHome(path: string): { ok: boolean; error?: string }
   }
 }
 
-/** Idempotently pre-accept Claude Code's first-run prompts so agents spawned with
- *  `--permission-mode bypassPermissions` start cleanly. Without this, a fresh
- *  install shows an interactive "WARNING: Bypass Permissions mode … 1. No, exit /
- *  2. Yes, I accept" prompt that the PTY can't answer in time, so the agent exits
- *  code 1 on its own (reported by multiple users).
- *
- *  Two separate gates, written only when they aren't already satisfied (so we
- *  rarely touch files a running `claude` also writes):
- *   1. `~/.claude/settings.json` → `skipDangerousModePermissionPrompt` +
- *      `skipAutoPermissionPrompt` — these gate the bypass-mode warning (global).
- *   2. `~/.claude.json` → `projects[cwd].hasTrustDialogAccepted` — the per-folder
- *      "do you trust the files in this folder?" dialog. */
-export function ensureClaudePermissionsAccepted(cwd?: string): void {
-  const home = homedir();
-  if (!home) return;
-  // 1) Global bypass-mode warning gate.
-  try {
-    const dir = join(home, '.claude');
-    const p = join(dir, 'settings.json');
-    let s: Record<string, unknown> = {};
-    if (existsSync(p)) {
-      try { s = JSON.parse(readFileSync(p, 'utf8')) as Record<string, unknown>; } catch { s = {}; }
-    }
-    if (s.skipDangerousModePermissionPrompt !== true || s.skipAutoPermissionPrompt !== true) {
-      s.skipDangerousModePermissionPrompt = true;
-      s.skipAutoPermissionPrompt = true;
-      mkdirSync(dir, { recursive: true });
-      writeFileSync(p, JSON.stringify(s, null, 2), 'utf8');
-    }
-  } catch { /* best-effort; never block a spawn */ }
-  // 2) Per-folder trust dialog gate (only when this cwd isn't already trusted).
-  if (cwd) {
-    try {
-      const p = join(home, '.claude.json');
-      let c: { projects?: Record<string, { hasTrustDialogAccepted?: boolean }> } = {};
-      if (existsSync(p)) {
-        try { c = JSON.parse(readFileSync(p, 'utf8')); } catch { c = {}; }
-      }
-      if (c.projects?.[cwd]?.hasTrustDialogAccepted !== true) {
-        c.projects = c.projects ?? {};
-        c.projects[cwd] = { ...(c.projects[cwd] ?? {}), hasTrustDialogAccepted: true };
-        writeFileSync(p, JSON.stringify(c, null, 2), 'utf8');
-      }
-    } catch { /* best-effort */ }
+// O.9 #9: Nexus no longer writes ~/.claude/settings.json or ~/.claude.json.
+// The two bypass-warning keys ride in each Claude agent's own --settings file
+// (hive.ts hookSettings, only while auto mode is on), and
+// claudeSettings.restoreClaudeSettings removes what older builds added.
+
+/** The config-owned secrets, decrypted. MAIN-ONLY: never send this over IPC.
+ *  Each value comes from the encrypted store first and falls back to the
+ *  plaintext still in config.json (before the migration has run, or on a system
+ *  without secure storage), so nothing stops working mid-upgrade. */
+export interface ConfigSecrets {
+  slackSigningSecret?: string;
+  slackBotToken?: string;
+  groqApiKey?: string;
+  webhookSecret?: string;
+  orgApiKey?: string;
+  /** Webhook endpoint id → secret. */
+  webhookSecrets: Record<string, string>;
+}
+
+function plain(v: unknown): string | undefined {
+  return typeof v === 'string' && v.trim() ? v : undefined;
+}
+
+export function readConfigSecrets(cfg: HarnessConfig = readConfig()): ConfigSecrets {
+  const pick = (ref: string, fallback: unknown): string | undefined => getSecret(ref) || plain(fallback);
+  const webhookSecrets: Record<string, string> = {};
+  for (const t of cfg.webhookTriggers ?? []) {
+    const v = pick(webhookSecretRef(t.id), t.secret);
+    if (v) webhookSecrets[t.id] = v;
   }
+  return {
+    slackSigningSecret: pick(secretRef('slackSigningSecret'), cfg.slackSigningSecret),
+    slackBotToken: pick(secretRef('slackBotToken'), cfg.slackBotToken),
+    groqApiKey: pick(secretRef('groqApiKey'), cfg.groqApiKey),
+    webhookSecret: pick(secretRef('webhookSecret'), cfg.webhookSecret),
+    orgApiKey: pick(ORG_API_KEY_REF, cfg.orgTrigger?.apiKey),
+    webhookSecrets
+  };
+}
+
+/** One config secret, decrypted (same order: encrypted store, then plaintext).
+ *  MAIN-ONLY. Cheaper than readConfigSecrets for hot paths (the Slack poller). */
+export function readConfigSecret(field: SecretField, cfg: HarnessConfig = readConfig()): string | undefined {
+  return getSecret(secretRef(field)) || plain(cfg[field]);
+}
+
+/** Drop the config-owned secrets from the encrypted store. Used by the full
+ *  reset, which has always erased them along with config.json. Integration and
+ *  provider keys (their own refs) are untouched, as before. */
+export function deleteConfigSecrets(cfg: HarnessConfig = readConfig()): void {
+  for (const f of ['slackSigningSecret', 'slackBotToken', 'groqApiKey', 'webhookSecret'] as const) deleteSecret(secretRef(f));
+  deleteSecret(ORG_API_KEY_REF);
+  for (const t of cfg.webhookTriggers ?? []) deleteSecret(webhookSecretRef(t.id));
 }
