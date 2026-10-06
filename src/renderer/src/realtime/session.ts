@@ -401,13 +401,13 @@ export async function connect(): Promise<void> {
     // The connect snapshot goes in as the FIRST conversation item (the greeting
     // below opens the conversation; this just grounds it).
     if (warmStart) {
-      injectSilent(`(Floor snapshot at connect — orientation only, call your tools for detail: ${sanitizeForVoice(warmStart)})`);
+      injectSilent(`(Team snapshot at connect — orientation only, call your tools for detail: ${sanitizeForVoice(warmStart)})`);
     }
     // Floor deltas — silent appends that keep Michael's picture live without
     // touching the cached instructions prefix.
     offFloorDelta = window.cth.onRealtimeFloorDelta?.((d) => {
       if (session !== s) return;
-      injectSilent(`(Floor update: ${sanitizeForVoice(d.text)}. Mention it only when relevant — don't interrupt.)`);
+      injectSilent(`(Team update: ${sanitizeForVoice(d.text)}. Mention it only when relevant — don't interrupt.)`);
     }) ?? null;
     // rt-12: mark the session live (main now pushes completions instead of queuing) and
     // subscribe so a detected completion makes Michael speak it unprompted.

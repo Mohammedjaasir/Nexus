@@ -1,8 +1,8 @@
 /**
- * Realtime Michael — voice ACTION tools (card rt-5, Phase 2).
+ * Realtime voice — ACTION tools (card rt-5, Phase 2).
  *
- * The write-side function-tools that turn voice-Michael into an orchestrator: ping
- * / dispatch / steer / task CRUD / spawn-hire / kill / pause / halt / edit-schedule.
+ * The write-side function-tools that let the voice act on the team: ping
+ * / dispatch / steer / task CRUD / spawn-add / kill / pause / halt / edit-schedule.
  * These are THIN — every tool just forwards a {verb, ...args} to the main process
  * (src/main/realtimeActions.ts), which owns the entire safety spine: the soft-vs-
  * destructive tiering, the two-step verbal echo-back confirm, the distinct-token
@@ -183,14 +183,14 @@ export function realtimeActionTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'spawn_agent',
       description:
-        'Hire a NEW agent worker (provider engine + optional role). This does NOT run immediately; it asks for verbal confirmation first. After the user confirms, call confirm_action.',
+        'Add a NEW agent worker (provider engine + optional role). This does NOT run immediately; it asks for verbal confirmation first. After the user confirms, call confirm_action.',
       parameters: {
         type: 'object',
         properties: {
           provider: { type: 'string', description: 'Engine: claude (default), codex, gemini, opencode, crush, pi, qwen, copilot.' },
           role: { type: 'string', description: 'Optional. The role/job for the new agent.' },
           name: { type: 'string', description: 'Optional. A name for the agent.' },
-          cwd: { type: 'string', description: 'Optional. Working directory; defaults to the hive root.' }
+          cwd: { type: 'string', description: 'Optional. Working directory; defaults to the team workspace root.' }
         },
         required: [],
         additionalProperties: false
@@ -200,7 +200,7 @@ export function realtimeActionTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'kill_agent',
       description:
-        'Terminate a running agent (closes its terminal, archives it). DESTRUCTIVE — does NOT run immediately; returns an echo-back and asks for verbal confirmation. After the user confirms, call confirm_action. Killing the god orchestrator or all agents at once is forbidden.',
+        'Terminate a running agent (closes its terminal, archives it). DESTRUCTIVE — does NOT run immediately; returns an echo-back and asks for verbal confirmation. After the user confirms, call confirm_action. Killing the lead agent or all agents at once is forbidden.',
       parameters: {
         type: 'object',
         properties: { agentId: { type: 'string', description: 'Agent name or id to kill.' } },
@@ -319,7 +319,7 @@ export function realtimeActionTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'clear_agent_context',
       description:
-        "Queue a context clear (/clear) for one agent — wipes its working memory of the current conversation; delivery waits until the agent is idle. DESTRUCTIVE — returns an echo-back and asks for verbal confirmation ('clear' or 'confirm'). After the user confirms, call confirm_action. Allowed on the god orchestrator too (it can resume its session).",
+        "Queue a context clear (/clear) for one agent — wipes its working memory of the current conversation; delivery waits until the agent is idle. DESTRUCTIVE — returns an echo-back and asks for verbal confirmation ('clear' or 'confirm'). After the user confirms, call confirm_action. Allowed on the lead agent too (it can resume its session).",
       parameters: {
         type: 'object',
         properties: { agentId: { type: 'string', description: 'Agent name or id whose context to clear.' } },
@@ -350,7 +350,7 @@ export function realtimeActionTools(): ReturnType<typeof tool>[] {
           label: { type: 'string', description: 'Short name for the schedule.' },
           prompt: { type: 'string', description: 'The message the agent receives each time it fires.' },
           intervalMinutes: { type: 'number', description: 'How often it fires, in minutes (min 5). Default 60.' },
-          to: { type: 'string', description: 'Target agent name or id. Default: the god orchestrator.' }
+          to: { type: 'string', description: 'Target agent name or id. Default: the lead agent.' }
         },
         required: ['label', 'prompt'],
         additionalProperties: false

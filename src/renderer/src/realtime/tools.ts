@@ -1,9 +1,9 @@
 /**
- * Realtime Michael — read-tools (rt-4, Realtime Michael Phase 1).
+ * Realtime voice — read-tools (rt-4, Realtime Michael Phase 1).
  *
  * The real function-tools that replace rt-2's placeholder no-op. Each one is a
- * thin, READ-ONLY wrapper over a window.cth bridge that already powers the office
- * floor UI, formatted as short spoken prose — a TTS voice reads these aloud, so
+ * thin, READ-ONLY wrapper over a window.cth bridge that already powers the team
+ * UI, formatted as short spoken prose — a TTS voice reads these aloud, so
  * there is no markdown, no bullet characters, and no asterisks. Phase 1 is
  * read-only by construction: there is not a single mutating call in this file
  * (action-tools are rt-5, held).
@@ -14,7 +14,7 @@
  * (groqApiKey, slack/webhook tokens); we surface a hand-picked, non-sensitive
  * allowlist only.
  *
- * INTEGRATION (rt-2's src/renderer/src/realtime/session.ts — Jim's file):
+ * INTEGRATION (src/renderer/src/realtime/session.ts):
  *   import { realtimeReadTools, realtimeSessionSummary } from './tools';
  *   ...
  *   tools: realtimeReadTools()            // swap for placeholderTools() at the `tools:` field
@@ -23,7 +23,7 @@
  * lifecycle in session.ts is tool-agnostic, so it survives the swap unchanged.
  */
 import { tool } from '@openai/agents-realtime';
-import { LEAD_AGENT_LABEL, leadAgentId } from '@shared/agentDisplay';
+import { LEAD_AGENT_ID, LEAD_AGENT_LABEL, leadAgentId } from '@shared/agentDisplay';
 
 // ─── spoken-prose formatting helpers ────────────────────────────────────────
 
@@ -116,13 +116,13 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'get_fleet_status',
       description:
-        'Who is in the agent hive right now: how many agents, which are active versus archived, who the god orchestrator is, and each active agent name, role, and engine. Call this when the user asks who is working, who is on the floor, or for a roster.',
+        'Who is in the agent team right now: how many agents, which are active versus archived, who the lead agent is, and each active agent name, role, and engine. Call this when the user asks who is working, who is on the team, or for a roster.',
       parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
       execute: () =>
         spoken(async () => {
           const reg = await window.cth.hiveRegistry();
           const entries = Object.entries(obj(reg.agents));
-          if (!entries.length) return 'The hive has no registered agents yet.';
+          if (!entries.length) return 'The team has no registered agents yet.';
           const active = entries.filter(([, a]) => !obj(a).archived);
           const archived = entries.length - active.length;
           const godId = reg.godId;
@@ -203,7 +203,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'get_cost',
       description:
-        'How much the hive is USING this session: total tokens across all agents, plus the top users. Reported in tokens (no dollar figures). Call this when the user asks about usage or token consumption.',
+        'How much the team is USING this session: total tokens across all agents, plus the top users. Reported in tokens (no dollar figures). Call this when the user asks about usage or token consumption.',
       parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
       execute: () =>
         spoken(async () => {
@@ -226,7 +226,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
             .sort((x, y) => y[1] - x[1])
             .slice(0, 3)
             .map(([id, tok]) => `${id} at ${tokens(tok)} tokens`);
-          return `So far this session the hive has used ${tokens(totIn)} input and ${tokens(totOut)} output tokens across ${plural(
+          return `So far this session the team has used ${tokens(totIn)} input and ${tokens(totOut)} output tokens across ${plural(
             perAgent.size,
             'agent'
           )}.${top.length ? ` Top users: ${top.join(', ')}.` : ''}`;
@@ -237,7 +237,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'get_triggers',
       description:
-        'The triggers that fire the hive without a human typing. Today this reports the schedules: the recurring missions the hive runs on a timer, with their labels, cadence, recipient, and when each last fired. The other trigger types — webhooks and inbound organization messages — are configured elsewhere and are not listed here. Call this when the user asks about triggers, schedules, recurring jobs, heartbeats, or automations.',
+        'The triggers that fire the team without a human typing. Today this reports the schedules: the recurring missions the team runs on a timer, with their labels, cadence, recipient, and when each last fired. The other trigger types — webhooks and inbound organization messages — are configured elsewhere and are not listed here. Call this when the user asks about triggers, schedules, recurring jobs, heartbeats, or automations.',
       parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
       execute: () =>
         spoken(async () => {
@@ -264,7 +264,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'get_config',
       description:
-        'The non-sensitive hive settings: autonomy mode, the default model and god engine, budget caps, worker limits, the circuit breaker, and which features are on. Never returns secrets or API keys. Call this when the user asks how the hive is configured, what the limits or budgets are, or whether a feature is enabled.',
+        'The non-sensitive team settings: autonomy mode, the default model and lead agent engine, budget caps, worker limits, the circuit breaker, and which features are on. Never returns secrets or API keys. Call this when the user asks how the team is configured, what the limits or budgets are, or whether a feature is enabled.',
       parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
       execute: () =>
         spoken(async () => {
@@ -305,7 +305,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'get_memory',
       description:
-        "Read the team's memory. You can ALWAYS answer with this — it never dead-ends. Pass a query to search everything the hive has learned; pass an agentId to read ONE agent's notes (works for any agent, active OR archived); pass BOTH to search within that one agent's notes; pass neither for memory status. Semantic search is used when available, otherwise a direct text search across every agent's memory file. Call this whenever the user asks what the team learned, remembered, decided, or noted.",
+        "Read the team's memory. You can ALWAYS answer with this — it never dead-ends. Pass a query to search everything the team has learned; pass an agentId to read ONE agent's notes (works for any agent, active OR archived); pass BOTH to search within that one agent's notes; pass neither for memory status. Semantic search is used when available, otherwise a direct text search across every agent's memory file. Call this whenever the user asks what the team learned, remembered, decided, or noted.",
       parameters: {
         type: 'object',
         properties: {
@@ -385,7 +385,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'get_activity',
       description:
-        'The most recent hive activity log: spawns, archives, messages, and other lifecycle events, newest first. Call this when the user asks what just happened, for recent activity, or for a play-by-play.',
+        'The most recent team activity log: spawns, archives, messages, and other lifecycle events, newest first. Call this when the user asks what just happened, for recent activity, or for a play-by-play.',
       parameters: {
         type: 'object',
         properties: {
@@ -400,7 +400,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
           const want = typeof a.limit === 'number' && isFinite(a.limit) ? Math.max(1, Math.min(40, Math.round(a.limit))) : 12;
           const log = await window.cth.hiveLog(want);
           const list = Array.isArray(log) ? log : [];
-          if (!list.length) return 'There is no recorded hive activity yet.';
+          if (!list.length) return 'There is no recorded team activity yet.';
           const lines = list
             .slice(-want)
             .reverse()
@@ -419,7 +419,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'get_messages',
       description:
-        "Read the actual CONTENT of hive messages — what agents have said to each other in their inboxes and outboxes, not just that an event happened. Use this when the user wants to know what a message SAID, what someone asked or reported, or to catch up on the latest traffic. Pass an agentId to focus on one agent's mailbox, pass a messageId to read one specific message in full, or pass neither for the most recent messages across the whole floor. Secrets and keys are always stripped before you see them, so quote bodies freely.",
+        "Read the actual CONTENT of team messages — what agents have said to each other in their inboxes and outboxes, not just that an event happened. Use this when the user wants to know what a message SAID, what someone asked or reported, or to catch up on the latest traffic. Pass an agentId to focus on one agent's mailbox, pass a messageId to read one specific message in full, or pass neither for the most recent messages across the whole team. Secrets and keys are always stripped before you see them, so quote bodies freely.",
       parameters: {
         type: 'object',
         properties: {
@@ -454,8 +454,8 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
 
           const msgs = await window.cth.hiveMessages(agentId ? { agentId, limit } : { limit });
           if (!msgs.length)
-            return agentId ? `I don't see any messages in ${agentId}'s mailbox.` : 'There are no hive messages to read yet.';
-          const scope = agentId ? `${agentId}'s mailbox` : 'the floor';
+            return agentId ? `I don't see any messages in ${agentId}'s mailbox.` : 'There are no team messages to read yet.';
+          const scope = agentId ? `${agentId}'s mailbox` : 'the team';
           const lines = msgs.slice(0, limit).map((m) => speakOne(m, false));
           return `${plural(lines.length, 'recent message')} from ${scope}: ${lines.join('. ')}.`;
         }, 'messages')
@@ -469,7 +469,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
       parameters: {
         type: 'object',
         properties: {
-          agentId: { type: 'string', description: 'The agent id or friendly name to look up (e.g. "kevin-mqpbq43v" or "Kevin").' }
+          agentId: { type: 'string', description: 'The agent id or friendly name to look up (e.g. "builder-mqpbq43v" or "Builder").' }
         },
         required: ['agentId'],
         additionalProperties: false
@@ -526,7 +526,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
           const includeArchived = a.includeArchived !== false;
           const dir = await window.cth.hiveAgentDirectory();
           const all = Array.isArray(dir.agents) ? dir.agents : [];
-          if (!all.length) return 'The hive has no registered agents.';
+          if (!all.length) return 'The team has no registered agents.';
           const active = all.filter((e) => !e.archived);
           const archived = all.filter((e) => e.archived);
           const near = active
@@ -557,7 +557,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'get_board',
       description:
-        'The hive plan narrative — the human-readable board the orchestrator keeps in prose (the current plan, priorities, and notes). Call this when the user asks about the plan, the strategy, the roadmap, or what the board says.',
+        'The team plan narrative — the human-readable board the lead agent keeps in prose (the current plan, priorities, and notes). Call this when the user asks about the plan, the strategy, the roadmap, or what the board says.',
       parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
       execute: () =>
         spoken(async () => {
@@ -572,7 +572,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'get_floor_state',
       description:
-        'The LIVE floor in one call: every active agent with its current status, context fill, breaker state and inbox backlog, plus in-flight tasks. Returns compact JSON plus a one-line spoken summary. Prefer this for "what is everyone doing" style questions.',
+        'The LIVE team in one call: every active agent with its current status, context fill, breaker state and inbox backlog, plus in-flight tasks. Returns compact JSON plus a one-line spoken summary. Prefer this for "what is everyone doing" style questions.',
       parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
       execute: () =>
         spoken(async () => {
@@ -592,11 +592,11 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
             }));
           const doing = tasks.filter((t) => str(t.status) === 'doing').map((t) => ({ title: str(t.title), owner: str(t.assignee) || undefined }));
           const blocked = tasks.filter((t) => str(t.status) === 'blocked').map((t) => ({ title: str(t.title), owner: str(t.assignee) || undefined }));
-          const summary = `${plural(rows.length, 'agent')} on the floor, ${doing.length} in progress, ${blocked.length} blocked.`;
+          const summary = `${plural(rows.length, 'agent')} on the team, ${doing.length} in progress, ${blocked.length} blocked.`;
           // Flagged JSON per the Realtime prompting guidance: precise fields the
           // model can quote verbatim, with the spoken line separate.
           return `${summary} DATA: ${JSON.stringify({ agents: rows, doing, blocked })}`;
-        }, 'floor state')
+        }, 'team state')
     }),
 
     // ── get_app_info (v0.3.4) ─────────────────────────────────────────────
@@ -616,8 +616,8 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
 }
 
 /**
- * A short, preloaded orientation Michael can open the session with — the hive
- * size, who god is, and how many tasks are in flight — so the first answer is
+ * A short, preloaded orientation the voice can open the session with — the team
+ * size, who the lead agent is, and how many tasks are in flight — so the first answer is
  * grounded without a tool round-trip. Best-effort: returns '' if reads fail, so
  * the caller can safely concatenate it onto the agent instructions.
  */
@@ -654,12 +654,12 @@ export async function realtimeSessionSummary(): Promise<string> {
       blocked.length ? `Blocked: ${blocked.slice(0, 4).map((t) => `"${str(t.title)}"`).join('; ')}.` : ''
     ].filter(Boolean).join(' ');
     return (
-      `Floor at connect — ${plural(rows.length, 'agent')} active` +
+      `Team at connect — ${plural(rows.length, 'agent')} active` +
       `${godRow ? `, ${LEAD_AGENT_LABEL} orchestrating alongside you` : ''}. ` +
       `Per agent: ${lines.join(' | ') || 'none'}. ` +
       taskLine +
-      ` You will also receive short "(Floor update: …)" notes as things change mid-call — trust those over this snapshot.` +
-      ` You share the floor with god (the typing orchestrator); the board is the single source of truth.`
+      ` You will also receive short "(Team update: …)" notes as things change mid-call — trust those over this snapshot.` +
+      ` You share the team with the lead agent (the typing agent, internal id ${LEAD_AGENT_ID}); the board is the single source of truth.`
     );
   } catch {
     return '';
