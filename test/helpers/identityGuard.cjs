@@ -21,6 +21,8 @@ const RULES = [
 const RETIRED = new Set(['components/SpritePortrait.tsx', 'components/OfficeThemePicker.tsx',
   'components/RealtimeMichaelToggle.tsx', 'components/MichaelBooting.tsx', 'components/AgentCard.tsx',
   'components/AgentStrip.tsx', 'scene/office/OfficeFloor.tsx']);
+const COPY_ATTRS = new Set(['aria-label', 'title', 'placeholder', 'alt', 'aria-description', 'aria-placeholder']);
+const IMAGE_RE = /\.(png|jpe?g|gif|svg|webp|ico)$/i;
 const SKIP_ATTRS = new Set(['className', 'class', 'key', 'id', 'htmlFor', 'data-testid', 'role', 'type', 'name']);
 
 function resolveImport(fromFile, spec) {
@@ -62,24 +64,29 @@ function reachableFrom(entries) {
   }
   return seen;
 }
-function copyStrings(file, text) {
+function copyItems(file, text) {
   const out = [];
   const visit = (n) => {
     if (ts.isImportDeclaration(n) || ts.isExportDeclaration(n) || ts.isLiteralTypeNode(n)) return;
     if (ts.isCallExpression(n) && (n.expression.kind === ts.SyntaxKind.ImportKeyword
       || (ts.isIdentifier(n.expression) && n.expression.text === 'require'))) return;
+    if (ts.isJsxAttribute(n) && COPY_ATTRS.has(n.name.getText()) && n.initializer && ts.isStringLiteral(n.initializer)) { out.push({ text: n.initializer.text, copy: true }); return; }
     if (ts.isJsxAttribute(n) && SKIP_ATTRS.has(n.name.getText())) return;
     if (ts.isPropertyAssignment(n) && (ts.isStringLiteral(n.name))) { visit(n.initializer); return; }   // keys are not copy
-    if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) out.push(n.text);
-    else if (ts.isTemplateExpression(n)) { out.push(n.head.text); for (const s of n.templateSpans) out.push(s.literal.text); }
-    else if (ts.isJsxText(n)) { const t = n.text.replace(/\s+/g, ' ').trim(); if (t) out.push(t); }
+    if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) out.push({ text: n.text, copy: false });
+    else if (ts.isTemplateExpression(n)) { out.push({ text: n.head.text, copy: false }); for (const s of n.templateSpans) out.push({ text: s.literal.text, copy: false }); }
+    else if (ts.isJsxText(n)) { const t = n.text.replace(/\s+/g, ' ').trim(); if (t) out.push({ text: t, copy: true }); }
     ts.forEachChild(n, visit);
   };
   visit(parse(file, text));
   return out;
 }
-function scanText(s) {
-  const prose = /\s/.test(s.trim());
+function copyStrings(file, text) { return copyItems(file, text).map((i) => i.text); }
+function assetImports(file) {
+  return runtimeImports(parse(file)).filter((spec) => spec.startsWith('@brand/') || IMAGE_RE.test(spec));
+}
+function scanText(s, isCopy) {
+  const prose = isCopy === true || /\s/.test(s.trim());
   const hits = [];
   for (const r of RULES) {
     if (r.prose && !prose) continue;
@@ -98,7 +105,8 @@ function scanFiles(files, base) {
   for (const f of files) {
     const rel = relName(f, base);
     if (RETIRED.has(rel)) leaks.push({ file: rel, rule: 'visual', text: '<reachable>' });
-    for (const s of copyStrings(f)) for (const h of scanText(s)) leaks.push({ file: rel, rule: h.rule, text: s });
+    for (const spec of assetImports(f)) leaks.push({ file: rel, rule: 'visual', text: spec });
+    for (const it of copyItems(f)) for (const h of scanText(it.text, it.copy)) leaks.push({ file: rel, rule: h.rule, text: it.text });
   }
   return leaks;
 }
@@ -116,4 +124,4 @@ function printReport() {
   console.log(JSON.stringify(groupByFile(applyAllowlist(scanFiles(reachableFrom([ENTRY])), allow)), null, 2));
 }
 if (require.main === module) printReport();
-module.exports = { ENTRY, RULES, reachableFrom, copyStrings, scanText, scanFiles, relName, applyAllowlist, groupByFile, printReport };
+module.exports = { ENTRY, RULES, assetImports, copyItems, reachableFrom, copyStrings, scanText, scanFiles, relName, applyAllowlist, groupByFile, printReport };

@@ -73,3 +73,17 @@ test('allowlist never covers user-visible voice persona text or greetings', () =
   for (const a of LEAKS.allowlist.filter((x) => x.file === 'realtime/session.ts'))
     assert.equal(a.exact, true, 'session.ts allowlist entries must be exact literals');
 });
+
+test('guard: single-token JSX text and aria-label/title values are scanned under all rules', () => {
+  const src = 'export const X = () => <div title="Floor" aria-label="Hive"><b>BOSS</b><i>Floor</i><u>Hive</u></div>;\n';
+  const hits = guard.copyItems('x.tsx', src).flatMap((i) => guard.scanText(i.text, i.copy).map((h) => h.match));
+  assert.deepEqual(hits.sort(), ['BOSS', 'Floor', 'Floor', 'Hive', 'Hive']);
+  assert.deepEqual(guard.copyStrings('x.ts', "const k = 'floor'; const c = 'hive:send';").flatMap((s) => guard.scanText(s)), []);
+});
+
+test('guard: a reachable image or @brand asset import is reported as visual', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nx-guard-'));
+  fs.writeFileSync(path.join(dir, 'entry.tsx'), "import logo from './pic.png';\nimport b from '@brand/logo.png';\nexport const E = () => <img src={logo} />;\n");
+  const leaks = guard.scanFiles([path.join(dir, 'entry.tsx')], dir);
+  assert.deepEqual(leaks.map((l) => [l.rule, l.text]), [['visual', './pic.png'], ['visual', '@brand/logo.png']]);
+});
