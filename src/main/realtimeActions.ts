@@ -604,7 +604,7 @@ function proposeDestructive(deps: RealtimeActionDeps, verb: string, a: Record<st
     // clear_context on god is ALLOWED behind confirm — it's recoverable
     // (sessions resume) and "clear Michael's context" is a real operator need.
     if (r.isGod && verb !== 'clear_context')
-      return { ok: false, spoken: `${verb} on the god orchestrator is voice-forbidden. That has to be done in the UI.` };
+      return { ok: false, spoken: `${verb} on the lead agent is voice-forbidden. That has to be done in the UI.` };
 
     const commit =
       verb === 'kill' ? buildKill(deps, r)
@@ -766,7 +766,7 @@ function proposeDestructive(deps: RealtimeActionDeps, verb: string, a: Record<st
 /** Top-level propose/execute for one verb. Soft writes run now; destructive ones
  *  stage a pending and ask for verbal confirm. */
 function runAction(deps: RealtimeActionDeps, verb: string, a: Record<string, unknown>): ActionResult {
-  if (!deps.hiveEnabled()) return { ok: false, spoken: 'The hive is not configured, so I can\'t take that action.' };
+  if (!deps.hiveEnabled()) return { ok: false, spoken: 'The agent workspace is not set up, so I can\'t take that action.' };
   const spec = VERBS[verb];
   if (!spec) return { ok: false, spoken: `I don't have an action called "${verb}".` };
   // Any new proposal supersedes a stale pending.

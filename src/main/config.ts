@@ -90,11 +90,11 @@ export const OPS_STANDUP_MISSION: ScheduledMission = {
  *  when an agent looks stuck and a slower one right after a re-engage. */
 export const HEARTBEAT_MISSION: ScheduledMission = {
   id: 'heartbeat',
-  label: 'Floor heartbeat',
+  label: 'Team heartbeat',
   intervalMs: 120_000,
   to: 'god',
   body:
-    'Floor heartbeat: the team has gone quiet. Review the digest in your inbox, ' +
+    'Team heartbeat: the team has gone quiet. Review the digest in your inbox, ' +
     're-engage anyone stalled or blocked, and keep the board accurate — or rest ' +
     'if the work is genuinely done.',
   enabled: false,

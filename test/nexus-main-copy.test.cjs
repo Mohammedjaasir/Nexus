@@ -29,3 +29,18 @@ test('menu, dialogs and inbox texts use neutral words', () => {
   assert.ok(!read('src/main/realtimeFloorWatcher.ts').includes('joined the floor'));
   assert.match(read('src/main/hooks.ts'), /notificationTitle\(/);
 });
+
+test('round 1: spoken, breaker, control and heartbeat copy stay neutral', () => {
+  const bans = [
+    ['src/main/realtimeActions.ts', 'god orchestrator is voice-forbidden'],
+    ['src/main/realtimeActions.ts', 'The hive is not configured'],
+    ['src/main/breaker.ts', 'floor total'],
+    ['src/main/control.ts', 'resume from the floor'],
+    ['src/main/hooks.ts', 'Halted by the operator from the floor'],
+    ['src/main/config.ts', 'Floor heartbeat'],
+    ['src/main/index.ts', 'Floor heartbeat'],
+    ['src/main/closingTime.ts', 'the floor is just you'],
+    ['src/main/closingTime.ts', 'no workers on the floor']
+  ];
+  for (const [f, s] of bans) assert.ok(!read(f).includes(s), `${f}: ${s}`);
+});

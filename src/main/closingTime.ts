@@ -107,7 +107,7 @@ export class ClosingTimeController {
 
     const names = [...this.workers]
       .map((id) => `${reg.agents[id]?.name ?? id} (${id})`)
-      .join(', ') || '(none — the floor is just you)';
+      .join(', ') || '(none — only you)';
 
     this.hive.send({
       to: 'god',
@@ -123,7 +123,7 @@ export class ClosingTimeController {
         `4. CONCLUDE by sending a message with "to":"human" and the subject exactly "CLOSING-TIME-COMPLETE" — the harness watches for it and closes the app. Do not send it before every worker has acked: the harness independently verifies the ACKs and will reject a premature conclusion.`,
         '',
         this.workers.size === 0
-          ? 'There are no workers on the floor right now — do steps 3 and 4 immediately.'
+          ? 'There are no worker agents running right now — do steps 3 and 4 immediately.'
           : 'The prep assistant saves its own memory separately — do NOT wait for it and do not message it.',
         'This is a shutdown: do not start new work and do not accept new tasks.'
       ].join('\n')

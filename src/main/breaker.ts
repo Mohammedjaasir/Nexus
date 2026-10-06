@@ -304,13 +304,13 @@ export class CircuitBreaker {
     if (typeof perAgentCap === 'number' && perAgentCap > 0 && tokensOf(input.sample) > perAgentCap) {
       return { tripping: true, reason: `token limit: ${tokensOf(input.sample).toLocaleString()} over the agent cap of ${perAgentCap.toLocaleString()}` };
     }
-    // (a) cost cap — floor total over cap, this agent is the biggest spender
+    // (a) cost cap — team total over cap, this agent is the biggest spender
     if (isTopSpender && typeof costCapUsd === 'number') {
-      return { tripping: true, reason: `cost cap: floor total over $${costCapUsd} (top spender $${(input.sample?.usd ?? 0).toFixed(2)})` };
+      return { tripping: true, reason: `cost cap: team total over $${costCapUsd} (top spender $${(input.sample?.usd ?? 0).toFixed(2)})` };
     }
-    // (a) token cap — floor total tokens over cap, this agent is the biggest spender
+    // (a) token cap — team total tokens over cap, this agent is the biggest spender
     if (isTopTokenSpender && typeof costCapTokens === 'number') {
-      return { tripping: true, reason: `token cap: floor total over ${costCapTokens.toLocaleString()} tokens (top spender ${tokensOf(input.sample).toLocaleString()})` };
+      return { tripping: true, reason: `token cap: team total over ${costCapTokens.toLocaleString()} tokens (top spender ${tokensOf(input.sample).toLocaleString()})` };
     }
     // (a) token-velocity spike — diff cumulative output across consecutive beats.
     // Skipped entirely while a compaction is in flight (+ trailing grace): a

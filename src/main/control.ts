@@ -91,7 +91,7 @@ export class ControlRegistry {
   toolDecision(id: string, tool: string): { deny: boolean; reason?: string } {
     const c = this.map.get(id);
     if (!c) return { deny: false };
-    if (c.paused) return { deny: true, reason: 'Paused by operator — resume from the floor to continue.' };
+    if (c.paused) return { deny: true, reason: 'Paused by operator — resume from the app to continue.' };
     if (tool && c.gatedTools.has(tool)) return { deny: true, reason: `Tool ${tool} is gated by the operator.` };
     return { deny: false };
   }

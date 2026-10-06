@@ -155,7 +155,7 @@ export class HookServer {
     // killing the PTY. session_id is in the payload for a later --resume.
     if (agentId && this.control?.shouldHalt(agentId)) {
       this.emit(agentId, event, p);
-      return { continue: false, stopReason: 'Halted by the operator from the floor.' };
+      return { continue: false, stopReason: 'Halted by the operator from the app.' };
     }
 
     // Capture the Claude Code session id for idempotent --resume + cost dedup

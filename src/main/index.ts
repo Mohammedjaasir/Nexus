@@ -999,8 +999,8 @@ function buildHeartbeatDigest(quietMs: number, actionable = 0): string {
   // instead of the "quiet" line — this beat fired BECAUSE of unread actionable
   // inbox, not because the floor went quiet, and god must read it now.
   const header = actionable > 0
-    ? `Floor heartbeat — ${actionable} actionable inbox message(s) awaiting you (worker/human mail). Drain your inbox NOW and act on them.`
-    : `Floor heartbeat — quiet ~${Math.round(quietMs / 60000)}m.`;
+    ? `Team heartbeat — ${actionable} actionable inbox message(s) awaiting you (worker/human mail). Drain your inbox NOW and act on them.`
+    : `Team heartbeat — quiet ~${Math.round(quietMs / 60000)}m.`;
   return [
     header,
     `Active agents (${active.length}): ${names}.`,
@@ -1110,7 +1110,6 @@ function runBreakerBeat(progressWindowMs: number): void {
   for (const d of breaker.tick(inputs, now)) {
     try { liveWebContents()?.send('control:breakerState', d.state); } catch { /* window gone */ }
     if (d.action === 'none') continue;
-    const name = reg.agents[d.state.agentId]?.name ?? d.state.agentId;
     const reason = d.state.reason;
     if (d.action === 'steer') {
       hive.send({ to: d.state.agentId, act: 'request', subject: 'Circuit breaker: steer',
