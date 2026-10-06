@@ -24,6 +24,7 @@
  */
 import { tool } from '@openai/agents-realtime';
 import { LEAD_AGENT_ID, LEAD_AGENT_LABEL, leadAgentId } from '@shared/agentDisplay';
+import { voiceNamer, voiceRowsFromRegistry, type VoiceAgentRow } from './voiceNames';
 
 // ─── spoken-prose formatting helpers ────────────────────────────────────────
 
@@ -126,12 +127,14 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
           const active = entries.filter(([, a]) => !obj(a).archived);
           const archived = entries.length - active.length;
           const godId = reg.godId;
-          const godName = godId ? str(obj(obj(reg.agents)[godId]).name) || godId : null;
+          // Spoken names are the screen's labels, never stored names (finding 3).
+          const nameOf = voiceNamer(voiceRowsFromRegistry(reg.agents), godId);
+          const godName = godId ? nameOf(godId) : null;
           const lines = active
             .filter(([id]) => id !== godId)
-            .map(([, a]) => {
+            .map(([id, a]) => {
               const m = obj(a);
-              const name = str(m.name) || 'an unnamed agent';
+              const name = nameOf(id) || 'an unnamed agent';
               const role = str(m.role);
               const provider = str(m.provider) || 'claude';
               const status = str(m.status) || 'unknown';
@@ -171,13 +174,15 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
           const list = Array.isArray(obj(raw).tasks) ? (obj(raw).tasks as unknown[]) : [];
           if (!list.length) return 'The task board is empty.';
           const tasks = list.map(obj);
+          const dirForNames = await window.cth.hiveAgentDirectory().catch(() => null);
+          const nameOf = voiceNamer((dirForNames?.agents ?? []) as VoiceAgentRow[], dirForNames?.godId);
           const by = (s: string): Record<string, unknown>[] => tasks.filter((t) => str(t.status) === s);
           const counts = `${plural(by('todo').length, 'to do')}, ${by('doing').length} in progress, ${plural(
             by('blocked').length,
             'blocked'
           )}, and ${by('done').length} done`;
           const describe = (t: Record<string, unknown>): string => {
-            const who = str(t.assignee);
+            const who = str(t.assignee) ? nameOf(str(t.assignee)) : '';
             return `"${clip(str(t.title) || str(t.id) || 'untitled', 90)}"${who ? ` (${who})` : ''}`;
           };
           if (filter) {
@@ -401,13 +406,17 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
           const log = await window.cth.hiveLog(want);
           const list = Array.isArray(log) ? log : [];
           if (!list.length) return 'There is no recorded team activity yet.';
+          const dir = await window.cth.hiveAgentDirectory().catch(() => null);
+          const nameOf = voiceNamer((dir?.agents ?? []) as VoiceAgentRow[], dir?.godId);
           const lines = list
             .slice(-want)
             .reverse()
             .map((e) => {
               const o = obj(e);
               const kind = str(o.kind) || str(o.event) || 'event';
-              const who = str(o.agentId) || str(o.name) || str(o.from);
+              // An id when the entry has one; a bare stored name is never spoken.
+              const whoId = str(o.agentId) || str(o.from);
+              const who = whoId ? nameOf(whoId) : '';
               const when = ago(o.ts);
               return `${kind}${who ? ` by ${who}` : ''} ${when}`;
             });
@@ -437,11 +446,13 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
           const messageId = str(a.messageId).trim();
           const limit = typeof a.limit === 'number' && isFinite(a.limit) ? Math.max(1, Math.min(40, Math.round(a.limit))) : 8;
 
+          const dir = await window.cth.hiveAgentDirectory().catch(() => null);
+          const nameOf = voiceNamer((dir?.agents ?? []) as VoiceAgentRow[], dir?.godId);
           // Speak one message's body relative to a perspective. from→to + subject + body.
           const speakOne = (m: { from: string; to: string; subject: string; body: string; created_at: string; requires_reply: boolean }, full: boolean): string => {
             const subj = str(m.subject).trim();
             const body = despan(str(m.body)).trim();
-            const head = `${str(m.from) || 'someone'} to ${str(m.to) || 'someone'}${subj ? ` about "${clip(subj, 80)}"` : ''} ${ago(Date.parse(m.created_at))}`;
+            const head = `${nameOf(str(m.from)) || 'someone'} to ${nameOf(str(m.to)) || 'someone'}${subj ? ` about "${clip(subj, 80)}"` : ''} ${ago(Date.parse(m.created_at))}`;
             if (!body) return `${head}, with no body.`;
             return `${head}: ${clip(body, full ? 700 : 220)}${m.requires_reply ? ' (a reply was requested)' : ''}`;
           };
@@ -454,8 +465,8 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
 
           const msgs = await window.cth.hiveMessages(agentId ? { agentId, limit } : { limit });
           if (!msgs.length)
-            return agentId ? `I don't see any messages in ${agentId}'s mailbox.` : 'There are no team messages to read yet.';
-          const scope = agentId ? `${agentId}'s mailbox` : 'the team';
+            return agentId ? `I don't see any messages in ${nameOf(agentId)}'s mailbox.` : 'There are no team messages to read yet.';
+          const scope = agentId ? `${nameOf(agentId)}'s mailbox` : 'the team';
           const lines = msgs.slice(0, limit).map((m) => speakOne(m, false));
           return `${plural(lines.length, 'recent message')} from ${scope}: ${lines.join('. ')}.`;
         }, 'messages')
@@ -481,17 +492,21 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
           if (!want) return 'Tell me which agent you mean.';
           const dir = await window.cth.hiveAgentDirectory();
           const list = Array.isArray(dir.agents) ? dir.agents : [];
+          const nameOf = voiceNamer(list, dir.godId);
+          // The id is the argument; the screen label is accepted too, since that
+          // is the name voice speaks.
           const e =
             list.find((x) => x.id.toLowerCase() === want) ??
+            list.find((x) => nameOf(x.id).toLowerCase() === want) ??
             list.find((x) => x.name.toLowerCase() === want) ??
-            list.find((x) => x.id.toLowerCase().startsWith(want) || x.name.toLowerCase().startsWith(want));
+            list.find((x) => x.id.toLowerCase().startsWith(want) || nameOf(x.id).toLowerCase().startsWith(want));
           if (!e) return `I don't see an agent matching "${str(a.agentId)}".`;
           const parts: string[] = [];
           const role = e.role ? `, the ${e.role},` : '';
           const where = e.archived
             ? 'archived — its terminal is closed, but its working directory and memory are still here'
             : `active and ${e.status}`;
-          parts.push(`${e.name}${role} runs on ${e.provider}${e.model ? ` with model ${e.model}` : ''}, ${where}.`);
+          parts.push(`${nameOf(e.id)} (id ${e.id})${role} runs on ${e.provider}${e.model ? ` with model ${e.model}` : ''}, ${where}.`);
           if (e.cwd)
             parts.push(
               `Working directory: ${e.cwd}${e.cwdValid === false ? ', which is not a valid directory — spawning there would fail' : ''}.`
@@ -527,13 +542,14 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
           const dir = await window.cth.hiveAgentDirectory();
           const all = Array.isArray(dir.agents) ? dir.agents : [];
           if (!all.length) return 'The team has no registered agents.';
+          const nameOf = voiceNamer(all, dir.godId);
           const active = all.filter((e) => !e.archived);
           const archived = all.filter((e) => e.archived);
           const near = active
             .filter((e) => typeof e.contextPct === 'number' && e.contextPct >= 70)
-            .map((e) => `${e.name} at ${e.contextPct} percent`);
+            .map((e) => `${nameOf(e.id)} at ${e.contextPct} percent`);
           const describe = (e: typeof all[number]): string =>
-            `${e.name} on ${e.provider}${e.cwd ? ` in ${shortDir(e.cwd)}` : ''}${
+            `${nameOf(e.id)} on ${e.provider}${e.cwd ? ` in ${shortDir(e.cwd)}` : ''}${
               typeof e.contextPct === 'number' ? `, context ${e.contextPct} percent` : ''
             }`;
           const parts: string[] = [];
@@ -545,7 +561,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
             parts.push(
               `Archived: ${archived
                 .slice(0, 12)
-                .map((e) => `${e.name}${e.cwd ? ` (last in ${shortDir(e.cwd)})` : ''}`)
+                .map((e) => `${nameOf(e.id)}${e.cwd ? ` (last in ${shortDir(e.cwd)})` : ''}`)
                 .join('; ')}.`
             );
           if (near.length) parts.push(`Near their context limit: ${near.join(', ')}.`);
@@ -579,19 +595,23 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
           const dir = await window.cth.hiveAgentDirectory();
           const tasksRaw = (await window.cth.hiveTasks()) as { tasks?: unknown } | null;
           const tasks = Array.isArray(tasksRaw?.tasks) ? (tasksRaw!.tasks as unknown[]).map(obj) : [];
+          const nameOf = voiceNamer((Array.isArray(dir?.agents) ? dir.agents : []) as VoiceAgentRow[], dir?.godId);
           const rows = (Array.isArray(dir?.agents) ? (dir.agents as unknown[]) : [])
             .map(obj)
             .filter((a) => !a.archived)
             .map((a) => ({
-              name: str(a.name) || str(a.id),
+              // `id` is what the other tools take; `name` is what to say.
+              id: str(a.id),
+              name: nameOf(str(a.id)) || str(a.id),
               status: str(a.status) || 'unknown',
               engine: str(a.provider) || undefined,
               contextPct: typeof a.contextPct === 'number' ? a.contextPct : undefined,
               breaker: str(a.breaker) && str(a.breaker) !== 'healthy' ? str(a.breaker) : undefined,
               inbox: typeof a.inboxBacklog === 'number' && a.inboxBacklog > 0 ? a.inboxBacklog : undefined
             }));
-          const doing = tasks.filter((t) => str(t.status) === 'doing').map((t) => ({ title: str(t.title), owner: str(t.assignee) || undefined }));
-          const blocked = tasks.filter((t) => str(t.status) === 'blocked').map((t) => ({ title: str(t.title), owner: str(t.assignee) || undefined }));
+          const owner = (t: Record<string, unknown>): string | undefined => (str(t.assignee) ? nameOf(str(t.assignee)) : undefined);
+          const doing = tasks.filter((t) => str(t.status) === 'doing').map((t) => ({ title: str(t.title), owner: owner(t) }));
+          const blocked = tasks.filter((t) => str(t.status) === 'blocked').map((t) => ({ title: str(t.title), owner: owner(t) }));
           const summary = `${plural(rows.length, 'agent')} on the team, ${doing.length} in progress, ${blocked.length} blocked.`;
           // Flagged JSON per the Realtime prompting guidance: precise fields the
           // model can quote verbatim, with the spoken line separate.
@@ -634,9 +654,10 @@ export async function realtimeSessionSummary(): Promise<string> {
     const rows = (Array.isArray(dir?.agents) ? (dir.agents as unknown[]) : []).map(obj).filter((a) => !a.archived);
     const leadId = leadAgentId(rows.map((a) => ({ id: str(a.id), isGod: a.isGod === true, ptyId: a.ptyId as string | null | undefined })));
     const godRow = leadId ? rows.find((a) => str(a.id) === leadId) : undefined;
+    const nameOf = voiceNamer((Array.isArray(dir?.agents) ? dir.agents : []) as VoiceAgentRow[], dir?.godId);
     const lines = rows.slice(0, 20).map((a) => {
       const bits = [
-        `${str(a.name) || str(a.id)} is ${str(a.status) || 'in an unknown state'}`,
+        `${nameOf(str(a.id)) || str(a.id)} is ${str(a.status) || 'in an unknown state'}`,
         str(a.provider) ? `on ${str(a.provider)}` : '',
         typeof a.contextPct === 'number' ? `context ${Math.round(a.contextPct as number)} percent full` : '',
         str(a.breaker) && str(a.breaker) !== 'healthy' ? `breaker ${str(a.breaker)}` : '',
@@ -649,7 +670,7 @@ export async function realtimeSessionSummary(): Promise<string> {
     const blocked = list.filter((t) => str(t.status) === 'blocked');
     const taskLine = [
       doing.length
-        ? `In progress: ${doing.slice(0, 5).map((t) => `"${str(t.title)}"${str(t.assignee) ? ` with ${str(t.assignee)}` : ''}`).join('; ')}.`
+        ? `In progress: ${doing.slice(0, 5).map((t) => `"${str(t.title)}"${str(t.assignee) ? ` with ${nameOf(str(t.assignee))}` : ''}`).join('; ')}.`
         : 'Nothing is in progress on the board.',
       blocked.length ? `Blocked: ${blocked.slice(0, 4).map((t) => `"${str(t.title)}"`).join('; ')}.` : ''
     ].filter(Boolean).join(' ');
