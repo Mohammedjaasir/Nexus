@@ -54,14 +54,14 @@ export function appendActivityRow(db: Database.Database, a: NewActivity, now: nu
   return db.transaction(() => insertRow(db, a, now)).immediate();
 }
 
-interface ActivityDbRow {
+export interface ActivityDbRow {
   seq: number; id: string; ts: number; actor_kind: PrincipalKind; actor_id: string; on_behalf_of: string | null;
   session_id: string | null; job_id: string | null; attempt_n: number | null; workspace_id: string | null; project_id: string | null;
   artifact_id: string | null; version_id: string | null; entity_type: string; entity_id: string | null; action: string;
   status: ActivityStatus; details_json: string; prev_hash: string; hash: string;
 }
 
-function toEntry(r: ActivityDbRow): ActivityEntry {
+export function toEntry(r: ActivityDbRow): ActivityEntry {
   let details: Record<string, unknown> = {};
   try { details = JSON.parse(r.details_json) as Record<string, unknown>; } catch { /* json_valid CHECK makes this unreachable */ }
   return { seq: r.seq, id: r.id, ts: r.ts, actorKind: r.actor_kind, actorId: r.actor_id, onBehalfOf: r.on_behalf_of,
