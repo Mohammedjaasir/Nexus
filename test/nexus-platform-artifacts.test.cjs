@@ -354,3 +354,36 @@ test('fix 8: a write lock held past busy_timeout surfaces as platform_unavailabl
   assert.equal(nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({}) }).created, true);
   s.close();
 });
+
+// ---------- fix round 2 ----------
+test('N1: an own __proto__ key is refused in inline json and in metadata; nothing is written', () => {
+  const { s, db, nx, me } = setup();
+  const a = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report', name: 'r' });
+  const before = { v: h.count(db, 'artifact_versions'), act: h.count(db, 'activity') };
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline(JSON.parse('{"__proto__":{"a":1}}')) }), (e) => e.code === 'invalid');
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({}),
+    metadata: { nested: [JSON.parse('{"ok":1,"__proto__":{"a":1}}')] } }), (e) => e.code === 'invalid');
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({}),
+    ioContract: JSON.parse('{"__proto__":{}}') }), (e) => e.code === 'invalid');
+  assert.deepEqual({ v: h.count(db, 'artifact_versions'), act: h.count(db, 'activity') }, before);
+  s.close();
+});
+test('N2: auditDenial records the stored principal, keeps the claim, fixes reason and caps every id', () => {
+  const { s, db, nx } = setup();
+  const last = () => db.prepare('SELECT * FROM activity ORDER BY seq DESC LIMIT 1').get();
+  assert.equal(nx.auth.auditDenial({ id: 'user:local', kind: 'system', displayName: 'x' },
+    { action: 'version.register', reason: 'input_not_granted', details: { claimedKind: 'user', reason: 'other', needed: 'owner' } }), true);
+  let r = last();
+  assert.deepEqual([r.actor_kind, r.actor_id, r.status, r.action], ['user', 'user:local', 'denied', 'version.register']);
+  assert.deepEqual(JSON.parse(r.details_json), { claimedKind: 'system', reason: 'input_not_granted' });
+  const long = (c) => c.repeat(5000);
+  nx.auth.auditDenial({ id: long('u'), kind: 'system', displayName: 'x' }, { action: long('a'), reason: long('r'),
+    projectId: long('p'), workspaceId: long('w'), artifactId: long('f'), versionId: long('v'), jobId: long('j'),
+    sessionId: long('s'), onBehalfOf: long('o'), entityType: long('t'), entityId: long('e') });
+  r = last();
+  for (const col of ['actor_id', 'action', 'project_id', 'workspace_id', 'artifact_id', 'version_id', 'job_id', 'session_id',
+    'on_behalf_of', 'entity_type', 'entity_id']) assert.equal(r[col].length, 128, col);
+  assert.equal(JSON.parse(r.details_json).reason.length, 128);
+  assert.equal(r.status, 'denied');
+  s.close();
+});

@@ -502,9 +502,9 @@ export class ArtifactService {
     const granted = this.db.prepare('SELECT 1 FROM job_inputs WHERE job_id = ? AND version_id = ? AND role = ?');
     const missing = inputs.filter((x) => granted.get(jobId, x.versionId, x.role) === undefined).length;
     if (missing === 0) return;
-    const audited = this.deps.auth.auditDenial({ actorKind: p.kind, actorId: p.id, jobId, projectId: a.project_id,
-      workspaceId: a.owner_workspace_id, artifactId: a.id, entityType: 'artifact_version', action: 'version.register',
-      status: 'denied', details: { reason: 'input_not_granted', notGranted: missing } }, 'input_not_granted');
+    const audited = this.deps.auth.auditDenial(p, { action: 'version.register', reason: 'input_not_granted', jobId,
+      projectId: a.project_id, workspaceId: a.owner_workspace_id, artifactId: a.id, entityType: 'artifact_version',
+      details: { notGranted: missing } });
     throw new PlatformError('input_not_granted', 'an input is not granted to the job as that version and role', { audited });
   }
 }

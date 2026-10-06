@@ -43,7 +43,8 @@ export const MAX_JSON_DEPTH = 64;
  * EXACTLY: only null, booleans, finite numbers (not -0), strings, arrays without
  * holes or undefined, and plain objects (prototype Object or null) whose members
  * are all exact JSON. Functions, symbols, bigint, undefined, NaN/Infinity, class
- * instances (Date, Map, anything with toJSON), symbol keys and cycles are refused,
+ * instances (Date, Map, anything with toJSON), symbol keys, own "__proto__" keys
+ * and cycles are refused,
  * never coerced.
  */
 export function assertExactJson(v: unknown, what = 'value'): void {
@@ -68,6 +69,8 @@ export function assertExactJson(v: unknown, what = 'value'): void {
       const proto = Object.getPrototypeOf(x);
       if (proto !== Object.prototype && proto !== null) throw new PlatformError('invalid', `${what} holds a non-plain object`);
       for (const key of Object.keys(x)) {
+        // An own "__proto__" key (JSON.parse creates one) would set the prototype when copied, losing the data.
+        if (key === '__proto__') throw new PlatformError('invalid', `${what} has a __proto__ key`);
         const member = (x as Record<string, unknown>)[key];
         if (member === undefined) throw new PlatformError('invalid', `${what} has an undefined member`);
         walk(member, depth + 1);

@@ -38,6 +38,14 @@ export const MAX_AUDIT_ID_CHARS = 128;
 /** A denial raised inside a caller's transaction is written later; this many attempts, then give up. */
 export const DEFERRED_AUDIT_ATTEMPTS = 5;
 
+/** What a denial row records besides the principal. Untrusted: auditDenial caps and fixes it. */
+export interface DenialAudit {
+  action: string; reason: string; scope?: ScopeRef; needed?: Role;
+  projectId?: string | null; workspaceId?: string | null; artifactId?: string | null; versionId?: string | null;
+  jobId?: string | null; sessionId?: string | null; onBehalfOf?: string | null; attemptN?: number | null;
+  entityType?: string | null; entityId?: string | null; details?: unknown;
+}
+
 const cap = (v: unknown): string | null => (isStr(v) ? v.slice(0, MAX_AUDIT_ID_CHARS) : null);
 
 export class AuthService {
@@ -91,48 +99,65 @@ export class AuthService {
   }
 
   require(p: Principal, action: PlatformAction, scope: ScopeRef, audit?: Partial<NewActivity>): Role | 'system' {
-    const { decision: d, stored } = this.evaluate(p, action, scope);
+    const { decision: d } = this.evaluate(p, action, scope);
     if (d.allowed) return d.role;
-    const extra = audit?.details && typeof audit.details === 'object' && !Array.isArray(audit.details) ? audit.details as Record<string, unknown> : {};
-    const details: Record<string, unknown> = { ...extra, reason: d.reason };
-    delete details.claimedKind;
-    if (d.needed) details.needed = d.needed; else delete details.needed;
-    // A known id with a mismatched kind is recorded as the stored principal, with the claim alongside.
-    const forged = stored !== null && stored.kind !== p.kind;
-    if (forged) details.claimedKind = typeof p?.kind === 'string' ? String(p.kind).slice(0, 32) : String(p?.kind);
-    const row: NewActivity = {
-      onBehalfOf: cap(audit?.onBehalfOf), sessionId: cap(audit?.sessionId), jobId: cap(audit?.jobId),
-      attemptN: audit?.attemptN ?? null, artifactId: cap(audit?.artifactId), versionId: cap(audit?.versionId),
-      entityId: cap(audit?.entityId),
-      entityType: cap(audit?.entityType) ?? (String(action).split('.')[0] || 'platform').slice(0, MAX_AUDIT_ID_CHARS),
-      workspaceId: cap(scopeWorkspace(scope) ?? audit?.workspaceId),
-      projectId: cap(scopeProject(scope) ?? audit?.projectId),
-      // Fixed fields last: the audit hint cannot rewrite who acted, what was asked, or the outcome.
-      actorKind: forged ? stored.kind : KINDS.includes(p?.kind) ? p.kind : 'user',
-      actorId: forged ? stored.id : cap(p?.id) ?? String(p?.id ?? '').slice(0, MAX_AUDIT_ID_CHARS),
-      action: String(action).slice(0, MAX_AUDIT_ID_CHARS), status: 'denied', details
-    };
-    const audited = this.auditDenial(row, d.reason);
+    const audited = this.auditDenial(p, {
+      onBehalfOf: audit?.onBehalfOf, sessionId: audit?.sessionId, jobId: audit?.jobId, attemptN: audit?.attemptN,
+      artifactId: audit?.artifactId, versionId: audit?.versionId, entityId: audit?.entityId, entityType: audit?.entityType,
+      projectId: audit?.projectId, workspaceId: audit?.workspaceId, details: audit?.details,
+      action, scope, reason: d.reason, needed: d.needed
+    });
     throw new PlatformError('denied', `${String(action)} denied: ${d.reason}`, { reason: d.reason, needed: d.needed, audited });
   }
 
   /**
-   * Records one denied activity row for a refusal decided outside authorize() (for
-   * example a job input that was not granted). Same rule as require(): written now
-   * in its own IMMEDIATE transaction, or, when a transaction is open, queued and
-   * written once it has ended, so a rollback cannot lose it. Never throws.
-   * `row.status` is forced to 'denied'.
+   * Records one denied activity row for a principal. require() uses it, and so do
+   * refusals decided outside authorize() (for example a job input that was not
+   * granted). It never trusts its input:
+   * - the actor is the STORED principal: a known id with a mismatched kind is
+   *   recorded with its stored kind and id, and the claim goes in
+   *   `details.claimedKind`. An unknown principal is recorded as claimed (kind
+   *   limited to user|agent|system, else 'user'), with its id capped;
+   * - every id-like field and the action are capped at MAX_AUDIT_ID_CHARS. A
+   *   scope's project and workspace win over the explicit fields;
+   * - `reason`, `needed` and `claimedKind` are fixed fields that caller details cannot
+   *   override; status is always 'denied'.
+   * The row is written now in its own IMMEDIATE transaction, or, when a transaction
+   * is open, queued and written once it has ended, so a rollback cannot lose it.
+   * Returns true (written), 'deferred' (queued) or false (the write failed). Never throws.
    */
-  auditDenial(row: NewActivity, reason?: string): boolean | 'deferred' {
-    const denied: NewActivity = { ...row, status: 'denied' };
+  auditDenial(p: Principal, a: DenialAudit): boolean | 'deferred' {
+    const stored = isStr(p?.id) ? this.principals.get(p.id) : null;
+    const action = String(a?.action ?? '').slice(0, MAX_AUDIT_ID_CHARS);
+    const reason = String(a?.reason ?? 'denied').slice(0, MAX_AUDIT_ID_CHARS);
+    const extra = a?.details && typeof a.details === 'object' && !Array.isArray(a.details) ? a.details as Record<string, unknown> : {};
+    const details: Record<string, unknown> = { ...extra, reason };
+    delete details.claimedKind;
+    if (a?.needed) details.needed = a.needed; else delete details.needed;
+    // A known id with a mismatched kind is recorded as the stored principal, with the claim alongside.
+    const forged = stored !== null && stored.kind !== p.kind;
+    if (forged) details.claimedKind = typeof p?.kind === 'string' ? String(p.kind).slice(0, 32) : String(p?.kind);
+    const scope = a?.scope;
+    const row: NewActivity = {
+      onBehalfOf: cap(a?.onBehalfOf), sessionId: cap(a?.sessionId), jobId: cap(a?.jobId),
+      attemptN: typeof a?.attemptN === 'number' && Number.isInteger(a.attemptN) ? a.attemptN : null,
+      artifactId: cap(a?.artifactId), versionId: cap(a?.versionId), entityId: cap(a?.entityId),
+      entityType: cap(a?.entityType) ?? (action.split('.')[0] || 'platform').slice(0, MAX_AUDIT_ID_CHARS),
+      workspaceId: cap((scope ? scopeWorkspace(scope) : null) ?? a?.workspaceId),
+      projectId: cap((scope ? scopeProject(scope) : null) ?? a?.projectId),
+      // Fixed fields last: the caller cannot rewrite who acted, what was asked, or the outcome.
+      actorKind: forged ? stored.kind : KINDS.includes(p?.kind) ? p.kind : 'user',
+      actorId: forged ? stored.id : cap(p?.id) ?? String(p?.id ?? '').slice(0, MAX_AUDIT_ID_CHARS),
+      action, status: 'denied', details
+    };
     if (this.db.inTransaction) {
       // Writing now would put the row in the caller's transaction, which may roll back. Write it after.
-      this.log(`[nexus] denial audit deferred until the open transaction ends: ${denied.action}${reason ? ` (${reason})` : ''}`);
+      this.log(`[nexus] denial audit deferred until the open transaction ends: ${action} (${reason})`);
       const ts = this.deps.now();
-      queueMicrotask(() => this.writeDeferred(denied, ts, 1));
+      queueMicrotask(() => this.writeDeferred(row, ts, 1));
       return 'deferred';
     }
-    try { appendActivityRow(this.db, denied, this.deps.now()); return true; } catch { return false; }   // the denial stands either way
+    try { appendActivityRow(this.db, row, this.deps.now()); return true; } catch { return false; }   // the denial stands either way
   }
 
   private writeDeferred(row: NewActivity, ts: number, attempt: number): void {

@@ -20,7 +20,7 @@ test('fix 5: inline JSON must survive a round-trip exactly; nothing is coerced',
   const sparse = [1]; sparse[2] = 3;
   const bad = [() => 1, Symbol('s'), 10n, [undefined], [1, undefined], { a: undefined }, NaN, Infinity, -Infinity, -0,
     { n: NaN }, { b: 1n }, new Date(0), new Map(), { toJSON() { return 1; } }, cyclic, sparse, { [Symbol('k')]: 1 },
-    Object.create({ inherited: 1 })];
+    Object.create({ inherited: 1 }), JSON.parse('{"__proto__":{"a":1}}'), { deep: [JSON.parse('{"__proto__":1}')] }];
   bad.forEach((json, i) => {
     assert.throws(() => validateStorage({ kind: 'inline', json }), (e) => e.code === 'invalid', `case ${i}`);
   });
