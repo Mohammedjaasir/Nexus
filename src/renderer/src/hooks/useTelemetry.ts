@@ -80,6 +80,8 @@ export interface FleetTelemetry {
   lastTool: Record<string, string>;
   /** latest breaker state per agent (drives the cost-meter color + ⚠) */
   breakers: Record<string, BreakerState>;
+  /** Set when the cold-start snapshot could not be read. */
+  error?: string;
 }
 
 /**
@@ -92,6 +94,7 @@ export function useFleetTelemetry(): FleetTelemetry {
   const [rate, setRate] = useState<Record<string, number>>({});
   const [lastTool, setLastTool] = useState<Record<string, string>>({});
   const [breakers, setBreakers] = useState<Record<string, BreakerState>>({});
+  const [error, setError] = useState<string | undefined>(undefined);
   const rates = useRef<Record<string, Rate>>({});
 
   useEffect(() => {
@@ -125,7 +128,10 @@ export function useFleetTelemetry(): FleetTelemetry {
         if (arr.length) tools[id] = arr[arr.length - 1].tool;
       }
       setLastTool((prev) => ({ ...tools, ...prev }));
-    }).catch(() => { /* collector not up — empty grid */ });
+    }).catch((e: unknown) => {
+      // Collector not up: an empty grid, and the reason for anyone who shows it.
+      if (alive) setError(e instanceof Error ? e.message : String(e));
+    });
 
     const offEvent = window.cth.onTelemetryEvent?.((e: TelemetryEvent) => {
       if (e.kind === 'usage') foldUsage(e.sample);
@@ -138,7 +144,7 @@ export function useFleetTelemetry(): FleetTelemetry {
     return () => { alive = false; offEvent?.(); offBreaker?.(); };
   }, []);
 
-  return { samples, spark, rate, lastTool, breakers };
+  return { samples, spark, rate, lastTool, breakers, error };
 }
 
 /**

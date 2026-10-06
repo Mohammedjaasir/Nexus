@@ -6,7 +6,7 @@ import { OrgSection } from './OrgSection';
 import { Muted, Scroll, TriggerCard } from './ui';
 
 /**
- * TRIGGERS — every way the floor gets woken up without a human typing, in one
+ * TRIGGERS — every way the agents get woken up without a human typing, in one
  * tab. Four types (src/shared/triggers.ts is the contract): schedules, context,
  * webhooks and organisation. Schedules is the oldest and used to BE this tab.
  *
@@ -54,7 +54,7 @@ export function TriggersTab() {
 
       <TriggerCard
         title="ORGANISATION"
-        blurb="Let a teammate's Nexus message yours."
+        blurb="Configuration only. No transport exists yet, so nothing is sent or received."
         summary={orgSummary}
       >
         <OrgSection onSummary={setOrgSummary} />

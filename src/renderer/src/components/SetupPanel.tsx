@@ -5,20 +5,20 @@
  * OUTSIDE the app bundle: mempalace for semantic memory, uv to install it, git
  * for worktrees, one CLI per agent engine. Every one of them degrades silently
  * when missing — which is the right runtime behaviour and a terrible diagnostic
- * one, because "off" and "broken" look identical from the floor. This page is the
+ * one, because "off" and "broken" look identical from outside. This page is the
  * single place that distinguishes them, and the only place that says what each
  * tool actually buys you.
  *
  * The primary action delegates rather than executes: installing software touches
- * the user's machine and can need a password, so the button SEEDS Michael's
- * dispatch box with an exact, verified-by-him contract instead of shelling out
- * from the renderer. The user still presses dispatch. That keeps a real
- * confirmation step in front of anything that writes outside the app.
+ * the user's machine and can need a password, so the button SEEDS the lead
+ * agent's request box with an exact contract it verifies, instead of shelling
+ * out from the renderer. The user still presses Send to lead agent. That keeps
+ * a real confirmation step in front of anything that writes outside the app.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PixelButton } from './PixelButton';
 import { Icon } from './Icon';
-import { useStore } from '@/store/store';
+import { openLeadSection } from '@/nexus/agents/workbench/openLeadSection';
 import { setupPrompt, type ToolStatus, type ToolKind } from '../../../shared/toolCatalog';
 
 const SECTIONS: { kind: ToolKind; title: string; blurb: string }[] = [
@@ -116,8 +116,6 @@ function ToolRow({ tool }: { tool: ToolStatus }) {
 export function SetupPanel({ onDone }: { onDone?: () => void } = {}) {
   const [tools, setTools] = useState<ToolStatus[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const requestDispatchSeed = useStore((s) => s.requestDispatchSeed);
-  const requestCommandCenterTab = useStore((s) => s.requestCommandCenterTab);
 
   const refresh = useCallback(async () => {
     setBusy(true);
@@ -127,7 +125,7 @@ export function SetupPanel({ onDone }: { onDone?: () => void } = {}) {
   }, []);
   useEffect(() => { void refresh(); }, [refresh]);
 
-  // Only ESSENTIALS are handed to Michael. Installing all eight engine CLIs
+  // Only ESSENTIALS are handed to the lead agent. Installing all eight engine CLIs
   // because they happen to be listed would be a wild overreach of one click.
   const missingEssential = useMemo(
     () => (tools ?? []).filter((t) => !t.found && t.essential),
@@ -135,10 +133,10 @@ export function SetupPanel({ onDone }: { onDone?: () => void } = {}) {
   );
   const readyCount = (tools ?? []).filter((t) => t.found).length;
 
-  const askMichael = () => {
+  const seedLeadRequest = () => {
     if (missingEssential.length === 0) return;
-    requestDispatchSeed(setupPrompt(missingEssential));
-    requestCommandCenterTab('floor'); // the dispatch box lives on the monitor tab
+    // Selects the lead agent, then opens its Requests section with the box filled.
+    openLeadSection('requests', setupPrompt(missingEssential));
     // This panel lives in a modal now — leaving it open would hide the very box
     // we just filled in.
     onDone?.();
@@ -169,13 +167,13 @@ export function SetupPanel({ onDone }: { onDone?: () => void } = {}) {
       }}>
         <div style={{ flex: 1, minWidth: 220, fontSize: 12, color: 'var(--cth-ink-700)', lineHeight: 1.5 }}>
           {missingEssential.length
-            ? <>The lead agent can install the {missingEssential.length} missing recommended {missingEssential.length === 1 ? 'tool' : 'tools'} for you. This fills in its dispatch box — nothing runs until you press dispatch.</>
+            ? <>The lead agent can install the {missingEssential.length} missing recommended {missingEssential.length === 1 ? 'tool' : 'tools'} for you. This fills in its request box; nothing runs until you press Send to lead agent.</>
             : <>Everything recommended is installed. Individual engines above are optional — set up only the ones you use.</>}
         </div>
         <PixelButton
           variant="primary"
           size="md"
-          onClick={askMichael}
+          onClick={seedLeadRequest}
           disabled={missingEssential.length === 0}
         >
           <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>

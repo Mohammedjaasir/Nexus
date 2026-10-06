@@ -159,9 +159,9 @@ export function TasksKanban() {
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--cth-paper-200)', position: 'relative' }}>
-      {/* Toolbar — read-only: the god is the ledger's writer. New work enters
-          through the dispatch box (which mails the god), not by the human
-          inserting cards the orchestrator never heard about. */}
+      {/* Toolbar, read-only: the lead agent is the ledger's writer. New work
+          enters through Requests (which mails the lead agent), not by the human
+          inserting cards the lead agent never heard about. */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', flexShrink: 0,
         borderBottom: '1px solid var(--cth-ink-300)'
@@ -170,7 +170,7 @@ export function TasksKanban() {
           {tasks.length} task{tasks.length === 1 ? '' : 's'}
         </span>
         <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--cth-ink-300)' }}>
-          new work? dispatch it to the lead agent (monitor tab)
+          New work? Send it to the lead agent from Requests.
         </span>
       </div>
 
@@ -255,7 +255,7 @@ function TaskCard({ task, accent, assigneeName, onOpen, onDismiss }: {
           )}
         </span>
         {waitsOnHuman(task) && (
-          <span title="waiting on YOUR answer — see the ASK ME tab" style={{
+          <span title="Waiting on your answer. See Needs you." style={{
             alignSelf: 'center', marginRight: 18, flexShrink: 0,
             fontFamily: 'var(--cth-font-display)', fontSize: 10, padding: '2px 5px 1px',
             background: 'var(--cth-lilac)', color: 'var(--cth-ink-900)',
@@ -376,7 +376,7 @@ export function TaskDetail({ task, all, assigneeName, onMove, onAssign, onClose 
                       </div>
                     ) : (
                       <div style={{ fontSize: 11, color: 'var(--cth-coral)', fontFamily: 'var(--cth-font-display)' }}>
-                        AWAITING YOUR ANSWER — ASK ME TAB
+                        WAITING ON YOUR ANSWER, SEE NEEDS YOU
                       </div>
                     )}
                   </div>

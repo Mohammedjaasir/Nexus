@@ -132,48 +132,6 @@
     }
   ],
   "knownLeaks": {
-    "components/AskMeTab.tsx": [
-      {
-        "rule": "office",
-        "text": "dismiss — clear this off the ASK ME board without answering (history kept)"
-      },
-      {
-        "rule": "office",
-        "text": "When the team blocks a task on your input — a question to answer or a to-do only you can perform — it shows up here (and on the ASK ME board on the floor)."
-      }
-    ],
-    "components/CommandCenterPanel.tsx": [
-      {
-        "rule": "lead",
-        "text": "orchestrator (god)"
-      },
-      {
-        "rule": "office",
-        "text": " (default — set a floor token budget in Settings)"
-      },
-      {
-        "rule": "office",
-        "text": " (floor budget)"
-      },
-      {
-        "rule": "office",
-        "text": "Find exact text across hive files…"
-      },
-      {
-        "rule": "office",
-        "text": "floor budget"
-      },
-      {
-        "rule": "office",
-        "text": "What does the hive know about…"
-      }
-    ],
-    "components/MemoryGraphPanel.tsx": [
-      {
-        "rule": "office",
-        "text": "No messages logged yet — the hive is quiet. Agents shown as roster."
-      }
-    ],
     "hooks/useHive.ts": [
       {
         "rule": "lead",
@@ -228,6 +186,12 @@
       {
         "rule": "visual",
         "text": "@brand/logo.png?url"
+      }
+    ],
+    "nexus/agents/workbench/useRestartAgent.ts": [
+      {
+        "rule": "lead",
+        "text": "orchestrator (god)"
       }
     ],
     "shared/claudeCommands.ts": [

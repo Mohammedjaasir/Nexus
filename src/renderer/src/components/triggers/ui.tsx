@@ -4,9 +4,8 @@ import { TRIGGER_MODES, type TriggerMode } from '@shared/triggers';
 /**
  * Shared chrome for the Triggers tab.
  *
- * The Command Center's own `Section`/`Scroll`/`Muted` are module-private to
- * `CommandCenterPanel.tsx`, so these mirror them exactly (same paddings, same
- * fonts, same `inset` hairlines) and add the collapse behaviour this tab needs —
+ * They mirror the retired lead panel's own `Section`/`Scroll`/`Muted` exactly
+ * (same paddings, same fonts, same `inset` hairlines) and add the collapse behaviour this tab needs —
  * four types of dense config do not fit down a sidebar as flat forms.
  */
 

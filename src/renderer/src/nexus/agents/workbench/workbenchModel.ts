@@ -13,11 +13,11 @@ export const WORKBENCH_SECTIONS: readonly WorkbenchSection[] = [
   { id: 'git', label: 'Git', hosted: true, leadOnly: false },
   { id: 'messages', label: 'Messages', hosted: true, leadOnly: false },
   { id: 'traces', label: 'Traces', hosted: true, leadOnly: false },
-  { id: 'team', label: 'Team', hosted: true, leadOnly: true },
-  { id: 'requests', label: 'Requests', hosted: true, leadOnly: true },
-  { id: 'tasks', label: 'Tasks', hosted: true, leadOnly: true },
-  { id: 'needs-you', label: 'Needs you', hosted: true, leadOnly: true },
-  { id: 'activity', label: 'Activity', hosted: true, leadOnly: true },
+  { id: 'team', label: 'Team', hosted: false, leadOnly: true },
+  { id: 'requests', label: 'Requests', hosted: false, leadOnly: true },
+  { id: 'tasks', label: 'Tasks', hosted: false, leadOnly: true },
+  { id: 'needs-you', label: 'Needs you', hosted: false, leadOnly: true },
+  { id: 'activity', label: 'Activity', hosted: false, leadOnly: true },
   { id: 'triggers', label: 'Triggers', hosted: true, leadOnly: true },
   { id: 'history', label: 'History', hosted: true, leadOnly: true },
   { id: 'memory', label: 'Memory', hosted: true, leadOnly: true },
@@ -27,8 +27,7 @@ export const WORKBENCH_SECTIONS: readonly WorkbenchSection[] = [
 ];
 
 const AGENT_ORDER: readonly WorkbenchSectionId[] = ['terminal', 'git', 'messages', 'traces'];
-// 'requests' joins this list in task 9; until then the request box lives in Team.
-const LEAD_ORDER: readonly WorkbenchSectionId[] = ['terminal', 'team', 'tasks', 'needs-you', 'activity', 'triggers',
+const LEAD_ORDER: readonly WorkbenchSectionId[] = ['terminal', 'team', 'requests', 'tasks', 'needs-you', 'activity', 'triggers',
   'history', 'memory', 'graph', 'skills', 'workers', 'messages', 'traces'];
 
 const BY_ID = new Map(WORKBENCH_SECTIONS.map((s) => [s.id, s] as const));
@@ -44,7 +43,7 @@ export function sectionsFor(o: { isLead: boolean; showHistory: boolean }): Workb
 
 /** Legacy tab keys (store `ccTabRequest`) that changed name in the workbench. */
 const LEGACY_REQUESTS: Readonly<Record<string, WorkbenchSectionId>> = {
-  floor: 'team',
+  floor: 'requests',
   human: 'needs-you',
   'trigger-history': 'history'
 };

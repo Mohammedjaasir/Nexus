@@ -4,11 +4,17 @@ import { usePtyParser } from '@/hooks/usePtyParser';
 import { GitTab } from '@/components/GitTab';
 import { ThreadsPanel } from '@/components/ThreadsPanel';
 import { ToolWaterfall } from '@/components/ToolWaterfall';
+import { AgentControlStrip } from '@/components/AgentControlStrip';
 import { displayDescription, leadAgentId } from '@shared/agentDisplay';
 import { useAgentDisplay } from '../agentIdentity';
 import { WorkbenchHeader } from './WorkbenchHeader';
 import { WorkbenchTerminal } from './WorkbenchTerminal';
-import { LegacyLeadSection } from './LegacyLeadSections';
+import { TeamSection } from './TeamSection';
+import { RequestsSection, type RequestDraft } from './RequestsSection';
+import { TasksSection } from './TasksSection';
+import { NeedsYouSection } from './NeedsYouSection';
+import { ActivitySection } from './ActivitySection';
+import { HostedSection } from './HostedSection';
 import { useDeliveryControl } from './useDeliveryControl';
 import { initialSection, sectionForRequest, sectionsFor, type WorkbenchSectionId } from './workbenchModel';
 
@@ -71,18 +77,20 @@ function WorkbenchFrame({ agent, fullscreen, onPtyStream }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ccTabRequest]);
 
-  // A task "assign" or setup prefill seeds the request box in Team and opens it.
-  // Only a NEW seed opens Team; the one already in the store at mount just seeds
-  // the box (TaskDetailOverlay pairs its seed with a 'floor' tab request anyway).
-  const [dispatchSeed, setDispatchSeed] = useState<{ text: string; seq: number }>({ text: '', seq: 0 });
+  // The request box's draft lives here so it survives switching sections.
+  // A task "assign", a GitHub issue or the setup prefill seeds it and opens
+  // Requests. Only a NEW seed opens Requests; the one already in the store at
+  // mount just seeds the box (openLeadSection pairs its seed with a 'requests'
+  // section request anyway). A seed clears any suggested agent: the lead decides.
+  const [request, setRequest] = useState<RequestDraft>({ text: '', suggest: '' });
   const dispatchSeedRequest = useStore((s) => s.dispatchSeedRequest);
   const seenSeedSeq = useRef(dispatchSeedRequest?.seq ?? 0);
   useEffect(() => {
     if (!dispatchSeedRequest) return;
-    setDispatchSeed({ text: dispatchSeedRequest.text, seq: dispatchSeedRequest.seq });
+    setRequest({ text: dispatchSeedRequest.text, suggest: '' });
     if (dispatchSeedRequest.seq !== seenSeedSeq.current) {
       seenSeedSeq.current = dispatchSeedRequest.seq;
-      if (isLead) setLeadSection('team');
+      if (isLead) setLeadSection('requests');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatchSeedRequest]);
@@ -122,12 +130,21 @@ function WorkbenchFrame({ agent, fullscreen, onPtyStream }: {
     body = <div className="nxw__hosted nxw__hosted--row"><ThreadsPanel agentId={agent.id} /></div>;
   } else if (active === 'traces') {
     body = <div className="nxw__hosted nxw__hosted--row"><ToolWaterfall agentId={agent.id} /></div>;
+  } else if (active === 'team') {
+    body = <TeamSection />;
+  } else if (active === 'requests') {
+    body = <RequestsSection draft={request} onDraft={setRequest} />;
+  } else if (active === 'tasks') {
+    body = <TasksSection onRequests={() => setSection('requests')} />;
+  } else if (active === 'needs-you') {
+    body = <NeedsYouSection />;
+  } else if (active === 'activity') {
+    body = <ActivitySection />;
   } else {
     body = (
-      <LegacyLeadSection
+      <HostedSection
         section={active}
         agent={agent}
-        dispatchSeed={dispatchSeed}
         memoryWho={memoryWho}
         onMemoryWho={setMemoryWho}
         onSection={setSection}
@@ -146,6 +163,9 @@ function WorkbenchFrame({ agent, fullscreen, onPtyStream }: {
         delivery={isLead ? delivery : null}
         titleId={titleId}
       />
+      {/* Pause / halt / steer for every live agent, above the sections so the
+          halt control is in reach whichever section is open. */}
+      {agent.ptyId && <AgentControlStrip key={agent.id} agentId={agent.id} />}
       <div className="nxw__tabs" role="tablist" aria-label={`${label} sections`} onKeyDown={onTabKey}>
         {sections.map((s) => {
           const selected = s.id === active;

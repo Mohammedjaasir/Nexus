@@ -89,10 +89,11 @@ test('renderer task actions never send a whole stale ledger back to main', () =>
   const preload = fs.readFileSync(path.join(root, 'src/preload/index.ts'), 'utf8');
   const main = fs.readFileSync(path.join(root, 'src/main/index.ts'), 'utf8');
   const sources = [
-    'src/renderer/src/components/AskMeTab.tsx',
+    'src/renderer/src/nexus/agents/workbench/NeedsYouSection.tsx',
     'src/renderer/src/components/TaskDetailOverlay.tsx',
     'src/renderer/src/components/TasksKanban.tsx',
-    'src/renderer/src/hooks/useHive.ts'
+    'src/renderer/src/hooks/useHive.ts',
+    'src/renderer/src/nexus/agents/workbench/TasksSection.tsx'
   ].map((file) => fs.readFileSync(path.join(root, file), 'utf8'));
 
   for (const source of sources) {
@@ -107,4 +108,5 @@ test('renderer task actions never send a whole stale ledger back to main', () =>
   assert.match(sources[1], /hivePatchTask\s*\(/);
   assert.match(sources[2], /hiveDeleteTask\s*\(/);
   assert.match(sources[3], /hiveAddTask\s*\(/);
+  assert.match(sources[4], /hiveDeleteTask\s*\(/);
 });

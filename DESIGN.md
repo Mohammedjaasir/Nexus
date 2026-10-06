@@ -64,7 +64,7 @@ Sizes are not tokenised; each stylesheet sets its own `font` shorthand. In pract
 - `src/renderer/src/nexus/`: all Spine UI. Subfolders: `agents`, `assistant`, `chrome`, `components`, `data`, `design` (provenance), `intent`, `launcher`, `pages`, `project`, `review`, `router`, `routes`, `runs`, `state`, `styles`, `ui`, `workspaces`.
 - Pure models (no React or `window`, loadable by `test/load-ts.cjs`) include `provenance.ts`, `launcher/indexModel.ts`, `router/routes.ts`, `project/spineModel.ts`, `project/passport.ts`, `runs/runModel.ts`, `review/reviewModel.ts`, `intent/intentContext.ts`.
 - `src/renderer/src/design/tokens.css`: the legacy `--cth-*` tokens, now references to `--nx-*`.
-- `src/renderer/src/design/tokens.ts`: sRGB mirror of the light-theme values. Its runtime colours are read only by `scene/office`; `AddAgentModal`, `AgentCard`, `PixelPanel`, `SidebarTabs`, `store` and `memoryGraph/buildGraph` import only its types (`AccentColorName`). Update with `tokens.css`.
+- `src/renderer/src/design/tokens.ts`: sRGB mirror of the light-theme values. Its runtime colours are read only by `scene/office`; `AddAgentModal`, `AgentCard`, `PixelPanel`, `store` and `memoryGraph/buildGraph` import only its types (`AccentColorName`). Update with `tokens.css`.
 - `src/renderer/src/design/global.css`: reset, focus ring, scrollbars, keyframes, markdown preview, reduced-motion rule.
 - `test/nexus-decoupling.test.cjs`: guards `nexus/` against the retired office scene, pixel components, persona names and the old product identity, and against `"Inter"` and plain horizontal gradients in Nexus CSS (repeating gradients are textures and are allowed).
 

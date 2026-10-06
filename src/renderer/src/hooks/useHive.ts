@@ -1034,7 +1034,7 @@ export function useHive(config: HarnessConfig | null): void {
   //    `power:resume`. We respawn EXACTLY those, resuming each agent's prior CLI
   //    session (--resume) so the terminal self-heals instead of the user clicking
   //    "Restart & Continue". This reuses the same resume-spawn flow as that button
-  //    (CommandCenterPanel.restartWithModel) and restoreTeam's worktree handling.
+  //    (nexus/agents/workbench/useRestartAgent) and restoreTeam's worktree handling.
   //    Pure addition: an empty `dead[]` is a no-op; healthy PTYs are never touched.
   useEffect(() => {
     if (!config?.onboardingComplete) return;

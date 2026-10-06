@@ -11,7 +11,7 @@ test('every agent opens on the terminal; only the lead gets coordination section
   assert.deepEqual(m.sectionsFor({ isLead: false, showHistory: true }).map((s) => s.id), ['terminal', 'git', 'messages', 'traces']);
   const lead = m.sectionsFor({ isLead: true, showHistory: false }).map((s) => s.id);
   assert.equal(lead[0], 'terminal');
-  for (const id of ['team', 'tasks', 'needs-you', 'activity', 'triggers', 'memory', 'graph', 'skills', 'workers']) assert.ok(lead.includes(id), id);
+  for (const id of ['team', 'requests', 'tasks', 'needs-you', 'activity', 'triggers', 'memory', 'graph', 'skills', 'workers']) assert.ok(lead.includes(id), id);
   assert.ok(!lead.includes('history'));
   assert.ok(m.sectionsFor({ isLead: true, showHistory: true }).some((s) => s.id === 'history'));
   assert.equal(m.initialSection({ isLead: false, stored: 'git' }), 'git');
@@ -20,7 +20,7 @@ test('every agent opens on the terminal; only the lead gets coordination section
 });
 
 test('legacy tab requests land on a workbench section', () => {
-  assert.equal(m.sectionForRequest('floor'), 'team');           // task 9 changes this to 'requests'
+  assert.equal(m.sectionForRequest('floor'), 'requests');
   assert.equal(m.sectionForRequest('human'), 'needs-you');
   assert.equal(m.sectionForRequest('trigger-history'), 'history');
   for (const t of ['terminal', 'tasks', 'triggers', 'memory', 'graph', 'activity', 'skills', 'workers']) assert.equal(m.sectionForRequest(t), t);
@@ -49,7 +49,7 @@ test('one terminal mount per pty, keyed by generation, with the fullscreen guard
 
 test('the workbench is Nexus-native: no pixel chrome, no Command Center mount', () => {
   const dir = path.join(__dirname, '..', 'src/renderer/src/nexus/agents/workbench');
-  for (const f of fs.readdirSync(dir).filter((f) => f !== 'LegacyLeadSections.tsx')) assert.doesNotMatch(fs.readFileSync(path.join(dir, f), 'utf8'), /components\/Pixel|PixelPanel|PixelButton|PixelBadge/, f);
+  for (const f of fs.readdirSync(dir)) assert.doesNotMatch(fs.readFileSync(path.join(dir, f), 'utf8'), /components\/Pixel|PixelPanel|PixelButton|PixelBadge/, f);
   assert.doesNotMatch(read('src/renderer/src/components/FullscreenTerminal.tsx'), /<CommandCenterPanel/);
   assert.doesNotMatch(read('src/renderer/src/nexus/agents/AgentsPage.tsx'), /AgentDetailPanel/);
 });

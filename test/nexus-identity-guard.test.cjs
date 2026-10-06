@@ -47,7 +47,7 @@ test('guard: comments, identifiers, type literals and import paths are not copy'
 
 test('guard: the real reachable set starts at main.tsx and covers the App mounts', () => {
   const rel = new Set([...guard.reachableFrom([guard.ENTRY])].map((f) => guard.relName(f)));
-  for (const f of ['App.tsx', 'nexus/NexusShell.tsx', 'components/CommandCenterPanel.tsx', 'components/SettingsModal.tsx',
+  for (const f of ['App.tsx', 'nexus/NexusShell.tsx', 'nexus/agents/workbench/TeamSection.tsx', 'components/SettingsModal.tsx',
     'components/OnboardingWizard.tsx', 'components/QuitWarningModal.tsx', 'components/AddAgentModal.tsx',
     'components/FullscreenTerminal.tsx'])
     assert.ok(rel.has(f), f);

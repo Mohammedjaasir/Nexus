@@ -348,7 +348,7 @@ export function MemoryGraphPanel({
           <div style={{
             position: 'absolute', top: 10, left: 0, right: 0, textAlign: 'center',
             fontSize: 12, color: 'var(--cth-ink-500)', pointerEvents: 'none'
-          }}>No messages logged yet — the hive is quiet. Agents shown as roster.</div>
+          }}>No messages logged yet. Agents are shown from the roster.</div>
         )}
 
         {/* tooltip */}

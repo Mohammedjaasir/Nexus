@@ -1,12 +1,12 @@
 import { PtyTerminalView } from '@/components/PtyTerminalView';
 import { terminalInstanceKey } from '@/components/terminalRecovery';
 import { MessageQueueComposer } from '@/components/MessageQueueComposer';
-import { AgentControlStrip } from '@/components/AgentControlStrip';
 import { useStore, type Agent } from '@/store/store';
 import { EmptyState } from '../../ui/EmptyState';
 
-/** The Terminal section, the same for every agent: operator controls, the live
- *  pty and the message queue. Moved from the old agent panel and lead panel.
+/** The Terminal section, the same for every agent: the live pty and the
+ *  message queue. Operator controls sit above the sections, in the frame.
+ *  Moved from the old agent panel and lead panel.
  *
  *  @param fullscreen this instance IS the fullscreen overlay, so it owns the pty
  *  and renders the real terminal. The docked instance shows a placeholder
@@ -42,8 +42,6 @@ export function WorkbenchTerminal({ agent, fullscreen, isLead, onPtyStream }: {
 
   return (
     <div className="nxw__term">
-      {/* Pause / halt / steer, for every live agent. */}
-      <AgentControlStrip key={agent.id} agentId={agent.id} />
       {isFullscreenedHere ? (
         <div className="nxw__state">
           <EmptyState
