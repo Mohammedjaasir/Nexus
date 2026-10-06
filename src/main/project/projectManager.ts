@@ -473,6 +473,7 @@ export class ProjectManager {
 
   /**
    * Get the persisted milestone and task graph plan for a project.
+   * Not exposed over IPC since B0a: no UI may mark tasks complete. Kept for unit tests.
    */
   getProjectPlan(projectId: string): ProjectPlan | null {
     let plan = this.store.getProjectPlan(projectId);
@@ -484,18 +485,6 @@ export class ProjectManager {
         this.store.saveProjectPlan(plan);
       }
     }
-    return plan;
-  }
-
-  /**
-   * Regenerate and persist a fresh milestone and task graph plan for a project.
-   */
-  generateProjectPlan(projectId: string): ProjectPlan | null {
-    const project = this.store.getProject(projectId);
-    if (!project) return null;
-    const graphNodes = this.store.getProjectGraphNodes(projectId);
-    const plan = this.planner.generateInitialPlan(project, graphNodes);
-    this.store.saveProjectPlan(plan);
     return plan;
   }
 
@@ -526,6 +515,7 @@ export class ProjectManager {
 
   /**
    * Analyze project capabilities, missing areas, and evidence-based completion confidence.
+   * Not exposed over IPC since B0a: no UI may mark tasks complete. Kept for unit tests.
    */
   analyzeProjectGaps(projectId: string): ProjectGapAnalysisResult | null {
     const project = this.store.getProject(projectId);
@@ -576,23 +566,6 @@ export class ProjectManager {
 
     const goal = this.goalPlanner.createProjectGoal(projectId, title, description, project.domainId);
     this.store.saveProjectGoal(goal);
-
-    const graphNodes = this.store.getProjectGraphNodes(projectId);
-    const graphEdges = this.store.getProjectGraphEdges(projectId);
-    const existingPlan = this.store.getProjectPlan(projectId);
-
-    return this.goalPlanner.evaluateGoal(goal, project, graphNodes, graphEdges, existingPlan);
-  }
-
-  /**
-   * Retrieve and evaluate the active project goal against latest project evidence.
-   */
-  getProjectGoal(projectId: string): GoalAnalysisResult | null {
-    const project = this.store.getProject(projectId);
-    if (!project) return null;
-
-    const goal = this.store.getProjectGoal(projectId);
-    if (!goal) return null;
 
     const graphNodes = this.store.getProjectGraphNodes(projectId);
     const graphEdges = this.store.getProjectGraphEdges(projectId);

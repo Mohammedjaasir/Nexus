@@ -1567,25 +1567,13 @@ const api = {
   ): Promise<TaskExecutionPlan | null> =>
     ipcRenderer.invoke('project:task:plan', projectId, task, options),
 
-  // ─── Phase 8A: Project Plan & Task Graph APIs ─────────────────────────────
-  projectPlanGet: (projectId: string): Promise<ProjectPlan | null> =>
-    ipcRenderer.invoke('project:plan:get', projectId),
-  projectPlanGenerate: (projectId: string): Promise<ProjectPlan | null> =>
-    ipcRenderer.invoke('project:plan:generate', projectId),
-
-  // ─── Phase 8B: Project Gap Analysis APIs ──────────────────────────────────
-  projectGapsAnalyze: (projectId: string): Promise<ProjectGapAnalysisResult | null> =>
-    ipcRenderer.invoke('project:gaps:analyze', projectId),
-
   // ─── Phase 8C: Goal-Aware Project Planning APIs ───────────────────────────
   projectGoalSet: (
     projectId: string,
     title: string,
     description?: string
   ): Promise<GoalAnalysisResult | null> =>
-    ipcRenderer.invoke('project:goal:set', projectId, title, description),
-  projectGoalGet: (projectId: string): Promise<GoalAnalysisResult | null> =>
-    ipcRenderer.invoke('project:goal:get', projectId)
+    ipcRenderer.invoke('project:goal:set', projectId, title, description)
 };
 
 contextBridge.exposeInMainWorld('cth', api);

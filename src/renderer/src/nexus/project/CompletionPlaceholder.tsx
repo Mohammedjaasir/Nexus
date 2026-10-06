@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import type { Project } from '@shared/project';
 import { workspaceForDomain } from '../workspaces/mapping';
 import { Badge } from '../ui/Badge';
-import { EmptyState } from '../ui/EmptyState';
+import { Icon } from '../icons';
 import { completionCopy } from './completionModel';
 
 /** The Completion tool before the platform engine exists: a plain planned
@@ -16,13 +16,16 @@ export function CompletionPlaceholder({ project }: { project: Project }) {
         <h1 id="nx-surface-title" className="nx-surface__title" tabIndex={-1}>{c.title}</h1>
         <Badge>{c.badge}</Badge>
       </header>
-      <EmptyState icon="completion" title="Nothing is tracked yet" body={
-        <>
+      {/* Static copy, so no role="status"; h2 keeps the outline under the page h1.
+          Styled with the shared EmptyState classes. */}
+      <section className="nx-empty" aria-labelledby="nx-completion-empty">
+        <h2 id="nx-completion-empty" className="nx-empty__title"><Icon name="completion" size={16} className="nx-empty__icon" />Nothing is tracked yet</h2>
+        <div className="nx-empty__body">
           <p>{c.lead}</p>
           <p>{c.planned}</p>
           <p>{c.detail}</p>
-        </>
-      } />
+        </div>
+      </section>
       <dl className="nx-completion__facts">
         {c.facts.map((f) => <Fragment key={f.label}><dt>{f.label}</dt><dd>{f.value}</dd></Fragment>)}
       </dl>

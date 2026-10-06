@@ -55,7 +55,6 @@ if (import.meta.env.DEV && typeof window !== 'undefined' && !window.cth) {
     projectList: async () => sampleProjects,
     projectSetActive: async (id: string) => sampleProjects.find((p) => p.id === id) || sampleProjects[0],
     projectRefresh: async (id: string) => sampleProjects.find((p) => p.id === id) || sampleProjects[0],
-    projectPlanGet: async () => null,
     hiveTasks: async () => ({ tasks: [] }),
     hiveAgents: async () => sampleAgents,
     hiveRegistry: async () => ({}),

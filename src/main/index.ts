@@ -3365,22 +3365,10 @@ ipcMain.handle('project:task:plan', async (_evt, projectId: unknown, task: unkno
   if (typeof projectId !== 'string' || typeof task !== 'string') return null;
   return projectManager.prepareTaskExecutionPlan(projectId, task, options && typeof options === 'object' ? options as any : undefined);
 });
-ipcMain.handle('project:plan:get', (_evt, projectId: unknown) =>
-  (typeof projectId === 'string' ? projectManager.getProjectPlan(projectId) : null)
-);
-ipcMain.handle('project:plan:generate', (_evt, projectId: unknown) =>
-  (typeof projectId === 'string' ? projectManager.generateProjectPlan(projectId) : null)
-);
-ipcMain.handle('project:gaps:analyze', (_evt, projectId: unknown) =>
-  (typeof projectId === 'string' ? projectManager.analyzeProjectGaps(projectId) : null)
-);
 ipcMain.handle('project:goal:set', (_evt, projectId: unknown, title: unknown, description: unknown) =>
   (typeof projectId === 'string' && typeof title === 'string'
     ? projectManager.setProjectGoal(projectId, title, typeof description === 'string' ? description : undefined)
     : null)
-);
-ipcMain.handle('project:goal:get', (_evt, projectId: unknown) =>
-  (typeof projectId === 'string' ? projectManager.getProjectGoal(projectId) : null)
 );
 
 // ─── IPC: skills (installed locally, and the browsable catalog) ─────────────
