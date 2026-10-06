@@ -36,6 +36,7 @@ import { LegacyWriteQueue } from './legacyWriteQueue';
 import { appendCrashLog, redactForLog } from './crashLog';
 import type { MigrationContext, MigrationHooks, MigrationOutcome } from './nexus/db/migrationTypes';
 import { applyV7, v7ShapeProblem } from './nexus/db/schemaV7';
+import { syncPrimaryFromLegacyDomain } from './nexus/workspace/legacyPrimary';
 import { backupAndVerify, BackupError, freeBytes, integrityOk, tableRowCounts, type BackupRecord } from './nexus/db/backup';
 
 export const V7 = 7;
@@ -258,6 +259,10 @@ export class PersistStore {
 
   private version = 0;
   private platformOk = false;
+  /** The open() log sink, redaction and clock, kept for platform lines after open (primary sync, delete guard). */
+  private nexusLog: (line: string) => void = (line) => console.log(line);
+  private nexusScrub: (text: string) => string = (text) => safeForLog(text, []);
+  private nexusNow: () => number = Date.now;
   private outcome: MigrationOutcome | null = null;
 
   /** Open (creating if needed) and migrate the DB. Idempotent — a second call is
@@ -308,6 +313,7 @@ export class PersistStore {
     const now = opts.now ?? Date.now;
     const hold = opts.holdV7 ?? process.env.NEXUS_DB_HOLD_V7 === '1';
     const scrub = (text: string): string => safeForLog(text, [dirname(dbFile), backupDir]);
+    this.nexusLog = log; this.nexusScrub = scrub; this.nexusNow = now;
     const from = db.pragma('user_version', { simple: true }) as number;
     this.platformOk = false;
     log(`[db] schema version ${from}`);
@@ -583,7 +589,7 @@ export class PersistStore {
 
     const healthJson = JSON.stringify(project.health ?? { healthScore: 0 });
     const metadataJson = JSON.stringify(metadata);
-    db.prepare(`
+    const upsert = (): void => { db.prepare(`
       INSERT INTO projects (
         id, name, root_path, domain_id, project_type, description,
         metadata_json, health_json, created_at, updated_at, last_analyzed_at
@@ -610,7 +616,47 @@ export class PersistStore {
       project.createdAt || Date.now(),
       project.updatedAt || Date.now(),
       project.lastAnalyzedAt || Date.now()
-    );
+    ); };
+    if (!this.platformAvailable) { upsert(); return; }
+    // v7: the upsert and the primary participation change in one IMMEDIATE transaction.
+    const run = (): void => { upsert(); this.syncPrimaryCaught(db, project.id, project.domainId ?? null); };
+    if (db.inTransaction) run(); else db.transaction(run).immediate();
+  }
+
+  /**
+   * The primary-participation sync, in a SAVEPOINT nested in the save's transaction.
+   * It never fails the legacy save: on a throw the savepoint rolls back, the line is
+   * logged, the project row still commits, and nothing is queued for retry. The
+   * platform's startup reconcile repairs the primary later.
+   */
+  private syncPrimaryCaught(db: Database.Database, projectId: string, domainId: string | null): void {
+    try {
+      db.transaction(() => syncPrimaryFromLegacyDomain(db, projectId, domainId, this.nexusNow()))();
+    } catch (err) {
+      this.nexusLogLine(`[nexus] primary sync failed project=${this.nexusScrub(String(projectId))} error=${this.nexusScrub(errorMessage(err))}`);
+    }
+  }
+
+  private nexusLogLine(line: string): void {
+    try { this.nexusLog(line); } catch { /* logging never breaks a save */ }
+  }
+
+  /**
+   * True when the project owns platform records (artifacts, jobs or agent sessions),
+   * which reference it with ON DELETE RESTRICT. False below v7. A failing check
+   * answers true, so a project is kept rather than half-deleted.
+   */
+  hasPlatformRecords(projectId: string): boolean {
+    if (!this.db || this.version !== V7 || !projectId) return false;
+    try {
+      return this.db.prepare(`SELECT EXISTS (SELECT 1 FROM artifacts WHERE project_id = ?)
+          OR EXISTS (SELECT 1 FROM jobs WHERE project_id = ?)
+          OR EXISTS (SELECT 1 FROM agent_sessions WHERE project_id = ?) AS has`)
+        .pluck().get(projectId, projectId, projectId) === 1;
+    } catch (err) {
+      this.nexusLogLine(`[nexus] platform record check failed project=${this.nexusScrub(projectId)} error=${this.nexusScrub(errorMessage(err))}; treating as present`);
+      return true;
+    }
   }
 
   /** Read a project by ID. */
@@ -661,6 +707,10 @@ export class PersistStore {
     // write throws -> the whole operation is queued (returns whether the row was seen).
     if (!id) return false;
     if (!this.db) { console.error(`[legacy-store] deleteProject(${id}) skipped: database is not open`); return false; }
+    if (this.hasPlatformRecords(id)) {
+      this.nexusLogLine(`[nexus] deleteProject refused project=${this.nexusScrub(id)}: it has platform records (artifacts, jobs or agent sessions)`);
+      return false;
+    }
     let removed = false;
     const outcome = this.queue.submit(`deleteProject:${id}`, () => {
       const db = this.db;

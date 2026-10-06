@@ -1,8 +1,9 @@
 /**
  * The Nexus platform composition root. It wires the core services onto the one
  * better-sqlite3 connection that PersistStore opened at schema v7. It grows task by
- * task (workspaces, artifacts, lineage, jobs and sessions join later); for now it
- * holds principal resolution, authorization and the activity read API.
+ * task (artifacts, lineage, jobs and sessions join later); for now it holds
+ * principal resolution, authorization, the activity read API, workspaces and
+ * project participation, and project-scoped access checks.
  *
  * No IPC is registered here. Callers in main pass a Principal resolved through
  * `principals`; the renderer never supplies identity.
@@ -11,11 +12,15 @@ import type Database from 'better-sqlite3';
 import { ActivityService } from './activity/activityService';
 import { AuthService } from './auth/authService';
 import { PrincipalResolver } from './auth/principals';
+import { ProjectAccess } from './project/projectAccess';
+import { WorkspaceService } from './workspace/workspaceService';
 
 export interface NexusPlatform {
   principals: PrincipalResolver;
   auth: AuthService;
   activity: ActivityService;
+  workspaces: WorkspaceService;
+  projects: ProjectAccess;
   startup(): void;
 }
 
@@ -25,12 +30,18 @@ export function createNexusPlatform(db: Database.Database, opts?: { now?: () => 
   const principals = new PrincipalResolver(db);
   const auth = new AuthService(db, { now, log });
   const activity = new ActivityService(db, { auth });
+  const workspaces = new WorkspaceService(db, { auth, now, log });
+  const projects = new ProjectAccess(db, { auth });
   return {
-    principals, auth, activity,
+    principals, auth, activity, workspaces, projects,
     startup() {
       // The seeded principals must resolve; a missing one throws platform_unavailable.
-      principals.localUser(); principals.system();
-      log('[nexus] platform ready: principals ok');
+      principals.localUser();
+      const system = principals.system();
+      const added = workspaces.ensureCatalog(system);
+      // Repairs a primary whose in-save sync failed and rows written by an older build.
+      const r = workspaces.reconcileLegacyPrimaries(system);
+      log(`[nexus] platform ready: principals ok, workspaces added=${added}, primaries set=${r.set} cleared=${r.cleared}`);
     }
   };
 }

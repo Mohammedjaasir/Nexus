@@ -287,6 +287,9 @@ export class ProjectManager {
    * Delete a project and its associated knowledge graph.
    */
   deleteProject(id: string): boolean {
+    // A project that owns platform records is kept, so its graph must be kept too:
+    // check before deleting anything (the store's deleteProject refuses it as well).
+    if (typeof this.store.hasPlatformRecords === 'function' && this.store.hasPlatformRecords(id)) return false;
     this.store.deleteProjectGraph(id);
     return this.store.deleteProject(id);
   }
