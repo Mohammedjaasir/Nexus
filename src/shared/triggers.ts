@@ -28,7 +28,7 @@
 export type TriggerMode = 'strict' | 'allow-all' | 'communication-only';
 
 export const TRIGGER_MODES: { value: TriggerMode; label: string; blurb: string }[] = [
-  { value: 'strict', label: 'strict', blurb: 'Ask me before anything reaches the hive.' },
+  { value: 'strict', label: 'strict', blurb: 'Ask me before anything reaches an agent.' },
   { value: 'allow-all', label: 'allow all', blurb: 'Messages, directives and communication all flow.' },
   { value: 'communication-only', label: 'communication only', blurb: 'Chatter flows; directives need my approval.' }
 ];
@@ -213,8 +213,8 @@ export const DEFAULT_ORG_TRIGGER: OrgTriggerConfig = {
 
 /** Copy shown under the org key field. Kept here so Settings and Triggers agree. */
 export const CLONE_NODE_BLURB =
-  'Set an organisation key and your teammates can message your clone node — the copy of '
-  + 'Nexus running on your machine. Each teammate runs their own, so an org key '
+  'Set an organisation key and your teammates can message your copy of Nexus, the one running on this machine. '
+  + 'Each teammate runs their own, so an org key '
   + 'is how two installs find each other.';
 
 /* ──────────────────────────── trigger history ────────────────────────────── */

@@ -15,7 +15,6 @@ import { PixelButton } from './PixelButton';
 import { UpdatesSection } from './UpdatesSection';
 import { SetupPanel } from './SetupPanel';
 import { Icon } from './Icon';
-import { OfficeThemePicker } from './OfficeThemePicker';
 import { McpDefaultsSettings } from './McpDefaultsSettings';
 import { IntegrationsRegistry } from './IntegrationsRegistry';
 import { AiEnginesSettings } from './AiEnginesSettings';
@@ -87,7 +86,7 @@ const SLACK_CONNECT_STEPS = `Connect Nexus to Slack
 2. Basic Information -> Signing Secret -> copy it into the
    "Signing secret" field here.
 3. OAuth & Permissions -> Bot Token Scopes: add
-     chat:write          (office replies in-thread)
+     chat:write          (replies in the same thread)
      channels:history    (read public-channel messages)
      groups:history      (read private-channel messages)
    Install to workspace, then copy the Bot User OAuth Token
@@ -138,7 +137,7 @@ token you were handed still reads that task once it is routed. The secret
 authorizes new work, the token only reads one task's status. Keep both private.
 
 Each webhook checks bodies against its own JSON schema — edit that in the
-Triggers tab of Michael's Command Center.`;
+Triggers section of the lead agent's workbench (Agents page).`;
 
 /** Clear every renderer-side persisted key so a relaunch starts truly empty. */
 function clearLocalState(): void {
@@ -743,7 +742,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
               {/* Move vs. fresh - two selectable option rows; move is preselected. */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {([
-                  ['move', 'Move existing data (recommended)', "Copy this harness's hive (every agent, memory, task) and the semantic-memory palace into the new folder. The old folder is left untouched as a backup you can delete later."],
+                  ['move', 'Move existing data (recommended)', "Copy this home folder's agent workspace (every agent, memory and task) and the semantic-memory palace into the new folder. The old folder is left untouched as a backup you can delete later."],
                   ['fresh', 'Start fresh', 'Point the harness at the new (empty) folder. Your existing data stays in the old folder, simply unused.']
                 ] as const).map(([value, title, desc]) => {
                   const selected = changeMode === value;
@@ -800,7 +799,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                   <Icon name="bell" />
                 </div>
                 <div style={{ flex: 1, fontSize: 15, lineHeight: '22px', color: 'var(--cth-ink-700)' }}>
-                  This permanently erases all of Michael's memories and the entire hive,
+                  This permanently erases the lead agent's memory and every agent's workspace data,
                   and cannot be undone. Any running sessions will be terminated and the app
                   will relaunch into onboarding. Are you sure?
                 </div>
@@ -1026,9 +1025,6 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                           </PixelButton>
                         </div>
                       </div>
-
-                      {/* Office Theme — TV-show office maps (experimental; flag tvShowOffices, default off) */}
-                      <OfficeThemePicker config={config} />
                     </>
                   )}
 
@@ -1050,7 +1046,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
-                            Every newly spawned Claude agent (Michael included) starts on this model unless picked per-agent.
+                            Every newly spawned Claude agent (including the lead agent) starts on this model unless picked per-agent.
                             Marked “· default” in the model pickers.
                           </span>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -1147,7 +1143,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                           </div>
                           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                             <label style={{ display: 'flex', flexDirection: 'column', gap: 4, ...slackLabelStyle }}>
-                              floor token budget
+                              total token budget
                               <input
                                 type="number" min="0" step="100000" value={agentBudget}
                                 onChange={(e) => setAgentBudget(e.target.value)}
@@ -1662,7 +1658,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                         <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
                           Callers POST to a webhook's URL with its secret in the{' '}
                           <code>x-md-webhook-secret</code> header. Each one checks bodies against its own JSON
-                          schema — edit that in the Triggers tab of Michael's Command Center, where the history
+                          schema — edit that in the Triggers section of the lead agent's workbench (Agents page), where the history
                           of everything that arrived lives too.
                         </span>
 
@@ -1851,14 +1847,14 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                           fontFamily: 'var(--cth-font-display)', fontSize: 8, lineHeight: '12px',
                           color: 'var(--cth-ink-500)', textTransform: 'uppercase', marginBottom: 2
                         }}>
-                          Realtime Michael
+                          Voice with the lead agent
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                           <span style={{ fontSize: 13, lineHeight: '20px', color: 'var(--cth-ink-900)' }}>
-                            Voice chat with Michael
+                            Talk to the lead agent
                           </span>
                           <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
-                            Talk to the orchestrator in real time. Toggle it on from Michael's tab; choose which
+                            Talk to the lead agent in real time. Turn it on with Talk in the lead agent's terminal; choose which
                             microphone and speaker the voice loop uses here.
                           </span>
                         </div>
@@ -1883,7 +1879,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                             OpenAI API key · voice
                           </span>
                           <span style={{ fontSize: 12, lineHeight: '17px', color: 'var(--cth-ink-700)' }}>
-                            Talking to Michael runs on OpenAI&rsquo;s Realtime API — speech in, speech out, over a
+                            Talking to the lead agent runs on OpenAI&rsquo;s Realtime API — speech in, speech out, over a
                             live connection to <strong style={{ fontFamily: 'var(--cth-font-mono)' }}>{REALTIME_MODEL}</strong>.
                             That is a different service from the Claude subscription your agents run on, so it needs
                             its own <strong>OpenAI API key</strong>.
@@ -1923,7 +1919,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                               boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)'
                             }} />
                             {openAiVoiceNote || (hasOpenAiKey
-                              ? 'Key saved — Talk is ready. Start it from the lead agent’s card.'
+                              ? 'Key saved — Talk is ready. Start it with Talk in the lead agent’s terminal.'
                               : 'No key yet — Talk stays disabled until one is saved.')}
                           </span>
                         </div>
@@ -1968,8 +1964,8 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                         color: '#C8423E'
                       }}>DANGER ZONE</div>
                       <p style={{ margin: 0, fontSize: 13, lineHeight: '20px', color: 'var(--cth-ink-700)' }}>
-                        Reset wipes Michael's memories, the entire hive (every agent, message,
-                        task, and the board), the semantic-memory palace, and all settings -
+                        Reset wipes the lead agent's memory, every agent's workspace data (agents, messages,
+                        tasks and the board), the semantic-memory palace, and all settings -
                         then takes you back to onboarding.
                       </p>
                       <div>

@@ -198,44 +198,6 @@
         "text": "held — delivery paused floor-wide"
       }
     ],
-    "components/OfficeThemePicker.tsx": [
-      {
-        "rule": "brand",
-        "text": "Dunder Mifflin — the original floor"
-      },
-      {
-        "rule": "office",
-        "text": " isn't built yet — showing the office for now."
-      },
-      {
-        "rule": "office",
-        "text": "Dunder Mifflin — the original floor"
-      },
-      {
-        "rule": "office",
-        "text": "Office Theme"
-      },
-      {
-        "rule": "office",
-        "text": "Re-skin the pixel office as a TV show. Switching starts a fresh cast."
-      },
-      {
-        "rule": "office",
-        "text": "SWITCH OFFICE TO \""
-      },
-      {
-        "rule": "office",
-        "text": "The Office"
-      },
-      {
-        "rule": "office",
-        "text": "TV-show office themes"
-      },
-      {
-        "rule": "visual",
-        "text": "<reachable>"
-      }
-    ],
     "components/OnboardingWizard.tsx": [
       {
         "rule": "lead",
@@ -342,94 +304,10 @@
         "text": "<reachable>"
       }
     ],
-    "components/SettingsModal.tsx": [
-      {
-        "rule": "office",
-        "text": "Connect Nexus to Slack\n\n1. api.slack.com/apps -> Create New App -> From scratch. Name it\n   \"Nexus\" and pick your workspace.\n2. Basic Information -> Signing Sec"
-      },
-      {
-        "rule": "office",
-        "text": "Copy this harness's hive (every agent, memory, task) and the semantic-memory palace into the new folder. The old folder is left untouched as a backup you can de"
-      },
-      {
-        "rule": "office",
-        "text": "floor token budget"
-      },
-      {
-        "rule": "office",
-        "text": "header. Each one checks bodies against its own JSON schema — edit that in the Triggers tab of Michael's Command Center, where the history of everything that arr"
-      },
-      {
-        "rule": "office",
-        "text": "Reset wipes Michael's memories, the entire hive (every agent, message, task, and the board), the semantic-memory palace, and all settings - then takes you back "
-      },
-      {
-        "rule": "office",
-        "text": "This permanently erases all of Michael's memories and the entire hive, and cannot be undone. Any running sessions will be terminated and the app will relaunch i"
-      },
-      {
-        "rule": "office",
-        "text": "Webhook API\n\nEvery webhook has its own URL, its own secret and its own mode. They share one\nserver and one tunnel; the id in the path says which one you are cal"
-      },
-      {
-        "rule": "persona",
-        "text": "Every newly spawned Claude agent (Michael included) starts on this model unless picked per-agent. Marked “· default” in the model pickers."
-      },
-      {
-        "rule": "persona",
-        "text": "header. Each one checks bodies against its own JSON schema — edit that in the Triggers tab of Michael's Command Center, where the history of everything that arr"
-      },
-      {
-        "rule": "persona",
-        "text": "Realtime Michael"
-      },
-      {
-        "rule": "persona",
-        "text": "Reset wipes Michael's memories, the entire hive (every agent, message, task, and the board), the semantic-memory palace, and all settings - then takes you back "
-      },
-      {
-        "rule": "persona",
-        "text": "Talk to the orchestrator in real time. Toggle it on from Michael's tab; choose which microphone and speaker the voice loop uses here."
-      },
-      {
-        "rule": "persona",
-        "text": "Talking to Michael runs on OpenAI&rsquo;s Realtime API — speech in, speech out, over a live connection to"
-      },
-      {
-        "rule": "persona",
-        "text": "This permanently erases all of Michael's memories and the entire hive, and cannot be undone. Any running sessions will be terminated and the app will relaunch i"
-      },
-      {
-        "rule": "persona",
-        "text": "Voice chat with Michael"
-      },
-      {
-        "rule": "persona",
-        "text": "Webhook API\n\nEvery webhook has its own URL, its own secret and its own mode. They share one\nserver and one tunnel; the id in the path says which one you are cal"
-      }
-    ],
     "components/SpritePortrait.tsx": [
       {
         "rule": "visual",
         "text": "<reachable>"
-      }
-    ],
-    "components/triggers/TriggerHistoryTab.tsx": [
-      {
-        "rule": "lead",
-        "text": "Messages from your teammates’ clone nodes, next to what the lead agent sent back."
-      },
-      {
-        "rule": "lead",
-        "text": "today, but no one’s clone node can reach yours until the transport ships. "
-      },
-      {
-        "rule": "office",
-        "text": "Approve and this goes to the lead agent, which will put the hive to work on it. Reject and it is dropped — nothing runs."
-      },
-      {
-        "rule": "office",
-        "text": "You turned this down. Nothing was sent to the hive."
       }
     ],
     "hooks/useHive.ts": [
@@ -528,12 +406,6 @@
       {
         "rule": "persona",
         "text": "Send a short message to one agent (a nudge or note). Soft action — runs immediately, no confirm. Use for \"tell Oscar X\" or \"check in with Jim\"."
-      }
-    ],
-    "realtime/DevicePicker.tsx": [
-      {
-        "rule": "persona",
-        "text": "Device names appear after you first start a voice session and grant mic access. The microphone choice applies the next time Michael connects; the speaker switch"
       }
     ],
     "realtime/session.ts": [
@@ -705,14 +577,6 @@
       }
     ],
     "shared/triggers.ts": [
-      {
-        "rule": "lead",
-        "text": "Set an organisation key and your teammates can message your clone node — the copy of "
-      },
-      {
-        "rule": "office",
-        "text": "Ask me before anything reaches the hive."
-      },
       {
         "rule": "office",
         "text": "directive = asks the hive to act; communication = informational."
