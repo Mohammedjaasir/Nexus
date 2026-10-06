@@ -22,7 +22,7 @@ export function redactForLog(text: string): string {
     s = s.replace(/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----/g, '[redacted]');
     s = s.replace(/\beyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}/g, '[redacted]');
     s = s.replace(
-      /(?:sk-(?:ant-)?[A-Za-z0-9_-]{8,}|gsk_[A-Za-z0-9]{8,}|xox[bpaors]-[A-Za-z0-9-]{6,}|xapp-[A-Za-z0-9-]{6,}|gh[posru]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|AIza[A-Za-z0-9_-]{20,})/g,
+      /(?:\bsk-(?:ant-)?[A-Za-z0-9_-]{8,}|gsk_[A-Za-z0-9]{8,}|xox[bpaors]-[A-Za-z0-9-]{6,}|xapp-[A-Za-z0-9-]{6,}|gh[posru]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|AIza[A-Za-z0-9_-]{20,})/g,
       '[redacted]'
     );
     s = s.replace(/\b(bearer|basic)\s+[^\s"',;]+/gi, '$1 [redacted]');
@@ -37,8 +37,8 @@ export function redactForLog(text: string): string {
     s = s.replace(/\b[a-f0-9]{48,}\b/gi, '[redacted]');
     // Sensitive key = value, key: value and JSON "key": "value", any value length.
     s = s.replace(
-      /\b((?:[a-z0-9]+[_-])*(?:api[_-]?key|secret[_-]?access[_-]?key|secret|token|password|passwd|pwd|access[_-]?token|refresh[_-]?token|client[_-]?secret|signing[_-]?secret|webhook[_-]?secret|auth[_-]?token|bot[_-]?token|private[_-]?key))(["']?)(\s*[:=]\s*)(["']?)[^\s"',}&]+\4/gi,
-      (_m, k, q, sep, vq) => `${k}${q}${sep}${vq}[redacted]${vq}`
+      /\b((?:[a-z0-9]+[_-])*(?:api[_-]?key|secret[_-]?access[_-]?key|secret|token|password|passwd|pwd|access[_-]?token|refresh[_-]?token|client[_-]?secret|signing[_-]?secret|webhook[_-]?secret|auth[_-]?token|bot[_-]?token|private[_-]?key))(["']?)(\s*[:=]\s*)(?:(["'])(?:\\.|(?!\4)[^\\])*\4|[^\s"',}&]+)/gi,
+      (_m, k, q, sep, vq) => `${k}${q}${sep}${vq ? `${vq}[redacted]${vq}` : '[redacted]'}`
     );
     return s;
   } catch {

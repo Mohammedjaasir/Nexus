@@ -107,6 +107,22 @@ test('O.9 #20: JSON keys, URL userinfo, short values and webhook URLs are redact
   assert.match(redactForLog('{"token":"abcdefghijk"}'), /^\{"token":"\[redacted\]"\}$/);
   assert.match(redactForLog('postgres://admin:s3cretpw@db.local/x'), /^postgres:\/\/\[redacted\]@db\.local\/x$/);
 });
+test('O.9 #20: quoted values with spaces or escaped quotes are fully redacted', () => {
+  const cases = [
+    ['{"token": "abc def"}', ['abc', 'def']],
+    ['{"secret": "has space inside"}', ['has', 'space', 'inside']],
+    ["password='p@ss w0rd'", ['p@ss', 'w0rd']],
+    ['{"token":"a\\"b"}', ['a\\', 'b"']]
+  ];
+  for (const [input, leaks] of cases) {
+    const out = redactForLog(input);
+    for (const l of leaks) assert.ok(!out.includes(l), `${input} -> ${out}`);
+    assert.match(out, /\[redacted\]/, input);
+  }
+  assert.equal(redactForLog('{"token": "abc def"}'), '{"token": "[redacted]"}');
+  assert.equal(redactForLog('{"token":"a\\"b"} tail'), '{"token":"[redacted]"} tail');
+  assert.equal(redactForLog('mask-input and task-list'), 'mask-input and task-list');
+});
 test('O.9 #20: ordinary log text is left unchanged', () => {
   for (const t of [
     'Error: ENOENT: no such file or directory, open /home/x/file.txt',
