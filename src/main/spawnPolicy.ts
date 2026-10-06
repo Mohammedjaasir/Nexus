@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import { AGENT_PROVIDER_PRESETS, inferAgentProvider, isAgentProvider, providerPreset, type AgentProvider } from '../shared/agentProvider';
-import { argsHaveAutoFlag } from '../shared/autoModeFlag';
+import { argsHaveAutoFlag, normalizeAutoFlagCommand } from '../shared/autoModeFlag';
 import type { AgentMeta } from './hive';
 
 /**
@@ -349,7 +349,7 @@ function runnablePresetId(v: unknown): AgentProvider | null {
  */
 export function resolveWorkerCommand(
   raw: { command?: unknown; provider?: unknown },
-  cfg: { defaultCommand?: string }
+  cfg: { defaultCommand?: string; autoMode?: boolean }
 ): { ok: true; command: string; provider?: AgentProvider } | { ok: false; error: string } {
   let fromProvider: AgentProvider | null = null;
   if (raw.provider !== undefined && raw.provider !== null && raw.provider !== '') {
@@ -367,7 +367,9 @@ export function resolveWorkerCommand(
   const id = fromProvider ?? fromCommand;
   if (id) return { ok: true, command: providerPreset(id).defaultCommand, provider: id };
   const configured = typeof cfg.defaultCommand === 'string' ? cfg.defaultCommand.trim() : '';
-  return { ok: true, command: configured || 'claude' };
+  // A legacy defaultCommand may still carry a preset auto flag; match it to the
+  // current autoMode like every other respawn path does.
+  return { ok: true, command: normalizeAutoFlagCommand(configured || 'claude', cfg.autoMode === true) };
 }
 
 /**

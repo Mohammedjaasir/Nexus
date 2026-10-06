@@ -113,3 +113,13 @@ test('every preset with an auto flag is covered', () => {
     assert.ok(PERSISTED_ON[p.id], `missing case for ${p.id}`);
   }
 });
+
+test('worker spawn-requests that fall back to a legacy defaultCommand follow the current auto mode', () => {
+  const legacy = PERSISTED_ON.claude;
+  const off = s.resolveWorkerCommand({}, { defaultCommand: legacy, autoMode: false });
+  assert.equal(off.ok, true);
+  assert.ok(!off.command.includes('bypassPermissions'), off.command);
+  const on = s.resolveWorkerCommand({}, { defaultCommand: 'claude', autoMode: true });
+  assert.equal(on.ok, true);
+  assert.ok(on.command.includes('bypassPermissions'), on.command);
+});
