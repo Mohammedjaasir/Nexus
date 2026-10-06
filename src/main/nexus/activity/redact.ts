@@ -30,6 +30,11 @@ const SECRET_KEY = new RegExp([
 /** Known non-secret integrity hash fields (controller ruling, Task 5). */
 const HASH_KEYS: ReadonlySet<string> = new Set(['backupSha256', 'sha256', 'contentHash', 'content_hash']);
 const HEX_DIGEST = /^(?:git:)?[0-9a-f]{40,128}$/i;
+/** Exact keys whose NUMERIC values are token usage counts (never a credential). */
+const TOKEN_COUNT_KEYS: ReadonlySet<string> = new Set([
+  'tokensUsed', 'inputTokens', 'outputTokens', 'totalTokens', 'maxTokens',
+  'cacheReadTokens', 'cacheCreationTokens', 'tokenCount', 'tokenLimit'
+]);
 const URL_USER = /\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@/gi;
 const SIGNATURE_PAIR = /\b((?:[a-z0-9]+[_-])*(?:sig|signature))(["']?)(\s*[:=]\s*)(?:(["'])(?:\\.|(?!\4)[^\\])*\4|[^\s"',}&]+)/gi;
 const DROP = Symbol('drop');
@@ -113,6 +118,10 @@ function walkObject(obj: Record<string, unknown>, depth: number, b: Budget): Rec
     if (b.left <= 0) break;
     seen++;
     const safeKey = key.length > MAX_STRING ? `[omitted key: ${key.length} chars]` : redactForLog(key).replace(URL_USER, '$1[redacted]@');
+    // Token COUNTS are audit data, not credentials: keep them only as plain numbers.
+    if (TOKEN_COUNT_KEYS.has(key) && typeof obj[key] === 'number' && Number.isFinite(obj[key])) {
+      b.left -= safeKey.length + 3 + String(obj[key]).length; put(out, safeKey, obj[key] as number); continue;
+    }
     if (SECRET_KEY.test(key)) { b.left -= safeKey.length + 3; put(out, safeKey, charge(b, REDACTED)); continue; }
     let item: Out;
     try {

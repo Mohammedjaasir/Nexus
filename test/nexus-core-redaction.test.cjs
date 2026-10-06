@@ -161,3 +161,13 @@ test('attempt_n is part of the hash chain', () => {
   rows[0] = { ...rows[0], attemptN: 7 };
   assert.deepEqual(verifyChainRows(rows), { ok: false, brokenAtSeq: 1 });
 });
+
+test('token usage counts survive as numbers; token-named strings stay redacted', () => {
+  const out = redactDetails({ tokensUsed: 1234, inputTokens: 900, outputTokens: 334, maxTokens: 200000, tokenCount: 'sk-ant-abcdefghijklmnopqrstuvwxyz0123456789' });
+  assert.equal(out.tokensUsed, 1234);
+  assert.equal(out.inputTokens, 900);
+  assert.equal(out.outputTokens, 334);
+  assert.equal(out.maxTokens, 200000);
+  assert.equal(out.tokenCount, REDACTED);
+  assert.equal(redactDetails({ token: 5 }).token, REDACTED);
+});
