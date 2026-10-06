@@ -18,7 +18,7 @@ import type { HarnessConfig } from './config';
 import type { ControlRegistry } from './control';
 import type { CircuitBreaker } from './breaker';
 import { estimateCostUsd } from './pricing';
-import { displayNameForId } from '../shared/agentDisplay';
+import { notificationTitle } from './displayNames';
 
 interface HookPayload {
   hook_event_name?: string;
@@ -216,7 +216,7 @@ export class HookServer {
       // path bypassed terminal-draft/HITL safety and could spend credits while a
       // user was answering a question. Inbox files remain durable; the renderer
       // wakes the agent later through its guarded idle-only delivery path.
-      this.notify(this.toastTitle(agentId), 'finished — idle');
+      this.notify(() => notificationTitle(agentId, this.hive.registry()), 'Finished and idle');
       this.emit(agentId, event, p);
       return {};
     }
@@ -278,7 +278,7 @@ export class HookServer {
       (p.notification_type === 'idle' ||
         (p.message ?? '').toLowerCase().includes('waiting for your input'))
     ) {
-      this.notify(this.toastTitle(agentId), p.message ?? 'needs your attention');
+      this.notify(() => notificationTitle(agentId, this.hive.registry()), p.message ?? 'Needs your attention');
     }
 
     // Forward everything else to the renderer so avatars reflect real activity.
@@ -286,25 +286,17 @@ export class HookServer {
     return {};
   }
 
-  /** Toast title for an agent id, through the shared display mapping: the lead
-   *  reads "Lead agent", old cast names read "Agent · folder". Display only. */
-  private toastTitle(agentId: string | undefined): string {
-    if (!agentId) return 'Agent';
-    try {
-      const reg = this.hive.registry();
-      const list = Object.entries(reg.agents ?? {}).map(([id, a]) => ({ id, name: a.name, isGod: a.isGod, cwd: a.cwd }));
-      return displayNameForId(agentId, list, { godId: reg.godId, registryIds: new Set(Object.keys(reg.agents ?? {})) });
-    } catch { return displayNameForId(agentId, []); }
-  }
-
   /** Fire a native desktop notification — gated on the user's `notifications`
    *  setting. Only the OS toast is gated; the hive:hookEvent emit is always sent
    *  so avatars/UI stay live regardless. Best-effort: never throw into the hook. */
-  private notify(title: string, body: string): void {
+  private notify(title: string | (() => string), body: string): void {
     if (!this.getConfig().notifications) return;
     try {
       if (!Notification.isSupported()) return;
-      new Notification({ title, body }).show();
+      // The registry read happens only once notifications are on and supported.
+      let resolved: string;
+      try { resolved = typeof title === 'function' ? title() : title; } catch { resolved = 'Agent'; }
+      new Notification({ title: resolved, body }).show();
     } catch { /* notifications unsupported on this platform — ignore */ }
   }
 

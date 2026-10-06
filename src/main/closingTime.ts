@@ -8,7 +8,7 @@
  * manager locks the door.
  *
  *   1. The human clicks "closing time" in the quit dialog.
- *   2. We mail the god agent a shutdown brief: broadcast closing time to the
+ *   2. We mail the lead agent a shutdown brief: broadcast closing time to the
  *      team; every worker commits/parks WIP, appends state + next steps to
  *      its memory.md, then replies with subject CLOSING-TIME-ACK.
  *   3. The god waits for every ACK (the harness shows live progress by
@@ -91,7 +91,7 @@ export class ClosingTimeController {
     this.godId = reg.godId ?? 'god';
     const live = new Set(this.getLiveAgentIds());
     if (!reg.agents[this.godId] || !live.has(this.godId)) {
-      return { ok: false, error: 'No orchestrator is running — closing time needs the god agent to collect the reports.' };
+      return { ok: false, error: 'No lead agent is running. Closing needs the lead agent to collect the reports.' };
     }
 
     // Only agents with a live terminal are waited on — the registry is just

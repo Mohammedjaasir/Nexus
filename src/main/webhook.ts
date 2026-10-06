@@ -362,7 +362,7 @@ export class WebhookServer {
           pending: true,
           status: 'awaiting-approval',
           token: out.token,
-          detail: 'accepted — waiting for the operator to approve it before the hive sees it'
+          detail: 'accepted — waiting for the operator to approve it before any agent sees it'
         });
         return;
       }

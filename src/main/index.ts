@@ -25,6 +25,7 @@ import {
 } from './git';
 import { HiveManager, type AgentMeta, type HiveMessage, type HiveTask } from './hive';
 import { HookServer } from './hooks';
+import { agentDisplayName } from './displayNames';
 import { CircuitBreaker, type BreakerInput } from './breaker';
 import type { UsageProvider } from './usage';
 import { MemoryManager } from './memory';
@@ -1113,15 +1114,15 @@ function runBreakerBeat(progressWindowMs: number): void {
     const reason = d.state.reason;
     if (d.action === 'steer') {
       hive.send({ to: d.state.agentId, act: 'request', subject: 'Circuit breaker: steer',
-        body: `Automated guardrail: ${reason}. Re-check your approach — if you're looping or stuck, STOP repeating, summarize what you've tried, and ask god for direction.` }, 'breaker');
+        body: `Automated guardrail: ${reason}. Re-check your approach — if you're looping or stuck, STOP repeating, summarize what you've tried, and ask the lead agent for direction.` }, 'breaker');
     } else if (d.action === 'constrain') {
       hive.send({ to: d.state.agentId, act: 'request', subject: 'Circuit breaker: constrain',
-        body: `Automated guardrail escalated: ${reason}. Stop active work now: switch to read-only/plan, write a short plan of your next step, and send it to god for sign-off BEFORE running more tools.` }, 'breaker');
-      breakerToast(`${name} constrained`, reason);
+        body: `Automated guardrail escalated: ${reason}. Stop active work now: switch to read-only/plan, write a short plan of your next step, and send it to the lead agent for sign-off BEFORE running more tools.` }, 'breaker');
+      breakerToast(`${agentDisplayName(d.state.agentId, reg)} constrained`, reason);
     } else if (d.action === 'stop') {
       const ptyId = ptyForAgent(d.state.agentId);
       if (ptyId) { try { ptyManager.kill(ptyId); } catch { /* already gone */ } teardownPty(ptyId); }
-      breakerToast(`${name} stopped by circuit breaker`, reason);
+      breakerToast(`${agentDisplayName(d.state.agentId, reg)} stopped by circuit breaker`, reason);
     }
   }
 }
@@ -2103,8 +2104,8 @@ ipcMain.handle('hire:drainPending', () => {
 // IPC: "import hire…" file picker in the Add-Agent modal.
 ipcMain.handle('hire:openFile', async () => {
   const res = await dialog.showOpenDialog({
-    title: 'Import a hire manifest',
-    filters: [{ name: 'Hire manifest', extensions: ['json'] }],
+    title: 'Import an agent manifest',
+    filters: [{ name: 'Agent manifest', extensions: ['json'] }],
     properties: ['openFile']
   });
   if (res.canceled || res.filePaths.length === 0) return { ok: false, error: 'cancelled' };
@@ -2134,7 +2135,7 @@ function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
     ...(geom && geom.x !== undefined && geom.y !== undefined ? { x: geom.x, y: geom.y } : {}),
     minWidth: MIN_WIN.width,
     minHeight: MIN_WIN.height,
-    title: isFloor ? 'Nexus — Floor' : 'Nexus',
+    title: 'Nexus',
     backgroundColor: '#FFF8E7',
     titleBarStyle: 'hiddenInset',
     show: false,
@@ -2230,11 +2231,11 @@ function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
       if (owned > 0) {
         const choice = dialog.showMessageBoxSync(win, {
           type: 'warning',
-          buttons: ['Close floor', 'Cancel'],
+          buttons: ['Close window', 'Cancel'],
           defaultId: 1,
           cancelId: 1,
-          message: `Close this floor? ${owned} running terminal${owned === 1 ? '' : 's'} on it will be stopped.`,
-          detail: 'Other floors keep running.'
+          message: `Close this window? ${owned} running terminal${owned === 1 ? '' : 's'} in it will be stopped.`,
+          detail: 'Other windows keep running.'
         });
         if (choice === 1) e.preventDefault();
       }
@@ -2291,11 +2292,11 @@ function openFloor(): BrowserWindow | null {
 /** Build + install the application menu. Only called when multiWindow is on, so
  *  flag-off keeps Electron's default menu (zero behavior change). Uses standard
  *  role-based items so copy/paste/quit/etc. work per-platform, and adds the
- *  "New Floor" item (Cmd/Ctrl+Shift+N). */
+ *  "New Window" item (Cmd/Ctrl+Shift+N). */
 function installAppMenu(): void {
   const isMac = process.platform === 'darwin';
   const newFloorItem = {
-    label: 'New Floor',
+    label: 'New Window',
     accelerator: 'CmdOrCtrl+Shift+N',
     click: () => { openFloor(); }
   };
@@ -3211,7 +3212,7 @@ ipcMain.handle('hive:messages', (_evt, opts: unknown) =>
   hive.voiceMessages(opts && typeof opts === 'object' ? (opts as Parameters<typeof hive.voiceMessages>[0]) : {})
 );
 ipcMain.handle('hive:send', (_evt, partial: Partial<HiveMessage>, from: unknown) => {
-  if (!hive.enabled()) return { ok: false, error: 'hive disabled (no harnessHome)' };
+  if (!hive.enabled()) return { ok: false, error: 'The agent workspace is not set up (no home folder).' };
   const msg = hive.send(partial ?? {}, typeof from === 'string' ? from : 'system');
   return { ok: true, message: msg };
 });
@@ -3220,24 +3221,24 @@ ipcMain.handle('hive:addTask', (_evt, task: unknown) => {
     || typeof (task as { id?: unknown }).id !== 'string') {
     return { ok: false, error: 'invalid task' };
   }
-  if (!hive.enabled()) return { ok: false, error: 'hive disabled (no harnessHome)' };
+  if (!hive.enabled()) return { ok: false, error: 'The agent workspace is not set up (no home folder).' };
   return { ok: hive.addTask(task as HiveTask) };
 });
 ipcMain.handle('hive:patchTask', (_evt, id: unknown, patch: unknown) => {
   if (typeof id !== 'string' || !id || !patch || typeof patch !== 'object' || Array.isArray(patch)) {
     return { ok: false, error: 'invalid task patch' };
   }
-  if (!hive.enabled()) return { ok: false, error: 'hive disabled (no harnessHome)' };
+  if (!hive.enabled()) return { ok: false, error: 'The agent workspace is not set up (no home folder).' };
   return { ok: hive.patchTask(id, patch as Partial<Omit<HiveTask, 'id'>>) };
 });
 ipcMain.handle('hive:deleteTask', (_evt, id: unknown) => {
   if (typeof id !== 'string' || !id) return { ok: false, error: 'invalid task id' };
-  if (!hive.enabled()) return { ok: false, error: 'hive disabled (no harnessHome)' };
+  if (!hive.enabled()) return { ok: false, error: 'The agent workspace is not set up (no home folder).' };
   return { ok: hive.deleteTask(id) };
 });
 ipcMain.handle('hive:setArchived', (_evt, id: unknown, archived: unknown) => {
   if (typeof id !== 'string') return { ok: false, error: 'invalid id' };
-  if (!hive.enabled()) return { ok: false, error: 'hive disabled (no harnessHome)' };
+  if (!hive.enabled()) return { ok: false, error: 'The agent workspace is not set up (no home folder).' };
   hive.setArchived(id, archived === true);
   return { ok: true };
 });
@@ -4342,7 +4343,7 @@ registerRealtimeActionIpc({
   controlAutoDelivery: (id, paused) => control.pauseAutoDelivery(id, paused),
   controlGateTool: (id, toolName, on) => control.gateTool(id, toolName, on),
   setArchived: (id, archived) => {
-    if (!hive.enabled()) return { ok: false, error: 'hive disabled' };
+    if (!hive.enabled()) return { ok: false, error: 'The agent workspace is not set up (no home folder).' };
     hive.setArchived(id, archived);
     try { liveWebContents()?.send(archived ? 'hive:agentArchived' : 'hive:agentSpawned', { id }); } catch { /* window gone */ }
     return { ok: true };

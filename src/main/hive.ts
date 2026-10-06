@@ -478,7 +478,7 @@ export class HiveManager {
     }
     const board = join(root, 'board.md');
     if (!existsSync(board)) {
-      writeFileSync(board, '# Hive board\n\n_Shared plans live here. The god agent is the scribe._\n', 'utf8');
+      writeFileSync(board, '# Board\n\n_Shared plans live here. The lead agent keeps it up to date._\n', 'utf8');
     }
     const tasks = join(root, 'tasks.json');
     if (!existsSync(tasks)) this.writeJson(tasks, { tasks: [] });

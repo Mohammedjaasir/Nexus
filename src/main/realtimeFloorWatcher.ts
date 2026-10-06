@@ -92,7 +92,7 @@ export class RealtimeFloorWatcher {
       // roster changes
       for (const [id, cur] of agents) {
         const prev = this.prevAgents.get(id);
-        if (!prev) this.buffer.push(`${cur.name} joined the floor`);
+        if (!prev) this.buffer.push(`${cur.name} joined the team`);
         else if (!prev.archived && cur.archived) this.buffer.push(`${cur.name} was archived`);
         else if (prev.archived && !cur.archived) this.buffer.push(`${cur.name} is back from the archive`);
       }
