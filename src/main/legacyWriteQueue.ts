@@ -10,7 +10,7 @@
  *    coalesce key: a newer write replaces the queued older one in place, so a
  *    retry never writes a stale snapshot.
  *  - Bounded: retries back off (250ms .. 60s, then 60s) and a write that has failed
- *    MAX_ATTEMPTS times is logged as an error and dropped so it cannot wedge the
+ *    MAX_ATTEMPTS times with a DETERMINISTIC error is logged as an error and dropped so it cannot wedge the
  *    rest; the queue holds at most `maxQueued` entries (oldest dropped, logged).
  *  - Nothing blocks: retries run from a timer (unref'd), one flush at a time.
  */
@@ -93,7 +93,7 @@ export class LegacyWriteQueue {
         try { e.run(); this.entries.shift(); written++; }
         catch (err) {
           e.attempts++;
-          if (e.attempts >= MAX_WRITE_ATTEMPTS) {
+          if (!isTransient(err) && e.attempts >= MAX_WRITE_ATTEMPTS) {
             this.entries.shift();
             this.log(`write "${e.label}" failed ${e.attempts} times and was dropped: ${msgOf(err)}`, err);
             continue; // never wedge the rest of the queue
@@ -120,7 +120,7 @@ export class LegacyWriteQueue {
       for (let i = this.entries.length - 1; i >= 0; i--) {
         const e = this.entries[i];
         if (!e.key) break;
-        if (e.key === entry.key) { entry.attempts = 0; this.entries[i] = entry; return; }
+        if (e.key === entry.key) { entry.attempts = e.attempts; this.entries[i] = entry; return; }
       }
     }
     this.entries.push(entry);
@@ -145,6 +145,13 @@ export class LegacyWriteQueue {
   private cancelTimer(): void {
     if (this.timer) { this.timer.cancel(); this.timer = null; }
   }
+}
+
+/** Transient = the store is busy or temporarily unwritable, so waiting can fix it. Everything else
+ *  (constraint, mismatch, too big, plain JS errors) fails identically every time. */
+export function isTransient(err: unknown): boolean {
+  const code = String((err as { code?: unknown } | null)?.code ?? '');
+  return /^SQLITE_(BUSY|LOCKED|IOERR|FULL|READONLY)/.test(code) || /^(EBUSY|EAGAIN|EMFILE|ENFILE|ENOSPC)$/.test(code);
 }
 
 function msgOf(err: unknown): string {
