@@ -18,6 +18,8 @@ export interface BackupOptions {
   fromVersion: number;
   rowCounts: Record<string, number>;
   now: () => number;
+  /** Test hook: runs right after the partial file is written and before it is verified. */
+  afterWrite?: (partialPath: string) => void;
 }
 
 export class BackupError extends Error {
@@ -34,7 +36,7 @@ const quoteIdent = (name: string): string => `"${name.replace(/"/g, '""')}"`;
 /** Row count of every user table, keyed by table name, keys sorted. */
 export function tableRowCounts(db: Database.Database): Record<string, number> {
   const names = (db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND substr(name, 1, 7) <> 'sqlite_' ORDER BY name")
     .all() as Array<{ name: string }>).map((r) => r.name);
   const out: Record<string, number> = {};
   for (const name of [...names].sort()) {
@@ -117,6 +119,7 @@ export function backupAndVerify(db: Database.Database, o: BackupOptions): Backup
   }
   let copy: Database.Database | null = null;
   try {
+    o.afterWrite?.(partial);
     copy = new Database(partial, { fileMustExist: true });
     copy.pragma('journal_mode = DELETE');
     if (!integrityOk(copy)) throw new BackupError('verify', 'backup integrity_check failed');
@@ -131,18 +134,51 @@ export function backupAndVerify(db: Database.Database, o: BackupOptions): Backup
   } catch (err) {
     try { copy?.close(); } catch { /* already closed */ }
     removeQuietly(partial);
+    removeQuietly(`${partial}-journal`);
     removeQuietly(`${partial}-wal`);
     removeQuietly(`${partial}-shm`);
     if (err instanceof BackupError) throw err;
     throw new BackupError('verify', `backup could not be verified: ${(err as Error).message}`);
   }
   try {
-    fs.renameSync(partial, finalPath);
+    try {
+      // linkSync fails if the target exists, so a late-appearing backup is never replaced.
+      fs.linkSync(partial, finalPath);
+      removeQuietly(partial);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === 'EEXIST') {
+        removeQuietly(partial);
+        throw new BackupError('exists', `backup ${file} already exists`);
+      }
+      if (fs.existsSync(finalPath)) {
+        removeQuietly(partial);
+        throw new BackupError('exists', `backup ${file} already exists`);
+      }
+      fs.renameSync(partial, finalPath);
+    }
   } catch (err) {
+    if (err instanceof BackupError) throw err;
     removeQuietly(partial);
     throw new BackupError('write', `cannot finalise backup (${(err as NodeJS.ErrnoException).code ?? 'error'})`);
   }
-  const bytes = fs.statSync(finalPath).size;
-  const sha256 = createHash('sha256').update(fs.readFileSync(finalPath)).digest('hex');
+  let bytes: number;
+  let sha256: string;
+  try {
+    const check = new Database(finalPath, { readonly: true, fileMustExist: true });
+    try {
+      if (!integrityOk(check, 'quick')) throw new BackupError('verify', 'final backup quick_check failed');
+    } finally {
+      check.close();
+    }
+    bytes = fs.statSync(finalPath).size;
+    sha256 = createHash('sha256').update(fs.readFileSync(finalPath)).digest('hex');
+  } catch (err) {
+    if (err instanceof BackupError) {
+      removeQuietly(finalPath);
+      throw err;
+    }
+    throw new BackupError('write', `cannot hash backup: ${(err as Error).message}`);
+  }
   return { file, path: finalPath, bytes, sha256, fromVersion: o.fromVersion, rowCounts: { ...o.rowCounts }, verifiedAt: o.now() };
 }

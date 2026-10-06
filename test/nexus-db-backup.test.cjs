@@ -66,3 +66,42 @@ test('tableRowCounts covers every user table and quotes names', () => {
   assert.equal(c['odd name'], 1); assert.equal(c.projects, 5); assert.ok(!Object.keys(c).some((k) => k.startsWith('sqlite_')));
   db.close();
 });
+
+const leftovers = (d) => fs.readdirSync(d).filter((f) => /\.partial|-wal$|-shm$|-journal$/.test(f));
+test('an unopenable backup fails at verify and leaves nothing behind', () => {
+  const { dir, file } = h.v6Fixture(); const db = h.openRaw(file); const out = path.join(dir, 'b');
+  assert.throws(() => backupAndVerify(db, { dir: out, fromVersion: 6, rowCounts: tableRowCounts(db), now: () => h.NOW,
+    afterWrite: (p) => fs.writeFileSync(p, Buffer.from('this is not a database file at all'.repeat(40))) }),
+  (e) => e.stage === 'verify');
+  assert.deepEqual(fs.readdirSync(out), []);
+  db.close();
+});
+test('a write failure has stage write, leaves no partial and does not touch the source', () => {
+  const { dir, file } = h.v6Fixture(); const db = h.openRaw(file);
+  db.pragma('wal_checkpoint(TRUNCATE)');
+  const before = sha(file);
+  const blocker = path.join(dir, 'not-a-dir'); fs.writeFileSync(blocker, 'x');
+  assert.throws(() => backupAndVerify(db, { dir: blocker, fromVersion: 6, rowCounts: tableRowCounts(db), now: () => h.NOW }),
+    (e) => e.stage === 'write');
+  assert.deepEqual(fs.readdirSync(dir).filter((f) => f.includes('.partial')), []);
+  assert.equal(sha(file), before);
+  db.close();
+});
+test('odd table names are counted and recorded', () => {
+  const { dir, file } = h.v6Fixture(); const db = h.openRaw(file);
+  db.exec('CREATE TABLE "odd name" (x)'); db.exec('INSERT INTO "odd name" VALUES (1),(2)');
+  db.exec('CREATE TABLE "a""b" (x)'); db.exec('INSERT INTO "a""b" VALUES (1),(2),(3)');
+  db.exec('CREATE TABLE sqliteX (x)'); db.exec('INSERT INTO sqliteX VALUES (1)');
+  const rec = backupAndVerify(db, { dir: path.join(dir, 'b'), fromVersion: 6, rowCounts: tableRowCounts(db), now: () => h.NOW });
+  assert.equal(rec.rowCounts['odd name'], 2); assert.equal(rec.rowCounts['a"b'], 3); assert.equal(rec.rowCounts.sqliteX, 1);
+  db.close();
+});
+test('a target that appears after the initial check is not overwritten', () => {
+  const { dir, file } = h.v6Fixture(); const db = h.openRaw(file); const out = path.join(dir, 'b');
+  const target = path.join(out, `harness-v6-${backupStamp(h.NOW)}.db`);
+  assert.throws(() => backupAndVerify(db, { dir: out, fromVersion: 6, rowCounts: tableRowCounts(db), now: () => h.NOW,
+    afterWrite: () => fs.writeFileSync(target, 'precious') }), (e) => e.stage === 'exists');
+  assert.equal(fs.readFileSync(target, 'utf8'), 'precious');
+  assert.deepEqual(leftovers(out), []);
+  db.close();
+});
