@@ -60,3 +60,58 @@ button.nx-wstab { cursor: pointer; }
   .nx-row { flex-wrap: wrap; }
   .nx-row__side { justify-items: start; width: 100%; padding-left: 22px; }
 }
+
+/* ── Workspaces index ────────────────────────────────────────────────────────
+   One row per workspace on a single ruled list (no cards). The row's
+   provenance hue (--ws-h) colours only its mark and its hover edge. */
+.nx-wsx { gap: var(--nx-s8); }
+.nx-wsx__head { display: flex; align-items: flex-end; gap: var(--nx-s4); flex-wrap: wrap; }
+.nx-wsx__title { display: grid; gap: 6px; flex: 1; min-width: 220px; }
+.nx-wsx__title h1 { margin: 0; font: 700 30px/1.1 var(--nx-font-display); letter-spacing: -0.02em; color: var(--nx-ink); }
+.nx-wsx__title p { margin: 0; font: 400 14px/1.4 var(--nx-font); color: var(--nx-text-3); font-variant-numeric: tabular-nums; }
+.nx-wsx__link { border: 0; background: none; padding: 0; font: inherit; color: var(--nx-text-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.nx-wsx__new { height: 38px; padding: 0 16px; border: 0; border-radius: var(--nx-r-obj); background: var(--nx-ink); color: var(--nx-on-ink); font: 600 14px/1 var(--nx-font); cursor: pointer; }
+.nx-wsx__new:hover { opacity: 0.9; }
+
+.nx-wsx__list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--nx-line); }
+.nx-wsx__row {
+  --e: oklch(var(--nx-ws-l) var(--nx-ws-c) var(--ws-h, 250));
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: stretch; border-bottom: 1px solid var(--nx-line);
+}
+.nx-wsx__row::before { content: ''; position: absolute; left: 0; top: -1px; bottom: -1px; width: 2px; background: var(--e); transform: scaleY(0); transition: transform var(--nx-t-base) var(--nx-ease-in); }
+.nx-wsx__row:hover::before, .nx-wsx__row:focus-within::before { transform: scaleY(1); }
+.nx-wsx__open {
+  display: grid; grid-template-columns: minmax(180px, 1.1fr) minmax(0, 1.4fr) minmax(150px, 1fr) minmax(0, 1fr) 20px; align-items: center; gap: var(--nx-s6);
+  min-width: 0; padding: 18px 8px 18px 18px; border: 0; background: transparent; color: var(--nx-ink); text-align: left; cursor: pointer;
+  transition: background var(--nx-t-fast) var(--nx-ease-in);
+}
+.nx-wsx__row:hover .nx-wsx__open { background: var(--nx-surface); }
+.nx-wsx__name { display: grid; grid-template-columns: 10px minmax(0, 1fr); column-gap: 10px; row-gap: 3px; align-items: center; min-width: 0; }
+.nx-wsx__name i { width: 10px; height: 10px; border-radius: 2px; background: var(--e); }
+.nx-wsx__name b { font: 600 16px/1.2 var(--nx-font); }
+.nx-wsx__name small { grid-column: 2; font: 400 12.5px/1.3 var(--nx-font); color: var(--nx-text-3); }
+.nx-wsx__desc { font: 400 14px/1.45 var(--nx-font); color: var(--nx-text-2); min-width: 0; }
+.nx-wsx__projects { display: grid; gap: 3px; min-width: 0; }
+.nx-wsx__projects b { font: 600 14px/1.2 var(--nx-font); font-variant-numeric: tabular-nums; }
+.nx-wsx__projects b.is-empty { font-weight: 500; color: var(--nx-text-3); }
+.nx-wsx__projects small { font: 400 12.5px/1.35 var(--nx-font); color: var(--nx-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nx-wsx__planned { display: grid; gap: 3px; font: 400 12.5px/1.4 var(--nx-font); color: var(--nx-text-3); min-width: 0; }
+.nx-wsx__planned small { font: 500 10.5px/1 var(--nx-font-id); letter-spacing: 0.1em; text-transform: uppercase; }
+.nx-wsx__chev { font: 400 18px/1 var(--nx-font); color: var(--nx-text-3); transition: transform var(--nx-t-fast) var(--nx-ease-in), color var(--nx-t-fast) var(--nx-ease-in); }
+.nx-wsx__row:hover .nx-wsx__chev { transform: translateX(3px); color: var(--nx-ink); }
+.nx-wsx__add { border: 0; border-left: 1px solid var(--nx-line); background: transparent; color: var(--nx-text-2); font: 400 22px/1 var(--nx-font); cursor: pointer; }
+.nx-wsx__add:hover { background: var(--nx-surface); color: var(--nx-ink); }
+.nx-wsx :is(button):focus-visible { outline: 2px solid var(--nx-ink); outline-offset: -2px; }
+
+@media (max-width: 1099px) {
+  .nx-wsx__open { grid-template-columns: minmax(170px, 1fr) minmax(0, 1.3fr) minmax(140px, 1fr) 20px; }
+  .nx-wsx__planned { display: none; }
+}
+@media (max-width: 767px) {
+  .nx-wsx__open { grid-template-columns: minmax(0, 1fr) 20px; gap: 6px var(--nx-s3); padding: 14px 8px 14px 14px; }
+  .nx-wsx__desc, .nx-wsx__projects { grid-column: 1; }
+  .nx-wsx__chev { grid-column: 2; grid-row: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nx-wsx__row::before, .nx-wsx__chev, .nx-wsx__open { transition: none; }
+}
