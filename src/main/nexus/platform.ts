@@ -30,7 +30,15 @@ export interface NexusPlatform {
   lineage: LineageService;
   jobs: JobService;
   sessions: SessionService;
-  startup(): void;
+  startup(): NexusStartupReport;
+}
+
+/** What one startup pass did; every count is 0 on a clean restart. */
+export interface NexusStartupReport {
+  catalogAdded: number;
+  primaries: { set: number; cleared: number };
+  sessions: { interrupted: number };
+  jobs: { interrupted: number; requeued: number };
 }
 
 export function createNexusPlatform(db: Database.Database, opts?: { now?: () => number; log?: (line: string) => void }): NexusPlatform {
@@ -47,7 +55,7 @@ export function createNexusPlatform(db: Database.Database, opts?: { now?: () => 
   const sessions = new SessionService(db, { auth, jobs, now });
   return {
     principals, auth, activity, workspaces, projects, artifacts, lineage, jobs, sessions,
-    startup() {
+    startup(): NexusStartupReport {
       // The seeded principals must resolve; a missing one throws platform_unavailable.
       principals.localUser();
       const system = principals.system();
@@ -59,6 +67,12 @@ export function createNexusPlatform(db: Database.Database, opts?: { now?: () => 
       const j = jobs.recoverAfterRestart(system);
       log(`[nexus] platform ready: principals ok, workspaces added=${added}, primaries set=${r.set} cleared=${r.cleared}, `
         + `sessions interrupted=${s.interrupted}, jobs interrupted=${j.interrupted} requeued=${j.requeued}`);
+      return {
+        catalogAdded: added,
+        primaries: { set: r.set, cleared: r.cleared },
+        sessions: { interrupted: s.interrupted },
+        jobs: { interrupted: j.interrupted, requeued: j.requeued }
+      };
     }
   };
 }

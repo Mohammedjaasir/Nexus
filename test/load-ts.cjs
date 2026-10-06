@@ -59,3 +59,6 @@ function loadFile(filename) {
 module.exports = function loadTs(relativePath) {
   return loadFile(path.resolve(__dirname, '..', relativePath));
 };
+
+/** Test-only: load a TypeScript module by absolute path (e.g. an old build written to a temp dir). */
+module.exports.loadAbsolute = loadFile;

@@ -49,6 +49,7 @@ import { MemoryManager } from './memory';
 import { KnowledgeManager } from './knowledge';
 import { MemoryReflector, type ReflectSettings } from './reflect';
 import { PersistStore } from './db';
+import { createNexusPlatform, type NexusPlatform } from './nexus/platform';
 import { readAgentUsage, readContextTokens, seedSessionTranscript, resolveSessionCwd } from './transcript';
 import { listIssues, listCIRuns } from './github';
 import { SlackWebhookServer, SlackReplyServer, postSlackReply, type SlackEventFile } from './slack';
@@ -372,6 +373,15 @@ const reflector = new MemoryReflector(
 // net-new command history. Opened in whenReady, closed in the teardown blocks.
 const persist = new PersistStore();
 const projectManager = new ProjectManager(persist);
+// The Nexus platform core, composed on persist's connection once the database is
+// at v7. Held for later phases: B0b registers no IPC for it and nothing reads it.
+let nexusPlatform: NexusPlatform | null = null;
+
+/** Same sink as the v7 migration's default: console plus the main crash log file. */
+function nexusMainLog(line: string): void {
+  console.log(line);
+  try { appendCrashLog(app.getPath('logs'), line); } catch { /* logging must never block startup */ }
+}
 /** The PRIMARY window — the one running the hive/god orchestration and the sink
  *  for process-global timer events (missions, breaker, Slack ingestion). It is
  *  the most-recently-focused live window, so global events follow the user.
@@ -5620,7 +5630,30 @@ app.whenReady().then(() => {
   // Open the durable store first — createWindow() reads the saved window bounds.
   // Guarded: a DB failure (e.g. a bad native build) must degrade to defaults,
   // never block app startup.
-  try { persist.open(); } catch (e) { console.error('[db] open failed:', e); }
+  // The v7 migration logs through nexusMainLog (lines arrive ISO-stamped), backs up
+  // to userData/backups first, and is held at v6 when NEXUS_DB_HOLD_V7=1.
+  try {
+    persist.open({
+      log: nexusMainLog,
+      backupDir: join(app.getPath('userData'), 'backups'),
+      holdV7: process.env.NEXUS_DB_HOLD_V7 === '1',
+      appVersion: app.getVersion()
+    });
+  } catch (e) { console.error('[db] open failed:', e); }
+  // Compose the platform core on the same connection, only when the store is at v7.
+  // A failure here leaves nexusPlatform null and never blocks the window: Phase A
+  // keeps working on the legacy tables. Only the error's name and code are logged.
+  try {
+    nexusPlatform = persist.platformAvailable
+      ? createNexusPlatform(persist.platformDatabase()!, { log: (line) => nexusMainLog(`${new Date().toISOString()} ${line}`) })
+      : null;
+    nexusPlatform?.startup();
+  } catch (e) {
+    nexusPlatform = null;
+    const name = e instanceof Error ? e.name : typeof e;
+    const code = e && typeof e === 'object' && typeof (e as { code?: unknown }).code === 'string' ? (e as { code: string }).code : 'none';
+    nexusMainLog(`${new Date().toISOString()} [nexus] platform startup failed error=${name} code=${code}; platform disabled, legacy features unaffected`);
+  }
   // Auto-update from GitHub releases (packaged builds only; gated on the
   // `autoUpdate` config flag). Download-in-background + restart-to-apply toast;
   // never restarts on its own. Falls back to a notify-only releases/latest
