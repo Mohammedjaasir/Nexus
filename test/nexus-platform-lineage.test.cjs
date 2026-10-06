@@ -256,6 +256,7 @@ test('fix 1: a readable version that lies only beyond an unreadable one is not r
 test('fix 2: a walk stops at the node cap and reports the truncation', () => {
   const { s, nx, me, mk } = setup();
   assert.equal(MAX_LINEAGE_NODES, 5000);
+  for (const bad of [0, -1, 2.5, MAX_LINEAGE_NODES + 1, Infinity, NaN, '3']) assert.throws(() => lineageTesting.withNodeCap(bad, () => 0), RangeError);
   const hub = mk(); const leaves = Array.from({ length: 5 }, () => mk());
   for (const l of leaves) nx.lineage.record(me, { fromVersionId: hub.id, toVersionId: l.id, relation: 'depends_on', source: 'user_action' });
   const sorted = leaves.map((l) => l.id).sort();

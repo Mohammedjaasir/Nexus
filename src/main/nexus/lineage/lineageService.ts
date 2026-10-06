@@ -257,8 +257,9 @@ function chunks<T>(xs: T[]): T[][] {
 
 /** Test-only entry points. Production code must not use these. */
 export const __testing = {
-  /** Runs `fn` with the walk node cap lowered to `n`, then restores it. */
+  /** Runs `fn` with the walk node cap lowered to `n` (an integer in 1..MAX_LINEAGE_NODES), then restores it. */
   withNodeCap<T>(n: number, fn: () => T): T {
+    if (!Number.isInteger(n) || n < 1 || n > MAX_LINEAGE_NODES) throw new RangeError('withNodeCap only lowers the cap: 1..MAX_LINEAGE_NODES');
     const prev = nodeCap;
     nodeCap = n;
     try { return fn(); } finally { nodeCap = prev; }

@@ -105,15 +105,46 @@ test('a target that appears after the initial check is not overwritten', () => {
   assert.deepEqual(leftovers(out), []);
   db.close();
 });
-// Another module may define its own `__testing` (lineageService does); what matters is backup's hook.
-const refsBackupHook = (text) => /afterWrite|backupAndVerifyWithHook/.test(text)
-  || (/__testing/.test(text) && /from\s+['"][^'"]*\bbackup['"]|require\(\s*['"][^'"]*\bbackup['"]/.test(text));
-test('no source file other than backup.ts references the test hook', () => {
-  const root = path.join(__dirname, '..', 'src'); const hits = [];
+// Test hooks: only these files may define `__testing`, each exactly once, on its export line.
+const HOOK_OWNERS = ['src/main/nexus/db/backup.ts', 'src/main/nexus/lineage/lineageService.ts'];
+/** files: [{ rel: 'src/...' (forward slashes), text }]. Returns one message per violation. */
+function hookViolations(files) {
+  const out = [];
+  for (const { rel, text } of files) {
+    const n = (text.match(/__testing/g) || []).length;
+    if (n > 0 && !HOOK_OWNERS.includes(rel)) out.push(`${rel}: references __testing`);
+    if (HOOK_OWNERS.includes(rel)) {
+      const lines = text.split(/\r?\n/).filter((l) => l.includes('__testing'));
+      if (lines.length !== 1 || !/^export const __testing\b/.test(lines[0])) out.push(`${rel}: __testing outside its export declaration`);
+    }
+    if (/export\s+\*\s+(?:as\s+\w+\s+)?from\s+['"][^'"]*(?:backup|lineageService)(?:\.ts)?['"]/.test(text)) out.push(`${rel}: export * from a hook owner`);
+    if (rel !== 'src/main/nexus/db/backup.ts' && /afterWrite|backupAndVerifyWithHook/.test(text)) out.push(`${rel}: references backup's hook`);
+  }
+  return out;
+}
+function srcFiles() {
+  const root = path.join(__dirname, '..'); const files = [];
   const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) {
     const f = path.join(d, e.name);
     if (e.isDirectory()) walk(f);
-    else if (/\.(ts|tsx)$/.test(e.name) && !f.endsWith(path.join('nexus', 'db', 'backup.ts')) && refsBackupHook(fs.readFileSync(f, 'utf8'))) hits.push(f);
+    else if (/\.(ts|tsx)$/.test(e.name)) files.push({ rel: path.relative(root, f).split(path.sep).join('/'), text: fs.readFileSync(f, 'utf8') });
   } };
-  walk(root); assert.deepEqual(hits, []);
+  walk(path.join(root, 'src')); return files;
+}
+test('no source file other than backup.ts references the test hook', () => {
+  const files = srcFiles();
+  for (const owner of HOOK_OWNERS) assert.ok(files.some((f) => f.rel === owner), owner);
+  assert.deepEqual(hookViolations(files), []);
+});
+test('the hook scan flags each kind of offending source', () => {
+  const decl = 'export const __testing = { x: 1 };';
+  assert.deepEqual(hookViolations([{ rel: 'src/main/x.ts', text: "import { __testing } from './nexus/db/backup';" }]), ['src/main/x.ts: references __testing']);
+  assert.deepEqual(hookViolations([{ rel: 'src/main/nexus/db/backup.ts', text: `${decl}\n__testing.x;` }]),
+    ['src/main/nexus/db/backup.ts: __testing outside its export declaration']);
+  assert.deepEqual(hookViolations([{ rel: 'src/main/nexus/lineage/lineageService.ts', text: '// __testing\nconst y = 1;' }]),
+    ['src/main/nexus/lineage/lineageService.ts: __testing outside its export declaration']);
+  assert.deepEqual(hookViolations([{ rel: 'src/main/y.ts', text: "export * from './nexus/lineage/lineageService';" }]), ['src/main/y.ts: export * from a hook owner']);
+  assert.deepEqual(hookViolations([{ rel: 'src/main/y.ts', text: "export * as b from '../db/backup.ts';" }]), ['src/main/y.ts: export * from a hook owner']);
+  assert.deepEqual(hookViolations([{ rel: 'src/main/z.ts', text: 'opts.afterWrite = f;' }]), ["src/main/z.ts: references backup's hook"]);
+  assert.deepEqual(hookViolations([{ rel: 'src/main/nexus/db/backup.ts', text: decl }, { rel: 'src/main/nexus/lineage/lineageService.ts', text: decl }]), []);
 });
