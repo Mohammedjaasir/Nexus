@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const loadTs = require('./load-ts.cjs');
-const { backupAndVerify, tableRowCounts, backupStamp } = loadTs('src/main/nexus/db/backup.ts');
+const { backupAndVerify, tableRowCounts, backupStamp, __testing } = loadTs('src/main/nexus/db/backup.ts');
 const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 
 test('the backup is a verified, hashed copy at the source version with equal row counts', () => {
@@ -70,8 +70,8 @@ test('tableRowCounts covers every user table and quotes names', () => {
 const leftovers = (d) => fs.readdirSync(d).filter((f) => /\.partial|-wal$|-shm$|-journal$/.test(f));
 test('an unopenable backup fails at verify and leaves nothing behind', () => {
   const { dir, file } = h.v6Fixture(); const db = h.openRaw(file); const out = path.join(dir, 'b');
-  assert.throws(() => backupAndVerify(db, { dir: out, fromVersion: 6, rowCounts: tableRowCounts(db), now: () => h.NOW,
-    afterWrite: (p) => fs.writeFileSync(p, Buffer.from('this is not a database file at all'.repeat(40))) }),
+  assert.throws(() => __testing.backupAndVerifyWithHook(db, { dir: out, fromVersion: 6, rowCounts: tableRowCounts(db), now: () => h.NOW },
+    (p) => fs.writeFileSync(p, Buffer.from('this is not a database file at all'.repeat(40)))),
   (e) => e.stage === 'verify');
   assert.deepEqual(fs.readdirSync(out), []);
   db.close();
@@ -99,9 +99,18 @@ test('odd table names are counted and recorded', () => {
 test('a target that appears after the initial check is not overwritten', () => {
   const { dir, file } = h.v6Fixture(); const db = h.openRaw(file); const out = path.join(dir, 'b');
   const target = path.join(out, `harness-v6-${backupStamp(h.NOW)}.db`);
-  assert.throws(() => backupAndVerify(db, { dir: out, fromVersion: 6, rowCounts: tableRowCounts(db), now: () => h.NOW,
-    afterWrite: () => fs.writeFileSync(target, 'precious') }), (e) => e.stage === 'exists');
+  assert.throws(() => __testing.backupAndVerifyWithHook(db, { dir: out, fromVersion: 6, rowCounts: tableRowCounts(db), now: () => h.NOW },
+    () => fs.writeFileSync(target, 'precious')), (e) => e.stage === 'exists');
   assert.equal(fs.readFileSync(target, 'utf8'), 'precious');
   assert.deepEqual(leftovers(out), []);
   db.close();
+});
+test('no source file other than backup.ts references the test hook', () => {
+  const root = path.join(__dirname, '..', 'src'); const hits = [];
+  const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    const f = path.join(d, e.name);
+    if (e.isDirectory()) walk(f);
+    else if (/\.(ts|tsx)$/.test(e.name) && !f.endsWith(path.join('nexus', 'db', 'backup.ts')) && /afterWrite|__testing/.test(fs.readFileSync(f, 'utf8'))) hits.push(f);
+  } };
+  walk(root); assert.deepEqual(hits, []);
 });

@@ -18,8 +18,6 @@ export interface BackupOptions {
   fromVersion: number;
   rowCounts: Record<string, number>;
   now: () => number;
-  /** Test hook: runs right after the partial file is written and before it is verified. */
-  afterWrite?: (partialPath: string) => void;
 }
 
 export class BackupError extends Error {
@@ -99,6 +97,10 @@ function removeQuietly(file: string): void {
  * verified, renamed into place, then hashed. Never overwrites an existing backup.
  */
 export function backupAndVerify(db: Database.Database, o: BackupOptions): BackupRecord {
+  return backupAndVerifyInner(db, o);
+}
+
+function backupAndVerifyInner(db: Database.Database, o: BackupOptions, afterWrite?: (partialPath: string) => void): BackupRecord {
   const stamp = backupStamp(o.now());
   const file = `harness-v${o.fromVersion}-${stamp}.db`;
   const finalPath = path.resolve(o.dir, file);
@@ -119,7 +121,7 @@ export function backupAndVerify(db: Database.Database, o: BackupOptions): Backup
   }
   let copy: Database.Database | null = null;
   try {
-    o.afterWrite?.(partial);
+    afterWrite?.(partial);
     copy = new Database(partial, { fileMustExist: true });
     copy.pragma('journal_mode = DELETE');
     if (!integrityOk(copy)) throw new BackupError('verify', 'backup integrity_check failed');
@@ -140,11 +142,12 @@ export function backupAndVerify(db: Database.Database, o: BackupOptions): Backup
     if (err instanceof BackupError) throw err;
     throw new BackupError('verify', `backup could not be verified: ${(err as Error).message}`);
   }
+  let linked = false;
   try {
     try {
       // linkSync fails if the target exists, so a late-appearing backup is never replaced.
       fs.linkSync(partial, finalPath);
-      removeQuietly(partial);
+      linked = true;
     } catch (err) {
       const code = (err as NodeJS.ErrnoException).code;
       if (code === 'EEXIST') {
@@ -161,6 +164,13 @@ export function backupAndVerify(db: Database.Database, o: BackupOptions): Backup
     if (err instanceof BackupError) throw err;
     removeQuietly(partial);
     throw new BackupError('write', `cannot finalise backup (${(err as NodeJS.ErrnoException).code ?? 'error'})`);
+  }
+  if (linked) {
+    try {
+      fs.rmSync(partial);
+    } catch (err) {
+      throw new BackupError('write', `backup ${file} is valid but its partial file could not be removed (${(err as NodeJS.ErrnoException).code ?? 'error'})`);
+    }
   }
   let bytes: number;
   let sha256: string;
@@ -182,3 +192,6 @@ export function backupAndVerify(db: Database.Database, o: BackupOptions): Backup
   }
   return { file, path: finalPath, bytes, sha256, fromVersion: o.fromVersion, rowCounts: { ...o.rowCounts }, verifiedAt: o.now() };
 }
+
+/** Test-only entry points. Production code must not use these. */
+export const __testing = { backupAndVerifyWithHook: backupAndVerifyInner };
