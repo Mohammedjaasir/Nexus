@@ -16,7 +16,7 @@ import {
 } from '../../../shared/providerAutomation';
 import { DEFAULT_CONTEXT_TRIGGER, type ContextRule } from '../../../shared/triggers';
 import type { AgentProvider } from '../../../shared/agentProvider';
-import { LEAD_HIVE_NAME } from '../../../shared/agentDisplay';
+import { LEAD_HIVE_NAME, LEAD_HIVE_ROLE } from '../../../shared/agentDisplay';
 import { acquireTerminal, resetTerminal, isTerminalAutomationSafe } from '@/components/terminalPool';
 import { deliverWithAcknowledgement } from './queueDelivery';
 import { OFFICE_CAST, DEFAULT_CHARACTER } from '@/scene/office/cast';
@@ -349,7 +349,7 @@ export function useHive(config: HarnessConfig | null): void {
         // fresh session. Without this the most important context on the floor —
         // the orchestrator's — was lost on every restart.
         resume: true,
-        hive: { id: GOD_ID, name: LEAD_HIVE_NAME, provider: godProvider, cwd: config.harnessHome!, isGod: true, role: 'orchestrator (god)' }
+        hive: { id: GOD_ID, name: LEAD_HIVE_NAME, provider: godProvider, cwd: config.harnessHome!, isGod: true, role: LEAD_HIVE_ROLE }
       });
       if (cancelled) { godSpawning.current = false; return; }
       if (!res.ok) { godSpawning.current = false; useStore.getState().setGodStatus('failed'); return; }
@@ -1065,7 +1065,7 @@ export function useHive(config: HarnessConfig | null): void {
         const command = (a.command ?? '').trim() || buildSpawnCommand(cfg, a.model, provider);
         const [exe, ...args] = tokenizeCommand(command);
         const hive = a.isGod
-          ? { id: a.id, name: LEAD_HIVE_NAME, cwd, provider, isGod: true, role: 'orchestrator (god)' }
+          ? { id: a.id, name: LEAD_HIVE_NAME, cwd, provider, isGod: true, role: LEAD_HIVE_ROLE }
           : a.isAssistant
           ? { id: a.id, name: a.name, cwd, provider, isAssistant: true, role: "Lead agent's prep assistant" }
           : { id: a.id, name: a.name, cwd, provider, role: a.description };

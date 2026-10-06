@@ -173,7 +173,9 @@ function TeamMember({ agent: a, label, role, isLead, toolCount, telemetry, roste
         {!isLead && a.ptyId && (
           <ModelPicker agent={a} label={label} provider={agentProvider} busy={busy} defaultModel={roster.defaultModel} restart={restart} />
         )}
-        {isLead && a.ptyId && <EnginePicker agent={a} busy={busy} roster={roster} restart={restart} />}
+        {/* No pty needed: saving the engine is the recovery path when the lead
+            failed to spawn on a bad one (the restart step no-ops without a pty). */}
+        {isLead && <EnginePicker agent={a} busy={busy} roster={roster} restart={restart} />}
         {a.ptyId && (isLead || canResume) && (
           <Button
             disabled={busy}
@@ -375,13 +377,22 @@ function ModelPicker({ agent: a, label, provider, busy, defaultModel, restart }:
 function EnginePicker({ agent: a, busy, roster, restart }: { agent: Agent; busy: boolean; roster: Roster; restart: Restart }) {
   const providerId = useId();
   const modelId = useId();
+  const [note, setNote] = useState<string | null>(null);
   const apply = async (): Promise<void> => {
+    setNote(null);
     const currentProvider = inferAgentProvider(a.command, a.provider);
-    if (roster.engineProvider !== currentProvider) {
+    if (a.ptyId && roster.engineProvider !== currentProvider) {
       if (!window.confirm("This restarts the lead agent; a conversation on a different engine can't be resumed.")) return;
     }
-    await window.cth.updateConfig({ godProvider: roster.engineProvider, godModel: roster.engineModel });
+    try {
+      await window.cth.updateConfig({ godProvider: roster.engineProvider, godModel: roster.engineModel });
+    } catch (e) {
+      setNote(`Could not save the engine: ${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
+    // Without a live terminal this is a no-op; the saved engine is used at the next start.
     await restart.restartWithModel(a, roster.engineModel, { provider: roster.engineProvider, resume: false });
+    if (!a.ptyId) setNote('Saved. The lead agent uses this engine the next time it starts.');
   };
   return (
     <span className="nxt-inline">
@@ -408,8 +419,9 @@ function EnginePicker({ agent: a, busy, roster, restart }: { agent: Agent; busy:
         ))}
       </select>
       <Button disabled={busy} title="Saves the engine and model, then restarts the lead agent" onClick={() => { void apply(); }}>
-        {busy ? 'Restarting…' : 'Apply engine'}
+        {busy ? 'Restarting…' : a.ptyId ? 'Apply engine' : 'Save engine'}
       </Button>
+      {note && <span className="nxs__status" role="status">{note}</span>}
     </span>
   );
 }

@@ -156,3 +156,7 @@
   .nxt-gauge > .nxt-gauge__value { grid-column: 2; }
   .nxt-card__end { margin-left: 0; }
 }
+
+/* Memory (hosted, restyled) */
+.nxm-query { flex: 1 1 240px; }
+.nxm-pre { max-height: 240px; }

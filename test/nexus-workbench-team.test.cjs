@@ -33,7 +33,34 @@ test('activity lines use display names, never raw ids or stored personas', () =>
 
 test('requests go to the lead agent with an optional suggestion', () => {
   assert.equal(t.requestBody('  Fix CI  '), 'Fix CI');
-  assert.equal(t.requestBody('Fix CI', { id: 'b1', label: 'Builder' }), 'Fix CI\n\n(The human suggests Builder (b1) for this — your call as the lead agent.)');
+  assert.equal(t.requestBody('Fix CI', { id: 'b1', name: 'worker-3' }), 'Fix CI\n\n(The human suggests worker-3 (b1) for this — your call as the lead agent.)');
+  assert.equal(t.requestBody('Fix CI', { id: 'b1', name: '' }), 'Fix CI\n\n(The human suggests b1 (b1) for this — your call as the lead agent.)');
+});
+
+test('the persisted request body never carries a display label', () => {
+  const body = t.requestBody('Fix CI', { id: 'b1', name: 'worker-3' });
+  for (const label of ['Builder', 'Lead agent', 'Agent ·']) assert.ok(!body.includes(label), label);
+  const src = read('src/renderer/src/nexus/agents/workbench/RequestsSection.tsx');
+  assert.match(src, /name: picked\.name \|\| picked\.id/);
+  assert.doesNotMatch(src, /requestBody\([^)]*label/i);
+  assert.match(src, /clearDispatchSeed\(\)/);
+});
+
+test('answers and dismissals keep humanQA fields outside the schema', () => {
+  const raw = [{ q: 'Key?', askedBy: 'b1', extra: { x: 1 } }, { q: 'Old?', a: 'yes', note: 'keep' }, 'junk'];
+  const out = t.mergeHumanQA(raw, 'Key?', { a: 'abc', answeredAt: 'T' });
+  assert.deepEqual(out[0], { q: 'Key?', askedBy: 'b1', extra: { x: 1 }, a: 'abc', answeredAt: 'T' });
+  assert.equal(out[1], raw[1]);
+  assert.equal(out[2], 'junk');
+  const dismissed = [{ q: 'Key?', dismissedAt: 'D0', k: 1 }, { q: 'Key?', k: 2 }];
+  assert.deepEqual(t.mergeHumanQA(dismissed, 'Key?', { dismissedAt: 'D1' }, true), [{ q: 'Key?', dismissedAt: 'D0', k: 1 }, { q: 'Key?', k: 2, dismissedAt: 'D1' }]);
+  assert.deepEqual(t.mergeHumanQA(undefined, 'Key?', { a: 'x' }), []);
+});
+
+test('task sections show a read failure instead of an empty state', () => {
+  for (const f of ['TasksSection.tsx', 'NeedsYouSection.tsx'])
+    assert.match(read(`src/renderer/src/nexus/agents/workbench/${f}`), /Could not read tasks: \{error\}/, f);
+  assert.match(read('src/renderer/src/nexus/agents/workbench/TeamSection.tsx'), /\{isLead && <EnginePicker/);
 });
 
 test('task columns', () => {

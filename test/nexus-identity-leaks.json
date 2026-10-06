@@ -135,14 +135,6 @@
     "hooks/useHive.ts": [
       {
         "rule": "lead",
-        "text": "orchestrator (god)"
-      },
-      {
-        "rule": "lead",
-        "text": "orchestrator (god)"
-      },
-      {
-        "rule": "lead",
         "text": "self-contained prompt to Michael via an outbox message with \"to\":\"god\". Do not do the task yourself.)"
       },
       {
@@ -186,12 +178,6 @@
       {
         "rule": "visual",
         "text": "@brand/logo.png?url"
-      }
-    ],
-    "nexus/agents/workbench/useRestartAgent.ts": [
-      {
-        "rule": "lead",
-        "text": "orchestrator (god)"
       }
     ],
     "shared/claudeCommands.ts": [

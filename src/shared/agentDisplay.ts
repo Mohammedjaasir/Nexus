@@ -7,6 +7,8 @@ export const LEAD_AGENT_LABEL = 'Lead agent';
 export const LEAD_AGENT_ROLE = 'Coordinates the other agents';
 /** The name the lead registers with in the hive. Registration never comes from a stored name or a display label. */
 export const LEAD_HIVE_NAME = 'Lead agent';
+/** The lead agent's role in the agents' registry and identity file. */
+export const LEAD_HIVE_ROLE = 'lead agent — coordinates the team';
 const DUPLICATE_LEAD_LABEL = 'Lead agent (duplicate record)';
 const DUPLICATE_LEAD_ROLE = 'Not the running lead agent';
 const ASSISTANT_LABEL = 'Assistant';

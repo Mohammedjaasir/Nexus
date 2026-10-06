@@ -14,7 +14,7 @@ const POLL_MS = 3000;
  *  cards; here a person can open one in full or delete one they no longer want
  *  tracked. New work goes in through Requests. */
 export function TasksSection({ onRequests }: { onRequests: () => void }) {
-  const { tasks, setTasks, loaded, refresh } = useHiveTasks(POLL_MS);
+  const { tasks, setTasks, loaded, error, refresh } = useHiveTasks(POLL_MS);
   const { canon, hint } = useAgentDisplay();
   const openTaskDetail = useStore((s) => s.openTaskDetail);
   const columns = columnsFor(tasks);
@@ -36,12 +36,13 @@ export function TasksSection({ onRequests }: { onRequests: () => void }) {
         <header className="nxs__head">
           <h3 className="nxs__title">Tasks</h3>
           <p className="nxs__lede">
-            {loaded ? `${tasks.length} task${tasks.length === 1 ? '' : 's'} on the ledger.` : 'Reading the task ledger…'}
+            {error ? 'The task ledger could not be read.' : loaded ? `${tasks.length} task${tasks.length === 1 ? '' : 's'} on the ledger.` : 'Reading the task ledger…'}
           </p>
           <Button variant="quiet" icon="send" onClick={onRequests}>New request</Button>
         </header>
 
-        {loaded && tasks.length === 0 ? (
+        {error && <p className="nxs__error" role="alert">Could not read tasks: {error}</p>}
+        {error && tasks.length === 0 ? null : loaded && tasks.length === 0 ? (
           <EmptyState
             icon="completion"
             title="No tasks"

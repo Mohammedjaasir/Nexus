@@ -36,6 +36,7 @@ import {
   type AgentProvider
 } from '../shared/agentProvider';
 import { MCP_CATALOG } from '../shared/mcpCatalog';
+import { LEAD_HIVE_ROLE } from '../shared/agentDisplay';
 import { expandTilde } from './fs';
 
 /** The subset of HarnessConfig the hive consumes for the default-MCP merge.
@@ -1058,7 +1059,7 @@ export class HiveManager {
     return [
       `# ${meta.name} (${meta.id})`,
       '',
-      `- Role: ${meta.role ?? (meta.isGod ? 'orchestrator (god)' : 'agent')}`,
+      `- Role: ${meta.role ?? (meta.isGod ? LEAD_HIVE_ROLE : 'agent')}`,
       `- Capabilities: ${caps}`,
       `- Working directory: ${meta.cwd}`,
       meta.isGod ? '- You are the **god / orchestrator**. You run the floor — keep awareness of the whole team, delegate execution, and personally own only the important calls (decomposition, sign-offs, conflicts, integration), not the grunt work.' : '',

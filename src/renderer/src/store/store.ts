@@ -220,6 +220,8 @@ interface State {
    *  "assign" from anywhere in the app). seq-keyed like ccTabRequest. */
   dispatchSeedRequest: { text: string; seq: number } | null;
   requestDispatchSeed: (text: string) => void;
+  /** Forget a seed once its request was sent, so a remount does not refill the box. */
+  clearDispatchSeed: () => void;
   /** Unsent ASK ME answer drafts, keyed by task id — so switching tabs (which
    *  unmounts the ask-me view) doesn't eat a half-typed answer. */
   answerDrafts: Record<string, string>;
@@ -745,6 +747,7 @@ export const useStore = create<State>((set) => ({
   dispatchSeedRequest: null,
   requestDispatchSeed: (text) =>
     set((s) => ({ dispatchSeedRequest: { text, seq: (s.dispatchSeedRequest?.seq ?? 0) + 1 } })),
+  clearDispatchSeed: () => set({ dispatchSeedRequest: null }),
   answerDrafts: {},
   setAnswerDraft: (taskId, text) =>
     set((s) => ({ answerDrafts: { ...s.answerDrafts, [taskId]: text } })),

@@ -6,6 +6,7 @@ import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { useAgentDisplay } from '../agentIdentity';
 import { useHiveTasks } from './useHiveTasks';
+import { mergeHumanQA } from './teamModel';
 
 const POLL_MS = 5000;
 
@@ -23,7 +24,7 @@ function dependentsTree(id: string, all: HiveTask[], seen = new Set<string>()): 
  *  the card, and (2) tells the lead agent, so it unblocks the card and work
  *  continues. Moved from the retired lead panel; the writes are unchanged. */
 export function NeedsYouSection() {
-  const { tasks, setTasks, loaded } = useHiveTasks(POLL_MS);
+  const { tasks, setTasks, loaded, error, rawOf } = useHiveTasks(POLL_MS);
   const { canon, hint } = useAgentDisplay();
   // Drafts live in the STORE (keyed by task id): switching sections unmounts
   // this view, and a half-typed answer must survive the round trip.
@@ -43,20 +44,18 @@ export function NeedsYouSection() {
     setSending(task.id);
     setFailed((f) => ({ ...f, [task.id]: '' }));
     try {
-      // 1) Document the answer ON the card.
+      // 1) Document the answer ON the card. The patch is built from the RAW
+      //    entries so humanQA fields outside the parsed schema are kept.
+      const change = { a: text, answeredAt: new Date().toISOString() };
       const next = tasks.map((t) => {
         if (t.id !== task.id) return t;
         const qa = (t.humanQA ?? []).map((e) =>
-          e === open || (e.q === open.q && !e.a)
-            ? { ...e, a: text, answeredAt: new Date().toISOString() }
-            : e
+          e === open || (e.q === open.q && !e.a) ? { ...e, ...change } : e
         );
         return { ...t, humanQA: qa };
       });
-      const updated = next.find((candidate) => candidate.id === task.id);
-      const result = updated
-        ? await window.cth.hivePatchTask(task.id, { humanQA: updated.humanQA })
-        : { ok: false };
+      const rawQA = mergeHumanQA(rawOf(task.id)?.humanQA ?? task.humanQA, open.q, change);
+      const result = await window.cth.hivePatchTask(task.id, { humanQA: rawQA as HiveTask['humanQA'] });
       if (!result.ok) throw new Error('task changed before answer could be saved');
       setTasks(next);
       // 2) Tell the lead agent, so the card gets unblocked and work continues.
@@ -86,21 +85,18 @@ export function NeedsYouSection() {
   const dismiss = async (task: HiveTask) => {
     const open = openQuestion(task);
     if (!open || sending === task.id) return;
+    const change = { dismissedAt: new Date().toISOString() };
     const next = tasks.map((t) => {
       if (t.id !== task.id) return t;
       const qa = (t.humanQA ?? []).map((e) =>
-        e === open || (e.q === open.q && !e.a && !e.dismissedAt)
-          ? { ...e, dismissedAt: new Date().toISOString() }
-          : e
+        e === open || (e.q === open.q && !e.a && !e.dismissedAt) ? { ...e, ...change } : e
       );
       return { ...t, humanQA: qa };
     });
     setTasks(next); // optimistic: the card leaves immediately
     try {
-      const updated = next.find((candidate) => candidate.id === task.id);
-      const result = updated
-        ? await window.cth.hivePatchTask(task.id, { humanQA: updated.humanQA })
-        : { ok: false };
+      const rawQA = mergeHumanQA(rawOf(task.id)?.humanQA ?? task.humanQA, open.q, change, true);
+      const result = await window.cth.hivePatchTask(task.id, { humanQA: rawQA as HiveTask['humanQA'] });
       if (!result.ok) throw new Error('task changed before ask could be dismissed');
     } catch {
       setTasks(tasks); // restore on failure so the user can retry
@@ -113,10 +109,11 @@ export function NeedsYouSection() {
         <header className="nxs__head">
           <h3 className="nxs__title">Needs you</h3>
           <p className="nxs__lede">
-            {!loaded ? 'Reading the task ledger…' : waiting.length === 0 ? 'Nothing is waiting on you.' : `${waiting.length} task${waiting.length === 1 ? ' is' : 's are'} waiting on you.`}
+            {error ? 'The task ledger could not be read.' : !loaded ? 'Reading the task ledger…' : waiting.length === 0 ? 'Nothing is waiting on you.' : `${waiting.length} task${waiting.length === 1 ? ' is' : 's are'} waiting on you.`}
           </p>
         </header>
-        {loaded && waiting.length === 0 ? (
+        {error && <p className="nxs__error" role="alert">Could not read tasks: {error}</p>}
+        {error && waiting.length === 0 ? null : loaded && waiting.length === 0 ? (
           <EmptyState
             icon="check"
             title="All clear"

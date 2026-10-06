@@ -77,11 +77,27 @@ export function activityLine(e: LogEntry, name: (id: string) => string): string 
   }
 }
 
+/** Apply `change` to the open humanQA entries asking `q` (no answer yet; when
+ *  `skipDismissed`, not dismissed either), working on the RAW ledger entries so
+ *  fields outside the parsed schema survive the write. Non-object entries and
+ *  every other entry pass through untouched. */
+export function mergeHumanQA(rawQA: unknown, q: string, change: Record<string, unknown>, skipDismissed = false): unknown[] {
+  const list: unknown[] = Array.isArray(rawQA) ? rawQA : [];
+  return list.map((e) => {
+    if (!e || typeof e !== 'object') return e;
+    const r = e as Record<string, unknown>;
+    const open = r.q === q && !r.a && (!skipDismissed || !r.dismissedAt);
+    return open ? { ...r, ...change } : e;
+  });
+}
+
 /** The message body for a request to the lead agent. A suggested agent is a
- *  hint the lead agent may ignore; the id keeps it unambiguous. */
-export function requestBody(text: string, suggested?: { id: string; label: string }): string {
+ *  hint the lead agent may ignore. The body is persisted and read by agents, so
+ *  it names the agent by its STORED name (what the agents know it by) plus its
+ *  id, never by a display label; labels belong to the UI only. */
+export function requestBody(text: string, suggested?: { id: string; name: string }): string {
   const body = text.trim();
   return suggested
-    ? `${body}\n\n(The human suggests ${suggested.label} (${suggested.id}) for this — your call as the lead agent.)`
+    ? `${body}\n\n(The human suggests ${suggested.name || suggested.id} (${suggested.id}) for this — your call as the lead agent.)`
     : body;
 }

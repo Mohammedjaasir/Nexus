@@ -101,6 +101,7 @@ export function useFleetTelemetry(): FleetTelemetry {
     let alive = true;
 
     const foldUsage = (s: AgentUsageSample): void => {
+      setError(undefined); // data arrived: any earlier read failure is stale
       setSamples((prev) => ({ ...prev, [s.agentId]: s }));
       const total = totalTokens(s);
       const r = rates.current[s.agentId];
@@ -138,6 +139,7 @@ export function useFleetTelemetry(): FleetTelemetry {
       else if (e.kind === 'tool_result') setLastTool((prev) => ({ ...prev, [e.span.agentId]: e.span.tool }));
     });
     const offBreaker = window.cth.onBreakerState?.((s: BreakerState) => {
+      setError(undefined);
       setBreakers((prev) => ({ ...prev, [s.agentId]: s }));
     });
 

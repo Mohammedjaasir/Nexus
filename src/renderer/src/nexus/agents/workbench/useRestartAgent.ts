@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { acquireTerminal, disposeTerminal, resetTerminal } from '@/components/terminalPool';
 import { useStore, type Agent } from '@/store/store';
-import { LEAD_HIVE_NAME } from '@shared/agentDisplay';
+import { LEAD_HIVE_NAME, LEAD_HIVE_ROLE } from '@shared/agentDisplay';
 import {
   buildSpawnCommand,
   inferAgentProvider,
@@ -122,7 +122,7 @@ export function useRestartAgent(): {
       const command = buildSpawnCommand(cfg, model, provider);
       const [exe, ...args] = tokenizeCommand(command.trim());
       const hive = a.isGod
-        ? { id: a.id, name: LEAD_HIVE_NAME, cwd: a.cwd, provider, isGod: true, role: 'orchestrator (god)' }
+        ? { id: a.id, name: LEAD_HIVE_NAME, cwd: a.cwd, provider, isGod: true, role: LEAD_HIVE_ROLE }
         : a.isAssistant
         ? { id: a.id, name: a.name, cwd: a.cwd, provider, isAssistant: true, role: "Lead agent's prep assistant" }
         : { id: a.id, name: a.name, cwd: a.cwd, provider, role: a.description };

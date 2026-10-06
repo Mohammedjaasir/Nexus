@@ -30,7 +30,9 @@ export function RequestsSection({ draft, onDraft }: { draft: RequestDraft; onDra
   const send = async (): Promise<void> => {
     if (!draft.text.trim() || sending) return;
     const picked = draft.suggest ? others.find((a) => a.id === draft.suggest) : undefined;
-    const suggested = picked ? { id: picked.id, label: labelOf(picked.id) } : undefined;
+    // Body: stored name + id (what the agents know). Status line: display label.
+    const suggested = picked ? { id: picked.id, name: picked.name || picked.id } : undefined;
+    const suggestedLabel = picked ? labelOf(picked.id) : undefined;
     setSending(true);
     try {
       const res = await window.cth.hiveSend(
@@ -39,7 +41,9 @@ export function RequestsSection({ draft, onDraft }: { draft: RequestDraft; onDra
       );
       if (res.ok) {
         onDraft({ text: '', suggest: '' });
-        setResult(`Sent to the lead agent${suggested ? ` (suggesting ${suggested.label})` : ''}`);
+        // The seed this draft came from is spent: a remount must not refill the box.
+        useStore.getState().clearDispatchSeed();
+        setResult(`Sent to the lead agent${suggestedLabel ? ` (suggesting ${suggestedLabel})` : ''}`);
       } else {
         setResult(`Could not send: ${res.error ?? 'unknown error'}`);
       }
