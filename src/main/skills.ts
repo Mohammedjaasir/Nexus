@@ -20,10 +20,11 @@
  * third-party skill means running someone else's instructions inside an agent
  * that has the user's tools, and that decision stays with the user.
  */
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, mkdirSync, rmSync, realpathSync } from 'node:fs';
 import { join, basename, dirname, resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
 import { getText } from './fetchText';
+import { isUnderRoot } from './fsRoots';
 
 export interface LocalSkill {
   id: string;
@@ -418,6 +419,42 @@ export async function installSkill(
   return { ok: true, path: dest };
 }
 
+function samePath(a: string, b: string): boolean {
+  return isUnderRoot(a, b) && isUnderRoot(b, a);
+}
+
+/**
+ * The skill folders this app manages: the user-level homes of each CLI, plus
+ * the project skill folders of each `cwds` entry (main passes allowedFsRoots():
+ * projects, registered repos, the harness home and agent folders).
+ */
+export function managedSkillRoots(cwds: readonly string[], home: string = homedir()): string[] {
+  return [
+    join(home, '.claude', 'skills'),
+    join(home, '.config', 'opencode', 'plugin'),
+    join(home, '.codex', 'plugins'),
+    ...cwds.filter((c) => typeof c === 'string' && !!c).flatMap((c) => [
+      join(c, '.claude', 'skills'),
+      join(c, '.opencode', 'plugin')
+    ])
+  ].map((r) => resolve(r));
+}
+
+/** Whether `target` is a skill entry inside a managed skills root (or one of
+ *  the `extraRoots`, e.g. the bundled skills). The root itself does not count.
+ *  Backs `skills:reveal`. */
+export function isManagedSkillPath(
+  target: string,
+  cwds: readonly string[],
+  extraRoots: readonly string[] = [],
+  home: string = homedir()
+): boolean {
+  if (typeof target !== 'string' || !target.trim() || target.includes('\0')) return false;
+  const t = resolve(target);
+  const roots = [...managedSkillRoots(cwds, home), ...extraRoots.map((r) => resolve(r))];
+  return roots.some((r) => isUnderRoot(r, t) && !samePath(r, t));
+}
+
 /**
  * Remove an installed skill. Refuses anything it cannot prove is a skill folder
  * inside a skills root — the failure mode of getting this wrong is deleting a
@@ -431,20 +468,19 @@ export function uninstallSkill(
   let target: string;
   try { target = resolve(skillPath); } catch { return { ok: false, error: 'unreadable path' }; }
 
-  const roots = [
-    join(homedir(), '.claude', 'skills'),
-    join(homedir(), '.config', 'opencode', 'plugin'),
-    join(homedir(), '.codex', 'plugins'),
-    ...opts.cwds.filter(Boolean).flatMap((c) => [
-      join(c, '.claude', 'skills'),
-      join(c, '.opencode', 'plugin')
-    ])
-  ].map((r) => resolve(r));
-
-  const root = roots.find((r) => target.startsWith(r + sep));
+  const roots = managedSkillRoots(opts.cwds);
+  const root = roots.find((r) => isUnderRoot(r, target) && !samePath(r, target))
+    ?? roots.find((r) => samePath(r, target));
   if (!root) return { ok: false, error: 'That folder is not inside a skills directory this app manages.' };
-  if (target === root) return { ok: false, error: 'refusing to delete the skills directory itself' };
+  if (samePath(target, root)) return { ok: false, error: 'refusing to delete the skills directory itself' };
   if (!existsSync(target)) return { ok: false, error: 'Already gone.' };
+  // The folder holding the skill must really be inside the skills root: a
+  // junction or symlink in between must not lead the delete somewhere else.
+  try {
+    if (!isUnderRoot(realpathSync.native(root), realpathSync.native(dirname(target)))) {
+      return { ok: false, error: 'That folder is not inside a skills directory this app manages.' };
+    }
+  } catch { return { ok: false, error: 'could not inspect that path' }; }
 
   // A directory must look like a skill; a plugin entry must be a plain file.
   try {

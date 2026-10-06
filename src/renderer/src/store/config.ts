@@ -63,6 +63,10 @@ export interface HarnessConfig {
   registeredRepos: string[];
   autoMode: boolean;
   defaultCommand: string;
+  /** Agent engines the user allowed in main's confirmation dialog (O.9 #6).
+   *  Read-only mirror: main ignores additions from the renderer and only
+   *  accepts removals. Mirrors src/main/config.ts. */
+  readonly trustedEngineCommands?: readonly string[];
   /** Default model for newly spawned agents (e.g. 'claude-sonnet-4-6[1m]'); unset = CLI default. */
   defaultModel?: string;
   /** Which provider+model powers the GOD orchestrator ("Michael"). Default

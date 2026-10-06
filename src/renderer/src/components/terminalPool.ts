@@ -700,6 +700,12 @@ async function openMdPreview(abs: string): Promise<void> {
   if (!hit) {
     const res = await window.cth.statAbs(abs).catch(() => null);
     if (!res) return;
+    // Main refused the folder (outside every project/agent folder): open the
+    // preview anyway so it shows main's error instead of the click doing nothing.
+    if (res.error && res.path) {
+      storeApi?.getState().setFullscreenFile(res.path, 'preview');
+      return;
+    }
     hit = { isFile: res.exists && res.isFile, path: res.path };
     if (mdStatCache.size > 500) mdStatCache.clear();
     mdStatCache.set(abs, hit);

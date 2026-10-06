@@ -366,6 +366,10 @@ export interface HarnessConfig {
   registeredRepos: string[];
   autoMode: boolean;
   defaultCommand: string;
+  /** Agent engines the user allowed in main's confirmation dialog (O.9 #6).
+   *  Read-only mirror: main ignores additions from the renderer and only
+   *  accepts removals. Mirrors src/main/config.ts. */
+  readonly trustedEngineCommands?: readonly string[];
   defaultModel?: string;
   /** Which provider+model powers the GOD orchestrator ("Michael"). Default
    *  'claude' / 'claude-opus-4-8'. Mirrors src/main/config.ts. */
@@ -782,7 +786,7 @@ const api = {
   > => ipcRenderer.invoke('fs:writeFile', root, rel, content),
   /** v0.3.4: existence check for an absolute path (expands ~) — backs the
    *  terminal ⌘-click markdown flow. Metadata only, never contents. */
-  statAbs: (p: string): Promise<{ exists: boolean; isFile: boolean; path: string }> =>
+  statAbs: (p: string): Promise<{ exists: boolean; isFile: boolean; path: string; error?: string }> =>
     ipcRenderer.invoke('fs:statAbs', p),
 
   // ─── Git ─────────────────────────────────────────────────────────────────

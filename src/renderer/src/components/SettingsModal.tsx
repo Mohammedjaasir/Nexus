@@ -218,6 +218,22 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
       setTimeout(() => setDefaultModelNote(''), 2200);
     } catch { setDefaultModelNote('save failed'); }
   };
+  // Allowed custom agent engines (main-only list; the renderer may only remove).
+  const [trustedEngines, setTrustedEngines] = useState<string[]>(
+    Array.isArray(config.trustedEngineCommands) ? [...config.trustedEngineCommands] : []
+  );
+  const [trustedEnginesError, setTrustedEnginesError] = useState('');
+  const removeTrustedEngine = async (cmd: string) => {
+    setTrustedEnginesError('');
+    try {
+      const next = await window.cth.updateConfig({
+        trustedEngineCommands: trustedEngines.filter((c) => c !== cmd)
+      } as Partial<HarnessConfig>);
+      setTrustedEngines(Array.isArray(next.trustedEngineCommands) ? [...next.trustedEngineCommands] : []);
+    } catch {
+      setTrustedEnginesError('Could not remove it. Try again.');
+    }
+  };
   const [maxTurnsVal, setMaxTurnsVal] = useState<string>(cfgX.maxTurns != null ? String(cfgX.maxTurns) : '');
   const saveMaxTurns = async () => {
     const n = maxTurnsVal.trim() === '' ? undefined : Number(maxTurnsVal);
@@ -1070,6 +1086,42 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                       <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
 
                       <AiEnginesSettings config={config} />
+
+                      <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
+
+                      {/* Engines the user allowed in main's confirmation dialog
+                          (O.9 #6). Main accepts removals only; adding one happens
+                          in that dialog when an agent first runs it. */}
+                      <div>
+                        <div style={{
+                          fontFamily: 'var(--cth-font-display)', fontSize: 8, lineHeight: '12px',
+                          color: 'var(--cth-ink-500)', textTransform: 'uppercase', marginBottom: 10
+                        }}>
+                          Allowed custom engines
+                        </div>
+                        {trustedEngines.length === 0 ? (
+                          <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
+                            No custom engines allowed. Nexus asks before running one.
+                          </span>
+                        ) : (
+                          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {trustedEngines.map((cmd) => (
+                              <li key={cmd} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <code style={{ fontSize: 12, color: 'var(--cth-ink-900)', wordBreak: 'break-all' }}>{cmd}</code>
+                                <button
+                                  onClick={() => void removeTrustedEngine(cmd)}
+                                  style={{
+                                    padding: '3px 8px 1px', border: 'none', cursor: 'pointer',
+                                    fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-900)',
+                                    background: 'var(--cth-cream-100)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)'
+                                  }}
+                                >Remove</button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {trustedEnginesError && <span style={{ fontSize: 12, color: 'var(--cth-coral)' }}>{trustedEnginesError}</span>}
+                      </div>
 
                       <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
 

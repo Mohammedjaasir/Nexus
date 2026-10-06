@@ -185,6 +185,10 @@ export interface HarnessConfig {
   autoMode: boolean;
   /** The command we run when spawning a new agent. */
   defaultCommand: string;
+  /** Engine binaries the user allowed to run as agents through the main-process
+   *  confirmation dialog (O.9 #6). Main-only: the renderer can remove entries
+   *  (Settings → Agents & Models) but never add one. */
+  trustedEngineCommands?: string[];
   /** Default model for newly spawned agents (e.g. 'claude-sonnet-4-6[1m]'); unset = CLI default. */
   defaultModel?: string;
   /** Which provider powers the GOD orchestrator ("Michael"). The persona is
@@ -407,6 +411,7 @@ const DEFAULTS: HarnessConfig = {
   registeredRepos: [],
   autoMode: true,
   defaultCommand: 'claude',
+  trustedEngineCommands: [],
   godProvider: 'claude',
   godModel: 'claude-opus-4-8',
   // Global default model for every agent that hasn't picked one explicitly — wins

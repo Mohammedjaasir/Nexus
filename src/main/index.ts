@@ -6,7 +6,7 @@ import {
   readlinkSync, symlinkSync, realpathSync
 } from 'node:fs';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
-import { join, resolve, sep, basename, dirname } from 'node:path';
+import { join, resolve, sep, basename, dirname, isAbsolute, normalize } from 'node:path';
 import { homedir } from 'node:os';
 import { request as httpsRequest } from 'node:https';
 import { pathToFileURL } from 'node:url';
@@ -20,7 +20,11 @@ import {
 } from './config';
 import { listDir, readFileText, readFileBinary, writeFileText, statAbs, expandTilde } from './fs';
 import { resolveAllowedRoot } from './fsRoots';
-import { decidePermission, decidePermissionCheck, isAllowedExternalUrl, isInAppNavigation } from './windowPolicy';
+import { decidePermission, decidePermissionCheck, isAllowedExternalUrl, isInAppNavigation, externalUrlForShell } from './windowPolicy';
+import {
+  sanitizeSpawnRequest, classifySpawnCommand, resolveWorkerCommand, shrinkTrustedEngines, addTrustedEngine,
+  engineConfirmText, ENGINE_NOT_ALLOWED, ENGINE_INVALID
+} from './spawnPolicy';
 import {
   getBranch, getStatus, getLog, getBranches, getAheadBehind, isRepo, getDiff, mainRepoRoot,
   addWorktree, removeWorktree, worktreeHasUnintegratedWork, worktreeIsGcSafe,
@@ -77,7 +81,7 @@ import {
 import { buildMissingCliScript, chooseInstallRung } from './cliInstall';
 import { detectNodeVersion, nodeIsUsable, resolveNodeInstaller } from './nodeInstall';
 import { toolCatalog, type ToolStatus } from '../shared/toolCatalog';
-import { listLocalSkills, loadCatalog, installSkill, uninstallSkill, type LocalSkill } from './skills';
+import { listLocalSkills, loadCatalog, installSkill, uninstallSkill, isManagedSkillPath, type LocalSkill } from './skills';
 import {
   CODEX_REMOTE_SOCKET_RELATIVE,
   codexRemoteAliasPath,
@@ -2122,6 +2126,13 @@ ipcMain.handle('hire:openFile', async () => {
  * window — cascades its position, and on close stops only its OWN terminals
  * while the app keeps running.
  */
+/** Open an allowed external URL in the OS browser. The shell receives
+ *  `new URL(url).href` (externalUrlForShell), never the raw string. */
+function openExternalNormalised(url: string): void {
+  const href = externalUrlForShell(url);
+  if (href) void shell.openExternal(href).catch(() => { /* best-effort */ });
+}
+
 function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
   const isFloor = opts.floor === true;
 
@@ -2214,7 +2225,7 @@ function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
   // O.9 #3: new windows are never created. https links go to the OS browser
   // (the same allow-list as `app:openExternal`); everything else is dropped.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (isAllowedExternalUrl(url)) void shell.openExternal(url).catch(() => { /* best-effort */ });
+    if (isAllowedExternalUrl(url)) openExternalNormalised(url);
     return { action: 'deny' };
   });
   // The page itself may only navigate within the app (the dev server origin, or
@@ -2225,7 +2236,7 @@ function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
   const guardNavigation = (e: Electron.Event, url: string): void => {
     if (isInAppNavigation(url, currentAppUrl())) return;
     e.preventDefault();
-    if (isAllowedExternalUrl(url)) void shell.openExternal(url).catch(() => { /* best-effort */ });
+    if (isAllowedExternalUrl(url)) openExternalNormalised(url);
   };
   win.webContents.on('will-navigate', (e, url) => guardNavigation(e, url));
   win.webContents.on('will-redirect', (e, url) => guardNavigation(e, url));
@@ -2418,14 +2429,57 @@ function findCodexHomeForSession(sessionId: string, siblingsRoot: string): strin
  *  ephemeral-worker watcher. */
 type AgentSpawnOptions = SpawnOptions & { hive?: AgentMeta; isolate?: boolean; resume?: boolean; requireResume?: boolean; resumeSessionId?: string; provider?: AgentProvider; noAutoInstall?: boolean };
 
-ipcMain.handle('pty:spawn', async (evt, opts: AgentSpawnOptions) => {
-  if (!opts || typeof opts.id !== 'string' || typeof opts.cwd !== 'string' || typeof opts.command !== 'string') {
-    return { ok: false, error: 'invalid SpawnOptions' };
+// ─── Engine allow-list (O.9 #6) ─────────────────────────────────────────────
+// A renderer-named engine binary runs only when it is a provider preset, the
+// configured default command, or an engine the user already allowed. Any other
+// program gets ONE main-process confirmation; Allow remembers it in the
+// main-only `trustedEngineCommands`. Concurrent spawns of the same unknown
+// binary (team restore) share one dialog.
+const pendingEngineConfirms = new Map<string, Promise<boolean>>();
+async function ensureAllowedEngine(
+  command: string,
+  cwd: string,
+  owner: Electron.WebContents | null
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const verdict = classifySpawnCommand(command, readConfig());
+  if (verdict.ok) return { ok: true };
+  if (verdict.reason === 'invalid') return { ok: false, error: ENGINE_INVALID };
+  const bin = command.trim();
+  let pending = pendingEngineConfirms.get(bin);
+  if (!pending) {
+    pending = (async () => {
+      const { message, detail } = engineConfirmText(bin, expandTilde(cwd));
+      const parent = (owner && !owner.isDestroyed() ? BrowserWindow.fromWebContents(owner) : null)
+        ?? BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null;
+      const boxOpts: Electron.MessageBoxOptions = {
+        type: 'question', message, detail, buttons: ['Allow', 'Cancel'], defaultId: 1, cancelId: 1, noLink: true
+      };
+      const res = parent ? await dialog.showMessageBox(parent, boxOpts) : await dialog.showMessageBox(boxOpts);
+      if (res.response !== 0) return false;
+      writeConfig({ trustedEngineCommands: addTrustedEngine(readConfig().trustedEngineCommands, bin) });
+      return true;
+    })().finally(() => pendingEngineConfirms.delete(bin));
+    pendingEngineConfirms.set(bin, pending);
   }
+  let allowed = false;
+  try { allowed = await pending; } catch (e) { console.error('[spawn] engine confirmation failed:', e); }
+  return allowed ? { ok: true } : { ok: false, error: ENGINE_NOT_ALLOWED };
+}
+
+ipcMain.handle('pty:spawn', async (evt, raw: unknown) => {
+  // O.9 #6: rebuild the request from known fields only (no env, shellScript or
+  // noAutoInstall from the renderer), then gate the engine binary.
+  // The cwd is deliberately NOT restricted to known roots: a folder the user
+  // picks for an agent is a legitimate new root (it becomes one via the hive
+  // registry and the live PTY list once spawned).
+  const sanitized = sanitizeSpawnRequest(raw);
+  if (!sanitized.ok) return { ok: false, error: sanitized.error };
   // Record the spawning window as the PTY's owner so its output routes ONLY back
   // to that floor, then run the shared spawn core.
   const owner = BrowserWindow.fromWebContents(evt.sender)?.webContents ?? null;
-  return spawnAgentCore(opts, owner);
+  const engine = await ensureAllowedEngine(sanitized.opts.command, sanitized.opts.cwd, owner);
+  if (!engine.ok) return engine;
+  return spawnAgentCore({ ...sanitized.opts }, owner);
 });
 
 /** Core agent-spawn logic — provider inference, the missing-CLI installer
@@ -2889,6 +2943,8 @@ ipcMain.handle('dialog:chooseFolder', async (evt) => {
 // ─── IPC: Terminal.app at a folder ──────────────────────────────────────────
 ipcMain.handle('terminal:openAtFolder', async (_evt, cwd: unknown) => {
   if (typeof cwd !== 'string' || cwd.length === 0) return { ok: false, error: 'invalid cwd' };
+  // Deliberately not restricted to known roots: opening a terminal at a folder
+  // the user chose is a legitimate root addition, not a renderer escalation.
   return new Promise<{ ok: boolean; error?: string }>((resolve) => {
     const p = spawn('open', ['-a', 'Terminal', cwd]);
     let err = '';
@@ -2996,6 +3052,13 @@ ipcMain.handle('config:update', (_evt, patch: Partial<HarnessConfig>) => {
   // relaunch, so bootstrap here on the null → set transition. Gated on the
   // transition so ordinary config writes never re-enter it.
   const hiveWasEnabled = hive.enabled();
+  // O.9 #6: allowed agent engines are main-only. The renderer may remove
+  // entries (Settings → Agents & Models) but never add one; adding happens only
+  // through the main-process confirmation dialog in ensureAllowedEngine.
+  if (patch && typeof patch === 'object' && 'trustedEngineCommands' in patch) {
+    patch = { ...patch };
+    patch.trustedEngineCommands = shrinkTrustedEngines(patch.trustedEngineCommands, readConfig().trustedEngineCommands);
+  }
   const next = writeConfig(patch);
   // Live opt-in/out from Settings → Privacy (TELEMETRY.md).
   if (typeof patch?.telemetryEnabled === 'boolean') analytics.setEnabled(patch.telemetryEnabled);
@@ -3180,81 +3243,122 @@ ipcMain.handle('fs:writeFile', (_evt, root: unknown, rel: unknown, content: unkn
   return writeFileText(r, rel, content);
 });
 // v0.3.4: existence check for the terminal ⌘-click markdown flow (metadata only).
+// Caller-path validation: only paths inside (or files directly in) a folder
+// main knows are stat'ed. A refused path answers with FS_ROOT_REFUSED and its
+// normalised path, so the terminal opens the preview, which shows the error.
 ipcMain.handle('fs:statAbs', (_evt, p: unknown) => {
   if (typeof p !== 'string' || p.length > 4096 || p.includes('\0')) {
     return { exists: false, isFile: false, path: '' };
   }
-  return statAbs(p);
+  const target = expandTilde(p);
+  if (!isAbsolute(target)) return statAbs(p);
+  if (!acceptFsRoot(target) && !acceptFsRoot(dirname(target))) {
+    return { exists: false, isFile: false, path: normalize(target), error: FS_ROOT_REFUSED };
+  }
+  return statAbs(target);
 });
 
 // ─── IPC: git ───────────────────────────────────────────────────────────────
+// Caller-path validation (Task 10 review carry-over): every git handler runs
+// only in a folder main already knows (acceptFsRoot), or in the main checkout
+// that main itself derived from such a folder through `git:mainRepo` — the IDE
+// and the roster group a worktree or a project sub-folder under its repo root,
+// which need not be a project itself. A refused folder gets FS_ROOT_REFUSED in
+// the handler's own error shape, which the Git panes already display.
+const gitDerivedRoots = new Set<string>();
+const GIT_DERIVED_ROOTS_MAX = 64;
+function acceptGitCwd(cwd: string): boolean {
+  if (acceptFsRoot(cwd)) return true;
+  if (gitDerivedRoots.size === 0) return false;
+  return resolveAllowedRoot(expandTilde(cwd), [...gitDerivedRoots], realpathSync.native) !== null;
+}
 ipcMain.handle('git:isRepo', (_evt, cwd: unknown) => {
   if (typeof cwd !== 'string') return false;
+  if (!acceptGitCwd(cwd)) return false;
   return isRepo(cwd);
 });
 
 // The repo a cwd belongs to, following a linked worktree back to its main
 // checkout — the renderer groups the agent roster by this.
-ipcMain.handle('git:mainRepo', (_evt, cwd: unknown) => {
+ipcMain.handle('git:mainRepo', async (_evt, cwd: unknown) => {
   if (typeof cwd !== 'string' || !cwd) return null;
-  return mainRepoRoot(cwd);
+  if (!acceptGitCwd(cwd)) return null;
+  const root = await mainRepoRoot(cwd);
+  // Main derived this checkout from an allowed folder, so git may run there.
+  if (root && !gitDerivedRoots.has(root)) {
+    if (gitDerivedRoots.size >= GIT_DERIVED_ROOTS_MAX) gitDerivedRoots.delete(gitDerivedRoots.values().next().value as string);
+    gitDerivedRoots.add(root);
+  }
+  return root;
 });
 ipcMain.handle('git:branch', (_evt, cwd: unknown) => {
   if (typeof cwd !== 'string') return { error: 'invalid cwd' };
+  if (!acceptGitCwd(cwd)) return { error: FS_ROOT_REFUSED };
   return getBranch(cwd);
 });
 ipcMain.handle('git:status', (_evt, cwd: unknown) => {
   if (typeof cwd !== 'string') return { error: 'invalid cwd' };
+  if (!acceptGitCwd(cwd)) return { error: FS_ROOT_REFUSED };
   return getStatus(cwd);
 });
 ipcMain.handle('git:log', (_evt, cwd: unknown, n: unknown) => {
   if (typeof cwd !== 'string') return { error: 'invalid cwd' };
+  if (!acceptGitCwd(cwd)) return { error: FS_ROOT_REFUSED };
   const count = typeof n === 'number' ? Math.min(500, Math.max(1, n)) : 50;
   return getLog(cwd, count);
 });
 ipcMain.handle('git:branches', (_evt, cwd: unknown) => {
   if (typeof cwd !== 'string') return { error: 'invalid cwd' };
+  if (!acceptGitCwd(cwd)) return { error: FS_ROOT_REFUSED };
   return getBranches(cwd);
 });
 ipcMain.handle('git:aheadBehind', (_evt, cwd: unknown) => {
   if (typeof cwd !== 'string') return { error: 'invalid cwd' };
+  if (!acceptGitCwd(cwd)) return { error: FS_ROOT_REFUSED };
   return getAheadBehind(cwd);
 });
 ipcMain.handle('git:diff', (_evt, cwd: unknown, relPath: unknown) => {
   if (typeof cwd !== 'string' || typeof relPath !== 'string') {
     return { ok: false, error: 'invalid args' };
   }
+  if (!acceptGitCwd(cwd)) return { ok: false, error: FS_ROOT_REFUSED };
   return getDiff(cwd, relPath);
 });
 // ─── v0.3.4: history / compare / checkout (git visualization) ───────────────
 ipcMain.handle('git:logGraph', (_evt, cwd: unknown, n: unknown, skip: unknown) => {
   if (typeof cwd !== 'string') return { error: 'invalid args' };
+  if (!acceptGitCwd(cwd)) return { error: FS_ROOT_REFUSED };
   const count = Math.min(500, Math.max(1, typeof n === 'number' ? n : 200));
   const off = Math.max(0, typeof skip === 'number' ? skip : 0);
   return getLogGraph(cwd, count, off);
 });
 ipcMain.handle('git:commitFiles', (_evt, cwd: unknown, sha: unknown) => {
   if (typeof cwd !== 'string' || typeof sha !== 'string') return { error: 'invalid args' };
+  if (!acceptGitCwd(cwd)) return { error: FS_ROOT_REFUSED };
   return getCommitFiles(cwd, sha);
 });
 ipcMain.handle('git:showFile', (_evt, cwd: unknown, rev: unknown, relPath: unknown) => {
   if (typeof cwd !== 'string' || typeof rev !== 'string' || typeof relPath !== 'string') {
     return { ok: false, error: 'invalid args' };
   }
+  if (!acceptGitCwd(cwd)) return { ok: false, error: FS_ROOT_REFUSED };
   return getFileAtRev(cwd, rev, relPath);
 });
 ipcMain.handle('git:compareRefs', (_evt, cwd: unknown, base: unknown, head: unknown, mode: unknown) => {
   if (typeof cwd !== 'string' || typeof base !== 'string' || typeof head !== 'string') {
     return { error: 'invalid args' };
   }
+  if (!acceptGitCwd(cwd)) return { error: FS_ROOT_REFUSED };
   return compareRefs(cwd, base, head, mode === 'two' ? 'two' : 'three');
 });
 ipcMain.handle('git:worktrees', (_evt, cwd: unknown) => {
   if (typeof cwd !== 'string') return { error: 'invalid args' };
+  if (!acceptGitCwd(cwd)) return { error: FS_ROOT_REFUSED };
   return listWorktrees(cwd);
 });
 ipcMain.handle('git:checkout', async (_evt, cwd: unknown, ref: unknown, detach: unknown) => {
   if (typeof cwd !== 'string' || typeof ref !== 'string') return { ok: false, error: 'invalid args' };
+  if (!acceptGitCwd(cwd)) return { ok: false, error: FS_ROOT_REFUSED };
   // Guard: never swap files under an actively-working agent. Objective signal
   // owned by main — any live pty whose cwd sits in this tree and emitted output
   // in the last 10s is treated as mid-run. (Idle-but-open terminals are fine:
@@ -3337,6 +3441,8 @@ ipcMain.handle('project:create', async (_evt, input: CreateProjectInput) => {
 });
 ipcMain.handle('project:import', async (_evt, rootPath: unknown, domainId: unknown, name: unknown) => {
   if (typeof rootPath !== 'string' || !rootPath.trim()) return { ok: false, error: 'invalid rootPath' };
+  // Deliberately not restricted to known roots: importing a folder the user
+  // chose is how a new root is added (it then appears in allowedFsRoots()).
   try {
     const res = await projectManager.importProject(
       rootPath,
@@ -3459,8 +3565,15 @@ ipcMain.handle('project:goal:set', (_evt, projectId: unknown, title: unknown, de
  *  plus the agent's own cwd, so a project-scoped skill shows up where it applies. */
 ipcMain.handle('skills:local', (_evt, cwd: unknown): LocalSkill[] => {
   const cfg = readConfig();
+  // Caller-path validation: the agent's cwd is scanned only when it is a folder
+  // main knows (the lead's harness home, an agent cwd or worktree, a project).
+  // A refused cwd is left out of the scan; global and registered-repo skills
+  // still list.
+  const own = typeof cwd === 'string' && cwd ? cwd : '';
+  const ownAllowed = !!own && acceptFsRoot(own) !== null;
+  if (own && !ownAllowed) console.warn('[skills] local scan: ignoring a folder outside the known roots:', own);
   const cwds = [
-    ...(typeof cwd === 'string' && cwd ? [cwd] : []),
+    ...(ownAllowed ? [own] : []),
     ...(cfg.registeredRepos ?? [])
   ];
   try {
@@ -3488,20 +3601,24 @@ ipcMain.handle('skills:install', async (_evt, url: unknown, name: unknown) => {
 });
 /** Delete an installed skill. The guard rails live in uninstallSkill — it refuses
  *  any path it cannot prove is a skill folder inside a skills root. */
+// Caller-path validation: project-scoped skills are removable only under a
+// folder main knows (allowedFsRoots(), which includes the registered repos,
+// the lead's harness home and agent cwds), plus the user-level skill homes.
 ipcMain.handle('skills:uninstall', (_evt, path: unknown) => {
   if (typeof path !== 'string') return { ok: false as const, error: 'bad request' };
-  const cfg = readConfig();
-  return uninstallSkill(path, { cwds: cfg.registeredRepos ?? [] });
+  return uninstallSkill(path, { cwds: allowedFsRoots() });
 });
 /** Reveal a skill on disk. `openExternal` is deliberately https-only, so a
  *  file:// URL cannot (and should not) be smuggled through it. */
 ipcMain.handle('skills:reveal', (_evt, path: unknown) => {
   if (typeof path !== 'string' || !path.trim()) return { ok: false, error: 'bad request' };
-  const skillRoots = [join(homedir(), '.claude', 'skills'), join(homedir(), '.config', 'opencode')];
+  // Same skill roots as uninstall (user-level homes + skill folders of every
+  // folder main knows), plus the bundled skills shipped with the app.
   const target = resolve(path);
-  const inRoot = skillRoots.some((r) => target.startsWith(resolve(r) + sep))
-    || (readConfig().registeredRepos ?? []).some((c) => target.startsWith(resolve(c) + sep));
-  if (!inRoot) return { ok: false, error: 'outside a managed skills directory' };
+  const bundled = skillsResourceDir();
+  if (!isManagedSkillPath(target, allowedFsRoots(), bundled ? [bundled] : [])) {
+    return { ok: false, error: 'outside a managed skills directory' };
+  }
   shell.showItemInFolder(target);
   return { ok: true };
 });
@@ -3579,6 +3696,9 @@ ipcMain.handle('kg:ingestFiles', (_evt, payload: unknown) => {
   const paths = Array.isArray(p.paths) ? p.paths.filter((x): x is string => typeof x === 'string') : [];
   const tags = Array.isArray(p.tags) ? p.tags.filter((x): x is string => typeof x === 'string') : undefined;
   const results = paths.map((srcPath) => {
+    // Caller-path validation: only files inside a folder main knows. Files from
+    // anywhere else go through kg:addFiles, where the user picks them.
+    if (!acceptFsRoot(srcPath)) return { ok: false as const, srcPath, error: FS_ROOT_REFUSED };
     try {
       const r = knowledge.ingestFile(srcPath, { tags });
       return { ok: true as const, srcPath, docId: r.docId, chunkCount: r.chunkCount };
@@ -3763,8 +3883,9 @@ ipcMain.handle('app:resetAll', () => {
 // ─── IPC: token telemetry (real usage + est. cost from CC transcripts) ───────
 // Reconciler/fallback path: per-cwd transcript sum, now priced PER MODEL (cost
 // bug #1 fixed in pricing.ts). Kept for back-compat with the existing UsageRow.
+// Caller-path validation: only a folder main knows (null = invalid cwd).
 ipcMain.handle('hive:agentUsage', (_evt, cwd: unknown) =>
-  typeof cwd === 'string' ? readAgentUsage(cwd) : null);
+  typeof cwd === 'string' && acceptFsRoot(cwd) ? readAgentUsage(cwd) : null);
 // Current context size (tokens) of an agent's LIVE session — the transcript
 // path is learned from the agent's hook payloads (SessionStart fires right at
 // spawn), so this works even when several agents share one cwd. Null until the
@@ -3939,13 +4060,18 @@ ipcMain.handle('hive:textSearch', (_evt, query: unknown) => {
 });
 
 // ─── IPC: GitHub issue ingestion (gh CLI) ────────────────────────────────────
+// Caller-path validation: `gh` runs only in a folder main knows.
 ipcMain.handle('github:issues', (_evt, cwd: unknown) =>
-  typeof cwd === 'string' ? listIssues(cwd) : { ok: false, error: 'no cwd' }
+  typeof cwd !== 'string' ? { ok: false, error: 'no cwd' }
+    : !acceptFsRoot(cwd) ? { ok: false, error: FS_ROOT_REFUSED }
+    : listIssues(cwd)
 );
 
 // ─── IPC: GitHub CI status watcher (gh CLI) ──────────────────────────────────
 ipcMain.handle('github:ciRuns', (_evt, cwd: unknown) =>
-  typeof cwd === 'string' ? listCIRuns(cwd) : { ok: false, error: 'no cwd' }
+  typeof cwd !== 'string' ? { ok: false, error: 'no cwd' }
+    : !acceptFsRoot(cwd) ? { ok: false, error: FS_ROOT_REFUSED }
+    : listCIRuns(cwd)
 );
 
 // ─── IPC: desktop notifications toggle ──────────────────────────────────────
@@ -3959,7 +4085,10 @@ ipcMain.handle('app:openExternal', async (_evt, url: unknown) => {
   if (typeof url !== 'string' || !isAllowedExternalUrl(url)) {
     return { ok: false, error: 'blocked url' };
   }
-  await shell.openExternal(url);
+  // The shell gets the parsed, normalised href, never the renderer's raw string.
+  const href = externalUrlForShell(url);
+  if (!href) return { ok: false, error: 'blocked url' };
+  await shell.openExternal(href);
   return { ok: true };
 });
 /** Toggle macOS "Open at Login" — fully programmatic, no permission prompt.
@@ -4349,6 +4478,10 @@ registerRealtimeActionIpc({
   },
   spawnAgent: async (opts) => {
     const o = opts as AgentSpawnOptions;
+    // The voice spec's command can come from the renderer's tool call, so it
+    // passes the same engine allow-list as pty:spawn (O.9 #6).
+    const engine = await ensureAllowedEngine(typeof o.command === 'string' ? o.command : '', o.cwd, liveWebContents());
+    if (!engine.ok) return engine;
     const res = await spawnAgentCore(o, null);
     // The renderer roster is only mutated by renderer-initiated hires (AddAgentModal),
     // so a MAIN-initiated spawn is invisible on the floor until we broadcast it. The
@@ -4448,8 +4581,8 @@ completionWatcher.start();
 interface SpawnRequest {
   id?: string;
   objective?: string;
-  command?: string;                                   // engine CLI; default = config.defaultCommand
-  provider?: AgentProvider;                           // optional explicit provider
+  command?: string; // a provider preset id only
+  provider?: AgentProvider;                           // optional provider preset id; neither = config.defaultCommand
   model?: string;                                     // optional --model override (Claude)
   cwd?: string;                                        // repo the worker (and its worktree) runs in
   name?: string;                                       // display name
@@ -4557,7 +4690,11 @@ async function processSpawnRequest(filePath: string): Promise<void> {
   const cwd = typeof raw.cwd === 'string' && raw.cwd.trim() ? expandTilde(raw.cwd) : '';
   if (!cwd || !existsSync(cwd)) { fail(`"cwd" missing or not found (${cwd || 'unset'})`); return; }
 
-  const command = typeof raw.command === 'string' && raw.command.trim() ? raw.command.trim() : (readConfig().defaultCommand ?? 'claude');
+  // O.9 #7: a spawn-request names a provider preset id, never a program. The
+  // binary comes from the preset (or, with neither field, the configured default).
+  const engine = resolveWorkerCommand(raw, readConfig());
+  if (!engine.ok) { fail(engine.error); return; }
+  const command = engine.command;
   const bin = command.split(/\s+/)[0] || command;
   // Missing-CLI → FAIL FAST. A headless worker has no human to watch an installer,
   // so we never run the cc49e1e install banner here — we reject and tell god.
@@ -4571,7 +4708,7 @@ async function processSpawnRequest(filePath: string): Promise<void> {
   const meta: AgentMeta = {
     id: workerId,
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : `Worker ${reqId.slice(0, 12)}`,
-    provider: raw.provider,
+    provider: engine.provider,
     role: 'worker',
     cwd
   };
@@ -4589,7 +4726,7 @@ async function processSpawnRequest(filePath: string): Promise<void> {
   const spawnOpts: AgentSpawnOptions = {
     id: workerId, cwd, command, cols: 120, rows: 32,
     args: raw.model ? ['--model', raw.model] : [],
-    hive: meta, isolate, provider: raw.provider, env: brokerEnv
+    hive: meta, isolate, provider: engine.provider, env: brokerEnv
   };
 
   let res: { ok: boolean; error?: string };

@@ -66,6 +66,19 @@ export function isAllowedExternalUrl(url: string): boolean {
   return false;
 }
 
+/**
+ * The exact string handed to `shell.openExternal`: the parsed, normalised
+ * `new URL(url).href`, and only for a URL `isAllowedExternalUrl` accepts both
+ * before and after normalisation. Never the raw renderer string. Null = do not
+ * open.
+ */
+export function externalUrlForShell(url: unknown): string | null {
+  if (typeof url !== 'string' || !isAllowedExternalUrl(url)) return null;
+  let href: string;
+  try { href = new URL(url).href; } catch { return null; }
+  return isAllowedExternalUrl(href) ? href : null;
+}
+
 function filePathKey(pathname: string): string | null {
   let p: string;
   try { p = decodeURIComponent(pathname); } catch { return null; }
