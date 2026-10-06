@@ -71,10 +71,10 @@ export function QuitWarningModal({ ptyCount, closing, onCancel, onConfirm, onClo
                       marginBottom: 4
                     }}>
                       {closing!.phase === 'complete'
-                        ? 'FLOOR SAVED — SEE YOU TOMORROW'
+                        ? 'ALL SAVED — SEE YOU TOMORROW'
                         : closing!.phase === 'timeout'
                           ? 'STILL WRAPPING UP…'
-                          : 'WRAPPING UP THE FLOOR'}
+                          : 'WRAPPING UP'}
                     </div>
                     <div style={{ fontSize: 15, lineHeight: '22px', color: 'var(--cth-ink-700)' }}>
                       {closing!.phase === 'complete' ? (
@@ -99,8 +99,8 @@ export function QuitWarningModal({ ptyCount, closing, onCancel, onConfirm, onClo
                   fontFamily: 'var(--cth-font-display)'
                 }}>
                   {closing!.total > 0
-                    ? `${closing!.acked} / ${closing!.total} WORKERS CONFIRMED${closing!.acked >= closing!.total ? ' — WAITING FOR THE ORCHESTRATOR' : ''}`
-                    : 'NO WORKERS ON THE FLOOR — WAITING FOR THE ORCHESTRATOR'}
+                    ? `${closing!.acked} / ${closing!.total} WORKERS CONFIRMED${closing!.acked >= closing!.total ? ' — WAITING FOR THE LEAD AGENT' : ''}`
+                    : 'NO WORKERS RUNNING — WAITING FOR THE LEAD AGENT'}
                   {closing!.phase === 'timeout' && (
                     <div style={{ marginTop: 6, fontFamily: 'var(--cth-font-body, inherit)' }}>
                       This is taking a while (an agent may be mid-compaction or deep in a

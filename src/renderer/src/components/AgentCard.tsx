@@ -3,7 +3,7 @@ import { PixelPanel } from './PixelPanel';
 import { PixelBadge, StatusKind } from './PixelBadge';
 import { useHasTerminalDraft } from './terminalPool';
 import { SpritePortrait } from './SpritePortrait';
-import { RealtimeMichaelToggle } from './RealtimeMichaelToggle';
+import { RealtimeVoiceToggle } from './RealtimeVoiceToggle';
 import { CostHud } from '@/realtime/CostHud';
 import { AccentColorName } from '@/design/tokens';
 import { OfficeCharacterName } from '@/scene/office/cast';
@@ -236,7 +236,7 @@ export function AgentCard({
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <RealtimeMichaelToggle />
+                <RealtimeVoiceToggle />
                 <CostHud compact />
               </div>
             ) : (

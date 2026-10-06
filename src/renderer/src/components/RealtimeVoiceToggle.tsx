@@ -77,12 +77,12 @@ const STATE_VIEW: Record<
   }
 };
 
-export interface RealtimeMichaelToggleProps {
+export interface RealtimeVoiceToggleProps {
   /** Compact form for the fullscreen header / tight rows — hides the text label. */
   compact?: boolean;
 }
 
-export function RealtimeMichaelToggle({ compact = false }: RealtimeMichaelToggleProps) {
+export function RealtimeVoiceToggle({ compact = false }: RealtimeVoiceToggleProps) {
   const hasOpenAiKey = useStore((s) => s.hasOpenAiKey);
   const { status, error, connect, disconnect } = useRealtimeMichael();
   // Measured viewport coords, not a CSS offset. The agent dock clips its

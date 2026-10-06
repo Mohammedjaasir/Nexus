@@ -198,118 +198,6 @@
         "text": "held — delivery paused floor-wide"
       }
     ],
-    "components/OnboardingWizard.tsx": [
-      {
-        "rule": "lead",
-        "text": "A CLONE OF YOU, WORKING 24/7"
-      },
-      {
-        "rule": "lead",
-        "text": "Nexus turns the CLI agent you already use into a clone of you — one that runs an office of long-running agents and keeps working while you're away. It manages e"
-      },
-      {
-        "rule": "lead",
-        "text": "STEP 2 OF 4 · YOUR CLONE"
-      },
-      {
-        "rule": "lead",
-        "text": "STEP 2 OF 4 · YOUR CLONE'S ENGINE"
-      },
-      {
-        "rule": "lead",
-        "text": "YOUR CLONE AND THE FLOOR IT RUNS"
-      },
-      {
-        "rule": "lead",
-        "text": "Your clone coordinates a hive of AI coding agents — persistent, watchable, all local. Here's what's inside:"
-      },
-      {
-        "rule": "lead",
-        "text": "Your clone runs a small office of AI workers, and you watch it all from one screen. Here's what's inside:"
-      },
-      {
-        "rule": "office",
-        "text": "Claude Code, Codex, Grok, Kimi, Antigravity, Qwen, OpenCode, Crush, pi & Copilot — live agents on one floor."
-      },
-      {
-        "rule": "office",
-        "text": "COMMAND CENTER"
-      },
-      {
-        "rule": "office",
-        "text": "Hire a ready-made agent from the gallery in one click — no setup needed."
-      },
-      {
-        "rule": "office",
-        "text": "is the engine that orchestrates the whole hive. Recommended: Claude Code · Opus 4.8 · 1M — other providers can be wired per agent later."
-      },
-      {
-        "rule": "office",
-        "text": "MEET YOUR OFFICE"
-      },
-      {
-        "rule": "office",
-        "text": "Nexus turns the CLI agent you already use into a clone of you — one that runs an office of long-running agents and keeps working while you're away. It manages e"
-      },
-      {
-        "rule": "office",
-        "text": "READY-MADE HIRES"
-      },
-      {
-        "rule": "office",
-        "text": "Ten AI assistants — Claude, Codex, Gemini, Grok and more — working side by side in one shared office."
-      },
-      {
-        "rule": "office",
-        "text": "TEN ENGINES, ONE OFFICE"
-      },
-      {
-        "rule": "office",
-        "text": "Terminal · Floor · Memory · Activity · Tasks · Triggers in one control surface."
-      },
-      {
-        "rule": "office",
-        "text": "YOUR CLONE AND THE FLOOR IT RUNS"
-      },
-      {
-        "rule": "office",
-        "text": "Your clone coordinates a hive of AI coding agents — persistent, watchable, all local. Here's what's inside:"
-      },
-      {
-        "rule": "office",
-        "text": "Your clone runs a small office of AI workers, and you watch it all from one screen. Here's what's inside:"
-      },
-      {
-        "rule": "persona",
-        "text": "This only sets Michael's engine. You can run other providers per agent later."
-      }
-    ],
-    "components/QuitWarningModal.tsx": [
-      {
-        "rule": "office",
-        "text": "FLOOR SAVED — SEE YOU TOMORROW"
-      },
-      {
-        "rule": "office",
-        "text": "NO WORKERS ON THE FLOOR — WAITING FOR THE ORCHESTRATOR"
-      },
-      {
-        "rule": "office",
-        "text": "WRAPPING UP THE FLOOR"
-      }
-    ],
-    "components/RealtimeMichaelToggle.tsx": [
-      {
-        "rule": "visual",
-        "text": "<reachable>"
-      }
-    ],
-    "components/SpritePortrait.tsx": [
-      {
-        "rule": "visual",
-        "text": "<reachable>"
-      }
-    ],
     "hooks/useHive.ts": [
       {
         "rule": "lead",
@@ -381,38 +269,14 @@
       },
       {
         "rule": "office",
-        "text": "Archive an agent — takes it off the floor, history kept (unarchive brings it back). DESTRUCTIVE — returns an echo-back and asks for verbal confirmation. After t"
-      },
-      {
-        "rule": "office",
         "text": "Hire a NEW agent worker (provider engine + optional role). This does NOT run immediately; it asks for verbal confirmation first. After the user confirms, call c"
       },
       {
         "rule": "office",
         "text": "Optional. Working directory; defaults to the hive root."
-      },
-      {
-        "rule": "persona",
-        "text": "Block (gate) or unblock one named tool for one agent — e.g. gate Bash for Jim. Soft action — runs immediately."
-      },
-      {
-        "rule": "persona",
-        "text": "Give an agent a task as a structured 4-part work order (objective, context, constraints, done-when) delivered to their inbox. Soft action — runs immediately. Us"
-      },
-      {
-        "rule": "persona",
-        "text": "Inject live guidance into a running agent to redirect it without stopping it. Soft action — runs immediately. This is the priority verb: \"tell Jim to focus on t"
-      },
-      {
-        "rule": "persona",
-        "text": "Send a short message to one agent (a nudge or note). Soft action — runs immediately, no confirm. Use for \"tell Oscar X\" or \"check in with Jim\"."
       }
     ],
     "realtime/session.ts": [
-      {
-        "rule": "lead",
-        "text": "You are Michael — the voice of the orchestrator (\"god\") of a hive of autonomous Claude coding agents. The person you're talking to is the human who runs the hiv"
-      },
       {
         "rule": "office",
         "text": "(Floor snapshot at connect — orientation only, call your tools for detail: "
@@ -420,36 +284,12 @@
       {
         "rule": "office",
         "text": "(Floor update: "
-      },
-      {
-        "rule": "office",
-        "text": "You are Michael — the voice of the orchestrator (\"god\") of a hive of autonomous Claude coding agents. The person you're talking to is the human who runs the hiv"
-      },
-      {
-        "rule": "persona",
-        "text": "Hey there, Michael here — what can I do for you?"
-      },
-      {
-        "rule": "persona",
-        "text": "microphone permission denied — allow mic access to talk to Michael"
-      },
-      {
-        "rule": "persona",
-        "text": "You are Michael — the voice of the orchestrator (\"god\") of a hive of autonomous Claude coding agents. The person you're talking to is the human who runs the hiv"
       }
     ],
     "realtime/tools.ts": [
       {
         "rule": "lead",
-        "text": " is the god orchestrator."
-      },
-      {
-        "rule": "lead",
         "text": " You share the floor with god (the typing orchestrator); the board is the single source of truth."
-      },
-      {
-        "rule": "lead",
-        "text": "The god orchestrator runs "
       },
       {
         "rule": "lead",

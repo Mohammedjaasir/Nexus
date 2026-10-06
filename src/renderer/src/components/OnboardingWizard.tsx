@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { PixelPanel } from './PixelPanel';
 import { PixelButton } from './PixelButton';
 import { Icon, type IconName } from './Icon';
-import { SpritePortrait } from './SpritePortrait';
 import { ProviderLogo } from './ProviderLogo';
 import { AGENT_PROVIDER_PRESETS, modelsForProvider, type AgentProvider, type HarnessConfig } from '@/store/config';
 import { canReceiveInbox, providerPreset } from '@shared/agentProvider';
@@ -28,9 +27,9 @@ interface Feature {
 const FEATURES: Feature[] = [
   {
     icon: 'mcp',
-    label: 'TEN ENGINES, ONE OFFICE',
-    desc: 'Claude Code, Codex, Grok, Kimi, Antigravity, Qwen, OpenCode, Crush, pi & Copilot — live agents on one floor.',
-    descPlain: 'Ten AI assistants — Claude, Codex, Gemini, Grok and more — working side by side in one shared office.',
+    label: 'TEN ENGINES, ONE WORKSPACE',
+    desc: 'Claude Code, Codex, Grok, Kimi, Antigravity, Qwen, OpenCode, Crush, pi & Copilot — live agents in one workspace.',
+    descPlain: 'Ten AI assistants — Claude, Codex, Gemini, Grok and more — working side by side in one shared workspace.',
     tint: 'var(--cth-lilac-light)', edge: 'var(--cth-lilac)'
   },
   {
@@ -49,9 +48,9 @@ const FEATURES: Feature[] = [
   },
   {
     icon: 'terminal',
-    label: 'COMMAND CENTER',
-    desc: 'Terminal · Floor · Memory · Activity · Tasks · Triggers in one control surface.',
-    descPlain: "One dashboard to watch the work, the agents' memory, tasks, and triggers.",
+    label: 'LEAD AGENT CONTROLS',
+    desc: 'Terminal, team, tasks, activity and triggers in one control surface.',
+    descPlain: "One place to watch the work, the agents' memory, tasks, and triggers.",
     tint: 'var(--cth-lemon-light)', edge: 'var(--cth-lemon)'
   },
   {
@@ -63,9 +62,9 @@ const FEATURES: Feature[] = [
   },
   {
     icon: 'sparkle',
-    label: 'READY-MADE HIRES',
+    label: 'READY-MADE AGENTS',
     desc: 'Grab a pre-configured agent from the Agent Gallery and spawn it in one click.',
-    descPlain: 'Hire a ready-made agent from the gallery in one click — no setup needed.',
+    descPlain: 'Add a ready-made agent from the gallery in one click — no setup needed.',
     tint: 'var(--cth-peach-light)', edge: 'var(--cth-peach)'
   }
 ];
@@ -207,9 +206,9 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           variant="dialog"
           title={
             step === 'persona' ? 'WELCOME TO NEXUS'
-            : step === 'welcome' ? 'MEET YOUR OFFICE'
+            : step === 'welcome' ? 'MEET NEXUS'
             : step === 'home' ? (plain ? 'STEP 1 OF 4 · A HOME FOR THE APP' : 'STEP 1 OF 4 · HARNESS HOME')
-            : step === 'orchestrator' ? (plain ? "STEP 2 OF 4 · YOUR CLONE" : "STEP 2 OF 4 · YOUR CLONE'S ENGINE")
+            : step === 'orchestrator' ? (plain ? "STEP 2 OF 4 · YOUR LEAD AGENT" : "STEP 2 OF 4 · YOUR LEAD AGENT'S ENGINE")
             : step === 'repos' ? (plain ? 'STEP 3 OF 4 · YOUR PROJECTS' : 'STEP 3 OF 4 · YOUR REPOS')
             : step === 'permissions' ? 'STEP 4 OF 4 · PERMISSIONS & RELIABILITY'
             : 'ALL SET'
@@ -221,23 +220,13 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             {step === 'persona' && (
               <>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{
-                    width: 56, height: 56, flexShrink: 0,
-                    background: 'var(--cth-sky-light)',
-                    boxShadow: 'inset 0 0 0 1.5px var(--cth-ink-500)',
-                    display: 'flex', alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden'
-                  }}>
-                    <SpritePortrait character="michael" scale={2} />
-                  </div>
                   <div>
                     <div style={{ fontFamily: 'var(--cth-font-display)', fontSize: 12, lineHeight: '18px' }}>
-                      A CLONE OF YOU, WORKING 24/7
+                      A LEAD AGENT THAT KEEPS WORKING
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--cth-ink-700)', lineHeight: '19px' }}>
-                      Nexus turns the CLI agent you already use into a clone of you —
-                      one that runs an office of long-running agents and keeps working while
-                      you're away. It manages everything around them: context, memory, tasks,
-                      triggers, environment, files, and integrations.
+                      Nexus runs the CLI agent you already use as a lead agent: it
+                      coordinates long-running agents and keeps working while you are away.
                       <span style={{ color: 'var(--cth-ink-500)' }}> Everything runs on this machine.</span>
                     </div>
                   </div>
@@ -268,23 +257,15 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             {step === 'welcome' && (
               <>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <div style={{
-                    width: 56, height: 56, flexShrink: 0,
-                    background: 'var(--cth-sky-light)',
-                    boxShadow: 'inset 0 0 0 1.5px var(--cth-ink-500)',
-                    display: 'flex', alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden'
-                  }}>
-                    <SpritePortrait character="michael" scale={2} />
-                  </div>
                   <div>
                     <div style={{
                       fontFamily: 'var(--cth-font-display)',
                       fontSize: 12, lineHeight: '18px'
-                    }}>YOUR CLONE AND THE FLOOR IT RUNS</div>
+                    }}>YOUR LEAD AGENT AND ITS TEAM</div>
                     <div style={{ fontSize: 12, color: 'var(--cth-ink-700)', lineHeight: '18px' }}>
                       {plain
-                        ? "Your clone runs a small office of AI workers, and you watch it all from one screen. Here's what's inside:"
-                        : "Your clone coordinates a hive of AI coding agents — persistent, watchable, all local. Here's what's inside:"}
+                        ? "Your lead agent runs a small team of AI workers, and you watch it all from one screen. Here's what's inside:"
+                        : "Your lead agent coordinates a team of AI coding agents — persistent, watchable, all local. Here's what's inside:"}
                     </div>
                   </div>
                 </div>
@@ -396,7 +377,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                       <>Each option is a <strong>CLI engine</strong> you have installed (Claude Code,
                       Codex, Antigravity/Gemini, or a local proxy like Qwen).
                       <strong> The lead agent</strong> is the engine that orchestrates the whole
-                      hive. Recommended: Claude Code · Opus 4.8 · 1M — other providers can be wired
+                      team. Recommended: Claude Code · Opus 4.8 · 1M — other providers can be wired
                       per agent later.</>
                     )}
                   </span>
@@ -466,7 +447,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     ))}
                   </select>
                   <div style={{ fontSize: 12, color: 'var(--cth-ink-500)' }}>
-                    This only sets Michael's engine. You can run other providers per agent later.
+                    This only sets the lead agent's engine. You can run other providers per agent later.
                   </div>
                 </div>
               </>

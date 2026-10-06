@@ -8,7 +8,7 @@ import { MessageQueueComposer } from './MessageQueueComposer';
 import { AgentControlStrip } from './AgentControlStrip';
 import { CommandCenterPanel } from './CommandCenterPanel';
 import { Icon } from './Icon';
-import { RealtimeMichaelToggle } from './RealtimeMichaelToggle';
+import { RealtimeVoiceToggle } from './RealtimeVoiceToggle';
 import { CostHud } from '@/realtime/CostHud';
 import { useStore, type Agent } from '@/store/store';
 import { usePtyParser } from '@/hooks/usePtyParser';
@@ -925,7 +925,7 @@ function Header({ agent, info }: { agent: Agent; info: AgentDisplay }) {
             god orchestrator) globally, not the agent in view, so users can start a
             voice session even while a worker's terminal fills the screen. The cost
             HUD stays Michael-only (it belongs to his card). */}
-        <RealtimeMichaelToggle />
+        <RealtimeVoiceToggle />
         {agent.isGod && <CostHud compact />}
         <PixelButton variant="secondary" size="sm" onClick={openTerminal} disabled={openState === 'opening'}>
           <span

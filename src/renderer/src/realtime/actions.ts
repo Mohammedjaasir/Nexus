@@ -52,7 +52,7 @@ export function realtimeActionTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'ping_agent',
       description:
-        'Send a short message to one agent (a nudge or note). Soft action — runs immediately, no confirm. Use for "tell Oscar X" or "check in with Jim".',
+        'Send a short message to one agent (a nudge or note). Soft action — runs immediately, no confirm. Use for "tell the reviewer X" or "check in with the builder".',
       parameters: {
         type: 'object',
         properties: {
@@ -67,7 +67,7 @@ export function realtimeActionTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'dispatch_agent',
       description:
-        'Give an agent a task as a structured 4-part work order (objective, context, constraints, done-when) delivered to their inbox. Soft action — runs immediately. Use for "have Jim build X" or "ask Oscar to investigate Y".',
+        'Give an agent a task as a structured 4-part work order (objective, context, constraints, done-when) delivered to their inbox. Soft action — runs immediately. Use for "have the builder build X" or "ask the reviewer to investigate Y".',
       parameters: {
         type: 'object',
         properties: {
@@ -85,7 +85,7 @@ export function realtimeActionTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'steer_agent',
       description:
-        'Inject live guidance into a running agent to redirect it without stopping it. Soft action — runs immediately. This is the priority verb: "tell Jim to focus on the bug first", "steer Oscar away from that approach".',
+        'Inject live guidance into a running agent to redirect it without stopping it. Soft action — runs immediately. This is the priority verb: "tell the builder to focus on the bug first", "steer the reviewer away from that approach".',
       parameters: {
         type: 'object',
         properties: {
@@ -280,7 +280,7 @@ export function realtimeActionTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'gate_tool',
       description:
-        'Block (gate) or unblock one named tool for one agent — e.g. gate Bash for Jim. Soft action — runs immediately.',
+        'Block (gate) or unblock one named tool for one agent — e.g. gate Bash for the builder. Soft action — runs immediately.',
       parameters: {
         type: 'object',
         properties: {
@@ -331,7 +331,7 @@ export function realtimeActionTools(): ReturnType<typeof tool>[] {
     tool({
       name: 'archive_agent',
       description:
-        'Archive an agent — takes it off the floor, history kept (unarchive brings it back). DESTRUCTIVE — returns an echo-back and asks for verbal confirmation. After the user confirms, call confirm_action.',
+        'Archive an agent — takes it out of the active team, history kept (unarchive brings it back). DESTRUCTIVE — returns an echo-back and asks for verbal confirmation. After the user confirms, call confirm_action.',
       parameters: {
         type: 'object',
         properties: { agentId: { type: 'string', description: 'Agent name or id to archive.' } },

@@ -140,7 +140,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
           const head = `There ${active.length === 1 ? 'is' : 'are'} ${plural(active.length, 'agent')} active${
             archived ? ` and ${plural(archived, 'archived agent')}` : ''
           }.`;
-          const god = godName ? ` ${godName} is the god orchestrator.` : '';
+          const god = godName ? ' The lead agent is running.' : '';
           const roster = lines.length ? ` Active workers: ${lines.join('; ')}.` : '';
           return head + god + roster;
         }, 'fleet status')
@@ -278,7 +278,7 @@ export function realtimeReadTools(): ReturnType<typeof tool>[] {
           parts.push(`Autonomy mode is ${c.autoMode ? 'on' : 'off'}.`);
           if (c.defaultModel) parts.push(`The default model is ${c.defaultModel}.`);
           if (c.godProvider || c.godModel)
-            parts.push(`The god orchestrator runs ${[c.godProvider, c.godModel].filter(Boolean).join(' ')}.`);
+            parts.push(`The lead agent runs ${[c.godProvider, c.godModel].filter(Boolean).join(' ')}.`);
           if (typeof cc.maxConcurrentWorkers === 'number')
             parts.push(`Up to ${plural(cc.maxConcurrentWorkers, 'worker')} run concurrently.`);
           // De-monetized: report only the token cap (no dollar cap), and avoid

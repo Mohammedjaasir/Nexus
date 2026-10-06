@@ -109,7 +109,7 @@ export function NewProjectWizardModal({
       }}
     >
       <div style={{ width: 620, maxWidth: '96vw' }}>
-        <PixelPanel variant="dialog" title="NEW PROJECT WIZARD (PHASE 10C)" noPadding>
+        <PixelPanel variant="dialog" title="NEW PROJECT" noPadding>
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
             {step === 1 && (
               <>
