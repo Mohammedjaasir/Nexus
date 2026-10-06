@@ -59,3 +59,47 @@ export function planDaemonRestart(previous: string | null, next: string): Daemon
 export function daemonRestartError(detail: string): string {
   return `Codex Remote needs your attention: its daemon could not be restarted with this agent's new token (${detail}). The agent runs as a local terminal instead, so its status stays live.`;
 }
+
+/** Output of `codex app-server daemon stop` that means "nothing was running". */
+const NOT_RUNNING = /not running|no (?:running )?daemon|isn'?t running|not started|no such (?:process|file)|ENOENT|ECONNREFUSED/i;
+
+/**
+ * Whether a `daemon stop` left no daemon running. A failed stop still counts
+ * when the control socket is absent (no daemon can be serving it) or when the
+ * output says nothing was running: after a reboot or a daemon crash the marker
+ * keeps an old fingerprint, and treating that as a real failure would keep Codex
+ * Remote off for the agent forever.
+ */
+export function stopLeftNothingRunning(stop: { ok: boolean; error?: string }, socketExists: boolean): boolean {
+  if (stop.ok) return true;
+  if (!socketExists) return true;
+  return NOT_RUNNING.test(stop.error ?? '');
+}
+
+/**
+ * Stop (when the plan says so) and start the daemon with this spawn's token, and
+ * record the token's fingerprint once it runs. `run` executes one
+ * `codex app-server daemon <cmd>`. Returns:
+ *  - `{ ok: true }` when the daemon runs with the new token;
+ *  - `{ ok: false, attention }` when a daemon holding an old token could not be
+ *    stopped (the agent must run locally and say why);
+ *  - `{ ok: false }` when start failed (local terminal, as before).
+ */
+export async function restartDaemonWithToken(opts: {
+  codexHome: string;
+  fingerprint: string;
+  socketExists: () => boolean;
+  run: (cmd: 'stop' | 'start') => Promise<{ ok: boolean; error?: string }>;
+}): Promise<{ ok: true } | { ok: false; attention?: string; error?: string }> {
+  const plan = planDaemonRestart(readDaemonFingerprint(opts.codexHome), opts.fingerprint);
+  if (plan.stop !== 'none') {
+    const stopped = await opts.run('stop');
+    if (plan.stop === 'required' && !stopLeftNothingRunning(stopped, opts.socketExists())) {
+      return { ok: false, attention: daemonRestartError(stopped.error ?? 'stop failed') };
+    }
+  }
+  const started = await opts.run('start');
+  if (!started.ok) return { ok: false, error: started.error ?? 'start failed' };
+  writeDaemonFingerprint(opts.codexHome, opts.fingerprint);
+  return { ok: true };
+}

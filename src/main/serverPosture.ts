@@ -53,7 +53,7 @@ export async function listenLoopback(handler: RequestHandler, port: number): Pro
     v6 = await listenOne(handler, bound, '::1');
   } catch (e) {
     v6Error = (e as NodeJS.ErrnoException)?.code ?? (e instanceof Error ? e.message : String(e));
-    if (v6Error !== 'EADDRNOTAVAIL') console.warn(`[server] could not listen on [::1]:${bound} (${v6Error})`);
+    if (v6Error !== 'EADDRNOTAVAIL' && v6Error !== 'EAFNOSUPPORT') console.warn(`[server] could not listen on [::1]:${bound} (${v6Error})`);
   }
   return { primary, v6, v6Error, port: bound };
 }
@@ -66,7 +66,9 @@ export async function listenLoopback(handler: RequestHandler, port: number): Pro
  * not open. Returns the user-facing reason, or null when it is safe.
  */
 export function tunnelBlockReason(l: LoopbackListener): string | null {
-  if (!l.v6Error || l.v6Error === 'EADDRNOTAVAIL') return null;
+  // EADDRNOTAVAIL: no ::1 configured; EAFNOSUPPORT: no IPv6 in the kernel.
+  // Either way nothing can listen on ::1, so localhost reaches 127.0.0.1.
+  if (!l.v6Error || l.v6Error === 'EADDRNOTAVAIL' || l.v6Error === 'EAFNOSUPPORT') return null;
   return `The public tunnel was not opened: another program is using port ${l.port} on [::1] (${l.v6Error}), so tunnelled requests could reach it instead of Nexus. Close that program or choose another port.`;
 }
 

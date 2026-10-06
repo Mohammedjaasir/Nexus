@@ -40,7 +40,7 @@ import {
 import { HiveManager, type AgentMeta, type HiveMessage, type HiveTask } from './hive';
 import { HookServer } from './hooks';
 import { AgentTokens } from './hookAuth';
-import { daemonRestartError, planDaemonRestart, readDaemonFingerprint, tokenFingerprint, writeDaemonFingerprint } from './codexDaemon';
+import { restartDaemonWithToken, tokenFingerprint } from './codexDaemon';
 import { closePublicTunnels, planServerPosture } from './serverPosture';
 import { agentDisplayName } from './displayNames';
 import { CircuitBreaker, type BreakerInput } from './breaker';
@@ -231,25 +231,22 @@ async function enableCodexRemoteInner(
     // older token (a respawn, or one left from before a main restart) is
     // stopped first. If it cannot be stopped it would keep the dead token, so
     // the agent runs as a local terminal and says why, instead of going dark.
-    const fingerprint = tokenFingerprint(opts.env?.HIVE_HOOK_TOKEN);
-    const plan = planDaemonRestart(readDaemonFingerprint(realHome), fingerprint);
-    if (plan.stop !== 'none') {
-      const stopped = await runCodexDaemonCommand(executable, ['app-server', 'daemon', 'stop'], env);
-      if (!stopped.ok && plan.stop === 'required') {
-        console.error('[codex-remote] daemon holds an old hook token and did not stop:', stopped.error);
-        return { remote: false, error: daemonRestartError(stopped.error ?? 'stop failed') };
+    // A failed stop still counts when no daemon is running (no control socket,
+    // or the output says so), e.g. after a reboot or a daemon crash.
+    const restarted = await restartDaemonWithToken({
+      codexHome: realHome,
+      fingerprint: tokenFingerprint(opts.env?.HIVE_HOOK_TOKEN),
+      socketExists: () => existsSync(socket),
+      run: (cmd) => runCodexDaemonCommand(executable, ['app-server', 'daemon', cmd], env)
+    });
+    if (!restarted.ok) {
+      if (restarted.attention) {
+        console.error('[codex-remote] daemon holds an old hook token and did not stop');
+        return { remote: false, error: restarted.attention };
       }
-    }
-    const started = await runCodexDaemonCommand(
-      executable,
-      ['app-server', 'daemon', 'start'],
-      env
-    );
-    if (!started.ok) {
-      console.warn('[codex-remote] daemon start failed; starting local TUI:', started.error);
+      console.warn('[codex-remote] daemon start failed; starting local TUI:', restarted.error);
       return false;
     }
-    writeDaemonFingerprint(realHome, fingerprint);
     const enabled = await runCodexDaemonCommand(
       executable,
       ['app-server', 'daemon', 'enable-remote-control'],

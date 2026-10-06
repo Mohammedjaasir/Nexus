@@ -490,6 +490,8 @@ test('round 1: a ::1 bind failure is reported, not swallowed', async (t) => {
   posture.closeLoopback(l);
   blocker.close();
   assert.equal(posture.tunnelBlockReason({ v6Error: 'EADDRNOTAVAIL', port: 1 }), null, 'no IPv6 loopback is safe');
+  assert.equal(posture.tunnelBlockReason({ v6Error: 'EAFNOSUPPORT', port: 1 }), null, 'no IPv6 in the kernel is safe');
+  assert.match(posture.tunnelBlockReason({ v6Error: 'EACCES', port: 1 }), /EACCES/);
   assert.equal(posture.tunnelBlockReason({ v6Error: null, port: 1 }), null);
 });
 
@@ -643,11 +645,8 @@ test('round 1: Codex Remote daemon restarts when its hook token changed', () => 
   const i = idx.indexOf('async function enableCodexRemoteInner(');
   const body = idx.slice(i, idx.indexOf('\n}\n', i));
   assert.match(body, /if \(process\.platform === 'win32'\) return false;/, 'Windows unchanged');
-  const stop = body.indexOf("['app-server', 'daemon', 'stop']");
-  const start = body.indexOf("['app-server', 'daemon', 'start']");
-  assert.ok(stop > 0 && stop < start, 'stop must run before start');
-  assert.match(body, /!stopped\.ok && plan\.stop === 'required'[\s\S]*return \{ remote: false, error: daemonRestartError/);
-  assert.match(body, /writeDaemonFingerprint\(realHome, fingerprint\)/);
+  assert.match(body, /restartDaemonWithToken\(\{[\s\S]*socketExists: \(\) => existsSync\(socket\)[\s\S]*\['app-server', 'daemon', cmd\]/);
+  assert.match(body, /if \(restarted\.attention\)[\s\S]*return \{ remote: false, error: restarted\.attention \}/);
   assert.match(idx, /send\('hive:hookEvent', \{ agentId, event: 'Notification', message/);
 });
 
@@ -655,4 +654,67 @@ test('round 1: hookAuth documents what env-held tokens do not cover', () => {
   const src = read('src/main/hookAuth.ts');
   assert.match(src, /SAME user can read another process's environment/);
   assert.match(src, /do NOT guard against a same-user process/);
+});
+
+// ─── Fix round 2: Codex daemon stop that finds nothing running ───────────────
+
+function daemonHome(t, fingerprint) {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nx-codex-restart-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  if (fingerprint) codexDaemon.writeDaemonFingerprint(home, fingerprint);
+  return home;
+}
+const fakeRun = (results) => {
+  const calls = [];
+  return { calls, run: async (cmd) => { calls.push(cmd); return results[cmd]; } };
+};
+
+test('round 2: a stale marker after a reboot: stop says not running, start runs, marker rewritten', async (t) => {
+  const { restartDaemonWithToken, tokenFingerprint, readDaemonFingerprint } = codexDaemon;
+  const old = tokenFingerprint('o'.repeat(64));
+  const next = tokenFingerprint('n'.repeat(64));
+  // Socket still on disk (stale), output says nothing is running.
+  const home = daemonHome(t, old);
+  const f = fakeRun({ stop: { ok: false, error: 'Error: daemon is not running' }, start: { ok: true } });
+  assert.deepEqual(await restartDaemonWithToken({ codexHome: home, fingerprint: next, socketExists: () => true, run: f.run }), { ok: true });
+  assert.deepEqual(f.calls, ['stop', 'start']);
+  assert.equal(readDaemonFingerprint(home), next);
+  // Socket gone (crash/reboot cleaned it), unhelpful error text: still not running.
+  const home2 = daemonHome(t, old);
+  const g = fakeRun({ stop: { ok: false, error: 'exit code 1' }, start: { ok: true } });
+  assert.deepEqual(await restartDaemonWithToken({ codexHome: home2, fingerprint: next, socketExists: () => false, run: g.run }), { ok: true });
+  assert.deepEqual(g.calls, ['stop', 'start']);
+  assert.equal(readDaemonFingerprint(home2), next);
+  // The next spawn after that is a normal restart again, not a permanent fallback.
+  const newer = tokenFingerprint('m'.repeat(64));
+  const h = fakeRun({ stop: { ok: true }, start: { ok: true } });
+  assert.deepEqual(await restartDaemonWithToken({ codexHome: home2, fingerprint: newer, socketExists: () => true, run: h.run }), { ok: true });
+  assert.equal(readDaemonFingerprint(home2), newer);
+});
+
+test('round 2: a real stop failure with the daemon still up falls back to local with the notice', async (t) => {
+  const { restartDaemonWithToken, tokenFingerprint, readDaemonFingerprint, stopLeftNothingRunning } = codexDaemon;
+  const old = tokenFingerprint('o'.repeat(64));
+  const home = daemonHome(t, old);
+  const f = fakeRun({ stop: { ok: false, error: 'permission denied' }, start: { ok: true } });
+  const r = await restartDaemonWithToken({ codexHome: home, fingerprint: tokenFingerprint('n'.repeat(64)), socketExists: () => true, run: f.run });
+  assert.equal(r.ok, false);
+  assert.match(r.attention, /Codex Remote needs your attention: .*permission denied/);
+  assert.deepEqual(f.calls, ['stop'], 'must not start against a daemon holding the old token');
+  assert.equal(readDaemonFingerprint(home), old, 'marker untouched');
+  // No marker (pre-upgrade daemon): a failed stop is best-effort.
+  const fresh = daemonHome(t, null);
+  const g = fakeRun({ stop: { ok: false, error: 'permission denied' }, start: { ok: true } });
+  assert.deepEqual(await restartDaemonWithToken({ codexHome: fresh, fingerprint: 'x', socketExists: () => true, run: g.run }), { ok: true });
+  // A start failure is the old local fallback, without the notice.
+  const s = fakeRun({ stop: { ok: true }, start: { ok: false, error: 'boom' } });
+  const sr = await restartDaemonWithToken({ codexHome: daemonHome(t, old), fingerprint: 'y', socketExists: () => true, run: s.run });
+  assert.deepEqual(sr, { ok: false, error: 'boom' });
+  // The classifier itself.
+  assert.equal(stopLeftNothingRunning({ ok: true }, true), true);
+  assert.equal(stopLeftNothingRunning({ ok: false, error: 'x' }, false), true);
+  for (const e of ['daemon is not running', 'No daemon running', "daemon isn't running", 'connect ECONNREFUSED /tmp/x.sock', 'ENOENT: no such file']) {
+    assert.equal(stopLeftNothingRunning({ ok: false, error: e }, true), true, e);
+  }
+  assert.equal(stopLeftNothingRunning({ ok: false, error: 'permission denied' }, true), false);
 });
