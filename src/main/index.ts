@@ -3493,8 +3493,17 @@ function currentAppUrl(): string {
 // O.9 #4. The renderer names a root, but main accepts it only if its REAL path
 // lies inside a folder main already knows: a project root, a registered repo,
 // the harness home, a hive agent's cwd, an agent worktree, or a live PTY cwd.
-// The renderer cannot add roots. Inside the root, fs.ts resolves every path by
+// The renderer CAN still add roots, through three channels: a new entry in
+// `registeredRepos` via config:update (any existing absolute directory), the
+// cwd of a `pty:spawn` (any folder becomes a live PTY cwd and a hive agent
+// cwd), and `project:import` (any folder becomes a project root). So this
+// confines fs access to folders the app has been pointed at, not only to
+// folders the user picked. Inside the root, fs.ts resolves every path by
 // realpath, so `..`, absolute paths and symlinks/junctions cannot escape.
+// TODO(B1): close the three channels (O.9 #4 partial): main records every
+// folder returned by `dialog:chooseFolder`, and a root that is not in that
+// record (or already known) needs a main-process confirmation before any of
+// the three channels may add it.
 // (A projectId-only signature can follow in B1; agent folders are not projects.)
 const FS_ROOT_REFUSED = 'This folder is not a Nexus project or agent folder.';
 function allowedFsRoots(): string[] {
