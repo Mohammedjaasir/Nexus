@@ -18,8 +18,8 @@ import { useFleetTelemetry } from '@/hooks/useTelemetry';
 import { COMMAND_GROUPS } from '@shared/claudeCommands';
 import { useStore, triggerHistoryVisible, type Agent } from '@/store/store';
 import { usePtyParser } from '@/hooks/usePtyParser';
-import { useRegistryIds } from '@/nexus/agents/agentIdentity';
-import { displayAgents, displayNameForId, visibleAgents } from '@shared/agentDisplay';
+import { useCanonicalAgents, useRegistryIds } from '@/nexus/agents/agentIdentity';
+import { LEAD_HIVE_NAME, displayAgents, displayNameForId, visibleAgents } from '@shared/agentDisplay';
 import {
   buildSpawnCommand,
   decodeProviderModel,
@@ -328,7 +328,8 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
   const hint = useRegistryIds();
   // Display-time only: the two dead legacy seed records are hidden, never deleted.
   const agents = visibleAgents(allAgents, hint);
-  const shown = displayAgents(agents, hint);
+  const canon = useCanonicalAgents();
+  const shown = displayAgents(canon, hint);
   const labelOf = (id: string, fallback: string): string => shown.get(id)?.label ?? fallback;
   const select = useStore((s) => s.select);
   const updateAgent = useStore((s) => s.updateAgent);
@@ -469,7 +470,7 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
       const command = buildSpawnCommand(cfg, model, provider);
       const [exe, ...args] = tokenizeCommand(command.trim());
       const hive = a.isGod
-        ? { id: a.id, name: a.name, cwd: a.cwd, provider, isGod: true, role: 'orchestrator (god)' }
+        ? { id: a.id, name: LEAD_HIVE_NAME, cwd: a.cwd, provider, isGod: true, role: 'orchestrator (god)' }
         : a.isAssistant
         ? { id: a.id, name: a.name, cwd: a.cwd, provider, isAssistant: true, role: "Lead agent's prep assistant" }
         : { id: a.id, name: a.name, cwd: a.cwd, provider, role: a.description };
@@ -535,7 +536,7 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
     if (!body) return;
     const suggested = dispatchTo ? agents.find((a) => a.id === dispatchTo) : undefined;
     const full = suggested
-      ? `${body}\n\n(The human suggests ${labelOf(suggested.id, suggested.name)} (${suggested.id}) for this — your call as orchestrator.)`
+      ? `${body}\n\n(The human suggests ${suggested.name} (${suggested.id}) for this — your call as orchestrator.)`
       : body;
     const res = await window.cth.hiveSend(
       { to: 'god', act: 'request', subject: 'Task from the human', body: full },
@@ -963,6 +964,8 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
 // ─── Archived agents — retained + flagged, kept off the floor ────────────────
 
 function ArchivedSection() {
+  const canon = useCanonicalAgents();
+  const hint = useRegistryIds();
   const archivedAgents = useStore((s) => s.archivedAgents);
   const removeArchivedAgent = useStore((s) => s.removeArchivedAgent);
   const [open, setOpen] = useState(false);
@@ -986,7 +989,7 @@ function ArchivedSection() {
           background: 'var(--cth-paper-100)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)'
         }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-700)' }}>{displayNameForId(a.id, archivedAgents)}</div>
+            <div style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-700)' }}>{displayNameForId(a.id, canon, hint)}</div>
             <div style={{ fontSize: 11, color: 'var(--cth-ink-500)', wordBreak: 'break-all' }}>{a.cwd}</div>
           </div>
           <button
@@ -1005,7 +1008,8 @@ function MemoryTab({ godId, who: controlledWho, onWho }: { godId: string; who?: 
   const allAgents = useStore((s) => s.agents);
   const hint = useRegistryIds();
   const agents = visibleAgents(allAgents, hint);
-  const shownNames = displayAgents(agents, hint);
+  const canon = useCanonicalAgents();
+  const shownNames = displayAgents(canon, hint);
   // Selection is controllable from the graph tab; falls back to local state.
   const [internalWho, setInternalWho] = useState<string>(godId);
   const who = controlledWho ?? internalWho;
@@ -1180,7 +1184,7 @@ function TokenLimitEditor({ value, onSet }: { value?: number; onSet: (tokens: nu
 interface LogEntry { ts?: number; kind?: string; [k: string]: unknown }
 
 function ActivityTab() {
-  const agents = useStore((s) => s.agents);
+  const agents = useCanonicalAgents();
   const hint = useRegistryIds();
   const nameOf = (id: unknown): string => displayNameForId(typeof id === 'string' ? id : id == null ? '' : String(id), agents, hint);
   const [log, setLog] = useState<LogEntry[]>([]);

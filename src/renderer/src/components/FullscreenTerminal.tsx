@@ -13,7 +13,7 @@ import { CostHud } from '@/realtime/CostHud';
 import { useStore, type Agent } from '@/store/store';
 import { usePtyParser } from '@/hooks/usePtyParser';
 import { useRestoreTeam } from '@/hooks/useRestoreTeam';
-import { useRegistryIds } from '@/nexus/agents/agentIdentity';
+import { useCanonicalAgents, useRegistryIds } from '@/nexus/agents/agentIdentity';
 import { displayAgents, displayDescription, displayNameForId, visibleAgents, type AgentDisplay } from '@shared/agentDisplay';
 import { useTerminalFontSize } from './terminalFontSize';
 import { useHasTerminalDraft, disposeTerminal } from './terminalPool';
@@ -153,8 +153,9 @@ export function FullscreenTerminal({ config }: FullscreenTerminalProps) {
   // Display-time only: stored names stay as they are; the roster shows neutral labels.
   const hint = useRegistryIds();
   const shownAgents = useMemo(() => visibleAgents(agents, hint), [agents, hint]);
-  const display = useMemo(() => displayAgents(agents, hint), [agents, hint]);
-  const nameOf = (id: string): string => displayNameForId(id, [...agents, ...restorableAgents], hint);
+  const canon = useCanonicalAgents();
+  const display = useMemo(() => displayAgents(canon, hint), [canon, hint]);
+  const nameOf = (id: string): string => displayNameForId(id, canon, hint);
   const infoOf = (a: Agent): AgentDisplay => display.get(a.id) ?? { label: nameOf(a.id), role: '', isLead: false, isDuplicateLead: false };
   const parser = usePtyParser(agent?.id ?? '__none__');
 

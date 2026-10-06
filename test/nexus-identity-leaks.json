@@ -132,12 +132,6 @@
     }
   ],
   "knownLeaks": {
-    "components/AddAgentModal.tsx": [
-      {
-        "rule": "office",
-        "text": "You are designing an agent manifest — a ready-to-spawn AI agent for Nexus, an app that runs a team of CLI coding agents. Output ONE JSON object (an agent manife"
-      }
-    ],
     "components/AgentControlStrip.tsx": [
       {
         "rule": "office",
@@ -478,14 +472,6 @@
       {
         "rule": "office",
         "text": "You're online as Michael, the orchestrator of the hive. Get oriented, then start running the floor:"
-      },
-      {
-        "rule": "persona",
-        "text": "Michael"
-      },
-      {
-        "rule": "persona",
-        "text": "Michael's prep assistant"
       },
       {
         "rule": "persona",

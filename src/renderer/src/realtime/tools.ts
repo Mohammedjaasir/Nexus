@@ -23,6 +23,7 @@
  * lifecycle in session.ts is tool-agnostic, so it survives the swap unchanged.
  */
 import { tool } from '@openai/agents-realtime';
+import { LEAD_AGENT_LABEL, leadAgentId } from '@shared/agentDisplay';
 
 // ─── spoken-prose formatting helpers ────────────────────────────────────────
 
@@ -631,7 +632,8 @@ export async function realtimeSessionSummary(): Promise<string> {
       window.cth.hiveTasks()
     ]);
     const rows = (Array.isArray(dir?.agents) ? (dir.agents as unknown[]) : []).map(obj).filter((a) => !a.archived);
-    const godRow = rows.find((a) => a.isGod === true);
+    const leadId = leadAgentId(rows.map((a) => ({ id: str(a.id), isGod: a.isGod === true, ptyId: a.ptyId as string | null | undefined })));
+    const godRow = leadId ? rows.find((a) => str(a.id) === leadId) : undefined;
     const lines = rows.slice(0, 20).map((a) => {
       const bits = [
         `${str(a.name) || str(a.id)} is ${str(a.status) || 'in an unknown state'}`,
@@ -653,7 +655,7 @@ export async function realtimeSessionSummary(): Promise<string> {
     ].filter(Boolean).join(' ');
     return (
       `Floor at connect — ${plural(rows.length, 'agent')} active` +
-      `${godRow ? `, ${str(godRow.name)} orchestrating alongside you` : ''}. ` +
+      `${godRow ? `, ${LEAD_AGENT_LABEL} orchestrating alongside you` : ''}. ` +
       `Per agent: ${lines.join(' | ') || 'none'}. ` +
       taskLine +
       ` You will also receive short "(Floor update: …)" notes as things change mid-call — trust those over this snapshot.` +

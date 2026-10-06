@@ -12,6 +12,8 @@ import { ThreadsPanel } from './ThreadsPanel';
 import { ToolWaterfall } from './ToolWaterfall';
 import { AgentControlStrip } from './AgentControlStrip';
 import { GitTab } from './GitTab';
+import { useAgentDisplay } from '@/nexus/agents/agentIdentity';
+import { leadAgentId } from '@shared/agentDisplay';
 import { Icon } from './Icon';
 import { useStore, type Agent } from '@/store/store';
 import { usePtyParser } from '@/hooks/usePtyParser';
@@ -29,7 +31,9 @@ export function AgentDetailPanel({ agent }: AgentDetailPanelProps) {
   const fullscreenAgentId = useStore(s => s.fullscreenAgentId);
   const sidebarTab = useStore(s => s.sidebarTab);
   const setSidebarTab = useStore(s => s.setSidebarTab);
-  const agentLabel = agent.isGod ? 'Lead agent' : agent.name;
+  const { display, hint } = useAgentDisplay();
+  const liveAgents = useStore(s => s.agents);
+  const agentLabel = display.get(agent.id)?.label ?? 'Agent';
   const isReal = !!agent.ptyId;
   // While this agent is shown in the fullscreen overlay, the fullscreen view
   // owns the pty (it sizes it to fill the screen). Keeping the embedded terminal
@@ -41,7 +45,8 @@ export function AgentDetailPanel({ agent }: AgentDetailPanelProps) {
   const onPtyStream = usePtyParser(agent.id);
 
   // Michael gets the full command-center dashboard instead of the plain panel.
-  if (agent.isGod) return <CommandCenterPanel agent={agent} />;
+  // Only the real lead opens the command center; a duplicate lead record gets the plain panel.
+  if (agent.isGod && leadAgentId(liveAgents, hint) === agent.id) return <CommandCenterPanel agent={agent} />;
 
   const openTerminal = async () => {
     setOpenTerminalState('opening');

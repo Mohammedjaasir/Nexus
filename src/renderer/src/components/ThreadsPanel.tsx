@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PixelPanel } from './PixelPanel';
 import { PixelButton } from './PixelButton';
-import { useStore } from '@/store/store';
-import { useRegistryIds } from '@/nexus/agents/agentIdentity';
+import { useCanonicalAgents, useRegistryIds } from '@/nexus/agents/agentIdentity';
 import { displayNameForId } from '@shared/agentDisplay';
 
 // Derive the message shape from the preload-exposed API so the renderer never
@@ -49,7 +48,7 @@ function groupThreads(msgs: HiveMessage[]): Thread[] {
 }
 
 export function ThreadsPanel({ agentId }: ThreadsPanelProps) {
-  const agents = useStore((s) => s.agents);
+  const agents = useCanonicalAgents();
   const hint = useRegistryIds();
   const [messages, setMessages] = useState<HiveMessage[]>([]);
   const [openThreads, setOpenThreads] = useState<Record<string, boolean>>({});

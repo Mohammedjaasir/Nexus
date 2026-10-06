@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { PixelButton } from '../PixelButton';
 import { useStore } from '@/store/store';
+import { useCanonicalAgents, useRegistryIds } from '@/nexus/agents/agentIdentity';
+import { displayNameForId, visibleAgents } from '@shared/agentDisplay';
 import {
   Chip, Field, Hint, IntervalPicker, MiniButton, Muted, Select, SubCard, SubHeader,
   Toggle, fmtInterval, inputStyle, textareaStyle
@@ -43,7 +45,10 @@ function relTime(ms: number): string {
 }
 
 export function SchedulesSection({ onSummary }: { onSummary?: (s: string) => void }) {
-  const agents = useStore((s) => s.agents);
+  const hint = useRegistryIds();
+  const canon = useCanonicalAgents();
+  const agents = visibleAgents(useStore((s) => s.agents), hint);
+  const nameOf = (id: string): string => displayNameForId(id, canon, hint);
   const [missions, setMissions] = useState<ScheduledMission[]>([]);
   const [adding, setAdding] = useState(false);
   const [mLabel, setMLabel] = useState('');
@@ -89,7 +94,7 @@ export function SchedulesSection({ onSummary }: { onSummary?: (s: string) => voi
   };
 
   const targetName = (to: string) =>
-    to === 'broadcast' ? 'everyone' : to === 'god' ? 'Lead agent' : agents.find((a) => a.id === to)?.name ?? to;
+    to === 'broadcast' ? 'everyone' : to === 'god' ? 'Lead agent' : nameOf(to);
 
   return (
     <>
@@ -100,6 +105,7 @@ export function SchedulesSection({ onSummary }: { onSummary?: (s: string) => voi
           mission={m}
           targetName={targetName}
           agents={agents}
+          nameOf={nameOf}
           onPatch={(fields) => patch(m.id, fields)}
           onDelete={() => remove(m.id)}
         />
@@ -125,7 +131,7 @@ export function SchedulesSection({ onSummary }: { onSummary?: (s: string) => voi
             <Select value={mTo} onChange={setMTo} style={{ width: '100%' }}>
               <option value="broadcast">everyone</option>
               <option value="god">Lead agent</option>
-              {agents.filter((a) => !a.isGod).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {agents.filter((a) => !a.isGod).map((a) => <option key={a.id} value={a.id}>{nameOf(a.id)}</option>)}
             </Select>
           </Field>
           <Field label="EVERY">
@@ -158,10 +164,11 @@ export function SchedulesSection({ onSummary }: { onSummary?: (s: string) => voi
 
 interface RosterAgent { id: string; name: string; isGod?: boolean }
 
-function MissionRow({ mission, targetName, agents, onPatch, onDelete }: {
+function MissionRow({ mission, targetName, agents, nameOf, onPatch, onDelete }: {
   mission: ScheduledMission;
   targetName: (to: string) => string;
   agents: RosterAgent[];
+  nameOf: (id: string) => string;
   onPatch: (fields: Partial<ScheduledMission>) => void;
   onDelete: () => void;
 }) {
@@ -243,7 +250,7 @@ function MissionRow({ mission, targetName, agents, onPatch, onDelete }: {
             <Select value={to} onChange={setTo} style={{ width: '100%' }}>
               <option value="broadcast">everyone</option>
               <option value="god">Lead agent</option>
-              {agents.filter((a) => !a.isGod).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {agents.filter((a) => !a.isGod).map((a) => <option key={a.id} value={a.id}>{nameOf(a.id)}</option>)}
             </Select>
           </Field>
           <Field label="EVERY">

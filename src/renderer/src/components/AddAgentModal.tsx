@@ -75,6 +75,7 @@ const DESCRIPTION_TEMPLATES: { label: string; description: string; goal: string 
 // the exact JSON shape the importer accepts and ends with a fill-in section so the
 // user adds their own details (item 7). Kept in sync with the HireManifest schema
 // (src/shared/hire.ts) — provider allowlist is claude | codex | antigravity.
+const HIRE_SPEC = 'munder-difflin/hire@1';
 const HIRE_PROMPT = `You are designing an agent manifest — a ready-to-spawn AI agent for Nexus, an app that runs a team of CLI coding agents. Output ONE JSON object (an agent manifest) and nothing else.
 
 Make the agent genuinely useful: give it a sharp role, a concrete standing goal, and a description that makes it behave like an expert operator of its CLI engine (Claude Code, Codex, or Antigravity/Gemini). It should know how to use the terminal, read and edit files, run and inspect commands, lean on available skills and MCP tools, keep notes in memory, and work autonomously toward its goal without hand-holding.
@@ -82,7 +83,7 @@ Make the agent genuinely useful: give it a sharp role, a concrete standing goal,
 Return EXACTLY this shape (omit optional fields you don't need; keep the spec string verbatim):
 
 {
-  "spec": "munder-difflin/hire@1",
+  "spec": "${HIRE_SPEC}",
   "name": "Ada",
   "description": "one-line role — what this agent is for",
   "goal": "standing directive injected on every prompt — specific and outcome-oriented",

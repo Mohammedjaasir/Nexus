@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from '@/store/store';
-import { useRegistryIds } from '@/nexus/agents/agentIdentity';
-import { displayNameForId } from '@shared/agentDisplay';
-import { leadAgentId } from '@shared/agentDisplay';
+import { useCanonicalAgents, useRegistryIds } from '@/nexus/agents/agentIdentity';
+import { displayNameForId, leadAgentId } from '@shared/agentDisplay';
 import { TaskDetail, parseTasks, type HiveTask } from './TasksKanban';
 
 /**
@@ -20,6 +19,7 @@ export function TaskDetailOverlay() {
   const agents = useStore((s) => s.agents);
   const restorable = useStore((s) => s.restorableAgents);
   const hint = useRegistryIds();
+  const canon = useCanonicalAgents();
   const [tasks, setTasks] = useState<HiveTask[]>([]);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -42,7 +42,7 @@ export function TaskDetailOverlay() {
   if (!task) return null;
 
   const nameFor = (id?: string): string | undefined =>
-    id ? displayNameForId(id, [...agents, ...restorable], hint) : undefined;
+    id ? displayNameForId(id, canon, hint) : undefined;
 
   const move = async (status: HiveTask['status']) => {
     const next = tasks.map((t) => (t.id === task.id ? { ...t, status } : t));

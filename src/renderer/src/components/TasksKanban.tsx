@@ -4,7 +4,7 @@ import { PixelButton } from './PixelButton';
 import { PixelBadge } from './PixelBadge';
 import { Icon } from './Icon';
 import { useStore } from '@/store/store';
-import { useRegistryIds } from '@/nexus/agents/agentIdentity';
+import { useCanonicalAgents, useRegistryIds } from '@/nexus/agents/agentIdentity';
 import { displayNameForId } from '@shared/agentDisplay';
 
 /** A card on the task kanban. Mirrors HiveTask in the main/preload process —
@@ -153,8 +153,9 @@ export function TasksKanban() {
    *  roster so a done card keeps its author's name even after that worker's
    *  terminal is gone, then to the raw id. */
   const hint = useRegistryIds();
+  const canon = useCanonicalAgents();
   const nameFor = (id?: string): string | undefined =>
-    id ? displayNameForId(id, [...agents, ...restorableAgents], hint) : undefined;
+    id ? displayNameForId(id, canon, hint) : undefined;
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--cth-paper-200)', position: 'relative' }}>

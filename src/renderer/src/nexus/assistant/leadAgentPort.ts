@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '@/store/store';
 import { navigate } from '../router/useRoute';
-import { useRegistryIds } from '../agents/agentIdentity';
+import { useCanonicalAgents, useRegistryIds } from '../agents/agentIdentity';
 import { displayAgents, leadAgentId } from '@shared/agentDisplay';
 import { resolveAssistantStatus, type AssistantPort } from './port';
 
@@ -30,7 +30,8 @@ export function useLeadAgentPort(): AssistantPort {
     const id = leadAgentId(agents, hint);
     return agents.find((a) => a.id === id) ?? null;
   }, [agents, hint]);
-  const godLabel = god ? displayAgents(agents, hint).get(god.id)?.label ?? 'Lead agent' : null;
+  const canon = useCanonicalAgents();
+  const godLabel = god ? displayAgents(canon, hint).get(god.id)?.label ?? 'Lead agent' : null;
   const godStatus = useStore((s) => s.godStatus);
   const paused = useDeliveryPaused(god?.id ?? null);
   const status = resolveAssistantStatus({ god: god && godLabel ? { id: god.id, name: godLabel } : null, godStatus, deliveryPaused: paused });

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '@/store/store';
-import { displayAgents, type AgentDisplay, type DisplayHint } from '@shared/agentDisplay';
+import { canonicalAgents, displayAgents, type AgentDisplay, type DisplayHint, type DisplayInput } from '@shared/agentDisplay';
 
 const EMPTY: ReadonlySet<string> = new Set();
 
@@ -20,10 +20,19 @@ export function useRegistryIds(): DisplayHint {
   return state;
 }
 
-/** The display model for the live roster, memoised on the agents array. */
-export function useAgentDisplay(): { display: Map<string, AgentDisplay>; hint: DisplayHint } {
+/** The one canonical ordered list every label is built from: live agents,
+ *  then restorable, then archived. Same agent, same label, on every surface. */
+export function useCanonicalAgents(): DisplayInput[] {
   const agents = useStore((s) => s.agents);
+  const restorable = useStore((s) => s.restorableAgents);
+  const archived = useStore((s) => s.archivedAgents);
+  return useMemo(() => canonicalAgents<DisplayInput>(agents, restorable, archived), [agents, restorable, archived]);
+}
+
+/** The display model for every known agent, memoised. */
+export function useAgentDisplay(): { display: Map<string, AgentDisplay>; hint: DisplayHint; canon: DisplayInput[] } {
+  const canon = useCanonicalAgents();
   const hint = useRegistryIds();
-  const display = useMemo(() => displayAgents(agents, hint), [agents, hint]);
-  return { display, hint };
+  const display = useMemo(() => displayAgents(canon, hint), [canon, hint]);
+  return { display, hint, canon };
 }

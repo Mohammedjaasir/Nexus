@@ -5,6 +5,8 @@
 export const LEAD_AGENT_ID = 'god';
 export const LEAD_AGENT_LABEL = 'Lead agent';
 export const LEAD_AGENT_ROLE = 'Coordinates the other agents';
+/** The name the lead registers with in the hive. Registration never comes from a stored name or a display label. */
+export const LEAD_HIVE_NAME = 'Lead agent';
 const DUPLICATE_LEAD_LABEL = 'Lead agent (duplicate record)';
 const DUPLICATE_LEAD_ROLE = 'Not the running lead agent';
 const ASSISTANT_LABEL = 'Assistant';
@@ -45,7 +47,21 @@ export function folderName(cwd?: string | null): string {
   return parts.length ? parts[parts.length - 1] : '';
 }
 
-export function leadAgentId(agents: readonly DisplayInput[], hint?: DisplayHint): string | null {
+/** One canonical ordered list: live agents, then restorable, then archived. Repeated ids keep their first record. */
+export function canonicalAgents<T extends DisplayInput>(...lists: ReadonlyArray<readonly T[] | null | undefined>): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const list of lists) for (const a of list ?? []) {
+    if (seen.has(a.id)) continue;
+    seen.add(a.id);
+    out.push(a);
+  }
+  return out;
+}
+
+export function leadAgentId(allAgents: readonly DisplayInput[], hint?: DisplayHint): string | null {
+  // A hidden dead seed can never be the lead, even from an unfiltered list.
+  const agents = allAgents.filter((a) => !isLegacySeed(a, hint));
   const has = (id: string): boolean => agents.some((a) => a.id === id);
   if (hint?.godId && has(hint.godId)) return hint.godId;
   if (has(LEAD_AGENT_ID)) return LEAD_AGENT_ID;
@@ -97,6 +113,7 @@ export function displayNameForId(id: string | null | undefined, agents: readonly
   const hit = displayAgents(agents, hint).get(id);
   if (hit) return hit.label;
   if (id === LEAD_AGENT_ID) return LEAD_AGENT_LABEL;
+  if (LEGACY_SEED_IDS.includes(id)) return 'Agent';
   return SYSTEM_SENDERS[id] ?? id;
 }
 

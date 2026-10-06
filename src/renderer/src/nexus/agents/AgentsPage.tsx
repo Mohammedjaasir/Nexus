@@ -21,6 +21,8 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
   const fullscreenAgentId = useStore((s) => s.fullscreenAgentId);
 
   const hint = useRegistryIds();
+  const restorable = useStore((s) => s.restorableAgents);
+  const archived = useStore((s) => s.archivedAgents);
   const { restoring, autoRestoring, pendingCount, restoreNote } = useRestoreTeam(config);
   const restoreStatus: RestoreStatus = restoring
     ? { kind: 'running', auto: autoRestoring }
@@ -31,7 +33,7 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
         : { kind: 'idle' };
   const restoreLine = restoreStatusLine(restoreStatus);
 
-  const rows = useMemo(() => agentRows(agents, queues as Record<string, unknown[]>, hint), [agents, queues, hint]);
+  const rows = useMemo(() => agentRows(agents, queues as Record<string, unknown[]>, hint, [...restorable, ...archived]), [agents, queues, hint, restorable, archived]);
   const current = rows.find((r) => r.id === selectedId);
   const agent = current ? agents.find((a) => a.id === current.id) : undefined;
 

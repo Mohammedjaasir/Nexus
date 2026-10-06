@@ -7,6 +7,7 @@ import { clearTerminalDraft, dismissTerminalPicker, terminalAutomationBlockFor }
 import type { TerminalAutomationBlock } from './terminalAutomation';
 import { freeflowRecorder, useFreeflow } from '@/freeflow/recorder';
 import { useTerminalFontSize } from './terminalFontSize';
+import { useAgentDisplay } from '@/nexus/agents/agentIdentity';
 
 const EMPTY_QUEUE: QueuedMessage[] = [];
 
@@ -65,7 +66,7 @@ export function MessageQueueComposer({ agent }: MessageQueueComposerProps) {
   const composerLineHeight = Math.round(composerFontSize * 1.4);
 
   const idle = agent.status === 'idle';
-  const agentLabel = agent.isGod ? 'Lead agent' : agent.name;
+  const agentLabel = useAgentDisplay().display.get(agent.id)?.label ?? 'Agent';
 
   // Only the god/Michael agent gets the delegation toggle. Default OFF.
 

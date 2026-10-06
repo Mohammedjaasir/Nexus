@@ -65,3 +65,26 @@ test('folderName handles both separators and trailing slashes', () => {
   assert.equal(folderName('/home/u/api'), 'api');
   assert.equal(folderName(undefined), '');
 });
+
+test('a hidden dead seed is never the lead, even from an unfiltered list', () => {
+  const agents = [{ id: 'agent-god', name: 'MICHAEL', isGod: true, ptyId: null }, { id: 'w', name: 'W', ptyId: 'p' }];
+  assert.equal(leadAgentId(agents), null);
+  assert.equal(leadAgentId([{ id: 'agent-god', isGod: true, ptyId: 'live' }]), 'agent-god');
+  assert.equal(leadAgentId([{ id: 'agent-god', isGod: true }, { id: 'x', isGod: true, ptyId: 'p' }]), 'x');
+});
+
+test('the same agent gets the same label on every surface built from the canonical list', () => {
+  const { canonicalAgents } = loadTs('src/shared/agentDisplay.ts');
+  const live = [{ id: 'a', name: 'Jim', ptyId: 'p1', cwd: '/r/api' }];
+  const restorable = [{ id: 'a', name: 'Jim', cwd: '/r/api' }, { id: 'b', name: 'Pam', cwd: '/r/api' }];
+  const archived = [{ id: 'c', name: 'Kevin', cwd: '/r/api' }];
+  const canon = canonicalAgents(live, restorable, archived);
+  assert.deepEqual(canon.map((x) => x.id), ['a', 'b', 'c']);
+  const full = displayAgents(canon);
+  const rowsSurface = displayAgents(canonicalAgents(live, restorable));
+  assert.equal(full.get('a').label, 'Agent · api');
+  assert.equal(full.get('b').label, 'Agent · api (2)');
+  assert.equal(full.get('c').label, 'Agent · api (3)');
+  for (const id of ['a', 'b']) assert.equal(rowsSurface.get(id).label, full.get(id).label);
+  assert.equal(displayNameForId('c', canon), 'Agent · api (3)');
+});

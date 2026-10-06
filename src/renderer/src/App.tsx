@@ -4,6 +4,7 @@ import { startMockLoop, stopMockLoop } from '@/store/mockEvents';
 import type { HarnessConfig } from '@/store/config';
 import { DEFAULT_ORG_TRIGGER } from '@shared/triggers';
 import type { DomainId } from '@shared/domain';
+import { leadAgentId } from '@shared/agentDisplay';
 import { useRestoreTeam } from '@/hooks/useRestoreTeam';
 import { useHive } from '@/hooks/useHive';
 import { AddAgentModal } from '@/components/AddAgentModal';
@@ -215,7 +216,7 @@ export function App() {
       const s = useStore.getState();
       // A folder was named: open it without claiming any agent owns it.
       if (root) { s.setIdeOpen(true, null, root); return; }
-      const target = s.agents.find((a) => a.id === s.selectedId) ?? s.agents.find((a) => a.isGod) ?? null;
+      const target = s.agents.find((a) => a.id === s.selectedId) ?? s.agents.find((a) => a.id === leadAgentId(s.agents)) ?? null;
       s.setIdeOpen(true, target?.id ?? null);
     },
     openProjectManager: () => setProjectDashboardOpen(true)

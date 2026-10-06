@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { PixelButton } from './PixelButton';
 import { PixelBadge } from './PixelBadge';
 import { useStore } from '@/store/store';
-import { useRegistryIds } from '@/nexus/agents/agentIdentity';
+import { useCanonicalAgents, useRegistryIds } from '@/nexus/agents/agentIdentity';
 import { displayNameForId } from '@shared/agentDisplay';
 import { type HiveTask, openQuestion, waitsOnHuman } from './TasksKanban';
 
@@ -45,6 +45,7 @@ export function AskMeTab() {
   const agents = useStore((s) => s.agents);
   const restorable = useStore((s) => s.restorableAgents);
   const hint = useRegistryIds();
+  const canon = useCanonicalAgents();
   const [tasks, setTasks] = useState<HiveTask[]>([]);
   // Drafts live in the STORE (keyed by task id) — switching tabs unmounts this
   // view, and a half-typed answer must survive the round trip.
@@ -65,7 +66,7 @@ export function AskMeTab() {
   }, [refresh]);
 
   const nameFor = (id?: string): string | undefined =>
-    id ? displayNameForId(id, [...agents, ...restorable], hint) : undefined;
+    id ? displayNameForId(id, canon, hint) : undefined;
 
   const waiting = tasks.filter(waitsOnHuman);
 

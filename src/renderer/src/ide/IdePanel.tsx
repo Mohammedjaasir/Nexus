@@ -8,6 +8,8 @@ import { ImagePreview } from './ImagePreview';
 import { MarkdownPreview } from '@/markdown/MarkdownPreview';
 import { HistoryPane, ComparePane } from './GitPanes';
 import { isImagePath, isSvgPath } from '@shared/imageTypes';
+import { leadAgentId } from '@shared/agentDisplay';
+import { useAgentDisplay } from '@/nexus/agents/agentIdentity';
 import { ideBarStyle, ideIconBtn as iconBtn, ideTextBtn as textBtn } from './chrome';
 
 // v0.3.4 markdown preview: per-md-tab view mode, defaulted from the last choice.
@@ -92,7 +94,7 @@ function pickIdeTarget(): IdeTarget {
     return { agent: null, root: s.ideRoot, inferred: false };
   }
   if (named?.cwd) return { agent: named, root: named.cwd, inferred: false };
-  const guess = byId(s.selectedId) ?? s.agents.find((a) => a.isGod) ?? s.agents[0] ?? null;
+  const guess = byId(s.selectedId) ?? byId(leadAgentId(s.agents)) ?? s.agents[0] ?? null;
   if (guess?.cwd) return { agent: guess, root: guess.cwd, inferred: true };
   return { agent: null, root: null, inferred: false };
 }
@@ -100,6 +102,7 @@ function pickIdeTarget(): IdeTarget {
 export function IdePanel() {
   const setIdeOpen = useStore((s) => s.setIdeOpen);
   const [target] = useState<IdeTarget>(pickIdeTarget);
+  const targetLabel = useAgentDisplay().display.get(target.agent?.id ?? '')?.label ?? 'Agent';
   const root = target.root;
 
   const [tabs, setTabs] = useState<Tab[]>([]);
@@ -386,14 +389,14 @@ export function IdePanel() {
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
             <span
               title={target.inferred
-                ? `No agent was named when the IDE opened — showing ${target.agent.isGod ? 'the lead agent' : target.agent.name}'s workspace (the current selection)`
-                : `${target.agent.isGod ? 'Lead agent' : target.agent.name}'s workspace`}
+                ? `No agent was named when the IDE opened — showing ${targetLabel}'s workspace (the current selection)`
+                : `${targetLabel}'s workspace`}
               style={{
                 fontFamily: 'var(--cth-font-ui)', fontSize: 13, fontWeight: 600,
                 color: 'var(--cth-ink-900)',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '22vw'
               }}
-            >{target.agent.isGod ? 'Lead agent' : target.agent.name}</span>
+            >{targetLabel}</span>
             {target.inferred && (
               // Never assert a name we had to guess at. One quiet word is enough
               // to stop someone trusting the wrong agent's directory.
