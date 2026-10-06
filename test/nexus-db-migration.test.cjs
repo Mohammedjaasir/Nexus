@@ -155,7 +155,11 @@ test('10b. a process killed mid-transaction leaves no half-upgraded state', () =
   const { file, snap } = h.v6Fixture();
   const r = spawnSync(process.execPath, [path.join(__dirname, 'helpers', 'migrate-and-die.cjs'), file],
     { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, encoding: 'utf8' });
-  assert.equal(r.status, 42, r.stderr);
+  assert.ok(r.status !== 0 || r.signal, `the child must be killed, got status=${r.status} signal=${r.signal} ${r.stderr}`);
+  const died = /IN_TXN wal=(\d+)/.exec(r.stdout);
+  assert.ok(died, `the child reached the open transaction: ${r.stdout} ${r.stderr}`);
+  assert.doesNotMatch(r.stdout, /NOT_KILLED/);
+  assert.ok(Number(died[1]) > 0, 'uncommitted v7 frames were in the WAL when the process died');
   assert.equal(fs.readdirSync(path.join(path.dirname(file), 'backups')).length, 1, 'the child died after its verified backup, inside the transaction');
   const db = h.openRaw(file);
   assert.equal(db.pragma('user_version', { simple: true }), 6);
@@ -228,8 +232,8 @@ test('the log is the exact observable sequence, every line ISO-stamped and basen
   const db = h.openRaw(file); const rec = db.prepare('SELECT * FROM nexus_migrations').get(); db.close();
   const expect = [
     /^\[db\] schema version 6$/,
-    /^\[db\] v7 precheck ok integrity=ok/,
-    new RegExp(`^\\[db\\] backup ok file=${rec.backup_file.replace(/\./g, '\\.')} bytes=${rec.backup_bytes} sha256=${rec.backup_sha256} from=6$`),
+    /^\[db\] v7 precheck ok integrity=ok integrityMs=\d+ free=\d+ needed=\d+$/,
+    new RegExp(`^\\[db\\] backup ok file=${rec.backup_file.replace(/\./g, '\\.')} bytes=${rec.backup_bytes} sha256=${rec.backup_sha256} from=6 writeMs=\\d+ verifyMs=\\d+ hashMs=\\d+$`),
     /^\[db\] row counts command_history=2 kv=3 project_gaps=2 project_goals=1 project_graph_edges=2 project_graph_nodes=3 project_plans=2 projects=5$/,
     /^\[db\] v7 migration: start from=6$/,
     /^\[db\] v7 migration: success to=7 durationMs=\d+ backfilled=3 unassigned=2$/
@@ -405,4 +409,116 @@ test('ids and canonical JSON', () => {
   assert.equal(newId(0).slice(0, 10), '0000000000');
   assert.equal(canonicalJson({ b: 1, a: [3, { d: undefined, c: null }], e: NaN }), '{"a":[3,{"c":null}],"b":1,"e":null}');
   assert.equal(canonicalJson({ b: 1, a: 2 }), canonicalJson({ a: 2, b: 1 }));
+});
+
+// ─── fix round 1: the two untested skip paths, repeated-failure hold, streamed hash ───
+
+function legacyStillUsable(s) {
+  assert.equal(s.isOpen, true); assert.equal(s.platformAvailable, false); assert.equal(s.platformDatabase(), null);
+  assert.equal(s.getKv('window_bounds').width, 1200);
+  assert.equal(s.listProjects().length, 5);
+  s.setKv('after_skip', 2); assert.equal(s.getKv('after_skip'), 2);
+}
+
+test('precheck_failed: a database whose integrity_check is not ok is left at v6, untouched and usable', () => {
+  const { dir, file } = h.v6Fixture();
+  const pre = h.openRaw(file);
+  const pageSize = pre.pragma('page_size', { simple: true });
+  const root = pre.prepare("SELECT rootpage FROM sqlite_master WHERE name = 'idx_graph_edges_kind'").get().rootpage;
+  pre.close();
+  assert.ok(!fs.existsSync(`${file}-wal`), 'fixture fully checkpointed');
+  // One byte of one index key: 'imports' -> 'jmports' in the index only. The file still opens and
+  // legacy reads work, but the index no longer matches its table.
+  const fd = fs.openSync(file, 'r+'); const page = Buffer.alloc(pageSize);
+  fs.readSync(fd, page, 0, pageSize, (root - 1) * pageSize);
+  const at = page.indexOf(Buffer.from('imports'), page.readUInt16BE(5)); assert.ok(at > 0);
+  page[at] = 0x6a; fs.writeSync(fd, page, 0, pageSize, (root - 1) * pageSize); fs.closeSync(fd);
+  const raw = h.openRaw(file); assert.notEqual(raw.pragma('integrity_check', { simple: true }), 'ok');
+  const before = { schema: h.schemaObjects(raw), legacy: h.legacySnapshot(raw) }; raw.close();
+  const { s, logs } = openStore(file);
+  assert.equal(s.lastMigration.state, 'skipped'); assert.equal(s.lastMigration.reason, 'precheck_failed');
+  assert.equal(s.schemaVersion, 6);
+  assert.ok(logs.some((l) => /v7 migration: skipped reason=precheck_failed detail=integrity_check is not ok; database left at v6/.test(l)), logs.join('\n'));
+  assert.ok(!fs.existsSync(path.join(dir, 'backups')), 'no backup of a corrupt database');
+  legacyStillUsable(s);
+  s.close();
+  const db = h.openRaw(file);
+  assert.equal(db.pragma('user_version', { simple: true }), 6);
+  assert.deepEqual(h.schemaObjects(db), before.schema);
+  const now = h.legacySnapshot(db); now.kv = now.kv.filter((r) => r.key !== 'after_skip');
+  assert.deepEqual(now, before.legacy);
+  db.close();
+});
+
+test('insufficient_disk: too little free space skips v7 before any backup, and the store stays usable', () => {
+  const { dir, file, snap } = h.v6Fixture();
+  const { s, logs } = openStore(file, { hooks: { freeBytes: () => 1024 } });
+  assert.equal(s.lastMigration.state, 'skipped'); assert.equal(s.lastMigration.reason, 'insufficient_disk');
+  assert.match(s.lastMigration.detail, /^free=1024 needed=\d+$/);
+  assert.equal(s.schemaVersion, 6);
+  assert.ok(logs.some((l) => /v7 migration: skipped reason=insufficient_disk detail=free=1024 needed=\d+; database left at v6/.test(l)), logs.join('\n'));
+  assert.ok(!fs.existsSync(path.join(dir, 'backups')));
+  legacyStillUsable(s);
+  s.close();
+  const db = h.openRaw(file);
+  assert.equal(db.pragma('user_version', { simple: true }), 6);
+  assert.equal(tableExists(db, 'principals'), false);
+  const now = h.legacySnapshot(db); now.kv = now.kv.filter((r) => r.key !== 'after_skip');
+  assert.deepEqual(now, snap);
+  db.close();
+});
+
+test('repeated failure: after 3 failed launches v7 holds itself, takes no more backups, keeps the old ones, and clears on success', () => {
+  const { dir, file, snap } = h.v6Fixture();
+  const { v7FailureMarkerPath, V7_FAILURE_LIMIT } = loadTs('src/main/db.ts');
+  assert.equal(V7_FAILURE_LIMIT, 3);
+  const marker = v7FailureMarkerPath(file);
+  const boom = { hooks: { beforeCommit: () => { throw new Error('deterministic failure'); } } };
+  let t = h.NOW;
+  const launch = (extra = {}) => { t += 60_000; const at = t; return openStore(file, { now: () => at, ...extra }); };
+  for (let i = 1; i <= 3; i++) {
+    const { s, logs } = launch(boom);
+    assert.equal(s.lastMigration.state, 'failed'); s.close();
+    assert.equal(JSON.parse(fs.readFileSync(marker, 'utf8')).count, i);
+    assert.equal(fs.readdirSync(path.join(dir, 'backups')).length, i);
+    if (i === 3) assert.ok(logs.some((l) => /failed 3 times in a row; it is held from the next launch \(held: repeated_failure\)/.test(l)), logs.join('\n'));
+  }
+  const backups = fs.readdirSync(path.join(dir, 'backups')).sort();
+  // Fourth launch: held, no backup, even without the failing hook.
+  const held = launch();
+  assert.equal(held.s.schemaVersion, 6); assert.equal(held.s.lastMigration.reason, 'held');
+  assert.equal(held.s.lastMigration.detail, 'repeated_failure count=3');
+  assert.ok(held.logs.some((l) => /v7 migration: skipped reason=held: repeated_failure count=3; database stays at v6; no new backup taken/.test(l)), held.logs.join('\n'));
+  const how = held.logs.find((l) => /to retry v7/.test(l));
+  assert.ok(how && how.includes(path.basename(marker)) && /restore tool/.test(how) && !how.includes(dir), how);
+  legacyStillUsable(held.s); held.s.close();
+  assert.deepEqual(fs.readdirSync(path.join(dir, 'backups')).sort(), backups, 'no new backup and none deleted');
+  // The user clears the marker: the next launch migrates, and success removes the marker.
+  fs.rmSync(marker);
+  const ok = launch();
+  assert.equal(ok.s.schemaVersion, 7); assert.equal(ok.s.lastMigration.state, 'applied'); ok.s.close();
+  assert.ok(!fs.existsSync(marker));
+  assert.equal(fs.readdirSync(path.join(dir, 'backups')).length, 4);
+  for (const b of backups) assert.ok(fs.existsSync(path.join(dir, 'backups', b)), `kept ${b}`);
+  const db = h.openRaw(file);
+  const now = h.legacySnapshot(db); now.kv = now.kv.filter((r) => r.key !== 'after_skip');
+  assert.deepEqual(now, snap); db.close();
+});
+
+test('a single failure followed by success resets the failure count', () => {
+  const { file } = h.v6Fixture();
+  const { v7FailureMarkerPath } = loadTs('src/main/db.ts');
+  openStore(file, { hooks: { beforeCommit: () => { throw new Error('once'); } } }).s.close();
+  assert.equal(JSON.parse(fs.readFileSync(v7FailureMarkerPath(file), 'utf8')).count, 1);
+  const { s } = openStore(file, { now: () => h.NOW + 60_000 }); assert.equal(s.schemaVersion, 7); s.close();
+  assert.ok(!fs.existsSync(v7FailureMarkerPath(file)));
+});
+
+test('the backup hash is streamed in chunks and equals the whole-file sha256', () => {
+  const { sha256File } = loadTs('src/main/nexus/db/backup.ts');
+  const f = path.join(h.tmpDir(), 'big.bin');
+  const buf = crypto.randomBytes(3 * 1024 * 1024 + 12345); fs.writeFileSync(f, buf);
+  assert.equal(sha256File(f), crypto.createHash('sha256').update(buf).digest('hex'));
+  const empty = path.join(h.tmpDir(), 'empty.bin'); fs.writeFileSync(empty, '');
+  assert.equal(sha256File(empty), crypto.createHash('sha256').update('').digest('hex'));
 });

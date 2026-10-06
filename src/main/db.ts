@@ -218,6 +218,31 @@ function defaultMigrationLog(line: string): void {
   if (dir) appendCrashLog(dir, line);
 }
 
+/** Consecutive failed v7 transactions after which v7 is held automatically. */
+export const V7_FAILURE_LIMIT = 3;
+
+/** Small marker next to the DB file counting consecutive failed v7 transactions (no legacy table, no error text). */
+export function v7FailureMarkerPath(dbFile: string): string {
+  return `${dbFile}.v7-failures.json`;
+}
+
+function readFailureCount(marker: string): number {
+  try {
+    const n = Number((JSON.parse(fs.readFileSync(marker, 'utf8')) as { count?: unknown })?.count);
+    return Number.isInteger(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeFailureCount(marker: string, count: number, at: number): void {
+  try { fs.writeFileSync(marker, JSON.stringify({ count, lastFailureAt: at })); } catch { /* best effort: never breaks open() */ }
+}
+
+function clearFailureMarker(marker: string): void {
+  try { fs.rmSync(marker, { force: true }); } catch { /* best effort */ }
+}
+
 function defaultAppVersion(): string | null {
   try { return app.getVersion(); } catch { return null; }
 }
@@ -309,6 +334,19 @@ export class PersistStore {
       this.outcome = { state: 'skipped', fromVersion: from, reason: 'held', detail: 'NEXUS_DB_HOLD_V7=1' };
       return;
     }
+    // A deterministic v7 failure must not take a new backup on every launch: after
+    // V7_FAILURE_LIMIT consecutive failures v7 holds itself until the marker is cleared.
+    const marker = v7FailureMarkerPath(dbFile);
+    const failures = readFailureCount(marker);
+    if (failures >= V7_FAILURE_LIMIT) {
+      this.migrateLegacy(db);
+      this.version = db.pragma('user_version', { simple: true }) as number;
+      log(`[db] v7 migration: skipped reason=held: repeated_failure count=${failures}; database stays at v${this.version}; no new backup taken`);
+      log(`[db] to retry v7, quit and delete ${basename(marker)} next to ${basename(dbFile)}; existing backups are kept `
+        + '(restore one with the restore tool, tools/nexus-db-restore.cjs, if needed)');
+      this.outcome = { state: 'skipped', fromVersion: from, reason: 'held', detail: `repeated_failure count=${failures}` };
+      return;
+    }
 
     const skip = (reason: 'precheck_failed' | 'insufficient_disk' | 'backup_failed', detail: string): void => {
       this.migrateLegacy(db);
@@ -322,13 +360,15 @@ export class PersistStore {
     if (from > 0) {
       // 1. Pre-checks. The database is not touched.
       try {
+        const integrityStart = Date.now();
         if (!integrityOk(db)) return skip('precheck_failed', 'integrity_check is not ok');
+        const integrityMs = Date.now() - integrityStart;
         const size = (f: string): number => { try { return fs.statSync(f).size; } catch { return 0; } };
         const needed = 2 * (size(dbFile) + size(`${dbFile}-wal`));
-        const free = freeBytes(backupDir);
+        const free = opts.hooks?.freeBytes ? opts.hooks.freeBytes() : freeBytes(backupDir);
         if (free !== null && free < needed) return skip('insufficient_disk', `free=${free} needed=${needed}`);
         preCounts = tableRowCounts(db);
-        log(`[db] v7 precheck ok integrity=ok free=${free ?? 'unknown'} needed=${needed}`);
+        log(`[db] v7 precheck ok integrity=ok integrityMs=${integrityMs} free=${free ?? 'unknown'} needed=${needed}`);
       } catch (err) {
         return skip('precheck_failed', scrub(errorMessage(err)));
       }
@@ -340,7 +380,8 @@ export class PersistStore {
         log(`[db] backup failed stage=${stage} error=${scrub(errorMessage(err))}`);
         return skip('backup_failed', `stage=${stage}`);
       }
-      log(`[db] backup ok file=${backup.file} bytes=${backup.bytes} sha256=${backup.sha256} from=${from}`);
+      log(`[db] backup ok file=${backup.file} bytes=${backup.bytes} sha256=${backup.sha256} from=${from} `
+        + `writeMs=${backup.timings.writeMs} verifyMs=${backup.timings.verifyMs} hashMs=${backup.timings.hashMs}`);
       log(`[db] row counts ${Object.entries(preCounts).map(([t, n]) => `${t}=${n}`).join(' ')}`);
     } else {
       log('[db] fresh database: no backup needed');
@@ -359,6 +400,7 @@ export class PersistStore {
     const ctx: MigrationContext = { now, appVersion: opts.appVersion !== undefined ? opts.appVersion : defaultAppVersion(), fromVersion: from, preCounts, backup };
     let result: { backfilled: number; unassigned: number };
     try {
+      opts.hooks?.beforeTransaction?.(db);
       result = db.transaction(() => {
         const r = applyV7(db, ctx);
         db.pragma(`user_version = ${V7}`);
@@ -368,12 +410,17 @@ export class PersistStore {
     } catch (err) {
       const kept = backupFile ? `backup kept at ${backupFile}` : 'no backup (fresh database)';
       log(`[db] v7 migration: failed from=${from} error=${scrub(errorMessage(err))}; database left at v${legacyVersion}; ${kept}`);
-      log('[db] v7 migration will be retried at the next launch; set NEXUS_DB_HOLD_V7=1 to stay on v6');
+      const count = failures + 1;
+      writeFailureCount(marker, count, now());
+      log(count >= V7_FAILURE_LIMIT
+        ? `[db] v7 migration has failed ${count} times in a row; it is held from the next launch (held: repeated_failure)`
+        : `[db] v7 migration will be retried at the next launch (failure ${count} of ${V7_FAILURE_LIMIT}); set NEXUS_DB_HOLD_V7=1 to stay on v6`);
       this.outcome = { state: 'failed', fromVersion: from, error: scrub(errorMessage(err)), backupFile };
       return;
     }
     const durationMs = Date.now() - started;
     this.version = V7;
+    clearFailureMarker(marker);
 
     // 5. Post-check after COMMIT.
     let postOk: boolean;

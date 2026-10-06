@@ -5,6 +5,10 @@ import type { BackupRecord } from './backup';
 export interface MigrationHooks {
   /** Runs inside the v7 transaction after every write and `user_version = 7`, just before COMMIT. */
   beforeCommit?: (db: Database.Database, toVersion: number) => void;
+  /** Runs just before the v7 transaction begins (the crash test lowers cache_size here). */
+  beforeTransaction?: (db: Database.Database) => void;
+  /** Replaces the free-space probe of the backup directory (insufficient_disk test). */
+  freeBytes?: () => number | null;
 }
 
 export interface MigrationContext {

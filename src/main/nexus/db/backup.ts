@@ -11,6 +11,8 @@ export interface BackupRecord {
   fromVersion: number;
   rowCounts: Record<string, number>;
   verifiedAt: number;
+  /** Wall-clock milliseconds per phase: VACUUM INTO, verification of the copy, sha256 of the final file. */
+  timings: { writeMs: number; verifyMs: number; hashMs: number };
 }
 
 export interface BackupOptions {
@@ -88,6 +90,23 @@ function vacuumInto(db: Database.Database, target: string): void {
   }
 }
 
+/** sha256 of a file read in 1 MiB chunks: constant memory, no 2 GiB Buffer limit. */
+export function sha256File(file: string): string {
+  const hash = createHash('sha256');
+  const buf = Buffer.allocUnsafe(1024 * 1024);
+  const fd = fs.openSync(file, 'r');
+  try {
+    for (;;) {
+      const n = fs.readSync(fd, buf, 0, buf.length, null);
+      if (n === 0) break;
+      hash.update(buf.subarray(0, n));
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+  return hash.digest('hex');
+}
+
 function removeQuietly(file: string): void {
   try { fs.rmSync(file, { force: true }); } catch { /* best effort */ }
 }
@@ -113,12 +132,15 @@ function backupAndVerifyInner(db: Database.Database, o: BackupOptions, afterWrit
   if (fs.existsSync(finalPath) || fs.existsSync(partial)) {
     throw new BackupError('exists', `backup ${file} already exists`);
   }
+  const writeStart = Date.now();
   try {
     vacuumInto(db, partial);
   } catch (err) {
     removeQuietly(partial);
     throw new BackupError('write', `VACUUM INTO failed: ${(err as Error).message}`);
   }
+  const writeMs = Date.now() - writeStart;
+  const verifyStart = Date.now();
   let copy: Database.Database | null = null;
   try {
     afterWrite?.(partial);
@@ -174,6 +196,8 @@ function backupAndVerifyInner(db: Database.Database, o: BackupOptions, afterWrit
   }
   let bytes: number;
   let sha256: string;
+  let verifyMs = 0;
+  let hashMs = 0;
   try {
     const check = new Database(finalPath, { readonly: true, fileMustExist: true });
     try {
@@ -181,8 +205,11 @@ function backupAndVerifyInner(db: Database.Database, o: BackupOptions, afterWrit
     } finally {
       check.close();
     }
+    verifyMs = Date.now() - verifyStart;
+    const hashStart = Date.now();
     bytes = fs.statSync(finalPath).size;
-    sha256 = createHash('sha256').update(fs.readFileSync(finalPath)).digest('hex');
+    sha256 = sha256File(finalPath);
+    hashMs = Date.now() - hashStart;
   } catch (err) {
     if (err instanceof BackupError) {
       removeQuietly(finalPath);
@@ -190,7 +217,8 @@ function backupAndVerifyInner(db: Database.Database, o: BackupOptions, afterWrit
     }
     throw new BackupError('write', `cannot hash backup: ${(err as Error).message}`);
   }
-  return { file, path: finalPath, bytes, sha256, fromVersion: o.fromVersion, rowCounts: { ...o.rowCounts }, verifiedAt: o.now() };
+  return { file, path: finalPath, bytes, sha256, fromVersion: o.fromVersion, rowCounts: { ...o.rowCounts }, verifiedAt: o.now(),
+    timings: { writeMs, verifyMs, hashMs } };
 }
 
 /** Test-only entry points. Production code must not use these. */
