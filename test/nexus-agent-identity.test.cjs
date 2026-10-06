@@ -88,3 +88,20 @@ test('the same agent gets the same label on every surface built from the canonic
   for (const id of ['a', 'b']) assert.equal(rowsSurface.get(id).label, full.get(id).label);
   assert.equal(displayNameForId('c', canon), 'Agent · api (3)');
 });
+
+test('the memory graph emits no persona label and matches the Agents page label', () => {
+  const { buildGraph } = loadTs('src/renderer/src/components/memoryGraph/buildGraph.ts');
+  const { agentRows } = loadTs('src/renderer/src/nexus/agents/agentList.ts');
+  const agents = [
+    { id: 'god', name: 'Michael', isGod: true, status: 'idle', accent: 'lemon', ptyId: 'p1' },
+    { id: 'agent-god', name: 'MICHAEL', isGod: true, status: 'idle', accent: 'lemon', ptyId: null },
+    { id: 'creed-1', name: 'Creed', status: 'idle', accent: 'sky', ptyId: 'p2', cwd: '/r/Downloads' }
+  ];
+  const log = [{ kind: 'message', from: 'agent-god', to: 'creed-1', act: 'inform', subject: 's' }, { kind: 'message', from: 'god', to: 'creed-1', act: 'inform', subject: 's' }];
+  const g = buildGraph(agents, log, {});
+  const labels = g.nodes.map((n) => n.label);
+  assert.ok(!labels.some((l) => /michael|creed|ryan|jim/i.test(l)), labels.join());
+  assert.equal(g.nodes.some((n) => n.id === 'agent-god'), false);
+  const row = agentRows(agents.map((a) => ({ ...a })), {}).find((r) => r.id === 'creed-1');
+  assert.equal(g.nodes.find((n) => n.id === 'creed-1').label, row.title);
+});

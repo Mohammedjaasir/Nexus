@@ -10,6 +10,7 @@ import {
   type GraphEdge,
   type MessageLogEntry
 } from './memoryGraph/buildGraph';
+import { useRegistryIds } from '@/nexus/agents/agentIdentity';
 import { forceLayout, type Positions } from './memoryGraph/forceLayout';
 
 /** The memory-graph tab: hive agents as nodes, messages as edges, an optional
@@ -26,6 +27,9 @@ export function MemoryGraphPanel({
   onJumpToMemory: (agentId: string) => void;
 }) {
   const agents = useStore((s) => s.agents);
+  const hint = useRegistryIds();
+  const restorable = useStore((s) => s.restorableAgents);
+  const archived = useStore((s) => s.archivedAgents);
 
   const [log, setLog] = useState<MessageLogEntry[]>([]);
   const [showTopics, setShowTopics] = useState(false);
@@ -66,8 +70,8 @@ export function MemoryGraphPanel({
 
   // ── graph model ──────────────────────────────────────────────────────────────
   const graph: GraphData = useMemo(
-    () => buildGraph(agents, log, { showTopics, memories }),
-    [agents, log, showTopics, memories]
+    () => buildGraph(agents, log, { showTopics, memories, hint, otherAgents: [...restorable, ...archived] }),
+    [agents, log, showTopics, memories, hint, restorable, archived]
   );
 
   // ── canvas sizing ─────────────────────────────────────────────────────────────

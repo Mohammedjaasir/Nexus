@@ -9,7 +9,7 @@ import type { AccentColorName } from '@/design/tokens';
 import type { StatusKind } from '@/components/PixelBadge';
 import type { MessageAct } from '@/scene/office/MessageEnvelope';
 import { extractTopics } from './extractTopics';
-import { displayAgents } from '@shared/agentDisplay';
+import { canonicalAgents, displayAgents, visibleAgents, type DisplayHint, type DisplayInput } from '@shared/agentDisplay';
 
 export interface AgentNode {
   kind: 'agent';
@@ -82,6 +82,10 @@ export interface BuildOpts {
   showTopics?: boolean;
   memories?: Record<string, string>;
   maxTopics?: number;
+  /** Registry hint, same as every other surface. */
+  hint?: DisplayHint;
+  /** Restorable then archived agents: they follow the live list in the canonical label order. */
+  otherAgents?: readonly DisplayInput[];
 }
 
 function sortedPairKey(a: string, b: string): string {
@@ -93,10 +97,12 @@ function sortedPairKey(a: string, b: string): string {
  * layer is added only when `showTopics` is set and `memories` are supplied.
  */
 export function buildGraph(
-  agents: MinimalAgent[],
+  allAgents: MinimalAgent[],
   log: MessageLogEntry[],
   opts: BuildOpts = {}
 ): GraphData {
+  // Hidden dead seeds get no node; edges that reference them are dropped.
+  const agents = visibleAgents(allAgents, opts.hint);
   const byId = new Map(agents.map((a) => [a.id, a]));
   const degree = new Map<string, number>();
 
@@ -145,12 +151,12 @@ export function buildGraph(
 
   // agent nodes — only those that actually appear, plus god, to avoid lone dots.
   // We include every roster agent so the floor is fully represented.
-  const shown = displayAgents(agents);
+  const shown = displayAgents(canonicalAgents<DisplayInput>(allAgents, opts.otherAgents), opts.hint);
   for (const a of agents) {
     nodes.push({
       kind: 'agent',
       id: a.id,
-      label: shown.get(a.id)?.label ?? a.name,
+      label: shown.get(a.id)?.label ?? 'Agent',
       accent: a.accent,
       status: a.status,
       isGod: !!a.isGod,
