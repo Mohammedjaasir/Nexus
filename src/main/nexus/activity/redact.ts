@@ -59,18 +59,34 @@ function redactString(s: string): string {
   return redactText(s);
 }
 
+/** Any PEM private-key header, terminated or not. */
+const PRIVATE_KEY_HEADER = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/;
+/** A private-key header with no END line after it: everything from it to the end of the string. */
+const UNTERMINATED_PRIVATE_KEY = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*$/;
+
+/**
+ * redactText plus one extra rule: a private-key header whose END line is missing
+ * (for example cut off by an earlier truncation) is redacted through to the end of
+ * the string. For stored error messages only. Deliberately NOT part of redactText
+ * or redactDetails: activity hashes depend on redactDetails' exact output.
+ */
+export function redactSecretText(s: string): string {
+  return redactText(s).replace(UNTERMINATED_PRIVATE_KEY, REDACTED);
+}
+
 /**
  * True when redaction would change `v` because of a SECRET, ignoring every size,
  * depth and key-count cap: a key that names a secret (numeric token counts and hex
  * digests under hash keys excepted, as in redactDetails), or a key or string value
- * that redactText would alter. Meant for exact JSON (cycles are not followed twice).
+ * that redactText would alter, or any string holding a private-key header
+ * (terminated or not). Meant for exact JSON (cycles are not followed twice).
  */
 export function containsSecret(v: unknown): boolean {
   const seen = new Set<object>();
   const stack: unknown[] = [v];
   while (stack.length) {
     const x = stack.pop();
-    if (typeof x === 'string') { if (redactText(x) !== x) return true; continue; }
+    if (typeof x === 'string') { if (PRIVATE_KEY_HEADER.test(x) || redactText(x) !== x) return true; continue; }
     if (typeof x !== 'object' || x === null || seen.has(x)) continue;
     seen.add(x);
     if (Array.isArray(x)) { for (const item of x) stack.push(item); continue; }

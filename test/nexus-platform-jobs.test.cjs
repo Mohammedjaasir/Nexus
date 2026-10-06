@@ -419,3 +419,55 @@ test('gap: workspace grants are isolated for get, listBySession and jobsOf', () 
   assert.throws(() => nx.jobs.get(qa, qaJob.id), (e) => e.code === 'denied');
   s.close();
 });
+
+// ---------- fix round 2 ----------
+const PEM = `-----BEGIN RSA PRIVATE KEY-----\n${'MIIEpAIBAAKCAQEA7bq'.repeat(80)}\n-----END RSA PRIVATE KEY-----`;
+const KEY_BODY = /MIIEpAIBAAKCAQEA7bq/;
+test('N1: a private key straddling the 4096-character cut is redacted (job and session errors)', () => {
+  const { s, db, nx, me, sys } = setup();
+  const message = `${'x'.repeat(3000)} ${PEM} after`;
+  assert.ok(message.indexOf('-----END') > 4096 && message.indexOf('-----BEGIN') < 4096);
+  const j = job(nx, me); drive(nx, sys, j.id, PATH_TO.running);
+  const f = nx.jobs.transition(sys, j.id, 'failed', { error: { code: 'runtime_error', message } });
+  assert.doesNotMatch(f.error.message, KEY_BODY); assert.match(f.error.message, /\[redacted\]/);
+  assert.ok(f.error.message.length <= 4096);
+  const x = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key() }).session;
+  nx.sessions.transition(sys, x.id, 'running');
+  const sf = nx.sessions.transition(sys, x.id, 'failed', { error: { code: 'runtime_error', message } });
+  assert.doesNotMatch(sf.error.message, KEY_BODY);
+  assert.doesNotMatch(JSON.stringify(db.prepare('SELECT error_json FROM jobs UNION ALL SELECT error_json FROM agent_sessions').all()), KEY_BODY);
+  s.close();
+});
+test('N1: an unterminated private key in an error is redacted to the end; an over-long message is bounded first', () => {
+  const { s, nx, me, sys } = setup();
+  const j = job(nx, me); drive(nx, sys, j.id, PATH_TO.running);
+  const f = nx.jobs.transition(sys, j.id, 'failed', { error: { code: 'runtime_error',
+    message: `boom -----BEGIN PRIVATE KEY-----\n${'MIIEpAIBAAKCAQEA7bq'.repeat(10)}` } });
+  assert.equal(f.error.message, 'boom [redacted]');
+  const k = job(nx, me); drive(nx, sys, k.id, PATH_TO.running);
+  const g = nx.jobs.transition(sys, k.id, 'failed', { error: { code: 'runtime_error', message: `${'y'.repeat(65000)}-----BEGIN EC PRIVATE KEY-----\n${'Q'.repeat(2000)}\n-----END EC PRIVATE KEY-----` } });
+  assert.equal(g.error.message.length, 4096); assert.match(g.error.message, /^y+$/);
+  s.close();
+});
+test('N2: params holding a private key, terminated or not, are refused', () => {
+  const { s, nx, me } = setup();
+  for (const pem of [PEM, '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAA']) {
+    assert.throws(() => job(nx, me, { params: { note: pem } }), (e) => e.code === 'invalid' && e.detail.reason === 'secret_in_params');
+  }
+  s.close();
+});
+test('N3: a caller who cannot read an input version is denied before learning its status', () => {
+  const { s, db, nx, me } = setup();
+  nx.workspaces.attach(me, 'p-ledger', 'qa');
+  const qa = addUser(db, 'user:qa', 'workspace', 'qa');
+  const sdeArt = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report', name: 'sde-draft' });
+  const sdeDraft = nx.artifacts.registerVersion(me, { artifactId: sdeArt.id, storage: { kind: 'inline', json: { d: 1 } } }).version;
+  const qaArt = nx.artifacts.create(qa, { projectId: 'p-ledger', workspaceId: 'qa', kind: 'report', name: 'qa-out' });
+  const d = denied(db);
+  assert.throws(() => nx.artifacts.registerVersion(qa, { artifactId: qaArt.id, storage: { kind: 'inline', json: {} },
+    inputs: [{ versionId: sdeDraft.id, role: 'source' }] }), (e) => e.code === 'denied');
+  assert.equal(denied(db), d + 1);
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: qaArt.id, storage: { kind: 'inline', json: {} },
+    inputs: [{ versionId: sdeDraft.id, role: 'source' }] }), (e) => e.code === 'invalid');   // a reader still gets the draft rule
+  s.close();
+});

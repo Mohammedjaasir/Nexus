@@ -497,9 +497,10 @@ export class ArtifactService {
       const v = this.db.prepare('SELECT project_id, status FROM artifact_versions WHERE id = ?').get(x.versionId) as { project_id: string; status: string } | undefined;
       if (!v) throw new PlatformError('not_found', 'input version not found');
       if (v.project_id !== a.project_id) throw new PlatformError('invalid', 'inputs come from the same project');
-      if (v.status === 'draft') throw new PlatformError('invalid', 'a draft cannot be an input');
-      // The caller must be able to read every input, in its owner's workspace ('denied', audited).
+      // The caller must be able to read every input, in its owner's workspace ('denied', audited), before
+      // learning anything about its status.
       this.access.requireVersionReadable(p, x.versionId, a.project_id);
+      if (v.status === 'draft') throw new PlatformError('invalid', 'a draft cannot be an input');
     }
     if (jobId === null || inputs.length === 0) return;
     const granted = this.db.prepare('SELECT 1 FROM job_inputs WHERE job_id = ? AND version_id = ? AND role = ?');

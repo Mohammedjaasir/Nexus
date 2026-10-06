@@ -43,7 +43,7 @@ import type {
 } from '../../../shared/nexus/platform';
 import type { AuthService } from '../auth/authService';
 import { appendActivityRow } from '../activity/writer';
-import { containsSecret, redactText } from '../activity/redact';
+import { containsSecret, redactSecretText, redactText } from '../activity/redact';
 import { canonicalJson } from '../db/canonical';
 import { newId } from '../db/ids';
 import { immediateTx } from '../db/tx';
@@ -67,6 +67,8 @@ export const MAX_BACKOFF_MS = 86_400_000;
 export const DEFAULT_LIST_LIMIT = 200;
 export const MAX_LIST_LIMIT = 1000;
 export const MAX_ERROR_MESSAGE_CHARS = 4096;
+/** An error message is first cut to this many characters (64 Ki): the redactor's input is bounded. */
+export const MAX_ERROR_INPUT_CHARS = 65536;
 const LABEL_RE = /^[a-z][a-z0-9_.-]{0,63}$/;
 const REF_RE = /^[A-Za-z0-9._:/@+=-]{1,256}$/;
 const MAX_ROLE_CHARS = 64;
@@ -156,16 +158,23 @@ export function validateRef(v: unknown, what = 'runtimeRef'): string {
 }
 
 /**
- * { code, message } stored redacted: the code is a label; the message is cut to
- * MAX_ERROR_MESSAGE_CHARS and passed through the cap-free redactText, so it is
- * never replaced by a size marker.
+ * { code, message } stored redacted, for jobs and sessions alike. The code is a
+ * label. The message is handled in this order, so a secret can never straddle a cut:
+ *   1. bound the input: cut to MAX_ERROR_INPUT_CHARS (64 Ki characters; longer
+ *      messages are truncated, not refused, so an error report never fails a transition);
+ *   2. redact the WHOLE bounded message with redactSecretText (redactText plus: an
+ *      unterminated private-key block is redacted to the end of the string, which
+ *      also covers a key cut by step 1);
+ *   3. only then cut to MAX_ERROR_MESSAGE_CHARS for storage.
+ * It is never replaced by a size marker.
  */
 export function redactedErrorJson(e: unknown): string {
   if (!isPlainObject(e) || typeof e.code !== 'string' || typeof e.message !== 'string') {
     throw new PlatformError('invalid', 'error must be { code, message }');
   }
   if (!LABEL_RE.test(e.code)) throw new PlatformError('invalid', 'error.code must be a short lowercase label');
-  return JSON.stringify({ code: e.code, message: redactText(e.message.slice(0, MAX_ERROR_MESSAGE_CHARS)) });
+  const redacted = redactSecretText(e.message.slice(0, MAX_ERROR_INPUT_CHARS));
+  return JSON.stringify({ code: e.code, message: redacted.slice(0, MAX_ERROR_MESSAGE_CHARS) });
 }
 
 export function parseError(text: string | null): JobError | null {
