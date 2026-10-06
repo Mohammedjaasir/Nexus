@@ -1,10 +1,10 @@
 /**
  * The Nexus platform composition root. It wires the core services onto the one
  * better-sqlite3 connection that PersistStore opened at schema v7. It grows task by
- * task (jobs and sessions join later); for now it holds principal resolution,
- * authorization, the activity read API, workspaces and project participation,
- * project-scoped access checks, artifacts with their versions, and the
- * version-level lineage DAG.
+ * task; it holds principal resolution, authorization, the activity read API,
+ * workspaces and project participation, project-scoped access checks, artifacts
+ * with their versions, the version-level lineage DAG, durable jobs and agent
+ * sessions. Nothing here executes work: there is no executor, scheduler or runtime.
  *
  * No IPC is registered here. Callers in main pass a Principal resolved through
  * `principals`; the renderer never supplies identity.
@@ -13,9 +13,11 @@ import type Database from 'better-sqlite3';
 import { ActivityService } from './activity/activityService';
 import { ArtifactService } from './artifact/artifactService';
 import { AuthService } from './auth/authService';
+import { JobService } from './jobs/jobService';
 import { PrincipalResolver } from './auth/principals';
 import { LineageService } from './lineage/lineageService';
 import { ProjectAccess } from './project/projectAccess';
+import { SessionService } from './sessions/sessionService';
 import { WorkspaceService } from './workspace/workspaceService';
 
 export interface NexusPlatform {
@@ -26,6 +28,8 @@ export interface NexusPlatform {
   projects: ProjectAccess;
   artifacts: ArtifactService;
   lineage: LineageService;
+  jobs: JobService;
+  sessions: SessionService;
   startup(): void;
 }
 
@@ -39,8 +43,10 @@ export function createNexusPlatform(db: Database.Database, opts?: { now?: () => 
   const projects = new ProjectAccess(db, { auth });
   const artifacts = new ArtifactService(db, { auth, now });
   const lineage = new LineageService(db, { auth, now });
+  const jobs = new JobService(db, { auth, now });
+  const sessions = new SessionService(db, { auth, jobs, now });
   return {
-    principals, auth, activity, workspaces, projects, artifacts, lineage,
+    principals, auth, activity, workspaces, projects, artifacts, lineage, jobs, sessions,
     startup() {
       // The seeded principals must resolve; a missing one throws platform_unavailable.
       principals.localUser();
@@ -48,7 +54,11 @@ export function createNexusPlatform(db: Database.Database, opts?: { now?: () => 
       const added = workspaces.ensureCatalog(system);
       // Repairs a primary whose in-save sync failed and rows written by an older build.
       const r = workspaces.reconcileLegacyPrimaries(system);
-      log(`[nexus] platform ready: principals ok, workspaces added=${added}, primaries set=${r.set} cleared=${r.cleared}`);
+      // Nothing executes across a restart: sessions first, then their jobs.
+      const s = sessions.recoverAfterRestart(system);
+      const j = jobs.recoverAfterRestart(system);
+      log(`[nexus] platform ready: principals ok, workspaces added=${added}, primaries set=${r.set} cleared=${r.cleared}, `
+        + `sessions interrupted=${s.interrupted}, jobs interrupted=${j.interrupted} requeued=${j.requeued}`);
     }
   };
 }

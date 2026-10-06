@@ -127,7 +127,10 @@ export class WorkspaceService {
     }).immediate();
   }
 
-  /** Marks a non-primary participation withdrawn (the row is kept). Refuses the primary ('invalid'). */
+  /**
+   * Marks a non-primary participation withdrawn (the row is kept). Refuses the primary ('invalid'), and refuses
+   * with 'conflict' while the participation has any non-terminal job or agent session.
+   */
   withdraw(p: Principal, participationId: ParticipationId): ProjectWorkspace {
     const stored = typeof participationId === 'string' && participationId.length > 0 ? this.rowById(participationId) : null;
     if (!stored) {
@@ -144,6 +147,15 @@ export class WorkspaceService {
       if (row.is_primary === 1) throw new PlatformError('invalid', 'the primary participation follows the project domain and cannot be withdrawn');
       if (row.status === 'withdrawn') return toParticipation(row);
       if (row.status !== 'active') throw new PlatformError('conflict', `participation is ${row.status}`);
+      // Live work keeps a participation: finish or cancel its jobs and agent sessions first
+      // (ix_jobs_participation, ix_sessions_participation).
+      const liveJobs = (this.db.prepare(`SELECT COUNT(*) AS n FROM jobs j JOIN job_states s ON s.state = j.state
+        WHERE j.participation_id = ? AND s.terminal = 0`).get(row.id) as { n: number }).n;
+      const liveSessions = (this.db.prepare(`SELECT COUNT(*) AS n FROM agent_sessions a JOIN agent_session_states s ON s.state = a.status
+        WHERE a.participation_id = ? AND s.terminal = 0`).get(row.id) as { n: number }).n;
+      if (liveJobs > 0 || liveSessions > 0) {
+        throw new PlatformError('conflict', 'the participation has unfinished jobs or agent sessions', { participationId: row.id, liveJobs, liveSessions });
+      }
       this.db.prepare("UPDATE project_workspaces SET status = 'withdrawn', updated_at = ? WHERE id = ?").run(now, row.id);
       appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, projectId: row.project_id, workspaceId: row.workspace_id,
         entityType: 'project_workspace', entityId: row.id, action: 'participation.withdraw', status: 'succeeded', details: {} }, now);

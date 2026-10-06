@@ -57,7 +57,17 @@ test('edges never cross projects and are append-only', () => {
   assert.throws(() => db.prepare('DELETE FROM artifact_edges WHERE id=?').run(e.id), /append-only/);
   s.close();
 });
-// The brief's 'job edges need the job record' test uses nx.jobs (T10) and lands with T10.
+test('job edges need the job record: the target must be a declared job input', () => {
+  const { s, db, nx, me, sys, mk } = setup(); const input = mk(); const other = mk();
+  const job = nx.jobs.create(me, { kind: 'tool.run', projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: 'k-lin', inputs: [{ versionId: input.id, role: 'source' }] }).job;
+  const a = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report', name: 'out' });
+  const out = nx.artifacts.registerVersion(me, { artifactId: a.id, storage: { kind: 'inline', json: {} }, producedByJobId: job.id, clientKey: 'c1' }).version;
+  assert.equal(nx.lineage.record(sys, { fromVersionId: out.id, toVersionId: input.id, relation: 'derived_from', source: 'job_input', jobId: job.id }).source, 'job_input');
+  assert.throws(() => nx.lineage.record(sys, { fromVersionId: out.id, toVersionId: other.id, relation: 'derived_from', source: 'job_input', jobId: job.id }), (e) => e.code === 'input_not_granted');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM activity WHERE status='denied' AND action='lineage.write'").get().n, 1);
+  assert.throws(() => nx.lineage.record(sys, { fromVersionId: out.id, toVersionId: other.id, relation: 'derived_from', source: 'user_action' }), (e) => e.code === 'invalid');
+  s.close();
+});
 // T9 covers the same source rules below with job rows inserted directly.
 test('registerVersion writes edges for declared inputs in the same transaction', () => {
   const { s, nx, me, mk } = setup(); const src = mk();

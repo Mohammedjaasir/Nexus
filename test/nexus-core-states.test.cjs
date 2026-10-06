@@ -32,3 +32,26 @@ test('fix 8: SQLITE_BUSY* and SQLITE_LOCKED* are recognised; other errors are no
   for (const code of ['SQLITE_BUSY', 'SQLITE_BUSY_SNAPSHOT', 'SQLITE_LOCKED', 'SQLITE_LOCKED_SHAREDCACHE']) assert.equal(isSqliteBusy({ code }), true, code);
   for (const e of [{ code: 'SQLITE_CONSTRAINT' }, { code: 'SQLITE_BUSYX' }, new PlatformError('conflict', 'x'), null, new Error('x')]) assert.equal(isSqliteBusy(e), false);
 });
+const { JOB_TRANSITIONS, TERMINAL_JOB_STATES, canTransitionJob, canRetry } = loadTs('src/main/nexus/jobs/jobRules.ts');
+const { SESSION_TRANSITIONS, TERMINAL_SESSION_STATES } = loadTs('src/main/nexus/sessions/sessionRules.ts');
+const seed = loadTs('src/main/nexus/db/v7Seed.ts');
+const flat = (t) => Object.entries(t).flatMap(([a, bs]) => bs.map((b) => `${a}>${b}`)).sort();
+test('the job table in code equals the seeded table (11 states, 23 transitions)', () => {
+  assert.deepEqual(flat(JOB_TRANSITIONS), seed.V7_JOB_TRANSITIONS.map(([a, b]) => `${a}>${b}`).sort());
+  assert.deepEqual([...TERMINAL_JOB_STATES].sort(), ['cancelled', 'completed', 'failed', 'interrupted', 'partial', 'timed_out']);
+  for (const t of ['completed', 'partial', 'cancelled', 'interrupted']) assert.deepEqual([...JOB_TRANSITIONS[t]], [], t);
+  for (const t of ['failed', 'timed_out']) assert.deepEqual([...JOB_TRANSITIONS[t]], ['retry_scheduled'], t);
+  assert.equal(canTransitionJob('queued', 'running'), false);
+  assert.equal(canTransitionJob('completed', 'running'), false);
+});
+test('retry needs an idempotent, non-agent job with attempts left', () => {
+  const r = { idempotent: true, maxAttempts: 3, backoffMs: [10] };
+  assert.equal(canRetry({ kind: 'validate', retry: r, attempts: 1 }), true);
+  assert.equal(canRetry({ kind: 'validate', retry: r, attempts: 3 }), false);
+  assert.equal(canRetry({ kind: 'validate', retry: { ...r, idempotent: false }, attempts: 1 }), false);
+  assert.equal(canRetry({ kind: 'agent.run', retry: r, attempts: 1 }), false);
+});
+test('the session table in code equals the seeded table (8 states, 14 transitions)', () => {
+  assert.deepEqual(flat(SESSION_TRANSITIONS), seed.V7_SESSION_TRANSITIONS.map(([a, b]) => `${a}>${b}`).sort());
+  for (const t of TERMINAL_SESSION_STATES) assert.deepEqual([...SESSION_TRANSITIONS[t]], [], t);
+});
