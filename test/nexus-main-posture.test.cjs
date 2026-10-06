@@ -60,17 +60,60 @@ test('O.9 #20: the crash log never throws', () => {
   assert.doesNotThrow(() => formatCrash('unhandledRejection', cyc, new Date(0)));
   assert.doesNotThrow(() => formatCrash('unhandledRejection', undefined, new Date(NaN)));
 });
-test('O.9 #21: no execSync on main; spawnSync limited to the reviewed sites', () => {
-  const dir = path.join(__dirname, '..', 'src', 'main');
-  const counts = {};
-  for (const f of fs.readdirSync(dir).filter((f) => /\.(ts|cjs)$/.test(f))) {
-    const s = fs.readFileSync(path.join(dir, f), 'utf8');
-    assert.doesNotMatch(s, /\bexecSync\(/, f);
-    const n = (s.match(/\bspawnSync\(/g) || []).length;
-    if (n) counts[f] = n;
+test('O.9 #21: no execSync on main; spawnSync and execFileSync limited to the reviewed sites', () => {
+  const root = path.join(__dirname, '..', 'src', 'main');
+  const sync = {};
+  const fileSync = {};
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) { walk(full); continue; }
+      if (!/\.(ts|cjs|js|mjs)$/.test(e.name)) continue;
+      const rel = path.relative(root, full).split(path.sep).join('/');
+      const src = fs.readFileSync(full, 'utf8');
+      assert.doesNotMatch(src, /\bexecSync\(/, rel);
+      const n = (src.match(/\bspawnSync\(/g) || []).length;
+      if (n) sync[rel] = n;
+      const m = (src.match(/\bexecFileSync\(/g) || []).length;
+      if (m) fileSync[rel] = m;
+    }
+  };
+  walk(root);
+  // Reviewed spawnSync: hive git plumbing; kg pdftotext; mempalace probe (2); macOS login-shell capture + where; pty where.
+  // procKill.ts has none: ensureKilled and hardKillTree (win32) use the async taskkill.
+  assert.deepEqual(sync, { 'hive.ts': 1, 'kg-core.cjs': 1, 'memory.ts': 2, 'pty.ts': 1, 'shellEnv.ts': 2 });
+  // Reviewed execFileSync: node --version probe in nodeInstall.
+  assert.deepEqual(fileSync, { 'nodeInstall.ts': 1 });
+});
+test('O.9 #20: JSON keys, URL userinfo, short values and webhook URLs are redacted', () => {
+  const cases = [
+    ['{"token":"abcdefghijk"}', 'abcdefghijk'],
+    ['{"password": "hunter2hunter2"}', 'hunter2hunter2'],
+    ["{'api_key': 'zzzzzzzz'}", 'zzzzzzzz'],
+    ['postgres://admin:s3cretpw@db.local:5432/x', 's3cretpw'],
+    ['https://user:p%40ss@example.com/a', 'p%40ss'],
+    ['Bearer abc', 'abc'],
+    ['api_key: abc', 'abc'],
+    ['token=xy', 'xy'],
+    ['https://hooks.slack.com/services/T000/B000/XXXXSECRET', 'XXXXSECRET'],
+    ['https://discord.com/api/webhooks/123456/AbCdEfSecret', 'AbCdEfSecret'],
+    ['https://api.telegram.org/bot123456:ABCsecret/sendMessage', 'ABCsecret']
+  ];
+  for (const [input, secret] of cases) {
+    const out = redactForLog(input);
+    assert.ok(!out.includes(secret), `${input} -> ${out}`);
+    assert.match(out, /redacted/, input);
   }
-  // Reviewed: quit-path taskkill; hive git plumbing; kg pdftotext; mempalace probe (2); macOS login-shell capture + where; pty where.
-  assert.deepEqual(counts, { 'hive.ts': 1, 'kg-core.cjs': 1, 'memory.ts': 2, 'procKill.ts': 1, 'pty.ts': 1, 'shellEnv.ts': 2 });
+  assert.match(redactForLog('{"token":"abcdefghijk"}'), /^\{"token":"\[redacted\]"\}$/);
+  assert.match(redactForLog('postgres://admin:s3cretpw@db.local/x'), /^postgres:\/\/\[redacted\]@db\.local\/x$/);
+});
+test('O.9 #20: ordinary log text is left unchanged', () => {
+  for (const t of [
+    'Error: ENOENT: no such file or directory, open /home/x/file.txt',
+    '    at Object.<anonymous> (/app/out/main/index.js:12:5)',
+    'https://example.com/path?a=1 failed with status 500 at 2026-10-06T10:00:00.000Z',
+    'agent claude-1 exited with code 1 after 3 retries (commit a1b2c3d)'
+  ]) assert.equal(redactForLog(t), t);
 });
 test('O.9 #21: ensureKilled sweeps with the async taskkill', () => {
   const s = read('src/main/procKill.ts');

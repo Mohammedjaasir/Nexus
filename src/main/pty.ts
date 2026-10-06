@@ -647,24 +647,13 @@ export class PtyManager {
         spawnArgs = needsCmd
           ? buildCmdCommandLine(resolved, opts.args ?? [])
           : (opts.args ?? []);
-        // The cmd.exe fallback is LOSSY and was previously SILENT, which is how a
-        // Windows agent could look perfectly healthy while never having received
-        // the hive protocol: cmd.exe cuts a multi-line argument at its first
-        // newline, and the whole protocol block rides on one such argument.
-        // resolveWindowsShimSpawn returns null for any shim shape it does not
-        // fully understand, so this path is reachable on a real machine while
-        // every unit test passes. Say so, loudly, with the two facts needed to
-        // diagnose it: which target refused to decode, and whether a multi-line
-        // argument is actually at risk in THIS spawn.
+        // The cmd.exe fallback is reachable when resolveWindowsShimSpawn cannot
+        // decode a shim. Arguments containing line breaks or cmd metacharacters
+        // are refused before this point (cmdFallbackUnsafeArg, buildCmdCommandLine),
+        // so nothing is truncated here; log the route so a non-decodable shim is
+        // diagnosable.
         if (needsCmd) {
-          const multiline = (opts.args ?? []).some((a) => a.includes('\n'));
-          console.warn(
-            `[pty] Windows: "${resolved}" could not be decoded as an npm shim — falling back to cmd.exe.` +
-            (multiline
-              ? ' A MULTI-LINE ARGUMENT IS PRESENT AND WILL BE TRUNCATED AT ITS FIRST NEWLINE.' +
-                ' The agent will start and look healthy without ever receiving the hive protocol.'
-              : ' No multi-line argument in this spawn, so nothing is lost here.')
-          );
+          console.warn(`[pty] Windows: "${resolved}" could not be decoded as an npm shim; falling back to cmd.exe.`);
         }
       }
       const proc = pty.spawn(file, spawnArgs, {

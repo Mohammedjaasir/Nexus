@@ -25,13 +25,20 @@ export function redactForLog(text: string): string {
       /(?:sk-(?:ant-)?[A-Za-z0-9_-]{8,}|gsk_[A-Za-z0-9]{8,}|xox[bpaors]-[A-Za-z0-9-]{6,}|xapp-[A-Za-z0-9-]{6,}|gh[posru]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|AIza[A-Za-z0-9_-]{20,})/g,
       '[redacted]'
     );
-    s = s.replace(/\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, '$1 [redacted]');
+    s = s.replace(/\b(bearer|basic)\s+[^\s"',;]+/gi, '$1 [redacted]');
     s = s.replace(/\b(authorization|x-api-key|x-auth-token)(\s*[:=]\s*)[^\r\n]+/gi, '$1$2[redacted]');
+    // scheme://user:pass@host -> scheme://[redacted]@host
+    s = s.replace(/\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@:]+:[^\s/@]*@/gi, '$1[redacted]@');
+    // Chat webhook URLs carry their secret in the path.
+    s = s.replace(/https?:\/\/hooks\.slack\.com\/(?:services|workflows|triggers)\/[^\s"'<>]+/gi, '[redacted]');
+    s = s.replace(/https?:\/\/(?:[a-z]+\.)?discord(?:app)?\.com\/api(?:\/v\d+)?\/webhooks\/[^\s"'<>]+/gi, '[redacted]');
+    s = s.replace(/https?:\/\/api\.telegram\.org\/(?:file\/)?bot[^\s"'<>/]+/gi, 'https://api.telegram.org/bot[redacted]');
     // Per-agent hook/telemetry tokens are 32 random bytes as hex.
     s = s.replace(/\b[a-f0-9]{48,}\b/gi, '[redacted]');
+    // Sensitive key = value, key: value and JSON "key": "value", any value length.
     s = s.replace(
-      /\b((?:[a-z0-9]+[_-])*(?:api[_-]?key|secret[_-]?access[_-]?key|secret|token|password|passwd|pwd|access[_-]?token|refresh[_-]?token|client[_-]?secret|signing[_-]?secret|webhook[_-]?secret|auth[_-]?token|bot[_-]?token|private[_-]?key))(\s*[:=]\s*)(["']?)[^\s"',}]{6,}\3/gi,
-      (_m, k) => `${k}=[redacted]`
+      /\b((?:[a-z0-9]+[_-])*(?:api[_-]?key|secret[_-]?access[_-]?key|secret|token|password|passwd|pwd|access[_-]?token|refresh[_-]?token|client[_-]?secret|signing[_-]?secret|webhook[_-]?secret|auth[_-]?token|bot[_-]?token|private[_-]?key))(["']?)(\s*[:=]\s*)(["']?)[^\s"',}&]+\4/gi,
+      (_m, k, q, sep, vq) => `${k}${q}${sep}${vq}[redacted]${vq}`
     );
     return s;
   } catch {

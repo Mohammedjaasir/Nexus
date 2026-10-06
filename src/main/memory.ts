@@ -85,7 +85,7 @@ export class MemoryManager {
     //    and a `.exe` suffix; everything else goes through the login shell.
     try {
       if (isWin) {
-        const res = spawnSync('where', ['mempalace'], { encoding: 'utf8', timeout: 3000 });
+        const res = spawnSync('where', ['mempalace'], { encoding: 'utf8', timeout: 3000, windowsHide: true });
         const p = res.stdout.trim().split(/\r?\n/)[0]?.trim();
         if (p && existsSync(p)) found = p;
       } else {

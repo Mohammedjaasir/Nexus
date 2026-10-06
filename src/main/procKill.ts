@@ -17,7 +17,7 @@
  * daemon the agent intentionally left running (a dev server started via a Bash
  * tool) must survive its parent session.
  */
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 
 /** Grace between the polite signal and the SIGKILL escalation. */
 export const KILL_GRACE_MS = 4_000;
@@ -27,14 +27,15 @@ export function isAlive(pid: number): boolean {
   try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
-/** Forcefully kill pid and its descendants NOW. Group-SIGKILL on POSIX (falls
+/** Forcefully kill pid and its descendants NOW (non-blocking on Windows, where
+ *  taskkill is spawned asynchronously). Group-SIGKILL on POSIX (falls
  *  back to the single pid when the group id is gone); `taskkill /T /F` on
  *  Windows. Killing the group of an already-dead leader is exactly the
  *  orphan-reaping case: any surviving members still hold the group id. */
 export function hardKillTree(pid: number): void {
   if (!Number.isInteger(pid) || pid <= 0) return;
   if (process.platform === 'win32') {
-    try { spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { timeout: 10_000 }); } catch { /* gone */ }
+    void hardKillTreeAsync(pid); // fire-and-forget: never block main on taskkill
     return;
   }
   try { process.kill(-pid, 'SIGKILL'); } catch {
