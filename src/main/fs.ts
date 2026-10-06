@@ -1,22 +1,27 @@
 import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
-import { isAbsolute, join, normalize, relative, resolve } from 'node:path';
+import { lstatSync, realpathSync } from 'node:fs';
+import { isAbsolute, join, normalize, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { imageMimeForPath } from '../shared/imageTypes';
+import { confineToRoot } from './fsRoots';
+
+// One path-escape policy in the app: the lexical guard lives in fsRoots.ts and
+// is re-exported here for git.ts and the project/context engines.
+export { safeJoin } from './fsRoots';
+
+/** lstat-based existence: a dangling symlink counts as existing, so its realpath
+ *  fails and confineToRoot refuses it instead of writing through it. */
+function lexists(p: string): boolean {
+  try { lstatSync(p); return true; } catch { return false; }
+}
 
 /**
- * Confines `path` inside `root` to prevent path-traversal escapes.
- * Returns the resolved absolute path on success, or null on violation.
- *
- * Exported so other main-process modules (e.g. git.ts) validate caller-supplied
- * relative paths against a workspace root with the SAME guard — there is exactly
- * one path-escape policy in the app and it lives here.
+ * Resolve `rel` under `root` by REAL path (O.9 #4): `..`, absolute paths,
+ * symlinks and junctions cannot lead outside the root. `root` has already been
+ * accepted by `resolveAllowedRoot` in the IPC handler.
  */
-export function safeJoin(root: string, rel: string): string | null {
-  const absRoot = resolve(root);
-  const absPath = isAbsolute(rel) ? normalize(rel) : resolve(absRoot, rel);
-  const rel2 = relative(absRoot, absPath);
-  if (rel2.startsWith('..') || isAbsolute(rel2)) return null;
-  return absPath;
+function confined(root: string, rel: string): string | null {
+  return confineToRoot(root, rel, realpathSync.native, lexists);
 }
 
 export interface DirEntry {
@@ -29,7 +34,7 @@ export interface DirEntry {
 export async function listDir(root: string, rel: string): Promise<{
   ok: true; entries: DirEntry[]; path: string;
 } | { ok: false; error: string }> {
-  const abs = safeJoin(root, rel);
+  const abs = confined(root, rel);
   if (!abs) return { ok: false, error: 'path escapes root' };
   try {
     const names = await readdir(abs);
@@ -56,7 +61,7 @@ const MAX_READ_BYTES = 2 * 1024 * 1024; // 2 MB
 export async function readFileText(root: string, rel: string): Promise<{
   ok: true; content: string; path: string; size: number;
 } | { ok: false; error: string }> {
-  const abs = safeJoin(root, rel);
+  const abs = confined(root, rel);
   if (!abs) return { ok: false, error: 'path escapes root' };
   try {
     const s = await stat(abs);
@@ -83,7 +88,7 @@ export async function readFileText(root: string, rel: string): Promise<{
 const MAX_BINARY_READ_BYTES = 10 * 1024 * 1024; // 10 MB
 
 /**
- * Read a file as raw BYTES, confined to `root` by the same `safeJoin` guard as
+ * Read a file as raw BYTES, confined to `root` by the same real-path guard as
  * every other fs entry point here.
  *
  * Exists because the text path deliberately refuses binary content (the
@@ -102,7 +107,7 @@ const MAX_BINARY_READ_BYTES = 10 * 1024 * 1024; // 10 MB
 export async function readFileBinary(root: string, rel: string, maxBytes = MAX_BINARY_READ_BYTES): Promise<{
   ok: true; bytes: Uint8Array<ArrayBuffer>; mime: string; path: string; size: number;
 } | { ok: false; error: string }> {
-  const abs = safeJoin(root, rel);
+  const abs = confined(root, rel);
   if (!abs) return { ok: false, error: 'path escapes root' };
   try {
     const s = await stat(abs);
@@ -142,7 +147,7 @@ export async function readFileBinary(root: string, rel: string, maxBytes = MAX_B
 export async function writeFileText(root: string, rel: string, content: string): Promise<{
   ok: true; path: string;
 } | { ok: false; error: string }> {
-  const abs = safeJoin(root, rel);
+  const abs = confined(root, rel);
   if (!abs) return { ok: false, error: 'path escapes root' };
   try {
     await writeFile(abs, content, 'utf8');

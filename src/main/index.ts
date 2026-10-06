@@ -3,12 +3,13 @@ import { spawn } from 'node:child_process';
 import {
   rmSync, existsSync, readFileSync, readdirSync, statSync, cpSync, writeFileSync,
   unlinkSync, mkdirSync, renameSync, createWriteStream, copyFileSync, lstatSync,
-  readlinkSync, symlinkSync
+  readlinkSync, symlinkSync, realpathSync
 } from 'node:fs';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { join, resolve, sep, basename, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { request as httpsRequest } from 'node:https';
+import { pathToFileURL } from 'node:url';
 import { PtyManager, type SpawnOptions } from './pty';
 import { resolveCommand as resolveCliCommand } from './shellEnv';
 import { initAutoUpdater } from './updater';
@@ -18,6 +19,8 @@ import {
   modelForRole, OPS_STANDUP_MISSION, HEARTBEAT_MISSION, COMPACT_MAINTENANCE_MISSION, type HarnessConfig, type ScheduledMission
 } from './config';
 import { listDir, readFileText, readFileBinary, writeFileText, statAbs, expandTilde } from './fs';
+import { resolveAllowedRoot } from './fsRoots';
+import { decidePermission, decidePermissionCheck, isAllowedExternalUrl, isInAppNavigation } from './windowPolicy';
 import {
   getBranch, getStatus, getLog, getBranches, getAheadBehind, isRepo, getDiff, mainRepoRoot,
   addWorktree, removeWorktree, worktreeHasUnintegratedWork, worktreeIsGcSafe,
@@ -2140,7 +2143,10 @@ function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
+      // O.9 #1: the preload only uses contextBridge / ipcRenderer / webUtils
+      // from 'electron' (guarded by test/nexus-window-policy.test.cjs), so the
+      // renderer runs in Chromium's sandbox with no Node in the page.
+      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
       // The renderer runs the hive's heartbeat loops (inbox nudge, message
@@ -2165,34 +2171,25 @@ function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
   win.on('focus', () => { mainWindow = win; });
   if (!isFloor) mainWindow = win;
 
-  // Permission gate for the renderer (our own trusted, local content). The only
-  // permission we constrain is microphone capture: it's allowed ONLY while a mic
-  // feature is actually live — Free Flow dictation (`freeflowEnabled`) OR a
-  // Realtime Michael voice session (`realtimeVoiceEnabled`, flipped on by the
-  // session at start() before getUserMedia, off at stop()). With both flags off,
-  // there's zero mic access even at the Electron layer. We deliberately do NOT
-  // gate on OpenAI-key presence: that key (`apikey:openai`) is shared with the CLI
-  // engines, so a CLI-only user must not have the mic gate opened. Every other
-  // permission keeps the app's prior permissive behavior (e.g. clipboard for
-  // xterm/editor copy must keep working).
+  // Permission gate (O.9 #2): deny by default; the table lives in
+  // windowPolicy.ts. Microphone capture (`media`, audio only) is allowed ONLY
+  // while a mic feature is live: Free Flow dictation (`freeflowEnabled`) OR a
+  // realtime voice session (`realtimeVoiceEnabled`, flipped on at start()
+  // before getUserMedia, off at stop()). We deliberately do NOT gate on
+  // OpenAI-key presence: that key is shared with the CLI engines, so a CLI-only
+  // user must not have the mic gate opened. `clipboard-sanitized-write`
+  // (navigator.clipboard.writeText) stays allowed; clipboard reads go through
+  // IPC. Notifications are shown from main, so the page needs none.
   const micFeatureLive = (): boolean => {
     const cfg = readConfig();
     return cfg.freeflowEnabled === true || cfg.realtimeVoiceEnabled === true;
   };
   const ses = win.webContents.session;
   ses.setPermissionRequestHandler((_wc, permission, callback, details) => {
-    if (permission === 'media') {
-      const mediaTypes = details && 'mediaTypes' in details ? details.mediaTypes : undefined;
-      const wantsAudio = !mediaTypes || mediaTypes.includes('audio');
-      callback(micFeatureLive() && wantsAudio);
-      return;
-    }
-    callback(true);
+    const mediaTypes = details && 'mediaTypes' in details ? details.mediaTypes : undefined;
+    callback(decidePermission({ permission, mediaTypes, micLive: micFeatureLive() }));
   });
-  ses.setPermissionCheckHandler((_wc, permission) => {
-    if (permission === 'media') return micFeatureLive();
-    return true;
-  });
+  ses.setPermissionCheckHandler((_wc, permission) => decidePermissionCheck(permission, micFeatureLive()));
 
   // Only the primary persists geometry (kv `window.bounds`); floors cascade
   // fresh each launch. Skip while maximized/minimized so a restore doesn't save
@@ -2213,9 +2210,19 @@ function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
 
   win.once('ready-to-show', () => win.show());
 
+  // O.9 #3: new windows are never created. https links go to the OS browser
+  // (the same allow-list as `app:openExternal`); everything else is dropped.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (isAllowedExternalUrl(url)) void shell.openExternal(url).catch(() => { /* best-effort */ });
     return { action: 'deny' };
+  });
+  // The page itself may only navigate within the app (the dev server origin, or
+  // the packaged index.html with any hash/query). Anything else is cancelled;
+  // an allowed external URL opens in the OS browser instead.
+  win.webContents.on('will-navigate', (e, url) => {
+    if (isInAppNavigation(url, currentAppUrl())) return;
+    e.preventDefault();
+    if (isAllowedExternalUrl(url)) void shell.openExternal(url).catch(() => { /* best-effort */ });
   });
 
   // Close interception when live PTYs exist. The red-X destroys the window;
@@ -2262,7 +2269,7 @@ function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
   if (isDev && process.env.ELECTRON_RENDERER_URL) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
-    win.loadFile(join(__dirname, '../renderer/index.html'));
+    win.loadFile(rendererIndexPath());
   }
 
   win.on('closed', () => {
@@ -3073,14 +3080,54 @@ ipcMain.handle('config:changeHome', async (_evt, payload: unknown) => {
   return { ok: true as const }; // unreachable (process exits) — typed for the renderer
 });
 
-// ─── IPC: filesystem (sandboxed to a root) ──────────────────────────────────
+/** The packaged renderer entry (loaded with loadFile in production). */
+function rendererIndexPath(): string {
+  return join(__dirname, '../renderer/index.html');
+}
+/** The URL the app window is meant to show: the dev server in dev, else the
+ *  file: URL of the packaged index.html. `will-navigate` compares against it. */
+function currentAppUrl(): string {
+  if (isDev && process.env.ELECTRON_RENDERER_URL) return process.env.ELECTRON_RENDERER_URL;
+  return pathToFileURL(rendererIndexPath()).href;
+}
+
+// ─── IPC: filesystem (confined to a root main knows) ────────────────────────
+// O.9 #4. The renderer names a root, but main accepts it only if its REAL path
+// lies inside a folder main already knows: a project root, a registered repo,
+// the harness home, a hive agent's cwd, an agent worktree, or a live PTY cwd.
+// The renderer cannot add roots. Inside the root, fs.ts resolves every path by
+// realpath, so `..`, absolute paths and symlinks/junctions cannot escape.
+// (A projectId-only signature can follow in B1; agent folders are not projects.)
+const FS_ROOT_REFUSED = 'This folder is not a Nexus project or agent folder.';
+function allowedFsRoots(): string[] {
+  const roots: string[] = [];
+  const add = (p: unknown): void => { if (typeof p === 'string' && p.trim()) roots.push(expandTilde(p)); };
+  try { for (const p of projectManager.listProjects()) add(p.rootPath); } catch { /* DB best-effort */ }
+  try {
+    const cfg = readConfig();
+    add(cfg.harnessHome);
+    for (const r of cfg.registeredRepos ?? []) add(r);
+  } catch { /* config best-effort */ }
+  try { for (const a of Object.values(hive.registry().agents)) add(a.cwd); } catch { /* hive not bootstrapped */ }
+  for (const wt of worktreePaths.values()) add(wt);
+  try { for (const p of ptyManager.list()) add(p.cwd); } catch { /* best-effort */ }
+  return roots;
+}
+/** The real path of a renderer-named root if main allows it, else null. */
+function acceptFsRoot(root: string): string | null {
+  return resolveAllowedRoot(expandTilde(root), allowedFsRoots(), realpathSync.native);
+}
 ipcMain.handle('fs:listDir', (_evt, root: unknown, rel: unknown) => {
   if (typeof root !== 'string' || typeof rel !== 'string') return { ok: false, error: 'invalid args' };
-  return listDir(root, rel);
+  const r = acceptFsRoot(root);
+  if (!r) return { ok: false, error: FS_ROOT_REFUSED };
+  return listDir(r, rel);
 });
 ipcMain.handle('fs:readFile', (_evt, root: unknown, rel: unknown) => {
   if (typeof root !== 'string' || typeof rel !== 'string') return { ok: false, error: 'invalid args' };
-  return readFileText(root, rel);
+  const r = acceptFsRoot(root);
+  if (!r) return { ok: false, error: FS_ROOT_REFUSED };
+  return readFileText(r, rel);
 });
 // Raw bytes for files the text reader refuses (images). The renderer cannot
 // load them off disk itself — the CSP has no `file:` source and no file
@@ -3088,13 +3135,17 @@ ipcMain.handle('fs:readFile', (_evt, root: unknown, rel: unknown) => {
 // URL on the other side. Same root confinement as every other fs handler.
 ipcMain.handle('fs:readBinary', (_evt, root: unknown, rel: unknown) => {
   if (typeof root !== 'string' || typeof rel !== 'string') return { ok: false, error: 'invalid args' };
-  return readFileBinary(root, rel);
+  const r = acceptFsRoot(root);
+  if (!r) return { ok: false, error: FS_ROOT_REFUSED };
+  return readFileBinary(r, rel);
 });
 ipcMain.handle('fs:writeFile', (_evt, root: unknown, rel: unknown, content: unknown) => {
   if (typeof root !== 'string' || typeof rel !== 'string' || typeof content !== 'string') {
     return { ok: false, error: 'invalid args' };
   }
-  return writeFileText(root, rel, content);
+  const r = acceptFsRoot(root);
+  if (!r) return { ok: false, error: FS_ROOT_REFUSED };
+  return writeFileText(r, rel, content);
 });
 // v0.3.4: existence check for the terminal ⌘-click markdown flow (metadata only).
 ipcMain.handle('fs:statAbs', (_evt, p: unknown) => {
@@ -3873,7 +3924,7 @@ ipcMain.handle('app:setNotifications', (_evt, val) => writeConfig({ notification
  *  Restricted to Settings panes / https so the renderer can't shell arbitrary
  *  schemes. Used by the onboarding "Permissions & reliability" step. */
 ipcMain.handle('app:openExternal', async (_evt, url: unknown) => {
-  if (typeof url !== 'string' || !/^(x-apple\.systempreferences:|https:\/\/)/.test(url)) {
+  if (typeof url !== 'string' || !isAllowedExternalUrl(url)) {
     return { ok: false, error: 'blocked url' };
   }
   await shell.openExternal(url);
