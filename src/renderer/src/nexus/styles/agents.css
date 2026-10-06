@@ -22,6 +22,7 @@
 .nxa__term { min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); background: var(--nx-surface); overflow: hidden; }
 .nxa__term > * { flex: 1; min-height: 0; }
 .nxa__empty { flex: 1; display: grid; place-items: start; padding: var(--nx-s4); }
+.nxa__restore { margin: 0; padding: var(--nx-s2) var(--nx-s4); font: 400 13px/1.5 var(--nx-font); color: var(--nx-text-2); }
 .nxa__note { margin: 0; padding: var(--nx-s4); font: 400 14px/1.55 var(--nx-font); color: var(--nx-text-2); }
 @media (max-width: 767px) {
   .nxa__body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(320px, 1fr); }

@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { useStore, type Agent } from '@/store/store';
+import { shouldScheduleAutoRestore } from './restoreTeamPolicy';
 import { buildSpawnCommand, inferAgentProvider, tokenizeCommand, type HarnessConfig } from '@/store/config';
 
 /** "Restore team" — respawn every worker from the previous session.
@@ -20,6 +21,8 @@ let autoRestoring = false;
  *  component: `useRestoreTeam` is mounted from both the floor strip and the
  *  fullscreen rail, and without this each of them would kick off its own. */
 let autoStarted = false;
+/** Agents waiting on the boot-restore timer (0 when no timer is scheduled). */
+let pendingCount = 0;
 const listeners = new Set<() => void>();
 
 /** How long to wait after boot before restoring on our own.
@@ -45,6 +48,13 @@ function subscribe(listener: () => void): () => void {
 const getRestoring = (): boolean => restoring;
 const getNote = (): string | null => note;
 const getAutoRestoring = (): boolean => autoRestoring;
+const getPendingCount = (): number => pendingCount;
+
+function setPending(n: number): void {
+  if (pendingCount === n) return;
+  pendingCount = n;
+  emit();
+}
 
 export interface RestoreTeamState {
   restoring: boolean;
@@ -52,18 +62,26 @@ export interface RestoreTeamState {
    *  click. Drives the "restoring your team…" banner. */
   autoRestoring: boolean;
   /** Outcome of the last run ("restored 3 · 1 failed — …"), or null. */
+  /** Agents the scheduled boot restore is about to respawn; 0 when none is scheduled. */
+  pendingCount: number;
   restoreNote: string | null;
   restoreTeam: () => Promise<void>;
+}
+
+export interface UseRestoreTeamOptions {
+  /** Only the app shell passes true. Default false, so fullscreen never restores. */
+  autoRestore?: boolean;
 }
 
 /**
  * @param config used only to rebuild a spawn command for a restorable agent
  *        persisted before the `command` field existed.
  */
-export function useRestoreTeam(config?: HarnessConfig | null): RestoreTeamState {
+export function useRestoreTeam(config?: HarnessConfig | null, opts?: UseRestoreTeamOptions): RestoreTeamState {
   const isRestoring = useSyncExternalStore(subscribe, getRestoring, getRestoring);
   const restoreNote = useSyncExternalStore(subscribe, getNote, getNote);
   const isAutoRestoring = useSyncExternalStore(subscribe, getAutoRestoring, getAutoRestoring);
+  const pending = useSyncExternalStore(subscribe, getPendingCount, getPendingCount);
 
   /** Respawn every worker from the previous session with its ORIGINAL agent id,
    *  cwd, model and command — the hive workspace (memory.md, inbox, registry
@@ -208,6 +226,8 @@ export function useRestoreTeam(config?: HarnessConfig | null): RestoreTeamState 
   };
 
   // Restore the previous session's team on open, without waiting for a click.
+  // Opt-in: only the app shell (App.tsx) passes `autoRestore`, so mounting this
+  // hook in fullscreen or on the Agents page never spawns anything.
   //
   // Deliberately driven by a store SUBSCRIPTION rather than a plain timer: the
   // restorable list is empty on the first render and only fills once App.tsx's
@@ -218,18 +238,23 @@ export function useRestoreTeam(config?: HarnessConfig | null): RestoreTeamState 
   // had a terminal open when the app last quit. Archived agents (closed tabs)
   // are never touched.
   useEffect(() => {
-    if (autoStarted || !config?.onboardingComplete) return;
+    if (!opts?.autoRestore || autoStarted || !config?.onboardingComplete) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const check = (): void => {
-      if (autoStarted || restoring || timer) return;
-      if (!useStore.getState().restorableAgents.length) return;
+      if (timer) return;
+      const count = useStore.getState().restorableAgents.length;
+      if (!shouldScheduleAutoRestore({ autoRestoreEnabled: true, autoStarted, restoring, onboardingComplete: true, restorableCount: count })) return;
+      setPending(count);
       timer = setTimeout(() => {
         timer = null;
-        if (autoStarted || restoring) return;
-        if (!useStore.getState().restorableAgents.length) return;
-        // Latch BEFORE the await so the other mount point's timer, which may
-        // fire in this same tick, sees it.
+        setPending(0);
+        if (!shouldScheduleAutoRestore({
+          autoRestoreEnabled: true, autoStarted, restoring, onboardingComplete: true,
+          restorableCount: useStore.getState().restorableAgents.length
+        })) return;
+        // Latch BEFORE the await so a second mount's timer, which may fire in
+        // this same tick, sees it.
         autoStarted = true;
         autoRestoring = true;
         emit();
@@ -239,11 +264,11 @@ export function useRestoreTeam(config?: HarnessConfig | null): RestoreTeamState 
 
     check();
     const unsub = useStore.subscribe(check);
-    return () => { unsub(); if (timer) clearTimeout(timer); };
+    return () => { unsub(); if (timer) { clearTimeout(timer); timer = null; setPending(0); } };
     // restoreTeam is rebuilt every render but only ever called from inside the
     // timer, so it is read fresh at call time and does not belong in the deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config?.onboardingComplete]);
+  }, [config?.onboardingComplete, opts?.autoRestore]);
 
-  return { restoring: isRestoring, autoRestoring: isAutoRestoring, restoreNote, restoreTeam };
+  return { restoring: isRestoring, autoRestoring: isAutoRestoring, pendingCount: pending, restoreNote, restoreTeam };
 }

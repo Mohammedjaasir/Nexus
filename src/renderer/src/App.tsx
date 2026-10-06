@@ -4,6 +4,7 @@ import { startMockLoop, stopMockLoop } from '@/store/mockEvents';
 import type { HarnessConfig } from '@/store/config';
 import { DEFAULT_ORG_TRIGGER } from '@shared/triggers';
 import type { DomainId } from '@shared/domain';
+import { useRestoreTeam } from '@/hooks/useRestoreTeam';
 import { useHive } from '@/hooks/useHive';
 import { AddAgentModal } from '@/components/AddAgentModal';
 import { OnboardingWizard } from '@/components/OnboardingWizard';
@@ -173,6 +174,8 @@ export function App() {
   // hook) so Michael doesn't boot against the current home while the user may be
   // about to switch to a different one.
   useHive(hiveOpened ? config : null);
+  // Boot-time restore of the last session's team lives here, never in fullscreen.
+  useRestoreTeam(hiveOpened ? config : null, { autoRestore: true });
 
   // Pre-warm a persistent terminal for every live agent so its output is
   // buffered from spawn. Switching agents then re-attaches an already-rendered

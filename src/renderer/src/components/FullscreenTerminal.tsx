@@ -142,8 +142,8 @@ export function FullscreenTerminal({ config }: FullscreenTerminalProps) {
   const addAgentOpen = useStore(s => s.addAgentOpen);
   const setAgentNote = useStore(s => s.setAgentNote);
   const updateAgent = useStore(s => s.updateAgent);
-  // The floor strip (and with it the restore button) is hidden behind the
-  // overlay, so the roster carries restore too.
+  // Manual restore chip only. No autoRestore option here: opening fullscreen
+  // must never spawn or restore an agent (the app shell does the boot restore).
   const { restoring, autoRestoring, restoreTeam } = useRestoreTeam(config);
   const appThemeNow = useAppTheme();
 

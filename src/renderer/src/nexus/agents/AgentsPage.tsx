@@ -5,6 +5,8 @@ import { AgentDetailPanel } from '@/components/AgentDetailPanel';
 import { MemoryPanel } from '@/components/MemoryPanel';
 import { Icon } from '../icons';
 import { agentRows } from './agentList';
+import { useRestoreTeam } from '@/hooks/useRestoreTeam';
+import { restoreStatusLine, type RestoreStatus } from '@/hooks/restoreTeamPolicy';
 
 /** Agents: a plain list plus the selected agent's real terminal. */
 export function AgentsPage({ config }: { config: HarnessConfig }) {
@@ -15,6 +17,16 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
   const godStatus = useStore((s) => s.godStatus);
   const setAddAgentOpen = useStore((s) => s.setAddAgentOpen);
   const fullscreenAgentId = useStore((s) => s.fullscreenAgentId);
+
+  const { restoring, autoRestoring, pendingCount, restoreNote } = useRestoreTeam(config);
+  const restoreStatus: RestoreStatus = restoring
+    ? { kind: 'running', auto: autoRestoring }
+    : pendingCount > 0
+      ? { kind: 'pending', count: pendingCount }
+      : restoreNote
+        ? { kind: 'done', note: restoreNote }
+        : { kind: 'idle' };
+  const restoreLine = restoreStatusLine(restoreStatus);
 
   const rows = useMemo(() => agentRows(agents, queues as Record<string, unknown[]>), [agents, queues]);
   const current = rows.find((r) => r.id === selectedId);
@@ -51,6 +63,8 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
           </button>
         </div>
       </div>
+
+      {restoreLine ? <p className="nxa__restore" role="status">{restoreLine}</p> : null}
 
       {rows.length === 0 ? (
         godStatus === 'booting' ? (
