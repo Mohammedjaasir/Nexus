@@ -58,12 +58,16 @@ export function WebhooksSection({ onSummary }: { onSummary?: (s: string) => void
   /** Update the shared mirror; optionally write it through. Main sanitises what
    *  it stores (it will not enable a secretless endpoint), so we adopt its
    *  answer when it comes back rather than assuming ours was accepted. */
+  /** Why the last save could not store a secret (main saved the rest). */
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const apply = (next: WebhookTrigger[], persist = true) => {
     setHooks(next);
     if (!persist) return;
     // Main answers redacted (secret '' + hasSecret, O.9 #8). A secret minted in
     // this session stays in memory so it can be copied once; nothing else is.
-    void saveWebhooks(next).then((canonical) => {
+    void saveWebhooks(next).then(({ list: canonical, error }) => {
+      setSaveError(error ?? null);
       if (!canonical) return;
       setHooks(canonical.map((c) => {
         const minted = next.find((n) => n.id === c.id)?.secret;
@@ -106,6 +110,7 @@ export function WebhooksSection({ onSummary }: { onSummary?: (s: string) => void
       </Muted>
       <div style={{ height: 8 }} />
 
+      {saveError && <Callout>{saveError}</Callout>}
       {hooks.length === 0 && <Muted>No endpoints yet.</Muted>}
       {hooks.map((w) => (
         <WebhookRow

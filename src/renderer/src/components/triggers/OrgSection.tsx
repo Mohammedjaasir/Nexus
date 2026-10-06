@@ -20,6 +20,8 @@ export function OrgSection({ onSummary }: { onSummary?: (s: string) => void }) {
   const cfg = useStore((s) => s.orgTrigger);
   const mirror = useStore((s) => s.setOrgTrigger);
   const [revealed, setRevealed] = useState(false);
+  /** Why the last save could not store the key (main saved the rest). */
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     // Only when the mirror looks unseeded — adopting unconditionally could
@@ -40,7 +42,8 @@ export function OrgSection({ onSummary }: { onSummary?: (s: string) => void }) {
   const apply = (next: OrgTriggerConfig, persist = true) => {
     mirror(next);
     if (!persist) return;
-    void persistOrgTrigger(next).then((stored) => {
+    void persistOrgTrigger(next).then(({ trigger: stored, error }) => {
+      setSaveError(error ?? null);
       if (stored && typeof stored.hasApiKey === 'boolean') mirror({ ...next, hasApiKey: stored.hasApiKey });
     });
   };
@@ -64,6 +67,7 @@ export function OrgSection({ onSummary }: { onSummary?: (s: string) => void }) {
           onBlur={() => apply(cfg)}
         />
         <Hint>{CLONE_NODE_BLURB}</Hint>
+        {saveError && <Callout>{saveError}</Callout>}
       </Field>
 
       <Field label="TRUST">

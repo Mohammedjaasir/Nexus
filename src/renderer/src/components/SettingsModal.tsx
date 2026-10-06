@@ -746,7 +746,8 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
   const removeOrgKey = async () => {
     setOrgBusy(true); setOrgNote('');
     try {
-      await triggersApi().setOrgTrigger({ ...orgTrigger, apiKey: null });
+      const res = await triggersApi().setOrgTrigger({ ...orgTrigger, apiKey: null });
+      if (res && res.ok === false) { setOrgNote(res.error ?? 'could not remove the key'); return; }
       setOrgTriggerStore({ ...orgTrigger, apiKey: '', hasApiKey: false });
       setOrgNote('removed');
       setTimeout(() => setOrgNote(''), 1500);
@@ -1508,6 +1509,11 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                       {secretStorage && !secretStorage.available && Object.values(secretsPresent).some(Boolean) && (
                         <span role="status" style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-coral)' }}>
                           Secrets stay in config.json because this system has no secure storage available.
+                        </span>
+                      )}
+                      {secretStorage?.readError && (
+                        <span role="alert" style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-coral)' }}>
+                          {secretStorage.readError}
                         </span>
                       )}
                       {secretStorage && (secretStorage.corrupt?.length ?? 0) > 0 && (

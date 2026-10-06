@@ -420,3 +420,26 @@ test('full reset erases the plaintext backups; removing the legacy webhook secre
   assert.match(wh, /if \(p\.secret === null\) \{[\s\S]*integrations\.deleteSecret\(webhookSecretRef\('legacy'\)\)[\s\S]*secret: '', enabled: false/);
   assert.ok(read('src/renderer/src/components/SettingsModal.tsx').includes('backups of your old settings file'));
 });
+
+// ─── Fix round 2 ────────────────────────────────────────────────────────────
+
+test('secret-store refusals reach the renderer and are shown inline', () => {
+  const idx = read('src/main/index.ts');
+  const save = idx.slice(idx.indexOf("ipcMain.handle('webhooks:save'"), idx.indexOf("ipcMain.handle('webhooks:delete'"));
+  assert.match(save, /const unavailable = integrations\.secretStoreReadError\(\);\n  if \(unavailable\) return \{ ok: false as const, error: unavailable, list: redactedWebhooks\(\) \};/);
+  assert.match(save, /if \(secretErrors\.length\) return \{ ok: false as const, error: secretErrors\.join\(' '\), list: redactedWebhooks\(\) \};/);
+  const org = idx.slice(idx.indexOf("ipcMain.handle('org:setTrigger'"), idx.indexOf("ipcMain.handle('triggerHistory:list'"));
+  assert.match(org, /else saveError = `The organisation key was not saved: \$\{r\.error\}`;/);
+  assert.match(org, /if \(saveError\) return \{ ok: false as const, error: saveError, trigger: redactedOrgTrigger\(\) \};/);
+  const upd = idx.slice(idx.indexOf("ipcMain.handle('config:update'"), idx.indexOf("ipcMain.handle('config:restoreClaudeSettings'"));
+  assert.match(upd, /return saveError \? \{ \.\.\.out, saveError \} : out;/);
+  // Renderer: Settings uses its note lines, the Triggers tab its Callout.
+  const sm = read('src/renderer/src/components/SettingsModal.tsx');
+  assert.match(sm, /if \(res && res\.ok === false\) \{ setWebhookNote\(res\.error \?\? 'could not save'\); return; \}/);
+  assert.match(sm, /if \(res && res\.ok === false\) \{ setOrgNote\(res\.error \?\? 'could not save'\); return; \}/);
+  assert.match(sm, /\{secretStorage\.readError\}/);
+  assert.match(read('src/renderer/src/components/triggers/WebhooksSection.tsx'), /\{saveError && <Callout>\{saveError\}<\/Callout>\}/);
+  assert.match(read('src/renderer/src/components/triggers/OrgSection.tsx'), /\{saveError && <Callout>\{saveError\}<\/Callout>\}/);
+  // While the file is unreadable the webhook server is left as it is.
+  assert.match(idx, /function reconcileWebhookServer\(\): void \{\n[^\n]*\n[^\n]*\n  if \(integrations\.secretStoreReadError\(\)\)/);
+});

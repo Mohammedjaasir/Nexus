@@ -74,11 +74,15 @@ export async function listWebhooks(): Promise<WebhookTrigger[] | null> {
  * sends (trims names, refuses an id that is not URL-safe, forces `enabled: false`
  * on a secretless endpoint), so the saved truth can differ from what was sent.
  */
-export async function saveWebhooks(list: WebhookTrigger[]): Promise<WebhookTrigger[] | null> {
+export async function saveWebhooks(list: WebhookTrigger[]): Promise<{ list: WebhookTrigger[] | null; error?: string }> {
   try {
-    return (await window.cth.saveWebhooks(list)) ?? null;
-  } catch {
-    return null;
+    const res = await window.cth.saveWebhooks(list);
+    if (Array.isArray(res)) return { list: res };
+    // A refused secret: main saved the rest and says why the secret was not.
+    if (res && res.ok === false) return { list: res.list ?? null, error: res.error };
+    return { list: null };
+  } catch (e) {
+    return { list: null, error: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -149,12 +153,15 @@ export async function getOrgTrigger(): Promise<OrgTriggerConfig | null> {
   }
 }
 
-/** Persist; resolves to main's redacted answer (`apiKey` '' + `hasApiKey`), or
- *  null on failure. `apiKey`: '' = unchanged, null = remove. */
-export async function setOrgTrigger(cfg: Omit<OrgTriggerConfig, 'apiKey'> & { apiKey: string | null }): Promise<OrgTriggerConfig | null> {
+/** Persist; resolves to main's redacted answer (`apiKey` '' + `hasApiKey`)
+ *  and, when the key could not be stored, the reason. `apiKey`: '' =
+ *  unchanged, null = remove. */
+export async function setOrgTrigger(cfg: Omit<OrgTriggerConfig, 'apiKey'> & { apiKey: string | null }): Promise<{ trigger: OrgTriggerConfig | null; error?: string }> {
   try {
-    return (await window.cth.setOrgTrigger(cfg)) ?? null;
-  } catch {
-    return null;
+    const res = await window.cth.setOrgTrigger(cfg);
+    if (res && 'ok' in res && res.ok === false) return { trigger: res.trigger ?? null, error: res.error };
+    return { trigger: (res as OrgTriggerConfig) ?? null };
+  } catch (e) {
+    return { trigger: null, error: e instanceof Error ? e.message : String(e) };
   }
 }

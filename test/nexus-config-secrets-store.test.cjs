@@ -219,3 +219,35 @@ test('an unreadable secrets file is set aside before any write, never overwritte
   integrations.setSecret('config:slackBotToken', 'xoxb-x');
   assert.equal(integrations.corruptSecretFiles().length, 2);
 });
+
+// ─── Fix round 2 ────────────────────────────────────────────────────────────
+
+test('a secrets file that cannot be READ (EBUSY) is not corrupt: no set-aside, writes refused, file untouched', () => {
+  reset();
+  assert.equal(integrations.setSecret('config:slackBotToken', 'xoxb-keep').ok, true);
+  const before = fs.readFileSync(blobFile);
+  const asideBefore = integrations.corruptSecretFiles().length;
+  const realRead = fs.readFileSync;
+  fs.readFileSync = function (f, ...rest) {
+    if (path.resolve(String(f)) === path.resolve(blobFile)) { const e = new Error('EBUSY: resource busy or locked'); e.code = 'EBUSY'; throw e; }
+    return realRead.call(this, f, ...rest);
+  };
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    assert.equal(integrations.getSecret('config:slackBotToken'), undefined, 'reads report nothing while unreadable');
+    assert.match(integrations.secretStoreReadError(), /temporarily unavailable.*EBUSY/);
+    const r = integrations.setSecret('config:groqApiKey', 'gsk_new');
+    assert.equal(r.ok, false);
+    assert.match(r.error, /temporarily unavailable.*EBUSY.*Nothing was changed/);
+    assert.throws(() => integrations.deleteSecret('config:slackBotToken'), /temporarily unavailable/);
+  } finally {
+    fs.readFileSync = realRead;
+    console.warn = warn;
+  }
+  assert.equal(integrations.corruptSecretFiles().length, asideBefore, 'nothing was set aside');
+  assert.ok(fs.readFileSync(blobFile).equals(before), 'the file is byte-for-byte untouched');
+  assert.equal(integrations.secretStoreReadError(), undefined);
+  assert.equal(integrations.getSecret('config:slackBotToken'), 'xoxb-keep', 'readable again once the lock is gone');
+  assert.equal(integrations.getSecret('config:groqApiKey'), undefined, 'the refused write never happened');
+});

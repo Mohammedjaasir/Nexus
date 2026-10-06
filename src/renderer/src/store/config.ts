@@ -108,7 +108,10 @@ export interface HarnessConfig {
   };
   /** `available` false: no secure storage, secrets stay in config.json.
    *  `backups`: plaintext config.pre-secrets-*.json copies (read-only). */
-  readonly secretStorage?: { available: boolean; backups: string[]; corrupt?: string[] };
+  readonly secretStorage?: { available: boolean; backups: string[]; corrupt?: string[]; readError?: string };
+  /** Set on a config:update answer when a secret could not be stored (the
+   *  rest of the patch was saved; the previous secret is kept). */
+  readonly saveError?: string;
   slackChannelId?: string;
   slackPort?: number;
   /** Opt-in app/voice-initiated proactive Slack posting (default OFF). Mirrors

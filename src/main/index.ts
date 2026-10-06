@@ -1968,6 +1968,9 @@ async function startWebhookServer(): Promise<{ ok: boolean; url?: string; error?
  *  Live endpoint swap when it's up, start when the enabled set becomes non-empty,
  *  stop when it empties. Never restarts a healthy server. */
 function reconcileWebhookServer(): void {
+  // Secrets temporarily unreadable: every endpoint would look secretless. Keep
+  // the running server as it is rather than stopping it.
+  if (integrations.secretStoreReadError()) { console.warn('[webhook] secrets temporarily unavailable; server left as is'); return; }
   const endpoints = enabledWebhookEndpoints();
   if (endpoints.length === 0) { stopWebhookServer(); return; }
   if (webhookServer) { webhookServer.setEndpoints(endpoints); return; }
@@ -3077,8 +3080,12 @@ function configSecretWrites(secrets: Array<{ field: SecretField; value: string |
   const errors: string[] = [];
   for (const { field, value } of secrets) {
     if (value === null) {
-      integrations.deleteSecret(secretRef(field));
-      out[field] = undefined;
+      try {
+        integrations.deleteSecret(secretRef(field));
+        out[field] = undefined;
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e));
+      }
       continue;
     }
     const r = storeConfigSecret(secretRef(field), value);
@@ -3150,8 +3157,15 @@ function secretBackups(): string[] {
 
 /** Redacted config plus where the secrets live, for Settings → Connections.
  *  `corrupt`: unreadable secrets files that were set aside, never overwritten. */
-function withSecretStorage(cfg: RedactedConfig): RedactedConfig & { secretStorage: { available: boolean; backups: string[]; corrupt: string[] } } {
-  return { ...cfg, secretStorage: { available: integrations.encryptionAvailable(), backups: secretBackups(), corrupt: integrations.corruptSecretFiles() } };
+function withSecretStorage(cfg: RedactedConfig): RedactedConfig & { secretStorage: { available: boolean; backups: string[]; corrupt: string[]; readError?: string } } {
+  const readError = integrations.secretStoreReadError();
+  return {
+    ...cfg,
+    secretStorage: {
+      available: integrations.encryptionAvailable(), backups: secretBackups(), corrupt: integrations.corruptSecretFiles(),
+      ...(readError ? { readError } : {})
+    }
+  };
 }
 
 /** O.9 #8 boot step: plaintext secrets → safeStorage, never losing one. */
@@ -3202,6 +3216,7 @@ ipcMain.handle('config:update', async (evt, patch: Partial<HarnessConfig>) => {
   // (O.9 #6): adding happens only in ensureAllowedEngine's dialog.
   const { next, secretErrors } = await applyRendererConfigPatch(patch, evt.sender);
   if (secretErrors.length) console.error('[config] update kept the previous secret:', secretErrors.join('; '));
+  const saveError = secretErrors.length ? secretErrors[0] : undefined;
   // Live opt-in/out from Settings → Privacy (TELEMETRY.md).
   if (typeof patch?.telemetryEnabled === 'boolean') analytics.setEnabled(patch.telemetryEnabled);
   if (!hiveWasEnabled && hive.enabled()) {
@@ -3209,7 +3224,9 @@ ipcMain.handle('config:update', async (evt, patch: Partial<HarnessConfig>) => {
     try { bootstrapHiveServices(); } catch (e) { console.error('[hive] bootstrap after onboarding:', e); }
   }
   // Same return type as before, redacted, so renderer callers are unchanged.
-  return withSecretStorage(redactConfig(next, integrations.hasSecret));
+  // A refused secret store comes back as `saveError` (the rest was saved).
+  const out = withSecretStorage(redactConfig(next, integrations.hasSecret));
+  return saveError ? { ...out, saveError } : out;
 });
 
 // O.9 #9: undo the two keys older builds wrote into ~/.claude/settings.json.
@@ -4337,7 +4354,7 @@ ipcMain.handle('slack:setConfig', async (evt, patch: unknown) => {
   // to fetch the fresh (ephemeral) tunnel URL. A confirmed port change restarts
   // a server that is already running, as the dialog says.
   const cfg = readConfig();
-  if (!cfg.slackEnabled || !readConfigSecret('slackSigningSecret', cfg)) stopSlackServer();
+  if (!cfg.slackEnabled || (!readConfigSecret('slackSigningSecret', cfg) && !integrations.secretStoreReadError())) stopSlackServer();
   else if (slackServer && cfg.slackPort !== portBefore) void startSlackServer();
   if (r.secretErrors.length) return { ok: false, error: r.secretErrors[0] };
   return r.declined.includes('slackPort') ? { ok: false, error: 'The port was not changed.' } : { ok: true };
@@ -4381,11 +4398,16 @@ function sanitizeContextRule(patch: Partial<ContextRule> | undefined, current: C
 ipcMain.handle('webhooks:list', () => redactedWebhooks());
 ipcMain.handle('webhooks:save', (_evt, arg: unknown) => {
   const incoming = Array.isArray(arg) ? arg : [];
+  // While the secrets file cannot be read, stored secrets look absent, which
+  // would switch endpoints off. Refuse the whole save instead.
+  const unavailable = integrations.secretStoreReadError();
+  if (unavailable) return { ok: false as const, error: unavailable, list: redactedWebhooks() };
   const cfg = readConfig();
   const existing = cfg.webhookTriggers ?? [];
   const stored = readConfigSecrets(cfg).webhookSecrets;
   const list: WebhookTrigger[] = [];
   const seen = new Set<string>();
+  const secretErrors: string[] = [];
   for (const raw of incoming) {
     const t = sanitizeWebhookTrigger(raw, existing, (id) => !!stored[id]);
     if (!t || seen.has(t.id)) continue; // an id is a URL path segment — one owner each
@@ -4400,21 +4422,31 @@ ipcMain.handle('webhooks:save', (_evt, arg: unknown) => {
         // Refused: keep what was stored before; a new endpoint stays secretless and off.
         t.secret = prior?.secret ?? '';
         if (!t.secret && !stored[t.id]) t.enabled = false;
+        secretErrors.push(`The secret for "${t.name}" was not saved: ${r.error}`);
       }
     }
     list.push(t);
   }
   // A dropped endpoint takes its secret with it, as it did in plaintext.
-  for (const old of existing) if (!seen.has(old.id)) integrations.deleteSecret(webhookSecretRef(old.id));
+  for (const old of existing) {
+    if (seen.has(old.id)) continue;
+    try { integrations.deleteSecret(webhookSecretRef(old.id)); }
+    catch (e) { console.error('[webhook] stored secret of a removed endpoint kept:', old.id, e instanceof Error ? e.message : e); }
+  }
   writeConfig({ webhookTriggers: list });
   reconcileWebhookServer();
+  // The rest was saved; a refused secret comes back so the UI can say so.
+  if (secretErrors.length) return { ok: false as const, error: secretErrors.join(' '), list: redactedWebhooks() };
   return redactedWebhooks();
 });
 ipcMain.handle('webhooks:delete', (_evt, arg: unknown) => {
   const id = typeof arg === 'string' ? arg : '';
   const list = (readConfig().webhookTriggers ?? []).filter((t) => t.id !== id);
   writeConfig({ webhookTriggers: list });
-  if (id) integrations.deleteSecret(webhookSecretRef(id));
+  if (id) {
+    try { integrations.deleteSecret(webhookSecretRef(id)); }
+    catch (e) { console.error('[webhook] stored secret of a removed endpoint kept:', id, e instanceof Error ? e.message : e); }
+  }
   // Revoking one endpoint must not disturb the others: the live server is
   // re-pointed, not restarted, so every remaining caller's URL keeps working.
   reconcileWebhookServer();
@@ -4474,14 +4506,20 @@ ipcMain.handle('org:setTrigger', (_evt, arg: unknown) => {
   // The key (O.9 #8): '' or absent = unchanged, null = remove, a value goes to
   // the encrypted store (plaintext only without secure storage).
   let apiKey = current.apiKey;
+  let saveError: string | undefined;
   if (p.apiKey === null) {
-    integrations.deleteSecret(ORG_API_KEY_REF);
-    apiKey = '';
+    try {
+      integrations.deleteSecret(ORG_API_KEY_REF);
+      apiKey = '';
+    } catch (e) {
+      saveError = `The organisation key was not removed: ${e instanceof Error ? e.message : String(e)}`;
+    }
   } else if (typeof p.apiKey === 'string' && p.apiKey.trim()) {
     const r = storeConfigSecret(ORG_API_KEY_REF, p.apiKey.trim());
     // A refused store keeps the previous key (current.apiKey, plus any encrypted copy).
     if (r.kind === 'stored') apiKey = '';
     else if (r.kind === 'plaintext') apiKey = p.apiKey.trim();
+    else saveError = `The organisation key was not saved: ${r.error}`;
   }
   const next: OrgTriggerConfig = {
     apiKey,
@@ -4489,6 +4527,8 @@ ipcMain.handle('org:setTrigger', (_evt, arg: unknown) => {
     mode: isTriggerMode(p.mode) ? p.mode : current.mode
   };
   writeConfig({ orgTrigger: next });
+  // The rest was saved; a refused key comes back so the UI can say so.
+  if (saveError) return { ok: false as const, error: saveError, trigger: redactedOrgTrigger() };
   return redactedOrgTrigger();
 });
 
@@ -4572,13 +4612,18 @@ ipcMain.handle('webhook:setConfig', async (evt, patch: unknown) => {
   if (typeof p.enabled === 'boolean') next.webhookEnabled = p.enabled;
   const portBefore = readConfig().webhookPort;
   const r = await applyRendererConfigPatch(next, evt.sender);
+  let legacyError: string | undefined;
   if (p.secret === null) {
     // Removing the legacy secret removes the legacy endpoint's copy too and
     // switches that endpoint off (a secretless endpoint is an open door).
-    integrations.deleteSecret(webhookSecretRef('legacy'));
-    const list = readConfig().webhookTriggers ?? [];
-    if (list.some((t) => t.id === 'legacy')) {
-      writeConfig({ webhookTriggers: list.map((t) => (t.id === 'legacy' ? { ...t, secret: '', enabled: false } : t)) });
+    try {
+      integrations.deleteSecret(webhookSecretRef('legacy'));
+      const list = readConfig().webhookTriggers ?? [];
+      if (list.some((t) => t.id === 'legacy')) {
+        writeConfig({ webhookTriggers: list.map((t) => (t.id === 'legacy' ? { ...t, secret: '', enabled: false } : t)) });
+      }
+    } catch (e) {
+      legacyError = e instanceof Error ? e.message : String(e);
     }
   } else {
     upsertLegacyWebhookTrigger({
@@ -4593,6 +4638,7 @@ ipcMain.handle('webhook:setConfig', async (evt, patch: unknown) => {
   // stays up minus the legacy one.
   reconcileWebhookServer();
   if (r.secretErrors.length) return { ok: false, error: r.secretErrors[0] };
+  if (legacyError) return { ok: false, error: legacyError };
   return r.declined.includes('webhookPort') ? { ok: false, error: 'The port was not changed.' } : { ok: true };
 });
 

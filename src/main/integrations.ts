@@ -86,22 +86,59 @@ function secretsPath(): string {
   return join(app.getPath('userData'), 'integration-secrets.json');
 }
 
-/** The secrets file, parsed. `corrupt` = it exists but is not a JSON object
- *  (reads then see no secrets; the file itself is never overwritten). */
-function readSecretBlobState(): { blob: Record<string, string>; corrupt: boolean } {
+/**
+ * The secrets file, parsed.
+ *  - `corrupt`: it was read but is not JSON (SyntaxError) or not a JSON object.
+ *    Reads see no secrets; the next write sets the file aside first.
+ *  - `readError`: it could not be READ (EBUSY, EPERM, EACCES, EMFILE, …). That
+ *    says nothing about its content, so it is NOT corrupt: reads report the
+ *    secrets as temporarily unavailable and every write is refused, so a valid
+ *    file that could not be read is never replaced.
+ */
+function readSecretBlobState(): { blob: Record<string, string>; corrupt: boolean; readError?: string } {
   const p = secretsPath();
   if (!existsSync(p)) return { blob: {}, corrupt: false };
+  let raw: string;
   try {
-    const parsed = JSON.parse(readFileSync(p, 'utf8'));
+    raw = readFileSync(p, 'utf8');
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException)?.code ?? (e instanceof Error ? e.message : String(e));
+    return { blob: {}, corrupt: false, readError: code };
+  }
+  try {
+    const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return { blob: parsed as Record<string, string>, corrupt: false };
     return { blob: {}, corrupt: true };
-  } catch {
-    return { blob: {}, corrupt: true };
+  } catch (e) {
+    if (e instanceof SyntaxError) return { blob: {}, corrupt: true };
+    return { blob: {}, corrupt: false, readError: e instanceof Error ? e.message : String(e) };
   }
 }
 
+/** The user-facing refusal while the secrets file cannot be read. */
+function unavailableMessage(code: string): string {
+  return `Secrets are temporarily unavailable: the secure secrets file could not be read (${code}). Nothing was changed; try again in a moment.`;
+}
+
+/** Non-empty while the secrets file exists but cannot be read right now
+ *  (Settings shows it; writes are refused meanwhile). */
+export function secretStoreReadError(): string | undefined {
+  const s = readSecretBlobState();
+  if (!s.readError) return undefined;
+  return unavailableMessage(s.readError);
+}
+
+/** Read for a write: throws the refusal when the file cannot be read. */
+function readSecretBlobForWrite(): Record<string, string> {
+  const s = readSecretBlobState();
+  if (s.readError) throw new Error(unavailableMessage(s.readError));
+  return s.blob;
+}
+
 function readSecretBlob(): Record<string, string> {
-  return readSecretBlobState().blob;
+  const s = readSecretBlobState();
+  if (s.readError) console.warn('[secrets] secrets temporarily unavailable: the secrets file could not be read', s.readError);
+  return s.blob;
 }
 
 const CORRUPT_RE = /^integration-secrets\.corrupt-\d{14}(-\d+)?\.json$/;
@@ -134,6 +171,9 @@ function setAsideCorruptBlob(): void {
 function writeSecretBlob(blob: Record<string, string>): void {
   const p = secretsPath();
   mkdirSync(dirname(p), { recursive: true });
+  // Defensive: never replace a file that cannot be read right now.
+  const s = readSecretBlobState();
+  if (s.readError) throw new Error(unavailableMessage(s.readError));
   setAsideCorruptBlob();
   // Atomic (temp + fsync + rename): this file now also holds the config
   // secrets (O.9 #8), so a torn write must never lose them. Same format.
@@ -155,7 +195,7 @@ export function setSecret(secretRef: string, plaintext: string): { ok: boolean; 
       return { ok: false, error: 'OS secret encryption is unavailable; refusing to store a secret in plaintext' };
     }
     const cipher = safeStorage.encryptString(plaintext).toString('base64');
-    const blob = readSecretBlob();
+    const blob = readSecretBlobForWrite();
     blob[secretRef] = cipher;
     writeSecretBlob(blob);
     return { ok: true };
@@ -184,10 +224,11 @@ export function hasSecret(secretRef: string | undefined): boolean {
   return !!readSecretBlob()[secretRef];
 }
 
-/** Delete a stored secret. Idempotent. */
+/** Delete a stored secret. Idempotent. Throws (nothing deleted) while the
+ *  secrets file cannot be read. */
 export function deleteSecret(secretRef: string | undefined): void {
   if (!secretRef) return;
-  const blob = readSecretBlob();
+  const blob = readSecretBlobForWrite();
   if (secretRef in blob) {
     delete blob[secretRef];
     if (Object.keys(blob).length === 0) {

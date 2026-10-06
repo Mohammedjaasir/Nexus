@@ -415,7 +415,10 @@ export interface HarnessConfig {
   /** Where the secrets live: `available` false means this system has no secure
    *  storage and they stay in config.json; `backups` are the plaintext
    *  config.pre-secrets-*.json copies made before the move. Read-only. */
-  readonly secretStorage?: { available: boolean; backups: string[]; corrupt?: string[] };
+  readonly secretStorage?: { available: boolean; backups: string[]; corrupt?: string[]; readError?: string };
+  /** Set on a config:update answer when a secret could not be stored (the
+   *  rest of the patch was saved; the previous secret is kept). */
+  readonly saveError?: string;
   /** Free Flow voice dictation — master flag (default off), user Groq key, model.
    *  Entry point B (hold-Option-to-talk) is handled in the renderer, no hotkey. */
   freeflowEnabled?: boolean;
@@ -1289,8 +1292,10 @@ const api = {
   listWebhooks: (): Promise<WebhookTrigger[]> => ipcRenderer.invoke('webhooks:list'),
   /** Replace the whole list; main normalises each row (a blank secret keeps the
    *  stored one, an unknown mode keeps the stored one) and hot-swaps the running
-   *  server's endpoints WITHOUT a restart, so no other caller's URL changes. */
-  saveWebhooks: (list: WebhookTrigger[]): Promise<WebhookTrigger[]> =>
+   *  server's endpoints WITHOUT a restart, so no other caller's URL changes.
+   *  When a secret could not be stored the rest is still saved and the answer
+   *  is `{ ok: false, error, list }`. */
+  saveWebhooks: (list: WebhookTrigger[]): Promise<WebhookTrigger[] | { ok: false; error: string; list: WebhookTrigger[] }> =>
     ipcRenderer.invoke('webhooks:save', list),
   /** Revoke one endpoint; resolves to the remaining list. */
   deleteWebhook: (id: string): Promise<WebhookTrigger[]> =>
@@ -1309,7 +1314,7 @@ const api = {
   getOrgTrigger: (): Promise<OrgTriggerConfig> => ipcRenderer.invoke('org:getTrigger'),
   /** `apiKey`: '' = unchanged, null = remove, a value replaces the stored key.
    *  Resolves redacted (`apiKey` '' + `hasApiKey`). */
-  setOrgTrigger: (cfg: Omit<OrgTriggerConfig, 'apiKey'> & { apiKey: string | null }): Promise<OrgTriggerConfig> =>
+  setOrgTrigger: (cfg: Omit<OrgTriggerConfig, 'apiKey'> & { apiKey: string | null }): Promise<OrgTriggerConfig | { ok: false; error: string; trigger: OrgTriggerConfig }> =>
     ipcRenderer.invoke('org:setTrigger', cfg),
 
   // ─── Triggers: history ledger + approval gate ───────────────────────────────
