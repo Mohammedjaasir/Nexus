@@ -1,0 +1,714 @@
+{
+  "allowlist": [
+    {
+      "file": "components/AddAgentModal.tsx",
+      "rule": "brand",
+      "contains": "munder-difflin/hire@1",
+      "reason": "DEFERRED hire spec v1: shared/hire.ts:26 validates it; changing it breaks every existing manifest (inventory 2.5). Embedded in HIRE_PROMPT sent to an agent."
+    },
+    {
+      "file": "App.tsx",
+      "rule": "office",
+      "contains": "[hire] import failed:",
+      "reason": "console.error diagnostic only, never rendered in the UI; no user-visible text."
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "persona",
+      "contains": "Michael",
+      "reason": "Agent-facing hive registration name and role string written to registry.json and identity.md; renamed with prompt QA in Phase B (inventory M22). Not rendered: the UI label comes from agentDisplay.",
+      "exact": true
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "persona",
+      "contains": "Michael's prep assistant",
+      "reason": "Agent-facing registry role string for the assistant agent, written to the hive registry; renamed with prompt QA in Phase B (inventory M22)."
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "lead",
+      "contains": "orchestrator (god)",
+      "reason": "hive registry role string, agent-facing (M22)."
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "persona",
+      "contains": "You're online as Michael",
+      "reason": "Prompt typed into the lead agent's terminal or inbox; persona prompts are renamed in Phase B with prompt QA (inventory M22)."
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "office",
+      "contains": "You're online as Michael",
+      "reason": "Prompt typed into the lead agent's terminal or inbox; persona prompts are renamed in Phase B with prompt QA (inventory M22)."
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "persona",
+      "contains": "self-contained prompt to Michael",
+      "reason": "Prompt typed into the lead agent's terminal or inbox; persona prompts are renamed in Phase B with prompt QA (inventory M22)."
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "lead",
+      "contains": "self-contained prompt to Michael",
+      "reason": "Prompt typed into the lead agent's terminal or inbox; persona prompts are renamed in Phase B with prompt QA (inventory M22)."
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "lead",
+      "contains": "You have new hive inbox message(s)",
+      "reason": "Prompt typed into the lead agent's terminal or inbox; persona prompts are renamed in Phase B with prompt QA (inventory M22)."
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "office",
+      "contains": "You have new hive inbox message(s)",
+      "reason": "Prompt typed into the lead agent's terminal or inbox; persona prompts are renamed in Phase B with prompt QA (inventory M22)."
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "office",
+      "contains": "does not support hive inbox",
+      "reason": "Prompt typed into the lead agent's terminal or inbox; persona prompts are renamed in Phase B with prompt QA (inventory M22)."
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "office",
+      "contains": "Check fleet health",
+      "reason": "Prompt typed into the lead agent's terminal or inbox; persona prompts are renamed in Phase B with prompt QA (inventory M22)."
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "office",
+      "contains": "Skim COMMANDS.md",
+      "reason": "Prompt typed into the lead agent's terminal or inbox; persona prompts are renamed in Phase B with prompt QA (inventory M22)."
+    },
+    {
+      "file": "hooks/useHive.ts",
+      "rule": "office",
+      "contains": "WORK ORDER FROM HIVE",
+      "reason": "Prompt typed into the lead agent's terminal or inbox; persona prompts are renamed in Phase B with prompt QA (inventory M22)."
+    },
+    {
+      "file": "realtime/session.ts",
+      "rule": "persona",
+      "contains": "Michael",
+      "reason": "Voice actor id passed to RealtimeAgent({ name }) as an exact literal; an SDK identifier, not rendered or spoken. The spoken persona text and greetings stay in knownLeaks.",
+      "exact": true
+    },
+    {
+      "file": "scene/office/cast.ts",
+      "rule": "persona",
+      "contains": "",
+      "reason": "Legacy cast list: data keys read only by useHive to map an agent name to the legacy character field; nothing reachable renders displayName (inventory 1.3 caveat)."
+    },
+    {
+      "file": "scene/office/cast.ts",
+      "rule": "lead",
+      "contains": "World's best boss",
+      "reason": "Legacy cast blurb, data only; its only renderer (OfficeThemePicker) is itself a known visual leak (inventory 1.3 caveat)."
+    }
+  ],
+  "knownLeaks": {
+    "components/AddAgentModal.tsx": [
+      {
+        "rule": "office",
+        "text": " (from hire)"
+      },
+      {
+        "rule": "office",
+        "text": "⚠️ flags this hire appends to the command:"
+      },
+      {
+        "rule": "office",
+        "text": "📋 hire imported:"
+      },
+      {
+        "rule": "office",
+        "text": "Import a hire manifest (.json)"
+      },
+      {
+        "rule": "office",
+        "text": "Import hire"
+      },
+      {
+        "rule": "office",
+        "text": "import hire…"
+      },
+      {
+        "rule": "office",
+        "text": "skills this hire activates:"
+      },
+      {
+        "rule": "office",
+        "text": "You are designing a \"hire\" — a ready-to-spawn AI agent for Nexus, an app that runs a team of CLI coding agents. Output ONE JSON object (a hire manifest) and not"
+      }
+    ],
+    "components/AgentControlStrip.tsx": [
+      {
+        "rule": "office",
+        "text": "delivery paused (floor)"
+      }
+    ],
+    "components/AskMeTab.tsx": [
+      {
+        "rule": "office",
+        "text": "dismiss — clear this off the ASK ME board without answering (history kept)"
+      },
+      {
+        "rule": "office",
+        "text": "When the team blocks a task on your input — a question to answer or a to-do only you can perform — it shows up here (and on the ASK ME board on the floor)."
+      }
+    ],
+    "components/CommandCenterPanel.tsx": [
+      {
+        "rule": "lead",
+        "text": "orchestrator (god)"
+      },
+      {
+        "rule": "office",
+        "text": " (default — set a floor token budget in Settings)"
+      },
+      {
+        "rule": "office",
+        "text": " (floor budget)"
+      },
+      {
+        "rule": "office",
+        "text": "Automatic queue delivery is ON for every agent — click to pause the whole floor"
+      },
+      {
+        "rule": "office",
+        "text": "COMMAND CENTER"
+      },
+      {
+        "rule": "office",
+        "text": "Find exact text across hive files…"
+      },
+      {
+        "rule": "office",
+        "text": "floor budget"
+      },
+      {
+        "rule": "office",
+        "text": "What does the hive know about…"
+      }
+    ],
+    "components/MemoryGraphPanel.tsx": [
+      {
+        "rule": "office",
+        "text": "No messages logged yet — the hive is quiet. Agents shown as roster."
+      }
+    ],
+    "components/MessageQueueComposer.tsx": [
+      {
+        "rule": "office",
+        "text": "Auto-delivery is paused for the whole floor. Resume it in the Command Center, or use \"send now\" on a message below."
+      },
+      {
+        "rule": "office",
+        "text": "held — delivery paused floor-wide"
+      }
+    ],
+    "components/OfficeThemePicker.tsx": [
+      {
+        "rule": "brand",
+        "text": "Dunder Mifflin — the original floor"
+      },
+      {
+        "rule": "office",
+        "text": " isn't built yet — showing the office for now."
+      },
+      {
+        "rule": "office",
+        "text": "Dunder Mifflin — the original floor"
+      },
+      {
+        "rule": "office",
+        "text": "Office Theme"
+      },
+      {
+        "rule": "office",
+        "text": "Re-skin the pixel office as a TV show. Switching starts a fresh cast."
+      },
+      {
+        "rule": "office",
+        "text": "SWITCH OFFICE TO \""
+      },
+      {
+        "rule": "office",
+        "text": "The Office"
+      },
+      {
+        "rule": "office",
+        "text": "TV-show office themes"
+      },
+      {
+        "rule": "visual",
+        "text": "<reachable>"
+      }
+    ],
+    "components/OnboardingWizard.tsx": [
+      {
+        "rule": "lead",
+        "text": "A CLONE OF YOU, WORKING 24/7"
+      },
+      {
+        "rule": "lead",
+        "text": "Nexus turns the CLI agent you already use into a clone of you — one that runs an office of long-running agents and keeps working while you're away. It manages e"
+      },
+      {
+        "rule": "lead",
+        "text": "STEP 2 OF 4 · YOUR CLONE"
+      },
+      {
+        "rule": "lead",
+        "text": "STEP 2 OF 4 · YOUR CLONE'S ENGINE"
+      },
+      {
+        "rule": "lead",
+        "text": "YOUR CLONE AND THE FLOOR IT RUNS"
+      },
+      {
+        "rule": "lead",
+        "text": "Your clone coordinates a hive of AI coding agents — persistent, watchable, all local. Here's what's inside:"
+      },
+      {
+        "rule": "lead",
+        "text": "Your clone runs a small office of AI workers, and you watch it all from one screen. Here's what's inside:"
+      },
+      {
+        "rule": "office",
+        "text": "Claude Code, Codex, Grok, Kimi, Antigravity, Qwen, OpenCode, Crush, pi & Copilot — live agents on one floor."
+      },
+      {
+        "rule": "office",
+        "text": "COMMAND CENTER"
+      },
+      {
+        "rule": "office",
+        "text": "Hire a ready-made agent from the gallery in one click — no setup needed."
+      },
+      {
+        "rule": "office",
+        "text": "is the engine that orchestrates the whole hive. Recommended: Claude Code · Opus 4.8 · 1M — other providers can be wired per agent later."
+      },
+      {
+        "rule": "office",
+        "text": "MEET YOUR OFFICE"
+      },
+      {
+        "rule": "office",
+        "text": "Nexus turns the CLI agent you already use into a clone of you — one that runs an office of long-running agents and keeps working while you're away. It manages e"
+      },
+      {
+        "rule": "office",
+        "text": "READY-MADE HIRES"
+      },
+      {
+        "rule": "office",
+        "text": "Ten AI assistants — Claude, Codex, Gemini, Grok and more — working side by side in one shared office."
+      },
+      {
+        "rule": "office",
+        "text": "TEN ENGINES, ONE OFFICE"
+      },
+      {
+        "rule": "office",
+        "text": "Terminal · Floor · Memory · Activity · Tasks · Triggers in one control surface."
+      },
+      {
+        "rule": "office",
+        "text": "YOUR CLONE AND THE FLOOR IT RUNS"
+      },
+      {
+        "rule": "office",
+        "text": "Your clone coordinates a hive of AI coding agents — persistent, watchable, all local. Here's what's inside:"
+      },
+      {
+        "rule": "office",
+        "text": "Your clone runs a small office of AI workers, and you watch it all from one screen. Here's what's inside:"
+      },
+      {
+        "rule": "persona",
+        "text": "This only sets Michael's engine. You can run other providers per agent later."
+      }
+    ],
+    "components/QuitWarningModal.tsx": [
+      {
+        "rule": "office",
+        "text": "FLOOR SAVED — SEE YOU TOMORROW"
+      },
+      {
+        "rule": "office",
+        "text": "NO WORKERS ON THE FLOOR — WAITING FOR THE ORCHESTRATOR"
+      },
+      {
+        "rule": "office",
+        "text": "WRAPPING UP THE FLOOR"
+      }
+    ],
+    "components/RealtimeMichaelToggle.tsx": [
+      {
+        "rule": "visual",
+        "text": "<reachable>"
+      }
+    ],
+    "components/SettingsModal.tsx": [
+      {
+        "rule": "office",
+        "text": "Connect Nexus to Slack\n\n1. api.slack.com/apps -> Create New App -> From scratch. Name it\n   \"Nexus\" and pick your workspace.\n2. Basic Information -> Signing Sec"
+      },
+      {
+        "rule": "office",
+        "text": "Copy this harness's hive (every agent, memory, task) and the semantic-memory palace into the new folder. The old folder is left untouched as a backup you can de"
+      },
+      {
+        "rule": "office",
+        "text": "floor token budget"
+      },
+      {
+        "rule": "office",
+        "text": "header. Each one checks bodies against its own JSON schema — edit that in the Triggers tab of Michael's Command Center, where the history of everything that arr"
+      },
+      {
+        "rule": "office",
+        "text": "Reset wipes Michael's memories, the entire hive (every agent, message, task, and the board), the semantic-memory palace, and all settings - then takes you back "
+      },
+      {
+        "rule": "office",
+        "text": "This permanently erases all of Michael's memories and the entire hive, and cannot be undone. Any running sessions will be terminated and the app will relaunch i"
+      },
+      {
+        "rule": "office",
+        "text": "Webhook API\n\nEvery webhook has its own URL, its own secret and its own mode. They share one\nserver and one tunnel; the id in the path says which one you are cal"
+      },
+      {
+        "rule": "persona",
+        "text": "Every newly spawned Claude agent (Michael included) starts on this model unless picked per-agent. Marked “· default” in the model pickers."
+      },
+      {
+        "rule": "persona",
+        "text": "header. Each one checks bodies against its own JSON schema — edit that in the Triggers tab of Michael's Command Center, where the history of everything that arr"
+      },
+      {
+        "rule": "persona",
+        "text": "Realtime Michael"
+      },
+      {
+        "rule": "persona",
+        "text": "Reset wipes Michael's memories, the entire hive (every agent, message, task, and the board), the semantic-memory palace, and all settings - then takes you back "
+      },
+      {
+        "rule": "persona",
+        "text": "Talk to the orchestrator in real time. Toggle it on from Michael's tab; choose which microphone and speaker the voice loop uses here."
+      },
+      {
+        "rule": "persona",
+        "text": "Talking to Michael runs on OpenAI&rsquo;s Realtime API — speech in, speech out, over a live connection to"
+      },
+      {
+        "rule": "persona",
+        "text": "This permanently erases all of Michael's memories and the entire hive, and cannot be undone. Any running sessions will be terminated and the app will relaunch i"
+      },
+      {
+        "rule": "persona",
+        "text": "Voice chat with Michael"
+      },
+      {
+        "rule": "persona",
+        "text": "Webhook API\n\nEvery webhook has its own URL, its own secret and its own mode. They share one\nserver and one tunnel; the id in the path says which one you are cal"
+      }
+    ],
+    "components/SpritePortrait.tsx": [
+      {
+        "rule": "visual",
+        "text": "<reachable>"
+      }
+    ],
+    "components/triggers/TriggerHistoryTab.tsx": [
+      {
+        "rule": "lead",
+        "text": "Messages from your teammates’ clone nodes, next to what the lead agent sent back."
+      },
+      {
+        "rule": "lead",
+        "text": "today, but no one’s clone node can reach yours until the transport ships. "
+      },
+      {
+        "rule": "office",
+        "text": "Approve and this goes to the lead agent, which will put the hive to work on it. Reject and it is dropped — nothing runs."
+      },
+      {
+        "rule": "office",
+        "text": "You turned this down. Nothing was sent to the hive."
+      }
+    ],
+    "hooks/useHive.ts": [
+      {
+        "rule": "lead",
+        "text": "god — runs the floor, triages requests, escalates only critical calls to you"
+      },
+      {
+        "rule": "office",
+        "text": "god — runs the floor, triages requests, escalates only critical calls to you"
+      },
+      {
+        "rule": "office",
+        "text": "running the floor"
+      }
+    ],
+    "hooks/usePtyParser.ts": [
+      {
+        "rule": "lead",
+        "text": "waiting on god"
+      },
+      {
+        "rule": "lead",
+        "text": "waiting on god"
+      }
+    ],
+    "realtime/actions.ts": [
+      {
+        "rule": "lead",
+        "text": "Queue a context clear (/clear) for one agent — wipes its working memory of the current conversation; delivery waits until the agent is idle. DESTRUCTIVE — retur"
+      },
+      {
+        "rule": "lead",
+        "text": "Target agent name or id. Default: the god orchestrator."
+      },
+      {
+        "rule": "lead",
+        "text": "Terminate a running agent (closes its terminal, archives it). DESTRUCTIVE — does NOT run immediately; returns an echo-back and asks for verbal confirmation. Aft"
+      },
+      {
+        "rule": "office",
+        "text": "Archive an agent — takes it off the floor, history kept (unarchive brings it back). DESTRUCTIVE — returns an echo-back and asks for verbal confirmation. After t"
+      },
+      {
+        "rule": "office",
+        "text": "Hire a NEW agent worker (provider engine + optional role). This does NOT run immediately; it asks for verbal confirmation first. After the user confirms, call c"
+      },
+      {
+        "rule": "office",
+        "text": "Optional. Working directory; defaults to the hive root."
+      },
+      {
+        "rule": "persona",
+        "text": "Block (gate) or unblock one named tool for one agent — e.g. gate Bash for Jim. Soft action — runs immediately."
+      },
+      {
+        "rule": "persona",
+        "text": "Give an agent a task as a structured 4-part work order (objective, context, constraints, done-when) delivered to their inbox. Soft action — runs immediately. Us"
+      },
+      {
+        "rule": "persona",
+        "text": "Inject live guidance into a running agent to redirect it without stopping it. Soft action — runs immediately. This is the priority verb: \"tell Jim to focus on t"
+      },
+      {
+        "rule": "persona",
+        "text": "Send a short message to one agent (a nudge or note). Soft action — runs immediately, no confirm. Use for \"tell Oscar X\" or \"check in with Jim\"."
+      }
+    ],
+    "realtime/DevicePicker.tsx": [
+      {
+        "rule": "persona",
+        "text": "Device names appear after you first start a voice session and grant mic access. The microphone choice applies the next time Michael connects; the speaker switch"
+      }
+    ],
+    "realtime/session.ts": [
+      {
+        "rule": "lead",
+        "text": "You are Michael — the voice of the orchestrator (\"god\") of a hive of autonomous Claude coding agents. The person you're talking to is the human who runs the hiv"
+      },
+      {
+        "rule": "office",
+        "text": "(Floor snapshot at connect — orientation only, call your tools for detail: "
+      },
+      {
+        "rule": "office",
+        "text": "(Floor update: "
+      },
+      {
+        "rule": "office",
+        "text": "You are Michael — the voice of the orchestrator (\"god\") of a hive of autonomous Claude coding agents. The person you're talking to is the human who runs the hiv"
+      },
+      {
+        "rule": "persona",
+        "text": "Hey there, Michael here — what can I do for you?"
+      },
+      {
+        "rule": "persona",
+        "text": "microphone permission denied — allow mic access to talk to Michael"
+      },
+      {
+        "rule": "persona",
+        "text": "You are Michael — the voice of the orchestrator (\"god\") of a hive of autonomous Claude coding agents. The person you're talking to is the human who runs the hiv"
+      }
+    ],
+    "realtime/tools.ts": [
+      {
+        "rule": "lead",
+        "text": " is the god orchestrator."
+      },
+      {
+        "rule": "lead",
+        "text": " You share the floor with god (the typing orchestrator); the board is the single source of truth."
+      },
+      {
+        "rule": "lead",
+        "text": "The god orchestrator runs "
+      },
+      {
+        "rule": "lead",
+        "text": "The non-sensitive hive settings: autonomy mode, the default model and god engine, budget caps, worker limits, the circuit breaker, and which features are on. Ne"
+      },
+      {
+        "rule": "lead",
+        "text": "Who is in the agent hive right now: how many agents, which are active versus archived, who the god orchestrator is, and each active agent name, role, and engine"
+      },
+      {
+        "rule": "office",
+        "text": " on the floor, "
+      },
+      {
+        "rule": "office",
+        "text": " You share the floor with god (the typing orchestrator); the board is the single source of truth."
+      },
+      {
+        "rule": "office",
+        "text": " You will also receive short \"(Floor update: …)\" notes as things change mid-call — trust those over this snapshot."
+      },
+      {
+        "rule": "office",
+        "text": "Floor at connect — "
+      },
+      {
+        "rule": "office",
+        "text": "floor state"
+      },
+      {
+        "rule": "office",
+        "text": "How much the hive is USING this session: total tokens across all agents, plus the top users. Reported in tokens (no dollar figures). Call this when the user ask"
+      },
+      {
+        "rule": "office",
+        "text": "Read the actual CONTENT of hive messages — what agents have said to each other in their inboxes and outboxes, not just that an event happened. Use this when the"
+      },
+      {
+        "rule": "office",
+        "text": "Read the team's memory. You can ALWAYS answer with this — it never dead-ends. Pass a query to search everything the hive has learned; pass an agentId to read ON"
+      },
+      {
+        "rule": "office",
+        "text": "So far this session the hive has used "
+      },
+      {
+        "rule": "office",
+        "text": "the floor"
+      },
+      {
+        "rule": "office",
+        "text": "The hive has no registered agents yet."
+      },
+      {
+        "rule": "office",
+        "text": "The hive has no registered agents."
+      },
+      {
+        "rule": "office",
+        "text": "The hive plan narrative — the human-readable board the orchestrator keeps in prose (the current plan, priorities, and notes). Call this when the user asks about"
+      },
+      {
+        "rule": "office",
+        "text": "The LIVE floor in one call: every active agent with its current status, context fill, breaker state and inbox backlog, plus in-flight tasks. Returns compact JSO"
+      },
+      {
+        "rule": "office",
+        "text": "The most recent hive activity log: spawns, archives, messages, and other lifecycle events, newest first. Call this when the user asks what just happened, for re"
+      },
+      {
+        "rule": "office",
+        "text": "The non-sensitive hive settings: autonomy mode, the default model and god engine, budget caps, worker limits, the circuit breaker, and which features are on. Ne"
+      },
+      {
+        "rule": "office",
+        "text": "The triggers that fire the hive without a human typing. Today this reports the schedules: the recurring missions the hive runs on a timer, with their labels, ca"
+      },
+      {
+        "rule": "office",
+        "text": "There are no hive messages to read yet."
+      },
+      {
+        "rule": "office",
+        "text": "There is no recorded hive activity yet."
+      },
+      {
+        "rule": "office",
+        "text": "Who is in the agent hive right now: how many agents, which are active versus archived, who the god orchestrator is, and each active agent name, role, and engine"
+      },
+      {
+        "rule": "persona",
+        "text": "The agent id or friendly name to look up (e.g. \"kevin-mqpbq43v\" or \"Kevin\")."
+      }
+    ],
+    "shared/claudeCommands.ts": [
+      {
+        "rule": "persona",
+        "text": "Launch on a specific model. The [1m] suffix selects the 1M-token window (Dwight)."
+      }
+    ],
+    "shared/codexCommands.ts": [
+      {
+        "rule": "office",
+        "text": "Auto mode: skip ALL approval prompts AND drop the OS sandbox (full filesystem access). Used by Nexus when auto mode is on — full parity with Claude bypassPermis"
+      },
+      {
+        "rule": "office",
+        "text": "Never prompt for approval (-a never) but scope the sandbox to the project workspace (-s workspace-write). Safer, but blocks writes outside cwd (e.g. a hive agen"
+      }
+    ],
+    "shared/ossModels.ts": [
+      {
+        "rule": "brand",
+        "text": "https://munderdiffl.in/blog/run-munder-difflin-on-a-mac-mini/"
+      },
+      {
+        "rule": "brand",
+        "text": "https://munderdiffl.in/blog/run-munder-difflin-on-open-models/"
+      }
+    ],
+    "shared/releaseDrop.ts": [
+      {
+        "rule": "office",
+        "text": "<style>\n  html, body { height: 100%; }\n  body { overflow: hidden; }\n  .stage { height: 100%; }\n  .pg { position: absolute; opacity: 0; pointer-events: none; }\n\n"
+      },
+      {
+        "rule": "persona",
+        "text": "<style>\n  html, body { height: 100%; }\n  body { overflow: hidden; }\n  .stage { height: 100%; }\n  .pg { position: absolute; opacity: 0; pointer-events: none; }\n\n"
+      }
+    ],
+    "shared/toolCatalog.ts": [
+      {
+        "rule": "office",
+        "text": "Worktrees let agents work in parallel without fighting over one checkout, and the hive keeps its own history in git."
+      }
+    ],
+    "shared/triggers.ts": [
+      {
+        "rule": "lead",
+        "text": "Set an organisation key and your teammates can message your clone node — the copy of "
+      },
+      {
+        "rule": "office",
+        "text": "Ask me before anything reaches the hive."
+      },
+      {
+        "rule": "office",
+        "text": "directive = asks the hive to act; communication = informational."
+      }
+    ]
+  }
+}
