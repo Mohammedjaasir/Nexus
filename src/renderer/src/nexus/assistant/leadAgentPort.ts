@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '@/store/store';
 import { navigate } from '../router/useRoute';
+import { useRegistryIds } from '../agents/agentIdentity';
+import { displayAgents, leadAgentId } from '@shared/agentDisplay';
 import { resolveAssistantStatus, type AssistantPort } from './port';
 
 /** Mirrors MessageQueueComposer's useDeliveryPaused: poll the control snapshot. */
@@ -22,10 +24,16 @@ function useDeliveryPaused(agentId: string | null): boolean {
 }
 
 export function useLeadAgentPort(): AssistantPort {
-  const god = useStore((s) => s.agents.find((a) => a.isGod) ?? null);
+  const agents = useStore((s) => s.agents);
+  const hint = useRegistryIds();
+  const god = useMemo(() => {
+    const id = leadAgentId(agents, hint);
+    return agents.find((a) => a.id === id) ?? null;
+  }, [agents, hint]);
+  const godLabel = god ? displayAgents(agents, hint).get(god.id)?.label ?? 'Lead agent' : null;
   const godStatus = useStore((s) => s.godStatus);
   const paused = useDeliveryPaused(god?.id ?? null);
-  const status = resolveAssistantStatus({ god: god ? { id: god.id, name: god.name } : null, godStatus, deliveryPaused: paused });
+  const status = resolveAssistantStatus({ god: god && godLabel ? { id: god.id, name: godLabel } : null, godStatus, deliveryPaused: paused });
   return {
     status,
     replyHint: 'Replies appear in the lead agent\u2019s terminal in Agents.',

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PixelPanel } from './PixelPanel';
 import { PixelButton } from './PixelButton';
+import { useStore } from '@/store/store';
+import { useRegistryIds } from '@/nexus/agents/agentIdentity';
+import { displayNameForId } from '@shared/agentDisplay';
 
 // Derive the message shape from the preload-exposed API so the renderer never
 // reaches across project boundaries for a type (window.cth is globally typed).
@@ -46,6 +49,8 @@ function groupThreads(msgs: HiveMessage[]): Thread[] {
 }
 
 export function ThreadsPanel({ agentId }: ThreadsPanelProps) {
+  const agents = useStore((s) => s.agents);
+  const hint = useRegistryIds();
   const [messages, setMessages] = useState<HiveMessage[]>([]);
   const [openThreads, setOpenThreads] = useState<Record<string, boolean>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -118,7 +123,7 @@ export function ThreadsPanel({ agentId }: ThreadsPanelProps) {
                   return (
                     <div key={m.id} style={{ borderLeft: '2px solid var(--cth-ink-100)', paddingLeft: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 13, fontWeight: 700, color: 'var(--cth-ink-900)' }}>{m.from}</span>
+                        <span style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 13, fontWeight: 700, color: 'var(--cth-ink-900)' }}>{displayNameForId(m.from, agents, hint)}</span>
                         <span style={{
                           fontFamily: 'var(--cth-font-ui)', fontSize: 12, lineHeight: '16px', padding: '0 6px',
                           background: 'var(--cth-cream-100)', boxShadow: `inset 0 0 0 1px ${ACT_COLOR[m.act] ?? 'var(--cth-ink-300)'}`,

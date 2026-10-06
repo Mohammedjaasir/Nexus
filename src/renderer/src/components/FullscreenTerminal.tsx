@@ -13,6 +13,8 @@ import { CostHud } from '@/realtime/CostHud';
 import { useStore, type Agent } from '@/store/store';
 import { usePtyParser } from '@/hooks/usePtyParser';
 import { useRestoreTeam } from '@/hooks/useRestoreTeam';
+import { useRegistryIds } from '@/nexus/agents/agentIdentity';
+import { displayAgents, displayDescription, displayNameForId, visibleAgents, type AgentDisplay } from '@shared/agentDisplay';
 import { useTerminalFontSize } from './terminalFontSize';
 import { useHasTerminalDraft, disposeTerminal } from './terminalPool';
 import { useAppTheme, toggleAppTheme } from '@/design/theme';
@@ -148,6 +150,12 @@ export function FullscreenTerminal({ config }: FullscreenTerminalProps) {
   const appThemeNow = useAppTheme();
 
   const agent = agents.find(a => a.id === fullscreenAgentId);
+  // Display-time only: stored names stay as they are; the roster shows neutral labels.
+  const hint = useRegistryIds();
+  const shownAgents = useMemo(() => visibleAgents(agents, hint), [agents, hint]);
+  const display = useMemo(() => displayAgents(agents, hint), [agents, hint]);
+  const nameOf = (id: string): string => displayNameForId(id, [...agents, ...restorableAgents], hint);
+  const infoOf = (a: Agent): AgentDisplay => display.get(a.id) ?? { label: nameOf(a.id), role: '', isLead: false, isDuplicateLead: false };
   const parser = usePtyParser(agent?.id ?? '__none__');
 
   const repoVersion = useResolvedRepoNames(agents);
@@ -201,7 +209,7 @@ export function FullscreenTerminal({ config }: FullscreenTerminalProps) {
     // Keyed by absolute repo root (identity); the label is carried alongside so
     // two same-named repos stay two groups but still read by name.
     const byRepo = new Map<string, { label: string; members: Agent[] }>();
-    for (const a of agents) {
+    for (const a of shownAgents) {
       if (a.isGod) { godList.push(a); continue; }
       const key = repoKeyOf(a);
       const bucket = byRepo.get(key);
@@ -210,7 +218,7 @@ export function FullscreenTerminal({ config }: FullscreenTerminalProps) {
     }
     return { gods: godList, groups: [...byRepo.entries()] };
     // repoVersion: rebucket once the async main-repo lookups land.
-  }, [agents, repoVersion]);
+  }, [shownAgents, repoVersion]);
 
   // Esc exits fullscreen
   useEffect(() => {
@@ -392,6 +400,7 @@ export function FullscreenTerminal({ config }: FullscreenTerminalProps) {
               <SidebarRow
                 key={a.id}
                 agent={a}
+                info={infoOf(a)}
                 active={a.id === agent.id}
                 onClick={() => { select(a.id); setFullscreen(a.id); }}
                 onNoteChange={(note) => setAgentNote(a.id, note)}
@@ -428,6 +437,7 @@ export function FullscreenTerminal({ config }: FullscreenTerminalProps) {
                   <SidebarRow
                     key={a.id}
                     agent={a}
+                    info={infoOf(a)}
                     active={a.id === agent.id}
                     onClick={() => { select(a.id); setFullscreen(a.id); }}
                     onNoteChange={(note) => setAgentNote(a.id, note)}
@@ -467,7 +477,7 @@ export function FullscreenTerminal({ config }: FullscreenTerminalProps) {
                   onClick={restoreTeam}
                   disabled={restoring}
                   style={{ width: '100%' }}
-                  title={`Respawn from last session: ${restorableAgents.map((a: Agent) => a.name).join(', ')} — same ids, memory and inboxes reattach automatically`}
+                  title={`Respawn from last session: ${restorableAgents.map((a: Agent) => nameOf(a.id)).join(', ')} — same ids, memory and inboxes reattach automatically`}
                 >
                   <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                     <Icon name="play" /> {restoring ? 'restoring…' : `restore team (${restorableAgents.length})`}
@@ -479,7 +489,7 @@ export function FullscreenTerminal({ config }: FullscreenTerminalProps) {
                   {restorableAgents.map((a: Agent) => (
                     <span
                       key={a.id}
-                      title={`${a.name} — restorable from last session`}
+                      title={`${nameOf(a.id)} — restorable from last session`}
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: 2,
                         height: 20, padding: '0 2px 0 6px',
@@ -488,11 +498,11 @@ export function FullscreenTerminal({ config }: FullscreenTerminalProps) {
                         boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)'
                       }}
                     >
-                      {a.name}
+                      {nameOf(a.id)}
                       <button
                         onClick={() => useStore.getState().removeRestorableAgent(a.id)}
-                        title={`Dismiss ${a.name} — remove permanently from the restore list`}
-                        aria-label={`Dismiss ${a.name}`}
+                        title={`Dismiss ${nameOf(a.id)} — remove permanently from the restore list`}
+                        aria-label={`Dismiss ${nameOf(a.id)}`}
                         style={{
                           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                           width: 14, height: 14, padding: 0, lineHeight: 1,
@@ -526,7 +536,7 @@ export function FullscreenTerminal({ config }: FullscreenTerminalProps) {
             </div>
           ) : (
             <>
-              <Header agent={agent} />
+              <Header agent={agent} info={infoOf(agent)} />
 
               {/* #7C — pause / halt / steer. These only existed in the docked
                   sidebar, so going fullscreen took the operator controls away. */}
@@ -598,6 +608,7 @@ function ContextBar({ tokens, limit, accent }: { tokens?: number; limit?: number
 
 function SidebarRow({
   agent,
+  info,
   active,
   onClick,
   onNoteChange,
@@ -605,6 +616,7 @@ function SidebarRow({
   scale
 }: {
   agent: Agent;
+  info: AgentDisplay;
   active: boolean;
   onClick: () => void;
   onNoteChange: (note: string) => void;
@@ -664,7 +676,7 @@ function SidebarRow({
         onDrop={(e) => { e.preventDefault(); drag.drop(agent.id); }}
         onDragEnd={drag.end}
         onClick={onClick}
-        aria-label={`${agent.isGod ? 'Lead agent' : agent.name} · ${agent.project}`}
+        aria-label={`${info.label} · ${agent.project}`}
         aria-current={active ? 'true' : undefined}
         style={{
           width: '100%',
@@ -694,7 +706,7 @@ function SidebarRow({
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               fontFamily: 'var(--cth-font-display)',
               fontSize: scale.name, lineHeight: 1.5
-            }}>{agent.isGod ? 'Lead agent' : agent.name.toUpperCase()}</span>
+            }}>{info.isLead ? info.label : info.label.toUpperCase()}</span>
             {/* Your unsent text outranks the agent's own state here: an idle
                 agent with a draft on its prompt is not idle-and-free, it is
                 idle-and-held, and nothing else on screen said so. */}
@@ -709,7 +721,7 @@ function SidebarRow({
                 if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); toggleEditor(); }
               }}
               title={agent.note ? 'Edit private note' : 'Add private note'}
-              aria-label={`Edit note for ${agent.isGod ? 'Lead agent' : agent.name}`}
+              aria-label={`Edit note for ${info.label}`}
               style={{
                 flexShrink: 0, width: 20, height: 20,
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -820,7 +832,7 @@ function SidebarRow({
               }
             }}
             placeholder="one line per bullet…"
-            aria-label={`Note for ${agent.isGod ? 'Lead agent' : agent.name}`}
+            aria-label={`Note for ${info.label}`}
             style={{
               width: '100%',
               height: noteHeight,
@@ -848,7 +860,7 @@ function SidebarRow({
   );
 }
 
-function Header({ agent }: { agent: Agent }) {
+function Header({ agent, info }: { agent: Agent; info: AgentDisplay }) {
   const typing = useHasTerminalDraft(agent.ptyId);
   const archiveAgent = useStore((st) => st.archiveAgent);
   const [openState, setOpenState] = useState<'idle' | 'opening' | 'ok' | 'error'>('idle');
@@ -870,7 +882,7 @@ function Header({ agent }: { agent: Agent }) {
    *  button would read as "restart the lead agent" while looking like "close". */
   const onKill = async () => {
     if (!agent.ptyId) return;
-    if (!confirm(`Close ${agent.name}? The PTY process will terminate and the agent is archived (kept in history).`)) return;
+    if (!confirm(`Close ${info.label}? The PTY process will terminate and the agent is archived (kept in history).`)) return;
     await window.cth.killPty(agent.ptyId);
     disposeTerminal(agent.ptyId);
     archiveAgent(agent.id);
@@ -887,7 +899,7 @@ function Header({ agent }: { agent: Agent }) {
       <span style={{
         fontFamily: 'var(--cth-font-display)', fontSize: 10, lineHeight: '16px',
         color: 'var(--cth-ink-900)'
-      }}>{agent.isGod ? 'Lead agent' : agent.name.toUpperCase()}</span>
+      }}>{info.isLead ? info.label : info.label.toUpperCase()}</span>
       <span style={{
         fontSize: 12, color: 'var(--cth-ink-500)',
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -896,7 +908,7 @@ function Header({ agent }: { agent: Agent }) {
       <span style={{
         fontSize: 12, color: 'var(--cth-ink-700)',
         fontStyle: 'italic'
-      }}>“{agent.description}”</span>
+      }}>“{displayDescription(agent, info.isLead)}”</span>
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
         {/* v0.3.4: the IDE opens from agent level — full Monaco editor + git
             diff over this agent's workspace. The id is passed EXPLICITLY:
@@ -941,7 +953,7 @@ function Header({ agent }: { agent: Agent }) {
                 24px box — the button measured the same as its neighbours while
                 reading taller than them. */}
             <span
-              title={`Close ${agent.name} — ends the process and archives the agent`}
+              title={`Close ${info.label} — ends the process and archives the agent`}
               style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 0 }}
             >
               <Icon name="x" />

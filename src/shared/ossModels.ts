@@ -69,8 +69,6 @@ export function hasOssQuickPicks(provider: AgentProvider): boolean {
   return provider === 'opencode' || provider === 'crush' || provider === 'pi';
 }
 
-/** Canonical blog URLs the local-setup UI hyperlinks to (ondev-c part-3). */
-export const OSS_BLOG_LINKS = {
-  openModels: 'https://munderdiffl.in/blog/run-munder-difflin-on-open-models/',
-  macMini: 'https://munderdiffl.in/blog/run-munder-difflin-on-a-mac-mini/'
-} as const;
+/** Optional local-setup guide URLs the settings UI hyperlinks to. None are
+ *  configured right now; the UI renders no links when a field is absent. */
+export const OSS_BLOG_LINKS: { openModels?: string; macMini?: string } = {};

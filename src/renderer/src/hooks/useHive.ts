@@ -354,15 +354,15 @@ export function useHive(config: HarnessConfig | null): void {
       if (!res.ok) { godSpawning.current = false; useStore.getState().setGodStatus('failed'); return; }
       const god: Agent = {
         id: GOD_ID,
-        name: 'Michael',
+        name: 'Lead agent',
         character: 'michael',
         accent: 'lemon',
-        description: 'god — runs the floor, triages requests, escalates only critical calls to you',
+        description: 'Coordinates the other agents',
         project: 'hive',
         tmuxTarget: '',
         cwd: config.harnessHome!,
         status: 'idle',
-        action: 'running the floor',
+        action: 'starting up',
         progress: 0,
         currentStation: 'desk',
         ptyId: GOD_PTY,
@@ -388,7 +388,7 @@ export function useHive(config: HarnessConfig | null): void {
       bootGraceUntil.current[GOD_ID] = Date.now() + BOOT_GRACE_MS;
       void (async () => {
         try {
-          const remoteCommand = remoteControlCommandForProvider(godProvider, 'Michael');
+          const remoteCommand = remoteControlCommandForProvider(godProvider, 'Lead agent');
           if (remoteCommand) {
             // settleMs pauses the chain ~1.5s after /remote-control before the
             // orientation prompt (fresh spawns only) is submitted next.

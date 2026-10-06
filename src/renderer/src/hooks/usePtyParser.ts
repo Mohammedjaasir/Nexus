@@ -169,8 +169,8 @@ export function usePtyParser(agentId: string) {
       } else {
         updateAgent(agentId, {
           status: 'waiting',
-          action: 'waiting on god',
-          description: 'waiting on god',
+          action: 'waiting for the lead agent',
+          description: 'Waiting for the lead agent',
           currentStation: 'desk',
           blockReason: undefined
         });

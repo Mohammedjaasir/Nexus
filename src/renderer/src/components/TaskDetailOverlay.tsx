@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from '@/store/store';
+import { useRegistryIds } from '@/nexus/agents/agentIdentity';
+import { displayNameForId } from '@shared/agentDisplay';
+import { leadAgentId } from '@shared/agentDisplay';
 import { TaskDetail, parseTasks, type HiveTask } from './TasksKanban';
 
 /**
@@ -16,6 +19,7 @@ export function TaskDetailOverlay() {
   const closeTaskDetail = useStore((s) => s.closeTaskDetail);
   const agents = useStore((s) => s.agents);
   const restorable = useStore((s) => s.restorableAgents);
+  const hint = useRegistryIds();
   const [tasks, setTasks] = useState<HiveTask[]>([]);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -38,7 +42,7 @@ export function TaskDetailOverlay() {
   if (!task) return null;
 
   const nameFor = (id?: string): string | undefined =>
-    id ? (agents.find((a) => a.id === id)?.name ?? restorable.find((a) => a.id === id)?.name ?? id) : undefined;
+    id ? displayNameForId(id, [...agents, ...restorable], hint) : undefined;
 
   const move = async (status: HiveTask['status']) => {
     const next = tasks.map((t) => (t.id === task.id ? { ...t, status } : t));
@@ -53,7 +57,7 @@ export function TaskDetailOverlay() {
     // Route through the Command Center's dispatch box (which mails the god —
     // the human never writes into a worker's inbox directly).
     const st = useStore.getState();
-    const god = st.agents.find((a) => a.isGod);
+    const god = st.agents.find((a) => a.id === leadAgentId(st.agents, hint));
     if (god) st.select(god.id);
     const desc = task.description?.trim() ? task.description.trim() : '(no description)';
     st.requestDispatchSeed(`Task: ${task.title}\nContext: ${desc}\n`);

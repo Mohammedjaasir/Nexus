@@ -17,3 +17,12 @@ test('archived agents are excluded; a missing pty means no terminal', () => {
   const rows = agentRows([{ id: 'a', name: 'Builder', status: 'idle', archived: true }, { id: 'b', name: 'Builder 2', status: 'idle', ptyId: null }], {});
   assert.deepEqual(rows.map((r) => [r.id, r.hasTerminal]), [['b', false]]);
 });
+
+test('agent rows use the display model: seeds hidden, duplicate lead labelled', () => {
+  const rows = agentRows([
+    { id: 'god', name: 'Michael', isGod: true, status: 'idle', ptyId: 'p1' },
+    { id: 'agent-god', name: 'MICHAEL', isGod: true, status: 'idle', ptyId: null },
+    { id: 'c', name: 'Creed', status: 'idle', ptyId: 'p2', cwd: 'C:\\x\\Downloads' }
+  ], {});
+  assert.deepEqual(rows.map((r) => r.title), ['Lead agent', 'Agent · Downloads']);
+});

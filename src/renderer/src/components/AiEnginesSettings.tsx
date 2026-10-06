@@ -312,20 +312,32 @@ export function AiEnginesSettings({ config }: { config: HarnessConfig }) {
           </div>
         ))}
         {/* Local-setup guides (ondev-c part-3) — link the two how-to blogs. */}
-        <div style={{ fontSize: 12, color: 'var(--cth-ink-700)', lineHeight: '17px' }}>
-          Running open models? Step-by-step guides:{' '}
-          <a
-            href={OSS_BLOG_LINKS.openModels}
-            onClick={(e) => { e.preventDefault(); void window.cth.openExternal(OSS_BLOG_LINKS.openModels); }}
-            style={linkStyle}
-          >running on open models (guide)</a>
-          {' '}·{' '}
-          <a
-            href={OSS_BLOG_LINKS.macMini}
-            onClick={(e) => { e.preventDefault(); void window.cth.openExternal(OSS_BLOG_LINKS.macMini); }}
-            style={linkStyle}
-          >set it up on a Mac Mini</a>.
-        </div>
+        {(OSS_BLOG_LINKS.openModels || OSS_BLOG_LINKS.macMini) && (
+          <div style={{ fontSize: 12, color: 'var(--cth-ink-700)', lineHeight: '17px' }}>
+            Running open models? Step-by-step guides:{' '}
+            {OSS_BLOG_LINKS.openModels && (() => {
+              const url = OSS_BLOG_LINKS.openModels;
+              return (
+                <a
+                  href={url}
+                  onClick={(e) => { e.preventDefault(); void window.cth.openExternal(url); }}
+                  style={linkStyle}
+                >running on open models (guide)</a>
+              );
+            })()}
+            {OSS_BLOG_LINKS.openModels && OSS_BLOG_LINKS.macMini && <>{' '}·{' '}</>}
+            {OSS_BLOG_LINKS.macMini && (() => {
+              const url = OSS_BLOG_LINKS.macMini;
+              return (
+                <a
+                  href={url}
+                  onClick={(e) => { e.preventDefault(); void window.cth.openExternal(url); }}
+                  style={linkStyle}
+                >set it up on a Mac Mini</a>
+              );
+            })()}.
+          </div>
+        )}
       </div>
 
       {/* Unsandboxed-in-auto caveat (Pam guardrail #6) */}

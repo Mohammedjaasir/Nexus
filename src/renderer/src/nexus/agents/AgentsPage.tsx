@@ -5,6 +5,8 @@ import { AgentDetailPanel } from '@/components/AgentDetailPanel';
 import { MemoryPanel } from '@/components/MemoryPanel';
 import { Icon } from '../icons';
 import { agentRows } from './agentList';
+import { useRegistryIds } from './agentIdentity';
+import { leadAgentId } from '@shared/agentDisplay';
 import { useRestoreTeam } from '@/hooks/useRestoreTeam';
 import { restoreStatusLine, type RestoreStatus } from '@/hooks/restoreTeamPolicy';
 
@@ -18,6 +20,7 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
   const setAddAgentOpen = useStore((s) => s.setAddAgentOpen);
   const fullscreenAgentId = useStore((s) => s.fullscreenAgentId);
 
+  const hint = useRegistryIds();
   const { restoring, autoRestoring, pendingCount, restoreNote } = useRestoreTeam(config);
   const restoreStatus: RestoreStatus = restoring
     ? { kind: 'running', auto: autoRestoring }
@@ -28,7 +31,7 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
         : { kind: 'idle' };
   const restoreLine = restoreStatusLine(restoreStatus);
 
-  const rows = useMemo(() => agentRows(agents, queues as Record<string, unknown[]>), [agents, queues]);
+  const rows = useMemo(() => agentRows(agents, queues as Record<string, unknown[]>, hint), [agents, queues, hint]);
   const current = rows.find((r) => r.id === selectedId);
   const agent = current ? agents.find((a) => a.id === current.id) : undefined;
 
@@ -41,7 +44,7 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
   const toggleFullscreen = () => {
     const s = useStore.getState();
     if (fullscreenAgentId) { s.setFullscreen(null); return; }
-    const target = s.agents.find((x) => x.id === s.selectedId && x.ptyId) ?? s.agents.find((x) => x.isGod && x.ptyId) ?? s.agents.find((x) => x.ptyId);
+    const target = s.agents.find((x) => x.id === s.selectedId && x.ptyId) ?? s.agents.find((x) => x.id === leadAgentId(s.agents, hint) && x.ptyId) ?? s.agents.find((x) => x.ptyId);
     if (target) s.setFullscreen(target.id);
   };
 

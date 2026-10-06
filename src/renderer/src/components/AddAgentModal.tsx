@@ -12,8 +12,7 @@ import {
   OSS_LOCAL_PICKS,
   OSS_PROVIDER_PICKS,
   localSlugFor,
-  hasOssQuickPicks,
-  OSS_BLOG_LINKS
+  hasOssQuickPicks
 } from '@shared/ossModels';
 import {
   type AgentProvider,
@@ -41,7 +40,6 @@ const ossGroupHead: CSSProperties = {
   fontFamily: 'var(--cth-font-display)', fontSize: 8, lineHeight: '12px',
   color: 'var(--cth-ink-500)', textTransform: 'uppercase', marginBottom: 4
 };
-const ossLink: CSSProperties = { color: 'var(--cth-ink-900)', textDecoration: 'underline', cursor: 'pointer' };
 
 // One-click briefing templates — fill Description + Goal with a sharp, ready-to-run
 // role so a user isn't staring at a blank field (item 7).
@@ -77,7 +75,7 @@ const DESCRIPTION_TEMPLATES: { label: string; description: string; goal: string 
 // the exact JSON shape the importer accepts and ends with a fill-in section so the
 // user adds their own details (item 7). Kept in sync with the HireManifest schema
 // (src/shared/hire.ts) — provider allowlist is claude | codex | antigravity.
-const HIRE_PROMPT = `You are designing a "hire" — a ready-to-spawn AI agent for Nexus, an app that runs a team of CLI coding agents. Output ONE JSON object (a hire manifest) and nothing else.
+const HIRE_PROMPT = `You are designing an agent manifest — a ready-to-spawn AI agent for Nexus, an app that runs a team of CLI coding agents. Output ONE JSON object (an agent manifest) and nothing else.
 
 Make the agent genuinely useful: give it a sharp role, a concrete standing goal, and a description that makes it behave like an expert operator of its CLI engine (Claude Code, Codex, or Antigravity/Gemini). It should know how to use the terminal, read and edit files, run and inspect commands, lean on available skills and MCP tools, keep notes in memory, and work autonomously toward its goal without hand-holding.
 
@@ -463,13 +461,13 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                 display: 'flex', flexDirection: 'column', gap: 2
               }}>
                 <span>
-                  📋 hire imported: <strong>{hireMeta.name}</strong>
+                  Manifest imported: <strong>{hireMeta.name}</strong>
                   {hireMeta.author ? <> · by {hireMeta.author}</> : null}
                 </span>
                 <span>review every field — especially the command — before spawning.</span>
                 {hireMeta.commandFlags && hireMeta.commandFlags.length > 0 && (
                   <span style={{ display: 'flex', gap: 4, alignItems: 'baseline', flexWrap: 'wrap', marginTop: 2 }}>
-                    <span style={{ fontSize: 12 }}>⚠️ flags this hire appends to the command:</span>
+                    <span style={{ fontSize: 12 }}>Flags this manifest adds to the command:</span>
                     {hireMeta.commandFlags.map((f, i) => (
                       <code
                         key={`${f}-${i}`}
@@ -489,7 +487,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                 )}
                 {hireMeta.skills && hireMeta.skills.length > 0 && (
                   <span style={{ display: 'flex', gap: 4, alignItems: 'baseline', flexWrap: 'wrap', marginTop: 2 }}>
-                    <span style={{ fontSize: 12 }}>skills this hire activates:</span>
+                    <span style={{ fontSize: 12 }}>Skills this manifest turns on:</span>
                     {hireMeta.skills.map((s) => (
                       <code
                         key={s}
@@ -779,7 +777,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                           // the command field already carries it either way.
                           const known = modelsForProvider(provider);
                           return model && !known.some((m) => m.id === model)
-                            ? [...known, { id: model, label: `${model} (from hire)` }]
+                            ? [...known, { id: model, label: `${model} (from manifest)` }]
                             : known;
                         })().map((m) => {
                           const active = (model ?? '') === (m.id ?? '');
@@ -877,19 +875,8 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
 
                     {(provider === 'opencode' || provider === 'crush' || provider === 'pi' || provider === 'qwen') && (
                       <div style={{ fontSize: 12, color: 'var(--cth-ink-500)', lineHeight: '16px', margin: '2px 0 6px' }}>
-                        BYOK keys &amp; local endpoints for this engine live in <strong>Settings → AI Engines</strong>.
-                        {' '}New to local models? Read{' '}
-                        <a
-                          href={OSS_BLOG_LINKS.openModels}
-                          onClick={(e) => { e.preventDefault(); void window.cth.openExternal(OSS_BLOG_LINKS.openModels); }}
-                          style={ossLink}
-                        >run on open models</a>
-                        {' '}or{' '}
-                        <a
-                          href={OSS_BLOG_LINKS.macMini}
-                          onClick={(e) => { e.preventDefault(); void window.cth.openExternal(OSS_BLOG_LINKS.macMini); }}
-                          style={ossLink}
-                        >set up on a Mac Mini</a>.
+                        BYOK keys &amp; local endpoints for this engine live in <strong>Settings → Agents &amp; Models</strong>.
+                        {' '}Open models run through OpenCode, Crush or pi. Set the base URL in Settings → Agents &amp; Models.
                         {' '}Live end-to-end is pending real model calls (verify on-device).
                       </div>
                     )}
@@ -980,7 +967,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
             }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 12, color: 'var(--cth-ink-700)', lineHeight: '17px' }}>
-                  <strong>Import hire</strong> loads a ready-made agent from a <code style={{ fontFamily: 'var(--cth-font-mono)' }}>.json</code> manifest —
+                  <strong>Import manifest</strong> loads a ready-made agent from a <code style={{ fontFamily: 'var(--cth-font-mono)' }}>.json</code> manifest —
                   it fills in every field below for you to review. Nothing spawns until you hit <em>spawn</em>.
                 </span>
                 <button
@@ -1024,8 +1011,8 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
             </div>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-              <PixelButton variant="secondary" size="md" onClick={importHire} disabled={busy} title="Import a hire manifest (.json)">
-                import hire…
+              <PixelButton variant="secondary" size="md" onClick={importHire} disabled={busy} title="Import an agent manifest">
+                Import manifest…
               </PixelButton>
               <div style={{ flex: 1 }} />
               <PixelButton variant="ghost" size="md" onClick={onClose} disabled={busy}>cancel</PixelButton>

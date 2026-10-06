@@ -18,6 +18,8 @@ import { useFleetTelemetry } from '@/hooks/useTelemetry';
 import { COMMAND_GROUPS } from '@shared/claudeCommands';
 import { useStore, triggerHistoryVisible, type Agent } from '@/store/store';
 import { usePtyParser } from '@/hooks/usePtyParser';
+import { useRegistryIds } from '@/nexus/agents/agentIdentity';
+import { displayAgents, displayNameForId, visibleAgents } from '@shared/agentDisplay';
 import {
   buildSpawnCommand,
   decodeProviderModel,
@@ -322,7 +324,12 @@ export function CommandCenterPanel({ agent, fullscreen = false }: { agent: Agent
 // ─── Floor tab — roster, model, dispatch, dirs, assistant ────────────────────
 
 function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
-  const agents = useStore((s) => s.agents);
+  const allAgents = useStore((s) => s.agents);
+  const hint = useRegistryIds();
+  // Display-time only: the two dead legacy seed records are hidden, never deleted.
+  const agents = visibleAgents(allAgents, hint);
+  const shown = displayAgents(agents, hint);
+  const labelOf = (id: string, fallback: string): string => shown.get(id)?.label ?? fallback;
   const select = useStore((s) => s.select);
   const updateAgent = useStore((s) => s.updateAgent);
   const toolCounts = useStore((s) => s.toolCounts);
@@ -528,7 +535,7 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
     if (!body) return;
     const suggested = dispatchTo ? agents.find((a) => a.id === dispatchTo) : undefined;
     const full = suggested
-      ? `${body}\n\n(The human suggests ${suggested.name} (${suggested.id}) for this — your call as orchestrator.)`
+      ? `${body}\n\n(The human suggests ${labelOf(suggested.id, suggested.name)} (${suggested.id}) for this — your call as orchestrator.)`
       : body;
     const res = await window.cth.hiveSend(
       { to: 'god', act: 'request', subject: 'Task from the human', body: full },
@@ -536,7 +543,7 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
     );
     setDispatchText('');
     setDispatchMsg(res.ok
-      ? `sent to the lead agent${suggested ? ` (suggesting ${suggested.name})` : ''}`
+      ? `sent to the lead agent${suggested ? ` (suggesting ${labelOf(suggested.id, suggested.name)})` : ''}`
       : `failed: ${res.error ?? '?'}`);
     setTimeout(() => setDispatchMsg(null), 4000);
   };
@@ -605,7 +612,7 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
           <Select value={dispatchTo} onChange={setDispatchTo}>
             <option value="">Lead agent decides</option>
             {agents.filter((a) => !a.isGod).map((a) => (
-              <option key={a.id} value={a.id}>{a.name}</option>
+              <option key={a.id} value={a.id}>{labelOf(a.id, a.name)}</option>
             ))}
           </Select>
         </div>
@@ -657,7 +664,7 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
                   border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
                   fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-900)'
                 }}
-              >{a.isGod ? 'Lead agent' : a.name}</button>
+              >{labelOf(a.id, a.name)}</button>
               <PixelBadge status={armed ? 'looping' : a.status} />
               {armed && <span title={breaker?.reason} style={{ color: 'var(--cth-coral)', fontSize: 12 }}>⚠</span>}
               <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--cth-ink-500)' }}>
@@ -979,7 +986,7 @@ function ArchivedSection() {
           background: 'var(--cth-paper-100)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)'
         }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-700)' }}>{a.isGod ? 'Lead agent' : a.name}</div>
+            <div style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-700)' }}>{displayNameForId(a.id, archivedAgents)}</div>
             <div style={{ fontSize: 11, color: 'var(--cth-ink-500)', wordBreak: 'break-all' }}>{a.cwd}</div>
           </div>
           <button
@@ -995,7 +1002,10 @@ function ArchivedSection() {
 // ─── Memory tab ──────────────────────────────────────────────────────────────
 
 function MemoryTab({ godId, who: controlledWho, onWho }: { godId: string; who?: string; onWho?: (id: string) => void }) {
-  const agents = useStore((s) => s.agents);
+  const allAgents = useStore((s) => s.agents);
+  const hint = useRegistryIds();
+  const agents = visibleAgents(allAgents, hint);
+  const shownNames = displayAgents(agents, hint);
   // Selection is controllable from the graph tab; falls back to local state.
   const [internalWho, setInternalWho] = useState<string>(godId);
   const who = controlledWho ?? internalWho;
@@ -1079,7 +1089,7 @@ function MemoryTab({ godId, who: controlledWho, onWho }: { godId: string; who?: 
 
       <Section title="MEMORY FILE">
         <Select value={who} onChange={setWho}>
-          {agents.map((a) => (<option key={a.id} value={a.id}>{a.isGod ? 'Lead agent' : a.name}</option>))}
+          {agents.map((a) => (<option key={a.id} value={a.id}>{shownNames.get(a.id)?.label ?? a.name}</option>))}
         </Select>
         <Pre>{mem || 'No memory recorded yet.'}</Pre>
       </Section>
@@ -1170,6 +1180,9 @@ function TokenLimitEditor({ value, onSet }: { value?: number; onSet: (tokens: nu
 interface LogEntry { ts?: number; kind?: string; [k: string]: unknown }
 
 function ActivityTab() {
+  const agents = useStore((s) => s.agents);
+  const hint = useRegistryIds();
+  const nameOf = (id: unknown): string => displayNameForId(typeof id === 'string' ? id : id == null ? '' : String(id), agents, hint);
   const [log, setLog] = useState<LogEntry[]>([]);
   const [board, setBoard] = useState('');
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1186,9 +1199,9 @@ function ActivityTab() {
 
   const fmt = (e: LogEntry): string => {
     switch (e.kind) {
-      case 'spawn': return `spawned ${e.name ?? e.agentId}`;
-      case 'message': return `${e.from} → ${e.to}: ${e.subject || e.act}`;
-      case 'drain': return `${e.agentId} drained ${e.count} msg(s)`;
+      case 'spawn': return `spawned ${nameOf(e.agentId ?? e.name)}`;
+      case 'message': return `${nameOf(e.from)} → ${nameOf(e.to)}: ${e.subject || e.act}`;
+      case 'drain': return `${nameOf(e.agentId)} drained ${e.count} msg(s)`;
       case 'escalate': return `escalated to human: ${e.subject ?? ''}`;
       case 'approval': return `approval ${e.approve ? 'granted' : 'denied'}`;
       default: return JSON.stringify(e);

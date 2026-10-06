@@ -135,35 +135,7 @@
     "components/AddAgentModal.tsx": [
       {
         "rule": "office",
-        "text": " (from hire)"
-      },
-      {
-        "rule": "office",
-        "text": "⚠️ flags this hire appends to the command:"
-      },
-      {
-        "rule": "office",
-        "text": "📋 hire imported:"
-      },
-      {
-        "rule": "office",
-        "text": "Import a hire manifest (.json)"
-      },
-      {
-        "rule": "office",
-        "text": "Import hire"
-      },
-      {
-        "rule": "office",
-        "text": "import hire…"
-      },
-      {
-        "rule": "office",
-        "text": "skills this hire activates:"
-      },
-      {
-        "rule": "office",
-        "text": "You are designing a \"hire\" — a ready-to-spawn AI agent for Nexus, an app that runs a team of CLI coding agents. Output ONE JSON object (a hire manifest) and not"
+        "text": "You are designing an agent manifest — a ready-to-spawn AI agent for Nexus, an app that runs a team of CLI coding agents. Output ONE JSON object (an agent manife"
       }
     ],
     "components/AgentControlStrip.tsx": [
@@ -469,10 +441,6 @@
     "hooks/useHive.ts": [
       {
         "rule": "lead",
-        "text": "god — runs the floor, triages requests, escalates only critical calls to you"
-      },
-      {
-        "rule": "lead",
         "text": "orchestrator (god)"
       },
       {
@@ -501,14 +469,6 @@
       },
       {
         "rule": "office",
-        "text": "god — runs the floor, triages requests, escalates only critical calls to you"
-      },
-      {
-        "rule": "office",
-        "text": "running the floor"
-      },
-      {
-        "rule": "office",
         "text": "WORK ORDER FROM HIVE"
       },
       {
@@ -525,14 +485,6 @@
       },
       {
         "rule": "persona",
-        "text": "Michael"
-      },
-      {
-        "rule": "persona",
-        "text": "Michael"
-      },
-      {
-        "rule": "persona",
         "text": "Michael's prep assistant"
       },
       {
@@ -542,16 +494,6 @@
       {
         "rule": "persona",
         "text": "You're online as Michael, the orchestrator of the hive. Get oriented, then start running the floor:"
-      }
-    ],
-    "hooks/usePtyParser.ts": [
-      {
-        "rule": "lead",
-        "text": "waiting on god"
-      },
-      {
-        "rule": "lead",
-        "text": "waiting on god"
       }
     ],
     "main.tsx": [
@@ -758,16 +700,6 @@
       {
         "rule": "office",
         "text": "Never prompt for approval (-a never) but scope the sandbox to the project workspace (-s workspace-write). Safer, but blocks writes outside cwd (e.g. a hive agen"
-      }
-    ],
-    "shared/ossModels.ts": [
-      {
-        "rule": "brand",
-        "text": "https://munderdiffl.in/blog/run-munder-difflin-on-a-mac-mini/"
-      },
-      {
-        "rule": "brand",
-        "text": "https://munderdiffl.in/blog/run-munder-difflin-on-open-models/"
       }
     ],
     "shared/releaseDrop.ts": [

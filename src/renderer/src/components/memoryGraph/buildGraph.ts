@@ -9,6 +9,7 @@ import type { AccentColorName } from '@/design/tokens';
 import type { StatusKind } from '@/components/PixelBadge';
 import type { MessageAct } from '@/scene/office/MessageEnvelope';
 import { extractTopics } from './extractTopics';
+import { displayAgents } from '@shared/agentDisplay';
 
 export interface AgentNode {
   kind: 'agent';
@@ -63,6 +64,9 @@ export interface MinimalAgent {
   accent: AccentColorName;
   status: StatusKind;
   isGod?: boolean;
+  isAssistant?: boolean;
+  cwd?: string | null;
+  ptyId?: string | null;
 }
 export interface MessageLogEntry {
   ts?: number;
@@ -141,11 +145,12 @@ export function buildGraph(
 
   // agent nodes — only those that actually appear, plus god, to avoid lone dots.
   // We include every roster agent so the floor is fully represented.
+  const shown = displayAgents(agents);
   for (const a of agents) {
     nodes.push({
       kind: 'agent',
       id: a.id,
-      label: a.name,
+      label: shown.get(a.id)?.label ?? a.name,
       accent: a.accent,
       status: a.status,
       isGod: !!a.isGod,
