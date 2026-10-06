@@ -240,6 +240,8 @@ CREATE TABLE layout (                    -- avatar positions/rooms
 );
 ```
 
+The schema above is the original sketch. The current database is `harness.db` at schema v7, which adds the Nexus platform core: principals, workspaces and participation, artifacts and versions, lineage, jobs, agent sessions and the activity log. For it, see [`docs/nexus/platform-core.md`](docs/nexus/platform-core.md). That document covers the tables, the indexes and their access reasons, the triggers and the authorization chain. It also has the migration runbook: the backup, the log lines, the `NEXUS_DB_HOLD_V7` hold and the verified restore tool.
+
 ---
 
 ## 10. Risks & open questions
