@@ -14,7 +14,12 @@
  *   `denied` activity row, redacted, written in its OWN IMMEDIATE transaction
  *   (appendActivityRow opens one when no transaction is active), then throws
  *   PlatformError('denied'). Services call require() BEFORE opening their own
- *   transaction, so a rollback of the operation cannot take the denial row with it.
+ *   transaction. If a denial happens while a transaction is open anyway, the row is
+ *   not written into it (a rollback would lose it): it is queued and written once
+ *   the transaction has ended (bounded retries, then a logged warning), and the
+ *   error's detail says `audited: 'deferred'`.
+ * - A workspace grant applies to a project scope only while the project has an
+ *   ACTIVE project_workspaces row for that workspace.
  */
 import type Database from 'better-sqlite3';
 import type {
@@ -28,11 +33,20 @@ import { PrincipalResolver } from './principals';
 const KINDS: readonly PrincipalKind[] = ['user', 'agent', 'system'];
 const isStr = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
 
+/** Every id-like string written to a denial row is truncated to this many characters. */
+export const MAX_AUDIT_ID_CHARS = 128;
+/** A denial raised inside a caller's transaction is written later; this many attempts, then give up. */
+export const DEFERRED_AUDIT_ATTEMPTS = 5;
+
+const cap = (v: unknown): string | null => (isStr(v) ? v.slice(0, MAX_AUDIT_ID_CHARS) : null);
+
 export class AuthService {
   private readonly principals: PrincipalResolver;
+  private readonly log: (line: string) => void;
 
-  constructor(private readonly db: Database.Database, private readonly deps: { now: () => number }) {
+  constructor(private readonly db: Database.Database, private readonly deps: { now: () => number; log?: (line: string) => void }) {
     this.principals = new PrincipalResolver(db);
+    this.log = deps.log ?? (() => {});
   }
 
   rolesFor(principalId: PrincipalId, scope: ScopeRef): Role[] {
@@ -45,7 +59,12 @@ export class AuthService {
       clauses.push("(scope_type = 'workspace' AND scope_id = ?)"); args.push(scope.workspaceId);
     } else if (scope.type === 'project' && isStr(scope.projectId)) {
       clauses.push("(scope_type = 'project' AND scope_id = ?)"); args.push(scope.projectId);
-      if (isStr(scope.workspaceId)) { clauses.push("(scope_type = 'workspace' AND scope_id = ?)"); args.push(scope.workspaceId); }
+      // A workspace grant reaches a project only while the project actively participates in that workspace.
+      if (isStr(scope.workspaceId)) {
+        clauses.push(`(scope_type = 'workspace' AND scope_id = ? AND EXISTS (SELECT 1 FROM project_workspaces pw
+          WHERE pw.project_id = ? AND pw.workspace_id = ? AND pw.status = 'active'))`);
+        args.push(scope.workspaceId, scope.projectId, scope.workspaceId);
+      }
     } else {
       return [];
     }
@@ -55,38 +74,70 @@ export class AuthService {
   }
 
   authorize(p: Principal, action: PlatformAction, scope: ScopeRef): AuthDecision {
+    return this.evaluate(p, action, scope).decision;
+  }
+
+  private evaluate(p: Principal, action: PlatformAction, scope: ScopeRef) {
     const stored = isStr(p?.id) ? this.principals.get(p.id) : null;
     // The stored record is the identity; a mismatched kind is not that principal.
     const principal = stored && stored.kind === p.kind ? stored : null;
-    return decide({
+    const decision = decide({
       principal,
       disabled: principal ? principal.disabledAt !== null : false,
       roles: principal ? this.rolesFor(principal.id, scope) : [],
       action
     });
+    return { decision, stored };
   }
 
   require(p: Principal, action: PlatformAction, scope: ScopeRef, audit?: Partial<NewActivity>): Role | 'system' {
-    const d = this.authorize(p, action, scope);
+    const { decision: d, stored } = this.evaluate(p, action, scope);
     if (d.allowed) return d.role;
     const extra = audit?.details && typeof audit.details === 'object' && !Array.isArray(audit.details) ? audit.details as Record<string, unknown> : {};
     const details: Record<string, unknown> = { ...extra, reason: d.reason };
+    delete details.claimedKind;
     if (d.needed) details.needed = d.needed; else delete details.needed;
+    // A known id with a mismatched kind is recorded as the stored principal, with the claim alongside.
+    const forged = stored !== null && stored.kind !== p.kind;
+    if (forged) details.claimedKind = typeof p?.kind === 'string' ? String(p.kind).slice(0, 32) : String(p?.kind);
     const row: NewActivity = {
-      onBehalfOf: audit?.onBehalfOf ?? null, sessionId: audit?.sessionId ?? null, jobId: audit?.jobId ?? null,
-      attemptN: audit?.attemptN ?? null, artifactId: audit?.artifactId ?? null, versionId: audit?.versionId ?? null,
-      entityId: audit?.entityId ?? null,
-      entityType: isStr(audit?.entityType) ? audit!.entityType : String(action).split('.')[0] || 'platform',
-      workspaceId: scopeWorkspace(scope) ?? audit?.workspaceId ?? null,
-      projectId: scopeProject(scope) ?? audit?.projectId ?? null,
+      onBehalfOf: cap(audit?.onBehalfOf), sessionId: cap(audit?.sessionId), jobId: cap(audit?.jobId),
+      attemptN: audit?.attemptN ?? null, artifactId: cap(audit?.artifactId), versionId: cap(audit?.versionId),
+      entityId: cap(audit?.entityId),
+      entityType: cap(audit?.entityType) ?? (String(action).split('.')[0] || 'platform').slice(0, MAX_AUDIT_ID_CHARS),
+      workspaceId: cap(scopeWorkspace(scope) ?? audit?.workspaceId),
+      projectId: cap(scopeProject(scope) ?? audit?.projectId),
       // Fixed fields last: the audit hint cannot rewrite who acted, what was asked, or the outcome.
-      actorKind: KINDS.includes(p?.kind) ? p.kind : 'user',
-      actorId: isStr(p?.id) ? p.id : String(p?.id ?? ''),
-      action: String(action), status: 'denied', details
+      actorKind: forged ? stored.kind : KINDS.includes(p?.kind) ? p.kind : 'user',
+      actorId: forged ? stored.id : cap(p?.id) ?? String(p?.id ?? '').slice(0, MAX_AUDIT_ID_CHARS),
+      action: String(action).slice(0, MAX_AUDIT_ID_CHARS), status: 'denied', details
     };
-    let audited = true;
-    try { appendActivityRow(this.db, row, this.deps.now()); } catch { audited = false; }   // the denial stands either way
+    let audited: boolean | 'deferred';
+    if (this.db.inTransaction) {
+      // Writing now would put the row in the caller's transaction, which may roll back. Write it after.
+      audited = 'deferred';
+      this.log(`[nexus] denial audit deferred until the open transaction ends: ${row.action} (${d.reason})`);
+      const ts = this.deps.now();
+      queueMicrotask(() => this.writeDeferred(row, ts, 1));
+    } else {
+      audited = true;
+      try { appendActivityRow(this.db, row, this.deps.now()); } catch { audited = false; }   // the denial stands either way
+    }
     throw new PlatformError('denied', `${String(action)} denied: ${d.reason}`, { reason: d.reason, needed: d.needed, audited });
+  }
+
+  private writeDeferred(row: NewActivity, ts: number, attempt: number): void {
+    if (this.db.inTransaction || !this.db.open) {
+      if (attempt >= DEFERRED_AUDIT_ATTEMPTS || !this.db.open) {
+        this.log(`[nexus] warning: denial audit dropped after ${attempt} attempt(s): ${row.action}`);
+        return;
+      }
+      setTimeout(() => this.writeDeferred(row, ts, attempt + 1), 10 * attempt);
+      return;
+    }
+    try { appendActivityRow(this.db, row, ts); } catch (e) {
+      this.log(`[nexus] warning: deferred denial audit failed: ${row.action} (${(e as { code?: string })?.code ?? 'error'})`);
+    }
   }
 }
 

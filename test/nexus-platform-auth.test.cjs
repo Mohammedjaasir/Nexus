@@ -60,23 +60,23 @@ const deniedRows = (db) => db.prepare("SELECT * FROM activity WHERE status='deni
 function addPrincipal(db, id, kind = 'user') { db.prepare('INSERT INTO principals VALUES (?,?,?,NULL,?)').run(id, kind, id, h.NOW); }
 function addMembership(db, id, type, scopeId, role) { db.prepare('INSERT INTO memberships VALUES (?,?,?,?,?)').run(id, type, scopeId, role, h.NOW); }
 
-test('scope matching: platform rows apply everywhere; workspace rows apply to that workspace and to projects named in it', () => {
+test('scope matching: platform rows apply everywhere; workspace rows apply to that workspace and to projects actively participating in it', () => {
   const { s, db, nx } = setup();
   addPrincipal(db, 'user:guest');
-  addMembership(db, 'user:guest', 'workspace', 'ml', 'member');
+  addMembership(db, 'user:guest', 'workspace', 'sde', 'member');
   addMembership(db, 'user:guest', 'project', 'p-ledger', 'viewer');
   assert.deepEqual(nx.auth.rolesFor('user:local', { type: 'platform' }), ['owner']);
   assert.deepEqual(nx.auth.rolesFor('user:local', proj('p-ledger')), ['owner']);
   assert.deepEqual(nx.auth.rolesFor('user:guest', { type: 'platform' }), []);
-  assert.deepEqual(nx.auth.rolesFor('user:guest', ws('ml')), ['member']);
-  assert.deepEqual(nx.auth.rolesFor('user:guest', ws('sde')), []);
+  assert.deepEqual(nx.auth.rolesFor('user:guest', ws('sde')), ['member']);
+  assert.deepEqual(nx.auth.rolesFor('user:guest', ws('ml')), []);
   assert.deepEqual(nx.auth.rolesFor('user:guest', proj('p-ledger')), ['viewer']);
-  assert.deepEqual(nx.auth.rolesFor('user:guest', { type: 'project', projectId: 'p-ledger', workspaceId: 'ml' }).sort(), ['member', 'viewer']);
+  assert.deepEqual(nx.auth.rolesFor('user:guest', { type: 'project', projectId: 'p-ledger', workspaceId: 'sde' }).sort(), ['member', 'viewer']);
   assert.deepEqual(nx.auth.rolesFor('user:guest', { type: 'project', projectId: 'p-invoice', workspaceId: 'sde' }), []);
   const guest = nx.principals.get('user:guest');
-  assert.equal(nx.auth.authorize(guest, 'job.create', ws('ml')).allowed, true);
-  assert.deepEqual(nx.auth.authorize(guest, 'job.create', ws('sde')), { allowed: false, reason: 'no_membership' });
-  assert.equal(nx.auth.authorize(guest, 'job.create', { type: 'project', projectId: 'p-ledger', workspaceId: 'ml' }).allowed, true);
+  assert.equal(nx.auth.authorize(guest, 'job.create', ws('sde')).allowed, true);
+  assert.deepEqual(nx.auth.authorize(guest, 'job.create', ws('ml')), { allowed: false, reason: 'no_membership' });
+  assert.equal(nx.auth.authorize(guest, 'job.create', { type: 'project', projectId: 'p-ledger', workspaceId: 'sde' }).allowed, true);
   assert.deepEqual(nx.auth.authorize(guest, 'job.create', proj('p-ledger')), { allowed: false, reason: 'role', needed: 'member' });
   assert.deepEqual(nx.auth.authorize(guest, 'activity.read', { type: 'platform' }), { allowed: false, reason: 'no_membership' });
   assert.equal(nx.auth.authorize(nx.principals.localUser(), 'artifact.archive', ws('sde')).allowed, true);
@@ -125,9 +125,14 @@ test('agent principals are denied, even with an owner membership, and the denial
   s.close();
 });
 test('identity comes from the database: a caller cannot claim another kind for a known id', () => {
-  const { s, nx } = setup();
+  const { s, db, nx } = setup();
   const forged = { id: 'user:local', kind: 'system', displayName: 'Local owner' };
   assert.deepEqual(nx.auth.authorize(forged, 'system.reconcile', { type: 'platform' }), { allowed: false, reason: 'unknown_principal' });
+  assert.throws(() => nx.auth.require(forged, 'system.reconcile', { type: 'platform' }), (e) => e.code === 'denied' && e.detail.audited === true);
+  const forgedRow = deniedRows(db).pop();
+  assert.equal(forgedRow.actor_kind, 'user'); assert.equal(forgedRow.actor_id, 'user:local'); assert.equal(forgedRow.action, 'system.reconcile');
+  const forgedDetails = JSON.parse(forgedRow.details_json);
+  assert.equal(forgedDetails.reason, 'unknown_principal'); assert.equal(forgedDetails.claimedKind, 'system');
   assert.deepEqual(nx.auth.authorize(nx.principals.localUser(), 'system.reconcile', { type: 'platform' }), { allowed: false, reason: 'system_only' });
   assert.equal(nx.auth.require(nx.principals.system(), 'system.reconcile', { type: 'platform' }), 'system');
   assert.equal(nx.auth.require(nx.principals.system(), 'artifact.archive', proj('p-ledger')), 'admin');
@@ -172,5 +177,66 @@ test('activity list filters by project, session and job, pages by seq, caps the 
 test('startup confirms the seeded principals and is repeatable', () => {
   const { s, nx } = setup();
   nx.startup(); nx.startup();
+  s.close();
+});
+
+// ----- fix round 1 -----
+test('a workspace grant reaches a project only while the project actively participates in that workspace', () => {
+  const { s, db, nx } = setup();
+  addPrincipal(db, 'user:ws-admin');
+  addMembership(db, 'user:ws-admin', 'workspace', 'sde', 'admin');
+  const admin = nx.principals.get('user:ws-admin');
+  // active participation (p-ledger is backfilled into sde): allowed
+  assert.deepEqual(nx.auth.authorize(admin, 'artifact.archive', { type: 'project', projectId: 'p-ledger', workspaceId: 'sde' }), { allowed: true, role: 'admin' });
+  // not participating (p-invoice is in dl only): the workspace grant does not apply
+  assert.deepEqual(nx.auth.authorize(admin, 'artifact.read', { type: 'project', projectId: 'p-invoice', workspaceId: 'sde' }), { allowed: false, reason: 'no_membership' });
+  assert.throws(() => nx.auth.require(admin, 'artifact.read', { type: 'project', projectId: 'p-invoice', workspaceId: 'sde' }), (e) => e.code === 'denied');
+  // withdrawn participation: denied again
+  db.prepare("UPDATE project_workspaces SET status='withdrawn', is_primary=0 WHERE project_id='p-ledger' AND workspace_id='sde'").run();
+  assert.deepEqual(nx.auth.authorize(admin, 'artifact.read', { type: 'project', projectId: 'p-ledger', workspaceId: 'sde' }), { allowed: false, reason: 'no_membership' });
+  // a project row still applies on its own
+  addMembership(db, 'user:ws-admin', 'project', 'p-ledger', 'viewer');
+  assert.deepEqual(nx.auth.authorize(admin, 'artifact.archive', { type: 'project', projectId: 'p-ledger', workspaceId: 'sde' }), { allowed: false, reason: 'role', needed: 'admin' });
+  s.close();
+});
+test('a denial inside a caller transaction is audited after that transaction rolls back, exactly once', async () => {
+  const lines = [];
+  const { s, db } = setup();
+  const nx = createNexusPlatform(db, { now: () => h.NOW, log: (l) => lines.push(l) });
+  const action = 'job.cancel';
+  const before = db.prepare("SELECT COUNT(*) AS n FROM activity WHERE status='denied' AND action=?").get(action).n;
+  let err = null;
+  assert.throws(() => db.transaction(() => {
+    try { nx.auth.require({ id: 'user:guest', kind: 'user', displayName: 'guest' }, action, proj('p-ledger')); } catch (e) { err = e; }
+    throw new Error('caller rolls back');
+  }).immediate(), /caller rolls back/);
+  assert.equal(err.code, 'denied'); assert.equal(err.detail.audited, 'deferred');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM activity WHERE status='denied' AND action=?").get(action).n, before);
+  await new Promise((r) => setImmediate(r));
+  const rows = db.prepare("SELECT * FROM activity WHERE status='denied' AND action=?").all(action);
+  assert.equal(rows.length, before + 1);
+  assert.equal(rows[rows.length - 1].actor_id, 'user:guest'); assert.match(rows[rows.length - 1].details_json, /unknown_principal/);
+  assert.ok(lines.some((l) => /deferred/.test(l) && !/user:guest/.test(l)));
+  assert.equal(nx.activity.verifyChain(nx.principals.localUser()).ok, true);
+  s.close();
+});
+test('audit id fields from the hint and the caller id are truncated to 128 characters', () => {
+  const { s, db, nx } = setup();
+  const long = 'x'.repeat(5000);
+  assert.throws(() => nx.auth.require({ id: `user:${long}`, kind: 'user', displayName: 'guest' }, 'job.create', proj('p-ledger'),
+    { onBehalfOf: long, sessionId: long, jobId: long, entityId: long }), (e) => e.code === 'denied' && e.detail.audited === true);
+  const row = deniedRows(db).pop();
+  for (const c of ['actor_id', 'on_behalf_of', 'session_id', 'job_id', 'entity_id']) assert.equal(row[c].length, 128, c);
+  assert.ok(row.actor_id.startsWith('user:x'));
+  s.close();
+});
+test('when the audit insert fails the denial still throws, with audited false', () => {
+  const { s, db, nx } = setup();
+  const n = h.count(db, 'activity');
+  db.exec("CREATE TEMP TRIGGER t_fail_activity BEFORE INSERT ON main.activity BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END;");
+  assert.throws(() => nx.auth.require({ id: 'user:guest', kind: 'user', displayName: 'guest' }, 'job.create', proj('p-ledger')),
+    (e) => e.code === 'denied' && e.detail.audited === false);
+  db.exec('DROP TRIGGER temp.t_fail_activity');
+  assert.equal(h.count(db, 'activity'), n);
   s.close();
 });

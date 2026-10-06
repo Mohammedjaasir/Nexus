@@ -23,7 +23,7 @@ export function createNexusPlatform(db: Database.Database, opts?: { now?: () => 
   const now = opts?.now ?? Date.now;
   const log = opts?.log ?? (() => {});
   const principals = new PrincipalResolver(db);
-  const auth = new AuthService(db, { now });
+  const auth = new AuthService(db, { now, log });
   const activity = new ActivityService(db, { auth });
   return {
     principals, auth, activity,
