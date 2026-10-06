@@ -30,7 +30,7 @@ import { resolveAllowedRoot, derivedRootListsFolder } from './fsRoots';
 import { decidePermission, decidePermissionCheck, isAllowedExternalUrl, isInAppNavigation, externalUrlForShell } from './windowPolicy';
 import {
   sanitizeSpawnRequest, classifySpawn, commandLineKey, resolveWorkerCommand, addTrustedEngine,
-  engineConfirmText, ENGINE_NOT_ALLOWED, ENGINE_INVALID, ENGINE_FORBIDDEN
+  engineConfirmText, autoFlagBlocked, ENGINE_NOT_ALLOWED, ENGINE_INVALID, ENGINE_FORBIDDEN, ENGINE_AUTO_FLAG_OFF
 } from './spawnPolicy';
 import {
   getBranch, getStatus, getLog, getBranches, getAheadBehind, isRepo, getDiff, mainRepoRoot,
@@ -2543,10 +2543,13 @@ async function ensureAllowedEngine(
   cwd: string,
   owner: Electron.WebContents | null
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const verdict = classifySpawn(command, args, readConfig(), provider);
+  const cfg = readConfig();
+  const verdict = classifySpawn(command, args, cfg, provider);
   if (verdict.ok) return { ok: true };
   if (verdict.reason === 'invalid') return { ok: false, error: ENGINE_INVALID };
   if (verdict.reason === 'forbidden') return { ok: false, error: ENGINE_FORBIDDEN };
+  // Auto mode off: never offer to trust a line that turns bypass on (finding 1b).
+  if (autoFlagBlocked(command, args, cfg, provider)) return { ok: false, error: ENGINE_AUTO_FLAG_OFF };
   const line = commandLineKey(command.trim(), args);
   let pending = pendingEngineConfirms.get(line);
   if (!pending) {
@@ -2559,7 +2562,10 @@ async function ensureAllowedEngine(
       };
       const res = parent ? await dialog.showMessageBox(parent, boxOpts) : await dialog.showMessageBox(boxOpts);
       if (res.response !== 0) return false;
-      writeConfig({ trustedEngineCommands: addTrustedEngine(readConfig().trustedEngineCommands, line) });
+      // Re-read: auto mode may have been turned off while the dialog was open.
+      const now = readConfig();
+      if (autoFlagBlocked(command, args, now, provider)) return false;
+      writeConfig({ trustedEngineCommands: addTrustedEngine(now.trustedEngineCommands, line, now, provider) });
       return true;
     })().finally(() => pendingEngineConfirms.delete(line));
     pendingEngineConfirms.set(line, pending);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { acquireTerminal, disposeTerminal, resetTerminal } from '@/components/terminalPool';
 import { useStore, type Agent } from '@/store/store';
 import { LEAD_HIVE_NAME, LEAD_HIVE_ROLE } from '@shared/agentDisplay';
+import { normalizeAutoFlagCommand } from '@shared/autoModeFlag';
 import {
   buildSpawnCommand,
   inferAgentProvider,
@@ -119,7 +120,8 @@ export function useRestartAgent(): {
       } else {
         resetTerminal(a.ptyId);
       }
-      const command = buildSpawnCommand(cfg, model, provider);
+      // The auto flag always follows the current auto mode (finding 1).
+      const command = normalizeAutoFlagCommand(buildSpawnCommand(cfg, model, provider), cfg.autoMode === true, provider);
       const [exe, ...args] = tokenizeCommand(command.trim());
       const hive = a.isGod
         ? { id: a.id, name: LEAD_HIVE_NAME, cwd: a.cwd, provider, isGod: true, role: LEAD_HIVE_ROLE }

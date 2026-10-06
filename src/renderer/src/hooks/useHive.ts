@@ -17,6 +17,7 @@ import {
 import { DEFAULT_CONTEXT_TRIGGER, type ContextRule } from '../../../shared/triggers';
 import type { AgentProvider } from '../../../shared/agentProvider';
 import { LEAD_HIVE_NAME, LEAD_HIVE_ROLE } from '../../../shared/agentDisplay';
+import { normalizeAutoFlagCommand } from '../../../shared/autoModeFlag';
 import { acquireTerminal, resetTerminal, isTerminalAutomationSafe } from '@/components/terminalPool';
 import { deliverWithAcknowledgement } from './queueDelivery';
 import { OFFICE_CAST, DEFAULT_CHARACTER } from '@/scene/office/cast';
@@ -335,7 +336,8 @@ export function useHive(config: HarnessConfig | null): void {
 
       const godProvider = config.godProvider ?? 'claude';
       const godModel = config.godModel;
-      const command = buildSpawnCommand(config, godModel, godProvider);
+      // The auto flag always follows the current auto mode (finding 1).
+      const command = normalizeAutoFlagCommand(buildSpawnCommand(config, godModel, godProvider), config.autoMode === true, godProvider);
       const [exe, ...args] = tokenizeCommand(command.trim());
       const res = await window.cth.spawnPty({
         id: GOD_PTY,
@@ -1064,7 +1066,13 @@ export function useHive(config: HarnessConfig | null): void {
         const provider = inferAgentProvider(a.command, a.provider);
         // Prefer the agent's exact recorded command (same model/flags); fall back to
         // a rebuilt one only if it predates the persisted `command` field.
-        const command = (a.command ?? '').trim() || buildSpawnCommand(cfg, a.model, provider);
+        // The persisted line was built under the auto mode of its day: bring its
+        // auto flag in line with the current setting before respawning (finding 1).
+        const command = normalizeAutoFlagCommand(
+          (a.command ?? '').trim() || buildSpawnCommand(cfg, a.model, provider),
+          cfg.autoMode === true,
+          provider
+        );
         const [exe, ...args] = tokenizeCommand(command);
         const hive = a.isGod
           ? { id: a.id, name: LEAD_HIVE_NAME, cwd, provider, isGod: true, role: LEAD_HIVE_ROLE }
@@ -1093,7 +1101,7 @@ export function useHive(config: HarnessConfig | null): void {
         });
         if (res.ok) {
           reviving.current[deadId] = Date.now(); // re-stamp so the debounce covers the spawn
-          useStore.getState().updateAgent(a.id, { status: 'idle', action: 'revived after sleep' });
+          useStore.getState().updateAgent(a.id, { status: 'idle', action: 'revived after sleep', command });
         } else {
           delete reviving.current[deadId]; // let a later power:resume retry it
           console.error('[autorevive] respawn failed for', a.id, res.error);

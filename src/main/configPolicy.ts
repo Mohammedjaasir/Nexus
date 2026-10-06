@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import type { HarnessConfig } from './config';
 import { isAgentProvider, providerPreset, type AgentProvider } from '../shared/agentProvider';
 import { expandTilde } from './fs';
-import { MODEL_VALUE, classifySpawn, shrinkTrustedEngines, tokenizeCommandLine } from './spawnPolicy';
+import { MODEL_VALUE, autoFlagBlocked, classifySpawn, shrinkTrustedEngines, tokenizeCommandLine } from './spawnPolicy';
 
 /**
  * Which config keys the renderer may change through `config:update` (O.9 #22),
@@ -315,6 +315,9 @@ function classifyConfirmKey(k: keyof HarnessConfig, value: unknown, current: Har
       if (SHELL_SYNTAX.test(value)) return 'reject';
       const toks = tokenizeCommandLine(value.trim());
       if (toks.length === 0) return 'reject';
+      // Auto mode off: the default command may not carry a bypass flag; auto
+      // mode alone decides that flag (B0a final review, finding 1b).
+      if (autoFlagBlocked(toks[0], toks.slice(1), { autoMode: current.autoMode })) return 'reject';
       // Option B: a provider preset CLI with only allow-listed flags is no
       // escalation; anything else is shown in full in the dialog.
       const v = classifySpawn(toks[0], toks.slice(1), {

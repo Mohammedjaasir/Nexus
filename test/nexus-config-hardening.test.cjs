@@ -146,8 +146,9 @@ test('defaultCommand: a preset CLI applies, a program asks, a shell is refused, 
   assert.deepEqual(p.classifyConfigPatch({ defaultCommand: 'claude --model claude-fable-5' }, cur).apply, { defaultCommand: 'claude --model claude-fable-5' });
   // A preset with a flag that is not on its allow-list is shown in the dialog.
   assert.deepEqual(p.classifyConfigPatch({ defaultCommand: 'claude --settings x.json' }, cur).confirm.map((c) => c.key), ['defaultCommand']);
-  // The bypass flag is on the list only while auto mode is on.
-  assert.deepEqual(p.classifyConfigPatch({ defaultCommand: 'claude --permission-mode bypassPermissions' }, cur).confirm.map((c) => c.key), ['defaultCommand']);
+  // The bypass flag is on the list only while auto mode is on; with auto mode
+  // off it is refused outright, not offered (B0a final review, finding 1b).
+  assert.deepEqual(p.classifyConfigPatch({ defaultCommand: 'claude --permission-mode bypassPermissions' }, cur).rejected, ['defaultCommand']);
   assert.deepEqual(p.classifyConfigPatch({ defaultCommand: 'claude --permission-mode bypassPermissions' }, { ...cur, autoMode: true }).confirm, []);
   for (const bad of ['cmd /c calc', 'powershell', 'claude & calc', '', 42]) {
     assert.deepEqual(p.classifyConfigPatch({ defaultCommand: bad }, cur).rejected, ['defaultCommand'], String(bad));

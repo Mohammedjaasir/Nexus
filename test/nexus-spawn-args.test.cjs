@@ -113,7 +113,7 @@ test('the dialog shows the full command line', () => {
   const idx = fs.readFileSync(path.join(__dirname, '..', 'src/main/index.ts'), 'utf8');
   assert.match(idx, /const line = commandLineKey\(command\.trim\(\), args\)/);
   assert.match(idx, /engineConfirmText\(line, /);
-  assert.match(idx, /addTrustedEngine\(readConfig\(\)\.trustedEngineCommands, line\)/);
+  assert.match(idx, /addTrustedEngine\(now\.trustedEngineCommands, line, now, provider\)/);
   assert.match(idx, /ensureAllowedEngine\(sanitized\.opts\.command, sanitized\.opts\.args, /);
 });
 

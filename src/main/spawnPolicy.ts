@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import { AGENT_PROVIDER_PRESETS, inferAgentProvider, isAgentProvider, providerPreset, type AgentProvider } from '../shared/agentProvider';
+import { argsHaveAutoFlag } from '../shared/autoModeFlag';
 import type { AgentMeta } from './hive';
 
 /**
@@ -227,6 +228,10 @@ export function classifySpawn(
   const preset = presetForBinary(bin);
   if (preset && argsWithinAllowList(args, presetFlagAllowList(preset, cfg))) return { ok: true, source: 'preset' };
 
+  // Auto mode off: a line that carries a preset's bypass flag is never run on
+  // the strength of the configured command or a trusted entry (finding 1b).
+  if (autoFlagBlocked(bin, args, cfg, provider)) return { ok: false, reason: 'needs-confirmation' };
+
   const configuredToks = typeof cfg.defaultCommand === 'string' ? tokenizeCommandLine(cfg.defaultCommand.trim()) : [];
   if (configuredToks[0] && configuredToks[0] === bin) {
     const confArgs = configuredToks.slice(1);
@@ -241,6 +246,24 @@ export function classifySpawn(
   const trusted = Array.isArray(cfg.trustedEngineCommands) ? cfg.trustedEngineCommands : [];
   if (trusted.includes(commandLineKey(bin, args))) return { ok: true, source: 'trusted' };
   return { ok: false, reason: 'needs-confirmation' };
+}
+
+/**
+ * Whether this command line carries a preset's auto (bypass) flag while auto
+ * mode is off (B0a final review, finding 1b). Such a line is never trusted,
+ * never accepted as the configured command, and the engine dialog is not
+ * offered for it: allowing it would run the agent in bypass with auto mode off.
+ */
+export function autoFlagBlocked(
+  command: string,
+  args: readonly string[],
+  cfg: Pick<SpawnPolicyConfig, 'autoMode'>,
+  provider?: AgentProvider
+): boolean {
+  if (cfg.autoMode === true) return false;
+  const bin = typeof command === 'string' ? command.trim() : '';
+  const prov = presetForBinary(bin) ?? inferAgentProvider(bin, provider === 'custom' ? undefined : provider);
+  return argsHaveAutoFlag(args, prov);
 }
 
 /** Classify an engine binary run with no arguments (the brief's interface). */
@@ -362,9 +385,20 @@ export function shrinkTrustedEngines(proposed: unknown, current: readonly string
   return out;
 }
 
-/** Append a confirmed engine to the trusted list (deduplicated). */
-export function addTrustedEngine(current: readonly string[] | undefined, command: string): string[] {
+/** Append a confirmed engine to the trusted list (deduplicated). While auto
+ *  mode is off, a line carrying a preset's auto flag is refused and the list
+ *  comes back unchanged (finding 1b), so trust can never re-enable bypass. */
+export function addTrustedEngine(
+  current: readonly string[] | undefined,
+  command: string,
+  cfg?: Pick<SpawnPolicyConfig, 'autoMode'>,
+  provider?: AgentProvider
+): string[] {
   const have = Array.isArray(current) ? current.filter((c) => typeof c === 'string') : [];
+  if (cfg && cfg.autoMode !== true) {
+    const [bin, ...args] = tokenizeCommandLine(command);
+    if (bin && autoFlagBlocked(bin, args, cfg, provider)) return [...have];
+  }
   return have.includes(command) ? [...have] : [...have, command];
 }
 
@@ -378,4 +412,5 @@ export function engineConfirmText(commandLine: string, cwd: string): { message: 
 
 export const ENGINE_NOT_ALLOWED = 'Not started: this program is not an allowed agent engine.';
 export const ENGINE_INVALID = 'Not started: the agent engine must be a program name or path, not shell syntax.';
+export const ENGINE_AUTO_FLAG_OFF = 'Not started: this command line turns on auto mode, which is off. Start the agent without that flag, or turn auto mode on in Settings.';
 export const ENGINE_FORBIDDEN = 'Not started: shells and script interpreters (cmd, PowerShell, bash, node, python, …) cannot run as an agent engine.';

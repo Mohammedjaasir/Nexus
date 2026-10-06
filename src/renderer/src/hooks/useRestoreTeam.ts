@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { useStore, type Agent } from '@/store/store';
 import { shouldScheduleAutoRestore } from './restoreTeamPolicy';
 import { buildSpawnCommand, inferAgentProvider, tokenizeCommand, type HarnessConfig } from '@/store/config';
+import { normalizeAutoFlagCommand } from '@shared/autoModeFlag';
 
 /** "Restore team" — respawn every worker from the previous session.
  *
@@ -100,6 +101,10 @@ export function useRestoreTeam(config?: HarnessConfig | null, opts?: UseRestoreT
     let alreadyLive = 0;
     const failures: string[] = [];
     try {
+      // Auto mode as main sees it NOW: persisted command lines carry the auto flag
+      // of the session that saved them, so each one is normalised to it (finding 1).
+      const liveCfg = await window.cth.getConfig().catch(() => null);
+      const autoMode = (liveCfg ?? config)?.autoMode === true;
       // Restore every agent CONCURRENTLY. Each spawn is keyed by its own ptyId and
       // touches no cross-agent state in the renderer, and in the main process the
       // whole `pty:spawn` handler (hive registry read-modify-write included) runs
@@ -117,7 +122,8 @@ export function useRestoreTeam(config?: HarnessConfig | null, opts?: UseRestoreT
         // entire restore a silent no-op after the first bad agent.
         try {
           const provider = inferAgentProvider(a.command, a.provider);
-          const command = (a.command ?? '').trim() || (config ? buildSpawnCommand(config, a.model, provider) : '');
+          const saved = (a.command ?? '').trim() || (config ? buildSpawnCommand(config, a.model, provider) : '');
+          const command = saved ? normalizeAutoFlagCommand(saved, autoMode, provider) : '';
           if (!command || !a.cwd) {
             // No spawn recipe (an old entry persisted before `command`, with no
             // config to rebuild one). Keep it restorable and SAY why rather than
@@ -171,6 +177,7 @@ export function useRestoreTeam(config?: HarnessConfig | null, opts?: UseRestoreT
             return {
                 ...a,
                 provider,
+                command,
                 ptyId,
                 archived: false,
                 status: 'idle',
