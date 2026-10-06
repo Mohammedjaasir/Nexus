@@ -228,6 +228,14 @@ export async function mainRepoRoot(cwd: string): Promise<string | null> {
   return stripped || gitDir;
 }
 
+/** The top-level folder of the working tree `cwd` is in, or null. */
+export async function repoToplevel(cwd: string): Promise<string | null> {
+  const res = await runGit(cwd, ['rev-parse', '--show-toplevel']);
+  if (!res.ok) return null;
+  const top = res.stdout.trim();
+  return top || null;
+}
+
 /** Derive a safe `agent/<id>` branch name from a worktree path's basename. */
 function agentBranchFor(wtPath: string): string {
   const base = wtPath.split(/[\\/]/).filter(Boolean).pop() ?? 'agent';

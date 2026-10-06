@@ -69,7 +69,7 @@ test('classify: presets win, so the default config never asks', () => {
   assert.deepEqual(s.classifySpawnCommand('claude', { defaultCommand: 'claude' }), { ok: true, source: 'preset' });
   assert.deepEqual(s.classifySpawnCommand('agy', {}), { ok: true, source: 'preset' });
   assert.deepEqual(s.classifySpawnCommand('  codex  ', {}), { ok: true, source: 'preset' });
-  assert.deepEqual(s.classifySpawnCommand('node', { trustedEngineCommands: 'node' }), { ok: false, reason: 'needs-confirmation' });
+  assert.deepEqual(s.classifySpawnCommand('aider', { trustedEngineCommands: 'aider' }), { ok: false, reason: 'needs-confirmation' });
 });
 
 test('classify: bare PATH spellings of a preset count as the preset; paths do not', () => {

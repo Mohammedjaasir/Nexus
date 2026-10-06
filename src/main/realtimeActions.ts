@@ -156,8 +156,13 @@ const SETTING_POLICY: Record<string, {
 
 const PENDING_TTL_MS = 120_000;
 
-const PROVIDER_COMMAND: Record<string, string> = {
-  claude: 'claude', codex: 'codex', antigravity: 'antigravity', gemini: 'gemini',
+/** Spoken provider names → the supported provider id. Only names that map to
+ *  a real preset: "gemini" and "agy" are the Antigravity CLI (`agy`). */
+export const PROVIDER_ALIAS: Record<string, string> = { gemini: 'antigravity', agy: 'antigravity' };
+
+/** Provider id → its preset binary (agentProvider.ts defaultCommand). */
+export const PROVIDER_COMMAND: Record<string, string> = {
+  claude: 'claude', codex: 'codex', antigravity: 'agy', grok: 'grok', kimi: 'kimi',
   opencode: 'opencode', crush: 'crush', pi: 'pi', qwen: 'qwen', copilot: 'copilot'
 };
 
@@ -629,7 +634,8 @@ function proposeDestructive(deps: RealtimeActionDeps, verb: string, a: Record<st
 
   // spawn / hire — expensive; stubbed $ estimate (rt-9 wires the real number).
   if (verb === 'spawn') {
-    const provider = (str(a.provider) || 'claude').toLowerCase();
+    const spoken = (str(a.provider) || 'claude').toLowerCase();
+    const provider = PROVIDER_ALIAS[spoken] ?? spoken;
     const role = str(a.role) || str(a.job);
     const name = str(a.name) || (role ? role.replace(/\b\w/g, (c) => c.toUpperCase()) : provider) || 'Worker';
     const godCwd = reg.godId ? reg.agents[reg.godId]?.cwd : undefined;

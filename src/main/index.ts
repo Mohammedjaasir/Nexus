@@ -19,16 +19,16 @@ import {
   modelForRole, OPS_STANDUP_MISSION, HEARTBEAT_MISSION, COMPACT_MAINTENANCE_MISSION, type HarnessConfig, type ScheduledMission
 } from './config';
 import { listDir, readFileText, readFileBinary, writeFileText, statAbs, expandTilde } from './fs';
-import { resolveAllowedRoot } from './fsRoots';
+import { resolveAllowedRoot, derivedRootListsFolder } from './fsRoots';
 import { decidePermission, decidePermissionCheck, isAllowedExternalUrl, isInAppNavigation, externalUrlForShell } from './windowPolicy';
 import {
-  sanitizeSpawnRequest, classifySpawnCommand, resolveWorkerCommand, shrinkTrustedEngines, addTrustedEngine,
-  engineConfirmText, ENGINE_NOT_ALLOWED, ENGINE_INVALID
+  sanitizeSpawnRequest, classifySpawn, commandLineKey, resolveWorkerCommand, shrinkTrustedEngines, addTrustedEngine,
+  engineConfirmText, ENGINE_NOT_ALLOWED, ENGINE_INVALID, ENGINE_FORBIDDEN
 } from './spawnPolicy';
 import {
   getBranch, getStatus, getLog, getBranches, getAheadBehind, isRepo, getDiff, mainRepoRoot,
   addWorktree, removeWorktree, worktreeHasUnintegratedWork, worktreeIsGcSafe,
-  getLogGraph, getCommitFiles, getFileAtRev, compareRefs, listWorktrees, checkoutRef
+  getLogGraph, getCommitFiles, getFileAtRev, compareRefs, listWorktrees, checkoutRef, repoToplevel
 } from './git';
 import { HiveManager, type AgentMeta, type HiveMessage, type HiveTask } from './hive';
 import { HookServer } from './hooks';
@@ -2430,25 +2430,30 @@ function findCodexHomeForSession(sessionId: string, siblingsRoot: string): strin
 type AgentSpawnOptions = SpawnOptions & { hive?: AgentMeta; isolate?: boolean; resume?: boolean; requireResume?: boolean; resumeSessionId?: string; provider?: AgentProvider; noAutoInstall?: boolean };
 
 // ─── Engine allow-list (O.9 #6) ─────────────────────────────────────────────
-// A renderer-named engine binary runs only when it is a provider preset, the
-// configured default command, or an engine the user already allowed. Any other
-// program gets ONE main-process confirmation; Allow remembers it in the
-// main-only `trustedEngineCommands`. Concurrent spawns of the same unknown
-// binary (team restore) share one dialog.
+// A renderer spawn runs without a dialog only when the binary is a provider
+// preset (or the configured default command) AND every arg is on that
+// provider's flag allow-list, or when this EXACT command line (binary + args)
+// was allowed before. Anything else gets ONE main-process confirmation showing
+// the full command line; Allow remembers that exact line in the main-only
+// `trustedEngineCommands`. Shells and interpreters are refused outright.
+// Concurrent spawns of the same line (team restore) share one dialog.
 const pendingEngineConfirms = new Map<string, Promise<boolean>>();
 async function ensureAllowedEngine(
   command: string,
+  args: readonly string[],
+  provider: AgentProvider | undefined,
   cwd: string,
   owner: Electron.WebContents | null
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const verdict = classifySpawnCommand(command, readConfig());
+  const verdict = classifySpawn(command, args, readConfig(), provider);
   if (verdict.ok) return { ok: true };
   if (verdict.reason === 'invalid') return { ok: false, error: ENGINE_INVALID };
-  const bin = command.trim();
-  let pending = pendingEngineConfirms.get(bin);
+  if (verdict.reason === 'forbidden') return { ok: false, error: ENGINE_FORBIDDEN };
+  const line = commandLineKey(command.trim(), args);
+  let pending = pendingEngineConfirms.get(line);
   if (!pending) {
     pending = (async () => {
-      const { message, detail } = engineConfirmText(bin, expandTilde(cwd));
+      const { message, detail } = engineConfirmText(line, expandTilde(cwd));
       const parent = (owner && !owner.isDestroyed() ? BrowserWindow.fromWebContents(owner) : null)
         ?? BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null;
       const boxOpts: Electron.MessageBoxOptions = {
@@ -2456,10 +2461,10 @@ async function ensureAllowedEngine(
       };
       const res = parent ? await dialog.showMessageBox(parent, boxOpts) : await dialog.showMessageBox(boxOpts);
       if (res.response !== 0) return false;
-      writeConfig({ trustedEngineCommands: addTrustedEngine(readConfig().trustedEngineCommands, bin) });
+      writeConfig({ trustedEngineCommands: addTrustedEngine(readConfig().trustedEngineCommands, line) });
       return true;
-    })().finally(() => pendingEngineConfirms.delete(bin));
-    pendingEngineConfirms.set(bin, pending);
+    })().finally(() => pendingEngineConfirms.delete(line));
+    pendingEngineConfirms.set(line, pending);
   }
   let allowed = false;
   try { allowed = await pending; } catch (e) { console.error('[spawn] engine confirmation failed:', e); }
@@ -2477,7 +2482,7 @@ ipcMain.handle('pty:spawn', async (evt, raw: unknown) => {
   // Record the spawning window as the PTY's owner so its output routes ONLY back
   // to that floor, then run the shared spawn core.
   const owner = BrowserWindow.fromWebContents(evt.sender)?.webContents ?? null;
-  const engine = await ensureAllowedEngine(sanitized.opts.command, sanitized.opts.cwd, owner);
+  const engine = await ensureAllowedEngine(sanitized.opts.command, sanitized.opts.args, sanitized.opts.provider, sanitized.opts.cwd, owner);
   if (!engine.ok) return engine;
   return spawnAgentCore({ ...sanitized.opts }, owner);
 });
@@ -3284,8 +3289,18 @@ ipcMain.handle('git:mainRepo', async (_evt, cwd: unknown) => {
   if (typeof cwd !== 'string' || !cwd) return null;
   if (!acceptGitCwd(cwd)) return null;
   const root = await mainRepoRoot(cwd);
-  // Main derived this checkout from an allowed folder, so git may run there.
-  if (root && !gitDerivedRoots.has(root)) {
+  // Main derived this checkout from an allowed folder. Remember it as a git
+  // root only if that checkout really lists the folder (or its toplevel) as one
+  // of its worktrees — a crafted .git file cannot point it somewhere else.
+  if (root && !gitDerivedRoots.has(root) && !acceptFsRoot(root)) {
+    const listed = await listWorktrees(root);
+    const top = await repoToplevel(cwd);
+    let real: string | null = null;
+    try { real = realpathSync.native(expandTilde(cwd)); } catch { /* keep null */ }
+    const paths = Array.isArray(listed) ? listed.map((w) => w.path) : [];
+    if (!derivedRootListsFolder(paths, [expandTilde(cwd), real, top])) return root;
+  }
+  if (root && !gitDerivedRoots.has(root) && !acceptFsRoot(root)) {
     if (gitDerivedRoots.size >= GIT_DERIVED_ROOTS_MAX) gitDerivedRoots.delete(gitDerivedRoots.values().next().value as string);
     gitDerivedRoots.add(root);
   }
@@ -4480,7 +4495,7 @@ registerRealtimeActionIpc({
     const o = opts as AgentSpawnOptions;
     // The voice spec's command can come from the renderer's tool call, so it
     // passes the same engine allow-list as pty:spawn (O.9 #6).
-    const engine = await ensureAllowedEngine(typeof o.command === 'string' ? o.command : '', o.cwd, liveWebContents());
+    const engine = await ensureAllowedEngine(typeof o.command === 'string' ? o.command : '', o.args ?? [], o.provider, o.cwd, liveWebContents());
     if (!engine.ok) return engine;
     const res = await spawnAgentCore(o, null);
     // The renderer roster is only mutated by renderer-initiated hires (AddAgentModal),

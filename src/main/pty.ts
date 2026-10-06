@@ -110,6 +110,19 @@ export interface SpawnOptions {
  * `argsToCommandLine` runs and no shell parser is involved). This function remains
  * the fallback for every target we cannot decode — strictly no worse than before.
  */
+/** cmd.exe metacharacters (plus quote, CR, LF, NUL) that make an argument
+ *  unsafe on the cmd.exe fallback route, quoting or not. */
+export const CMD_FALLBACK_UNSAFE = /[&|<>^()"%!\r\n\0]/;
+
+/** The first argument that must not go through the cmd.exe fallback, or null
+ *  when every argument is safe there. Defence in depth behind
+ *  sanitizeSpawnRequest: spawn() refuses the fallback rather than hand cmd.exe
+ *  a string it could reinterpret as a second command. */
+export function cmdFallbackUnsafeArg(args: readonly string[]): string | null {
+  for (const a of args) if (typeof a !== 'string' || CMD_FALLBACK_UNSAFE.test(a)) return String(a);
+  return null;
+}
+
 export function buildCmdCommandLine(resolved: string, args: string[]): string {
   const quoteToken = (s: string): string => {
     // Escape any embedded double-quote, then quote the token if it needs it.
@@ -599,6 +612,18 @@ export class PtyManager {
           ? [...(opts.args ?? [])]
           : [shimSpawn.script, ...(opts.args ?? [])];
       } else {
+        // Defence in depth (O.9 #6): never hand cmd.exe an argument it could
+        // reinterpret — quoting does not neutralise `"`, `%`, `!` or a line
+        // break, and the other metacharacters are refused with them.
+        if (needsCmd) {
+          const unsafe = cmdFallbackUnsafeArg(opts.args ?? []);
+          if (unsafe !== null) {
+            return {
+              ok: false,
+              error: `Not started: "${resolved}" can only be launched through cmd.exe here, and an argument contains a character cmd.exe could misread (& | < > ^ ( ) " % ! or a line break). Install the CLI as a native .exe or an npm package.`
+            };
+          }
+        }
         file = needsCmd ? (process.env.ComSpec || 'cmd.exe') : resolved;
         // #55: when routing through cmd.exe we must NOT pass `resolved` as a bare,
         // unquoted array element. A Program-Files path (`C:\Program Files\nodejs\node`)

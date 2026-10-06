@@ -99,3 +99,23 @@ export function confineToRoot(
   if (!isUnderRoot(realRoot, real)) return null;
   return tail.length ? path.join(real, ...tail) : real;
 }
+
+/**
+ * Whether a main checkout derived by `git:mainRepo` may be remembered as a git
+ * root: `git worktree list --porcelain`, run in that checkout, must list the
+ * allowed folder it was derived from, or that folder's toplevel (a project
+ * registered at a sub-folder of a repo). `worktrees` are the listed paths
+ * (git prints forward slashes on Windows; `isUnderRoot` normalises them).
+ */
+export function derivedRootListsFolder(
+  worktrees: readonly string[],
+  candidates: readonly (string | null | undefined)[],
+  platform: NodeJS.Platform = process.platform
+): boolean {
+  const same = (a: string, b: string): boolean => isUnderRoot(a, b, platform) && isUnderRoot(b, a, platform);
+  for (const c of candidates) {
+    if (typeof c !== 'string' || !c) continue;
+    if (worktrees.some((w) => typeof w === 'string' && !!w && same(w, c))) return true;
+  }
+  return false;
+}
