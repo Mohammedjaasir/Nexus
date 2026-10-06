@@ -2189,7 +2189,8 @@ function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
     const mediaTypes = details && 'mediaTypes' in details ? details.mediaTypes : undefined;
     callback(decidePermission({ permission, mediaTypes, micLive: micFeatureLive() }));
   });
-  ses.setPermissionCheckHandler((_wc, permission) => decidePermissionCheck(permission, micFeatureLive()));
+  ses.setPermissionCheckHandler((_wc, permission, _origin, details) =>
+    decidePermissionCheck(permission, micFeatureLive(), details?.mediaType));
 
   // Only the primary persists geometry (kv `window.bounds`); floors cascade
   // fresh each launch. Skip while maximized/minimized so a restore doesn't save
@@ -2219,11 +2220,15 @@ function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
   // The page itself may only navigate within the app (the dev server origin, or
   // the packaged index.html with any hash/query). Anything else is cancelled;
   // an allowed external URL opens in the OS browser instead.
-  win.webContents.on('will-navigate', (e, url) => {
+  // The same guard runs on server redirects (`will-redirect`), so an in-app
+  // request cannot be bounced to another origin.
+  const guardNavigation = (e: Electron.Event, url: string): void => {
     if (isInAppNavigation(url, currentAppUrl())) return;
     e.preventDefault();
     if (isAllowedExternalUrl(url)) void shell.openExternal(url).catch(() => { /* best-effort */ });
-  });
+  };
+  win.webContents.on('will-navigate', (e, url) => guardNavigation(e, url));
+  win.webContents.on('will-redirect', (e, url) => guardNavigation(e, url));
 
   // Close interception when live PTYs exist. The red-X destroys the window;
   // intercept it the same way before-quit does so PTY users aren't surprised.
@@ -3113,9 +3118,36 @@ function allowedFsRoots(): string[] {
   try { for (const p of ptyManager.list()) add(p.cwd); } catch { /* best-effort */ }
   return roots;
 }
+/** Real paths of the allowed roots, cached for FS_ROOT_TTL_MS and keyed by the
+ *  raw root list: a newly added project, repo, agent or worktree changes the
+ *  key and invalidates the cache at once. A root whose realpath fails is
+ *  remembered as null and skipped until the TTL expires or the list changes,
+ *  so a missing folder is not re-resolved on every fs call. */
+const FS_ROOT_TTL_MS = 5000;
+let fsRootCache: { key: string; at: number; real: Map<string, string | null> } | null = null;
+function realAllowedRoots(raw: readonly string[]): Map<string, string | null> {
+  const key = JSON.stringify(raw);
+  const now = Date.now();
+  if (fsRootCache && fsRootCache.key === key && now - fsRootCache.at < FS_ROOT_TTL_MS) return fsRootCache.real;
+  const real = new Map<string, string | null>();
+  for (const r of raw) {
+    if (real.has(r)) continue;
+    try { real.set(r, realpathSync.native(r)); } catch { real.set(r, null); }
+  }
+  fsRootCache = { key, at: now, real };
+  return real;
+}
 /** The real path of a renderer-named root if main allows it, else null. */
 function acceptFsRoot(root: string): string | null {
-  return resolveAllowedRoot(expandTilde(root), allowedFsRoots(), realpathSync.native);
+  const real = realAllowedRoots(allowedFsRoots());
+  const allowed = [...real.keys()].filter((k) => real.get(k) !== null);
+  // Allowed roots come from the cache; only the requested root hits the disk.
+  const realpath = (p: string): string => {
+    const hit = real.get(p);
+    if (typeof hit === 'string') return hit;
+    return realpathSync.native(p);
+  };
+  return resolveAllowedRoot(expandTilde(root), allowed, realpath);
 }
 ipcMain.handle('fs:listDir', (_evt, root: unknown, rel: unknown) => {
   if (typeof root !== 'string' || typeof rel !== 'string') return { ok: false, error: 'invalid args' };

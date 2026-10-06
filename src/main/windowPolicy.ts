@@ -20,29 +20,50 @@ function audioOnly(mediaTypes: readonly string[] | undefined): boolean {
 }
 
 /**
- * Permission REQUEST decision. Deny by default. The microphone (`media`, audio
- * only) is granted only while a mic feature is live (Free Flow dictation or a
- * realtime voice session); any request that includes video is refused.
+ * Permission REQUEST decision. Deny by default. While a mic feature is live
+ * (Free Flow dictation or a realtime voice session) the microphone (`media`,
+ * audio only; any request that includes video is refused) and
+ * `speaker-selection` (setSinkId for the realtime output-device picker) are
+ * granted.
  */
 export function decidePermission(i: { permission: string; mediaTypes?: readonly string[]; micLive: boolean }): boolean {
   if (ALWAYS_ALLOWED.has(i.permission)) return true;
   if (i.permission === 'media') return i.micLive && audioOnly(i.mediaTypes);
+  if (i.permission === 'speaker-selection') return i.micLive;
   return false;
 }
 
 /** Permission CHECK decision (synchronous queries such as
- *  `navigator.permissions`). Same table as the request handler. */
-export function decidePermissionCheck(permission: string, micLive: boolean): boolean {
+ *  `navigator.permissions`). Same table as the request handler. `mediaType` is
+ *  Electron's check detail: `video` is refused; `audio`, an absent value and
+ *  Chromium's `unknown` (it cannot tell) are allowed only while the mic is live. */
+export function decidePermissionCheck(permission: string, micLive: boolean, mediaType?: string): boolean {
   if (ALWAYS_ALLOWED.has(permission)) return true;
-  if (permission === 'media') return micLive;
+  if (permission === 'media') {
+    if (!micLive) return false;
+    return mediaType === undefined || mediaType === 'audio' || mediaType === 'unknown';
+  }
+  if (permission === 'speaker-selection') return micLive;
   return false;
 }
 
-/** URLs that may leave the app for the OS default handler: https links and
- *  macOS System Settings deep links. `http:`, `file:`, `javascript:`, custom
+const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/** URLs that may leave the app for the OS default handler: https links, http
+ *  links to this machine's loopback (local dev servers), and macOS System
+ *  Settings deep links. URLs carrying a username or password are refused, and
+ *  the host is matched on the PARSED hostname, so `http://localhost@evil.com`
+ *  and `http://localhost.evil.com` are refused. `file:`, `javascript:`, custom
  *  schemes and UNC paths are refused. */
 export function isAllowedExternalUrl(url: string): boolean {
-  return typeof url === 'string' && /^(x-apple\.systempreferences:|https:\/\/)/.test(url);
+  if (typeof url !== 'string' || !url) return false;
+  if (/^x-apple\.systempreferences:/.test(url)) return true;
+  let u: URL;
+  try { u = new URL(url); } catch { return false; }
+  if (u.username || u.password) return false;
+  if (u.protocol === 'https:') return /^https:\/\//i.test(url) && !!u.hostname;
+  if (u.protocol === 'http:') return LOOPBACK_HOSTS.has(u.hostname);
+  return false;
 }
 
 function filePathKey(pathname: string): string | null {

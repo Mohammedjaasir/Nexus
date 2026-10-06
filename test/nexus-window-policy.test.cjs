@@ -75,3 +75,31 @@ test('index.ts routes window.open and app:openExternal through the shared allow-
   assert.match(idx, /decidePermission\(\{ permission, mediaTypes, micLive: micFeatureLive\(\) \}\)/);
   assert.doesNotMatch(idx, /callback\(true\)/);
 });
+
+test('fix round 1: http only to loopback, no userinfo, https kept (O.9 #3)', () => {
+  for (const u of ['http://localhost:3000', 'http://127.0.0.1:5173/x', 'http://[::1]:8080', 'https://github.com/x', 'x-apple.systempreferences:com.apple.preference.security'])
+    assert.equal(p.isAllowedExternalUrl(u), true, u);
+  for (const u of ['http://example.com', 'http://localhost@evil.com', 'http://localhost.evil.com', 'file:///C:/x', 'javascript:alert(1)',
+    'https://user:pw@github.com/', 'https://user@github.com/', 'http://user@localhost:3000', 'http://127.0.0.2/', 'http://0.0.0.0/', 'ws://localhost/', 'https:github.com'])
+    assert.equal(p.isAllowedExternalUrl(u), false, u);
+});
+
+test('fix round 1: speaker-selection and media check details follow the mic gate (O.9 #2)', () => {
+  assert.equal(p.decidePermission({ permission: 'speaker-selection', micLive: true }), true);
+  assert.equal(p.decidePermission({ permission: 'speaker-selection', micLive: false }), false);
+  assert.equal(p.decidePermissionCheck('speaker-selection', true), true);
+  assert.equal(p.decidePermissionCheck('speaker-selection', false), false);
+  assert.equal(p.decidePermissionCheck('media', true, 'audio'), true);
+  assert.equal(p.decidePermissionCheck('media', true, 'unknown'), true);
+  assert.equal(p.decidePermissionCheck('media', true, 'video'), false);
+  assert.equal(p.decidePermissionCheck('media', false, 'audio'), false);
+});
+
+test('fix round 1: redirects use the navigation guard; check handler passes mediaType; fs roots are cached', () => {
+  const idx = fs.readFileSync(path.join(__dirname, '..', 'src/main/index.ts'), 'utf8');
+  assert.match(idx, /'will-navigate', \(e, url\) => guardNavigation\(e, url\)/);
+  assert.match(idx, /'will-redirect', \(e, url\) => guardNavigation\(e, url\)/);
+  assert.match(idx, /decidePermissionCheck\(permission, micFeatureLive\(\), details\?\.mediaType\)/);
+  assert.match(idx, /const FS_ROOT_TTL_MS = 5000;/);
+  assert.match(idx, /realAllowedRoots\(allowedFsRoots\(\)\)/);
+});
