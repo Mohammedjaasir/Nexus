@@ -73,8 +73,8 @@ export interface AgentSession { id: SessionId; projectId: ProjectId; workspaceId
   error: JobError | null; createdAt: number; updatedAt: number; statusChangedAt: number; endedAt: number | null }
 export type ActivityStatus = 'started' | 'succeeded' | 'failed' | 'denied' | 'cancelled';
 export interface ActivityEntry { seq: number; id: ActivityId; ts: number; actorKind: PrincipalKind; actorId: PrincipalId;
-  onBehalfOf: PrincipalId | null; sessionId: SessionId | null; jobId: JobId | null; workspaceId: WorkspaceId | null; projectId: ProjectId | null;
-  artifactId: ArtifactId | null; versionId: VersionId | null; entityType: string; entityId: string | null; action: string;
+  onBehalfOf: PrincipalId | null; sessionId: SessionId | null; jobId: JobId | null; attemptN: number | null; workspaceId: WorkspaceId | null;
+  projectId: ProjectId | null; artifactId: ArtifactId | null; versionId: VersionId | null; entityType: string; entityId: string | null; action: string;
   status: ActivityStatus; details: Record<string, unknown>; prevHash: string; hash: string }
 export type PlatformErrorCode = 'denied' | 'not_found' | 'invalid' | 'conflict' | 'immutable' | 'cycle' | 'not_owner'
   | 'not_participating' | 'participation_inactive' | 'input_not_granted' | 'storage_unavailable' | 'illegal_transition' | 'platform_unavailable';

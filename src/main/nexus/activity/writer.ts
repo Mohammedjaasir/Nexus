@@ -9,6 +9,13 @@
  *   the operation it records. Called outside a transaction (for example, an
  *   authorization denial that has no operation), it opens its own IMMEDIATE
  *   transaction so the read of the chain head and the insert stay atomic.
+ * - CALLERS MUST USE IMMEDIATE TRANSACTIONS (`db.transaction(fn).immediate()`).
+ *   An IMMEDIATE transaction takes the write lock before the chain head is read,
+ *   so two writers serialise and the chain stays linear. In a DEFERRED transaction
+ *   another connection can append between the head read and the insert; SQLite
+ *   then rejects the insert with SQLITE_BUSY_SNAPSHOT (no fork is possible, but the
+ *   whole operation fails and must be retried). The T6–T10 services use
+ *   `.immediate()` for every mutation.
  * - The database rejects UPDATE and DELETE on `activity` (triggers in schema v7).
  */
 import type Database from 'better-sqlite3';
@@ -49,7 +56,7 @@ export function appendActivityRow(db: Database.Database, a: NewActivity, now: nu
 
 interface ActivityDbRow {
   seq: number; id: string; ts: number; actor_kind: PrincipalKind; actor_id: string; on_behalf_of: string | null;
-  session_id: string | null; job_id: string | null; workspace_id: string | null; project_id: string | null;
+  session_id: string | null; job_id: string | null; attempt_n: number | null; workspace_id: string | null; project_id: string | null;
   artifact_id: string | null; version_id: string | null; entity_type: string; entity_id: string | null; action: string;
   status: ActivityStatus; details_json: string; prev_hash: string; hash: string;
 }
@@ -58,7 +65,7 @@ function toEntry(r: ActivityDbRow): ActivityEntry {
   let details: Record<string, unknown> = {};
   try { details = JSON.parse(r.details_json) as Record<string, unknown>; } catch { /* json_valid CHECK makes this unreachable */ }
   return { seq: r.seq, id: r.id, ts: r.ts, actorKind: r.actor_kind, actorId: r.actor_id, onBehalfOf: r.on_behalf_of,
-    sessionId: r.session_id, jobId: r.job_id, workspaceId: r.workspace_id, projectId: r.project_id, artifactId: r.artifact_id,
+    sessionId: r.session_id, jobId: r.job_id, attemptN: r.attempt_n, workspaceId: r.workspace_id, projectId: r.project_id, artifactId: r.artifact_id,
     versionId: r.version_id, entityType: r.entity_type, entityId: r.entity_id, action: r.action, status: r.status, details,
     prevHash: r.prev_hash, hash: r.hash };
 }

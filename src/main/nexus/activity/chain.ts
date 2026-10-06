@@ -14,11 +14,11 @@ export const GENESIS_HASH: string = '0'.repeat(64);
 
 /**
  * The hashed fields of one activity row: `Omit<ActivityEntry, 'seq' | 'hash' | 'prevHash' | 'details'>`
- * plus `detailsJson` (details as their stored JSON text), with the nullable ids optional (they hash as null).
+ * plus `detailsJson` (details as their stored JSON text), with the nullable ids and attemptN optional (they hash as null).
  */
 export interface ActivityHashInput {
   id: string; ts: number; actorKind: ActivityEntry['actorKind']; actorId: string; onBehalfOf?: string | null;
-  sessionId?: string | null; jobId?: string | null; workspaceId?: string | null; projectId?: string | null;
+  sessionId?: string | null; jobId?: string | null; attemptN?: number | null; workspaceId?: string | null; projectId?: string | null;
   artifactId?: string | null; versionId?: string | null; entityType: string; entityId?: string | null;
   action: string; status: ActivityEntry['status']; detailsJson: string;
 }
@@ -26,7 +26,7 @@ export interface ActivityHashInput {
 export function activityHash(prevHash: string, row: ActivityHashInput): string {
   const body = canonicalJson({
     id: row.id, ts: row.ts, actorKind: row.actorKind, actorId: row.actorId, onBehalfOf: row.onBehalfOf ?? null,
-    sessionId: row.sessionId ?? null, jobId: row.jobId ?? null, workspaceId: row.workspaceId ?? null,
+    sessionId: row.sessionId ?? null, jobId: row.jobId ?? null, attemptN: row.attemptN ?? null, workspaceId: row.workspaceId ?? null,
     projectId: row.projectId ?? null, artifactId: row.artifactId ?? null, versionId: row.versionId ?? null,
     entityType: row.entityType, entityId: row.entityId ?? null, action: row.action, status: row.status,
     detailsJson: row.detailsJson

@@ -97,3 +97,67 @@ test('chain verification catches a broken link, a bad genesis and a details edit
   assert.deepEqual(verifyChainRows(mk().slice(1)), { ok: false, brokenAtSeq: 2 });
   assert.deepEqual(verifyChainRows([]), { ok: true, rows: 0 });
 });
+
+// ---- fix round 1 ----
+const { MAX_DETAILS_BYTES } = loadTs('src/main/nexus/activity/redact.ts');
+test('more secret key names are redacted, including keys with spaces', () => {
+  const keys = ['pwd', 'dbPwd', 'passphrase', 'auth', 'Auth', 'auth_token', 'authHeader', 'auth-header', 'accessKey', 'aws_access_key_id',
+    'signature', 'requestSignature', 'dsn', 'sentryDsn', 'connStr', 'conn_string', 'connectionString', 'connection-str',
+    'api key', 'private key', 'session key', 'access key', 'auth token'];
+  const input = {}; for (const k of keys) input[k] = 'v';
+  const out = redactDetails(input);
+  for (const k of keys) assert.equal(out[k], REDACTED, k);
+  const keep = redactDetails({ author: 'a', authored: 'b', status: 'c' });
+  assert.deepEqual(keep, { author: 'a', authored: 'b', status: 'c' });
+});
+test('URL user names are redacted even without a password, and sig/signature values', () => {
+  const out = JSON.stringify(redactDetails({ a: 'clone https://alice@git.example/r.git', b: 'ssh://deploy@h.example/x',
+    c: 'https://h.example/f?sig=AbC123xyz&X-Amz-Signature=deadbeef01&n=1', d: 'signature: "q1w2e3r4"' }));
+  assert.doesNotMatch(out, /alice|deploy@|AbC123xyz|deadbeef01|q1w2e3r4/);
+  assert.match(out, /https:\/\/\[redacted\]@git\.example/); assert.match(out, /n=1/);
+});
+test('hash values must look like a digest (40..128 hex, optional git:)', () => {
+  const sha1 = 'a'.repeat(40);
+  assert.deepEqual(redactDetails({ contentHash: `git:${sha1}`, sha256: sha1 }), { contentHash: `git:${sha1}`, sha256: sha1 });
+  const short = redactDetails({ sha256: 'abcdef0123456789abcdef', contentHash: 'GIT:' + 'b'.repeat(130) });
+  assert.equal(short.sha256, 'abcdef0123456789abcdef');                         // not a digest: ordinary string path (not secret-shaped)
+  assert.doesNotMatch(JSON.stringify(short), /b{130}/);
+});
+test('a __proto__ key is kept as data and colliding redacted keys never overwrite each other', () => {
+  const out = redactDetails(JSON.parse('{"__proto__": {"polluted": 1}, "a": 1}'));
+  assert.equal(Object.getPrototypeOf(out), Object.prototype);
+  assert.deepEqual(JSON.parse(JSON.stringify(out)), JSON.parse('{"__proto__": {"polluted": 1}, "a": 1}'));
+  assert.equal({}.polluted, undefined);
+  const k1 = `sk-ant-${'a'.repeat(20)}`; const k2 = `sk-ant-${'b'.repeat(20)}`;
+  const col = redactDetails({ [k1]: 1, [k2]: 2 });
+  assert.deepEqual(Object.values(col).sort(), [1, 2]);
+  assert.equal(Object.keys(col).length, 2);
+  assert.doesNotMatch(JSON.stringify(col), /sk-ant-/);
+});
+test('total size is capped and huge nested, wide input stays fast', () => {
+  const wide = (d) => { const child = d === 0 ? 'x'.repeat(500) : wide(d - 1); const o = {}; for (let i = 0; i < 60; i++) o[`key_${i}_${'k'.repeat(20)}`] = child; return o; };  // shared subtree: cheap to build, 60^5 paths to walk
+  const big = wide(5);
+  const t0 = Date.now();
+  const out = redactDetails(big);
+  const ms = Date.now() - t0;
+  const bytes = Buffer.byteLength(JSON.stringify(out), 'utf8');
+  assert.ok(bytes <= MAX_DETAILS_BYTES, `bytes ${bytes}`);
+  assert.ok(ms < 1000, `took ${ms} ms`);
+  assert.match(JSON.stringify(out), /\[truncated\]/);
+  const arr = redactDetails({ xs: Array.from({ length: 50 }, () => Array.from({ length: 50 }, () => 'y'.repeat(500))) });
+  assert.ok(Buffer.byteLength(JSON.stringify(arr), 'utf8') <= MAX_DETAILS_BYTES);
+  const multibyte = redactDetails({ xs: Array.from({ length: 50 }, () => '\u{1F600}'.repeat(200)) });
+  assert.ok(Buffer.byteLength(JSON.stringify(multibyte), 'utf8') <= MAX_DETAILS_BYTES);
+  assert.equal(MAX_DETAILS_BYTES, 16384);
+});
+test('attempt_n is part of the hash chain', () => {
+  const rows = []; let prev = '0'.repeat(64);
+  for (let i = 1; i <= 2; i++) {
+    const r = { seq: i, id: `a${i}`, ts: i, actorKind: 'system', actorId: 'system', onBehalfOf: null, sessionId: null, jobId: 'j', attemptN: i,
+      workspaceId: null, projectId: 'p', artifactId: null, versionId: null, entityType: 'job', entityId: 'j', action: 'job.transition', status: 'succeeded', details: {} };
+    const hash = activityHash(prev, { ...r, detailsJson: '{}' }); rows.push({ ...r, prevHash: prev, hash }); prev = hash;
+  }
+  assert.deepEqual(verifyChainRows(rows), { ok: true, rows: 2 });
+  rows[0] = { ...rows[0], attemptN: 7 };
+  assert.deepEqual(verifyChainRows(rows), { ok: false, brokenAtSeq: 1 });
+});

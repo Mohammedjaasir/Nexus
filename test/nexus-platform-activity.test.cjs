@@ -109,3 +109,50 @@ test('the migration activity row keeps its backup hash under the redacting write
   assert.deepEqual(verifyActivityChain(db), { ok: true, rows: 1 });
   s.close();
 });
+
+// ---- fix round 1 ----
+test('attempt_n is read back and tampering with it breaks the chain', () => {
+  const { s, db } = v7();
+  const r = appendActivityRow(db, { ...base, jobId: 'j1', attemptN: 1, entityType: 'job', action: 'job.transition' }, h.NOW);
+  assert.equal(readActivityRows(db).find((e) => e.id === r.id).attemptN, 1);
+  assert.equal(readActivityRows(db)[0].attemptN, null);                   // the migration row
+  assert.deepEqual(verifyActivityChain(db), { ok: true, rows: 2 });
+  db.exec('DROP TRIGGER tr_activity_no_update');
+  db.prepare('UPDATE activity SET attempt_n = 2 WHERE id = ?').run(r.id);
+  assert.deepEqual(verifyActivityChain(db), { ok: false, brokenAtSeq: r.seq });
+  s.close();
+});
+test('two connections: a DEFERRED caller whose head read is stale fails busy and never forks the chain; a retry succeeds', () => {
+  const { s, db } = v7();
+  const other = h.openRaw(db.name);
+  const before = h.count(db, 'activity');
+  let err;
+  try {
+    db.transaction(() => {
+      db.prepare('SELECT hash FROM activity ORDER BY seq DESC LIMIT 1').get();   // DEFERRED: read snapshot taken here
+      appendActivityRow(other, { ...base, actorId: 'user:other' }, h.NOW + 1);   // another connection appends and commits
+      appendActivityRow(db, base, h.NOW + 2);                                    // stale head: the insert cannot commit
+    })();
+  } catch (e) { err = e; }
+  assert.ok(err, 'the stale writer must fail');
+  assert.match(String(err.code), /^SQLITE_BUSY/);
+  assert.equal(h.count(db, 'activity'), before + 1);
+  assert.deepEqual(verifyActivityChain(db), { ok: true, rows: before + 1 });
+  db.transaction(() => { appendActivityRow(db, base, h.NOW + 3); }).immediate();     // the retry
+  assert.deepEqual(verifyActivityChain(db), { ok: true, rows: before + 2 });
+  other.close(); s.close();
+});
+test('two connections: an IMMEDIATE caller holds the write lock, so the other writer waits or fails busy, never forks', () => {
+  const { s, db } = v7();
+  const other = h.openRaw(db.name); other.pragma('busy_timeout = 50');
+  let otherErr;
+  db.transaction(() => {
+    appendActivityRow(db, base, h.NOW + 1);
+    try { appendActivityRow(other, { ...base, actorId: 'user:other' }, h.NOW + 2); } catch (e) { otherErr = e; }
+    appendActivityRow(db, base, h.NOW + 3);
+  }).immediate();
+  assert.ok(otherErr); assert.match(String(otherErr.code), /^SQLITE_BUSY/);
+  appendActivityRow(other, { ...base, actorId: 'user:other' }, h.NOW + 4);           // after commit it goes through
+  assert.deepEqual(verifyActivityChain(db), { ok: true, rows: 4 });
+  other.close(); s.close();
+});
