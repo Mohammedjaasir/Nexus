@@ -17,7 +17,8 @@
  */
 import Database from 'better-sqlite3';
 import { app } from 'electron';
-import { join } from 'node:path';
+import fs from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import type { Project } from '../shared/project';
 import type {
   ProjectGraphNode,
@@ -32,7 +33,27 @@ import type { ProjectPlan } from '../shared/plan';
 import type { ProjectGapAnalysisResult } from '../shared/gap';
 import type { ProjectGoal } from '../shared/goal';
 import { LegacyWriteQueue } from './legacyWriteQueue';
-import type { MigrationContext } from './nexus/db/migrationTypes';
+import { appendCrashLog, redactForLog } from './crashLog';
+import type { MigrationContext, MigrationHooks, MigrationOutcome } from './nexus/db/migrationTypes';
+import { applyV7, v7ShapeProblem } from './nexus/db/schemaV7';
+import { backupAndVerify, BackupError, freeBytes, integrityOk, tableRowCounts, type BackupRecord } from './nexus/db/backup';
+
+export const V7 = 7;
+/** Migrations before the platform core; they run exactly as they always have. */
+const LEGACY_VERSION = 6;
+
+export interface PersistOpenOptions {
+  /** Receives every migration log line (already ISO-stamped). Default: console plus the main crash log file. */
+  log?: (line: string) => void;
+  /** Where the pre-migration backup goes. Default: userData/backups. */
+  backupDir?: string;
+  /** Keep the database at v6 (NEXUS_DB_HOLD_V7=1). */
+  holdV7?: boolean;
+  appVersion?: string | null;
+  now?: () => number;
+  /** Tests only. */
+  hooks?: MigrationHooks;
+}
 
 /** A captured user prompt, as returned to the renderer (camelCase columns). */
 export interface CommandHistoryRow {
@@ -162,8 +183,44 @@ export const MIGRATIONS: Array<(db: Database.Database, ctx: MigrationContext | n
       );
       CREATE INDEX IF NOT EXISTS idx_project_goals_updated ON project_goals(updated_at DESC);
     `);
+  },
+  // → user_version 7: Nexus platform core (src/main/nexus/db/schemaV7.ts). Additive.
+  // Only ever run by migrateV7() below: backup first, one BEGIN IMMEDIATE transaction.
+  (db, ctx) => {
+    if (!ctx) throw new Error('the v7 migration needs its migration context');
+    applyV7(db, ctx);
   }
 ];
+
+/** Basename-only, secret-redacted text for a log line. */
+function safeForLog(text: string, dirs: string[]): string {
+  // Any absolute path keeps only its last segment...
+  let s = text.replace(/(?<=^|[\s'"(=])(?:[A-Za-z]:)?(?:[\\/][^\\/\s'"`;:]+)+[\\/]([^\\/\s'"`;:]+)/g, '$1');
+  // ...and the known directories never appear, whatever their spelling.
+  for (const d of dirs) {
+    if (!d) continue;
+    for (const form of new Set([d, d.replace(/\\/g, '/'), d.replace(/\//g, '\\')])) {
+      s = s.split(`${form}\\`).join('').split(`${form}/`).join('').split(form).join('<dir>');
+    }
+  }
+  return redactForLog(s).replace(/\s+/g, ' ').trim();
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+/** Console plus the main crash log file (logs dir), when running inside Electron. */
+function defaultMigrationLog(line: string): void {
+  console.log(line);
+  let dir: string | null = null;
+  try { dir = app.getPath('logs'); } catch { dir = null; }
+  if (dir) appendCrashLog(dir, line);
+}
+
+function defaultAppVersion(): string | null {
+  try { return app.getVersion(); } catch { return null; }
+}
 
 export class PersistStore {
   private db: Database.Database | null = null;
@@ -174,10 +231,16 @@ export class PersistStore {
   /** @param dbPath  Override the DB location (tests). Defaults to userData/harness.db. */
   constructor(private dbPath?: string) {}
 
+  private version = 0;
+  private platformOk = false;
+  private outcome: MigrationOutcome | null = null;
+
   /** Open (creating if needed) and migrate the DB. Idempotent — a second call is
-   *  a no-op. Throws if the native module fails to load or the file is unusable;
-   *  callers should guard so a DB failure can't crash app startup. */
-  open(): void {
+   *  a no-op. Throws if the native module fails to load, the file is unusable or a
+   *  legacy (v1–v6) migration fails; callers should guard so a DB failure can't
+   *  crash app startup. Never throws because of v7: a v7 problem leaves the DB at
+   *  v6 with the platform unavailable. */
+  open(opts: PersistOpenOptions = {}): void {
     if (this.db) return;
     const path = this.dbPath ?? join(app.getPath('userData'), 'harness.db');
     const db = new Database(path);
@@ -185,16 +248,19 @@ export class PersistStore {
     db.pragma('synchronous = NORMAL');
     db.pragma('busy_timeout = 5000');
     db.pragma('foreign_keys = ON');
-    this.migrate(db);
+    // Writes submitted until this.db is set wait in the legacy queue: nothing is
+    // written by the app before the backup is verified and the migration is done.
+    this.migrate(db, path, opts);
     this.db = db;
     this.closed = false;
     // Anything written before the DB was open (or while paused) goes in now, in order.
     this.queue.flush(() => this.db !== null);
   }
 
-  private migrate(db: Database.Database): void {
+  /** Legacy steps, exactly as before: one transaction per migration, up to v6. */
+  private migrateLegacy(db: Database.Database): void {
     const version = db.pragma('user_version', { simple: true }) as number;
-    for (let i = version; i < MIGRATIONS.length; i++) {
+    for (let i = version; i < LEGACY_VERSION; i++) {
       // Each migration + its version bump run in one transaction so a crash
       // mid-migration never leaves a half-applied schema at the wrong version.
       const run = db.transaction(() => {
@@ -204,6 +270,144 @@ export class PersistStore {
       run();
     }
   }
+
+  private migrate(db: Database.Database, dbFile: string, opts: PersistOpenOptions): void {
+    const sink = opts.log ?? defaultMigrationLog;
+    const log = (line: string): void => {
+      try { sink(`${new Date().toISOString()} ${line}`); } catch { /* logging never breaks open() */ }
+    };
+    let backupDir = opts.backupDir ?? '';
+    if (!backupDir) {
+      try { backupDir = join(app.getPath('userData'), 'backups'); } catch { backupDir = join(dirname(dbFile), 'backups'); }
+    }
+    const now = opts.now ?? Date.now;
+    const hold = opts.holdV7 ?? process.env.NEXUS_DB_HOLD_V7 === '1';
+    const scrub = (text: string): string => safeForLog(text, [dirname(dbFile), backupDir]);
+    const from = db.pragma('user_version', { simple: true }) as number;
+    this.platformOk = false;
+    log(`[db] schema version ${from}`);
+
+    if (from > V7) {
+      log(`[db] schema v${from} is newer than this build (v${V7}); opened for legacy use only, platform disabled, nothing migrated`);
+      this.version = from;
+      this.outcome = { state: 'skipped', fromVersion: from, reason: 'newer_schema', detail: `schema v${from}` };
+      return;
+    }
+    if (from === V7) {
+      let problem: string | null;
+      try { problem = v7ShapeProblem(db, true); } catch (err) { problem = errorMessage(err); }
+      if (problem) log(`[db] v7 shape check failed: ${scrub(problem)}; platform disabled`);
+      this.version = V7;
+      this.platformOk = problem === null;
+      this.outcome = { state: 'not_needed', version: V7 };
+      return;
+    }
+    if (hold) {
+      this.migrateLegacy(db);
+      this.version = db.pragma('user_version', { simple: true }) as number;
+      log(`[db] v7 migration: skipped reason=held (NEXUS_DB_HOLD_V7=1); database stays at v${this.version}`);
+      this.outcome = { state: 'skipped', fromVersion: from, reason: 'held', detail: 'NEXUS_DB_HOLD_V7=1' };
+      return;
+    }
+
+    const skip = (reason: 'precheck_failed' | 'insufficient_disk' | 'backup_failed', detail: string): void => {
+      this.migrateLegacy(db);
+      this.version = db.pragma('user_version', { simple: true }) as number;
+      log(`[db] v7 migration: skipped reason=${reason} detail=${detail}; database left at v${this.version}`);
+      this.outcome = { state: 'skipped', fromVersion: from, reason, detail };
+    };
+
+    let preCounts: Record<string, number> | null = null;
+    let backup: BackupRecord | null = null;
+    if (from > 0) {
+      // 1. Pre-checks. The database is not touched.
+      try {
+        if (!integrityOk(db)) return skip('precheck_failed', 'integrity_check is not ok');
+        const size = (f: string): number => { try { return fs.statSync(f).size; } catch { return 0; } };
+        const needed = 2 * (size(dbFile) + size(`${dbFile}-wal`));
+        const free = freeBytes(backupDir);
+        if (free !== null && free < needed) return skip('insufficient_disk', `free=${free} needed=${needed}`);
+        preCounts = tableRowCounts(db);
+        log(`[db] v7 precheck ok integrity=ok free=${free ?? 'unknown'} needed=${needed}`);
+      } catch (err) {
+        return skip('precheck_failed', scrub(errorMessage(err)));
+      }
+      // 2. Backup and verify. Only after this may the original change.
+      try {
+        backup = this.takeBackup(db, backupDir, from, preCounts, now);
+      } catch (err) {
+        const stage = err instanceof BackupError ? err.stage : 'unexpected';
+        log(`[db] backup failed stage=${stage} error=${scrub(errorMessage(err))}`);
+        return skip('backup_failed', `stage=${stage}`);
+      }
+      log(`[db] backup ok file=${backup.file} bytes=${backup.bytes} sha256=${backup.sha256} from=${from}`);
+      log(`[db] row counts ${Object.entries(preCounts).map(([t, n]) => `${t}=${n}`).join(' ')}`);
+    } else {
+      log('[db] fresh database: no backup needed');
+    }
+
+    // 3. Legacy steps (from < 6), now protected by the backup.
+    this.migrateLegacy(db);
+    const legacyVersion = db.pragma('user_version', { simple: true }) as number;
+    this.version = legacyVersion;
+    const backupFile = backup?.file ?? null;
+
+    // 4. v7 in one BEGIN IMMEDIATE transaction: DDL, seeds, backfill, record,
+    //    activity row, verification and user_version all commit or roll back together.
+    log(`[db] v7 migration: start from=${from}`);
+    const started = Date.now();
+    const ctx: MigrationContext = { now, appVersion: opts.appVersion !== undefined ? opts.appVersion : defaultAppVersion(), fromVersion: from, preCounts, backup };
+    let result: { backfilled: number; unassigned: number };
+    try {
+      result = db.transaction(() => {
+        const r = applyV7(db, ctx);
+        db.pragma(`user_version = ${V7}`);
+        opts.hooks?.beforeCommit?.(db, V7);
+        return r;
+      }).immediate();
+    } catch (err) {
+      const kept = backupFile ? `backup kept at ${backupFile}` : 'no backup (fresh database)';
+      log(`[db] v7 migration: failed from=${from} error=${scrub(errorMessage(err))}; database left at v${legacyVersion}; ${kept}`);
+      log('[db] v7 migration will be retried at the next launch; set NEXUS_DB_HOLD_V7=1 to stay on v6');
+      this.outcome = { state: 'failed', fromVersion: from, error: scrub(errorMessage(err)), backupFile };
+      return;
+    }
+    const durationMs = Date.now() - started;
+    this.version = V7;
+
+    // 5. Post-check after COMMIT.
+    let postOk: boolean;
+    try { postOk = integrityOk(db, 'quick'); } catch { postOk = false; }
+    if (postOk) {
+      log(`[db] v7 migration: success to=${V7} durationMs=${durationMs} backfilled=${result.backfilled} unassigned=${result.unassigned}`);
+    } else {
+      log(`[db] v7 post-check FAILED; platform disabled; restore from backup ${backupFile ?? '(none: fresh database)'}`);
+    }
+    this.platformOk = postOk;
+    this.outcome = { state: 'applied', fromVersion: from, backupFile, durationMs, backfilled: result.backfilled, unassigned: result.unassigned, postCheckOk: postOk };
+  }
+
+  /** backupAndVerify never overwrites; a name already taken (same second) moves on to the next second. */
+  private takeBackup(db: Database.Database, dir: string, from: number, rowCounts: Record<string, number>, now: () => number): BackupRecord {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return backupAndVerify(db, { dir, fromVersion: from, rowCounts, now: () => now() + attempt * 1000 });
+      } catch (err) {
+        if (!(err instanceof BackupError) || err.stage !== 'exists' || attempt >= 4) throw err;
+      }
+    }
+  }
+
+  /** The schema version in effect: 7 once v7 is committed, otherwise what the file had (or the legacy steps reached). */
+  get schemaVersion(): number { return this.version; }
+
+  /** True only at v7 with the post-check (or the reopen shape check) passed. */
+  get platformAvailable(): boolean { return this.db !== null && this.version === V7 && this.platformOk; }
+
+  get lastMigration(): MigrationOutcome | null { return this.outcome; }
+
+  /** The shared connection for the platform services (main process only); null unless the platform is available. */
+  platformDatabase(): Database.Database | null { return this.platformAvailable ? this.db : null; }
 
   /** Close the handle (checkpoints WAL). Safe to call when already closed. */
   close(): void {
