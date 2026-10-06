@@ -180,3 +180,42 @@ test('auto mode default: new installs off, an onboarded config that never stored
   fs.writeFileSync(cfgFile, JSON.stringify({ onboardingComplete: false, triggersMigratedV1: true }));
   assert.equal(config.readConfig().autoMode, false);
 });
+
+// ─── Fix round 1 ────────────────────────────────────────────────────────────
+
+test('Free Flow default: new installs off, an onboarded config that never stored it stays on', () => {
+  for (const f of fs.readdirSync(userData)) fs.rmSync(path.join(userData, f), { force: true, recursive: true });
+  assert.equal(config.readConfig().freeflowEnabled, false, 'no config.json = a new install');
+  fs.writeFileSync(cfgFile, JSON.stringify({ onboardingComplete: false, triggersMigratedV1: true }));
+  assert.equal(config.readConfig().freeflowEnabled, false, 'still onboarding = new install');
+  fs.writeFileSync(cfgFile, JSON.stringify({ onboardingComplete: true, triggersMigratedV1: true }));
+  assert.equal(config.readConfig().freeflowEnabled, true, 'existing install keeps the old default');
+  fs.writeFileSync(cfgFile, JSON.stringify({ onboardingComplete: true, freeflowEnabled: false, triggersMigratedV1: true }));
+  assert.equal(config.readConfig().freeflowEnabled, false, 'an explicit choice wins');
+});
+
+test('an unreadable secrets file is set aside before any write, never overwritten', () => {
+  reset();
+  fs.writeFileSync(blobFile, '{ this is not json');
+  assert.equal(integrations.getSecret('config:groqApiKey'), undefined, 'reads see nothing');
+  assert.ok(fs.existsSync(blobFile), 'a read does not move or rewrite it');
+  assert.deepEqual(integrations.corruptSecretFiles(), []);
+  const warnings = [];
+  const warn = console.warn;
+  console.warn = (...a) => warnings.push(a.join(' '));
+  try {
+    assert.equal(integrations.setSecret('config:groqApiKey', 'gsk_new').ok, true);
+  } finally {
+    console.warn = warn;
+  }
+  const aside = integrations.corruptSecretFiles();
+  assert.equal(aside.length, 1);
+  assert.match(path.basename(aside[0]), /^integration-secrets\.corrupt-\d{14}\.json$/);
+  assert.equal(fs.readFileSync(aside[0], 'utf8'), '{ this is not json', 'the original bytes are kept');
+  assert.equal(integrations.getSecret('config:groqApiKey'), 'gsk_new');
+  assert.ok(warnings.some((w) => w.includes('set aside')), 'a warning is surfaced');
+  // A JSON value that is not an object counts as unreadable too.
+  fs.writeFileSync(blobFile, '[1,2]');
+  integrations.setSecret('config:slackBotToken', 'xoxb-x');
+  assert.equal(integrations.corruptSecretFiles().length, 2);
+});

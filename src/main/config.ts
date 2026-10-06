@@ -313,9 +313,11 @@ export interface HarnessConfig {
   slackProactivePosting?: boolean;
 
   // ─── Free Flow (voice dictation → message queue) ───────────────────────────
-  /** Master toggle for Free Flow push-to-talk dictation. Default OFF: with it off
-   *  the composer shows no mic button, no getUserMedia runs, and no Groq call is
-   *  ever made (zero behavior change). */
+  /** Master toggle for Free Flow push-to-talk dictation. Default OFF for new
+   *  installs (configDefaults); an onboarded config that never stored the key
+   *  keeps the old default, on (readConfig). With it off the composer shows no
+   *  mic button, the mic permission gate stays closed and no Groq call is made.
+   *  Turning it on the first time needs a main-process confirmation. */
   freeflowEnabled?: boolean;
   /** User-pasted Groq API key (the user supplies their own free key). Used ONLY in
    *  the main process for the Groq STT call; NEVER logged, and never crosses IPC
@@ -517,10 +519,11 @@ export function readConfig(): HarnessConfig {
     // O.9 #10: the default flipped to false for NEW installs only. An onboarded
     // config that never persisted `autoMode` ran with the old default (true);
     // keep that, so the banner asks instead of the value changing silently.
-    const legacyAuto = parsed && typeof parsed === 'object' && !('autoMode' in parsed) && parsed.onboardingComplete === true
-      ? { autoMode: true }
-      : {};
-    return migrateTriggersV1(withTriggerDefaults({ ...DEFAULTS, ...legacyAuto, ...parsed }));
+    const onboarded = !!parsed && typeof parsed === 'object' && parsed.onboardingComplete === true;
+    const legacyAuto = onboarded && !('autoMode' in parsed) ? { autoMode: true } : {};
+    // Same rule for Free Flow: its default went from on to off for new installs.
+    const legacyFreeflow = onboarded && !('freeflowEnabled' in parsed) ? { freeflowEnabled: true } : {};
+    return migrateTriggersV1(withTriggerDefaults({ ...DEFAULTS, ...legacyAuto, ...legacyFreeflow, ...parsed }));
   } catch {
     return withTriggerDefaults({ ...DEFAULTS });
   }

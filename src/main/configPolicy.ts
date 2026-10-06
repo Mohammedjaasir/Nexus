@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs';
 import * as path from 'node:path';
 import type { HarnessConfig } from './config';
-import { isAgentProvider } from '../shared/agentProvider';
+import { isAgentProvider, providerPreset, type AgentProvider } from '../shared/agentProvider';
 import { expandTilde } from './fs';
 import { MODEL_VALUE, classifySpawn, shrinkTrustedEngines, tokenizeCommandLine } from './spawnPolicy';
 
@@ -54,7 +54,6 @@ export const CONFIG_KEY_POLICY: Record<keyof HarnessConfig, KeyPolicy> = {
   telemetryEnabled: 'renderer',
   tvShowOffices: 'renderer',
   officeTheme: 'renderer',
-  providerBaseUrls: 'renderer',
   providerDefaultModels: 'renderer',
   slackEnabled: 'renderer',
   slackChannelId: 'renderer',
@@ -78,6 +77,7 @@ export const CONFIG_KEY_POLICY: Record<keyof HarnessConfig, KeyPolicy> = {
   webhookPublicTunnel: 'confirm',     // turning on only
   freeflowEnabled: 'confirm',         // microphone: the first time it turns on
   realtimeVoiceEnabled: 'confirm',    // microphone: the first time it turns on
+  providerBaseUrls: 'confirm',        // a new/changed host receives the BYOK key
   // ── secrets (encrypted store) ──────────────────────────────────────────────
   slackSigningSecret: 'secret',
   slackBotToken: 'secret',
@@ -204,6 +204,16 @@ export function classifyConfigPatch(
       continue;
     }
 
+    if (k === 'providerBaseUrls') {
+      // Per entry: unchanged and removed entries apply; each new or changed
+      // host waits for its own dialog (the provider's BYOK key goes there).
+      const r = classifyBaseUrls(value, current.providerBaseUrls);
+      if (!r) { out.rejected.push(key); continue; }
+      apply[key] = r.base;
+      for (const c of r.changed) out.confirm.push({ key: k, value: c });
+      continue;
+    }
+
     if (policy === 'confirm') {
       const verdict = classifyConfirmKey(k, value, current, onboarding);
       if (verdict === 'reject') out.rejected.push(key);
@@ -245,6 +255,40 @@ export function classifyConfigPatch(
     }
   }
   return out;
+}
+
+/** One base-URL change awaiting confirmation. */
+export interface BaseUrlChange { provider: AgentProvider; url: string }
+
+function isHttpUrl(v: string): boolean {
+  try { const u = new URL(v); return u.protocol === 'http:' || u.protocol === 'https:'; } catch { return false; }
+}
+
+/**
+ * Split a proposed providerBaseUrls map: `base` is the current map with
+ * removals and unchanged entries applied (changed entries keep their current
+ * value); `changed` lists every new or changed host. null = malformed.
+ */
+export function classifyBaseUrls(
+  proposed: unknown,
+  current: Partial<Record<AgentProvider, string>> | undefined
+): { base: Partial<Record<AgentProvider, string>>; changed: BaseUrlChange[] } | null {
+  if (!proposed || typeof proposed !== 'object' || Array.isArray(proposed)) return null;
+  const cur = current && typeof current === 'object' ? current : {};
+  const base: Partial<Record<AgentProvider, string>> = {};
+  const changed: BaseUrlChange[] = [];
+  const entries = Object.entries(proposed as Record<string, unknown>);
+  for (const [prov, raw] of entries) {
+    if (!isAgentProvider(prov)) return null;
+    if (raw !== undefined && raw !== null && typeof raw !== 'string') return null;
+    const v = typeof raw === 'string' ? raw.trim() : '';
+    if (!v) continue;                                   // removal
+    if (!isHttpUrl(v)) return null;
+    if (v === cur[prov]) { base[prov] = v; continue; }  // unchanged
+    changed.push({ provider: prov, url: v });
+    if (typeof cur[prov] === 'string') base[prov] = cur[prov];  // kept until confirmed
+  }
+  return { base, changed };
 }
 
 type ConfirmVerdict = 'apply' | 'confirm' | 'reject' | 'skip';
@@ -299,7 +343,12 @@ function classifyConfirmKey(k: keyof HarnessConfig, value: unknown, current: Har
 
 /** What a confirmed key writes: the value, plus the latch that remembers the
  *  user's answer where there is one. */
-export function confirmedPatch(key: keyof HarnessConfig, value: unknown): Partial<HarnessConfig> {
+export function confirmedPatch(key: keyof HarnessConfig, value: unknown, base: Partial<HarnessConfig> = {}): Partial<HarnessConfig> {
+  if (key === 'providerBaseUrls') {
+    // One confirmed host, merged onto what this patch already applies.
+    const c = value as BaseUrlChange;
+    return { providerBaseUrls: { ...(base.providerBaseUrls ?? {}), [c.provider]: c.url } };
+  }
   const p: Record<string, unknown> = { [key]: value };
   if (key === 'autoMode' && value === true) p.autoModeReviewedV1 = true;
   if (key === 'freeflowEnabled' && value === true) p.micConfirmedFreeflowV1 = true;
@@ -359,6 +408,18 @@ export function confirmPrompt(key: keyof HarnessConfig, value: unknown): { messa
         detail: 'During a voice session your microphone audio streams to OpenAI. Nexus asks once; you can stop any session at any time.',
         confirmLabel: 'Allow microphone'
       };
+    case 'providerBaseUrls': {
+      const c = value as BaseUrlChange;
+      let label: string = c.provider;
+      try { label = providerPreset(c.provider).label || c.provider; } catch { /* id */ }
+      let host = c.url;
+      try { host = new URL(c.url).host; } catch { /* raw */ }
+      return {
+        message: `Send your ${label} key to ${host}?`,
+        detail: `${label} agents will send their API key and prompts to ${c.url}. Only continue if you trust this server.`,
+        confirmLabel: 'Use this server'
+      };
+    }
     default:
       return { message: `Change ${String(key)}?`, detail: '', confirmLabel: 'Change' };
   }

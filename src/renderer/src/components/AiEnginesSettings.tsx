@@ -158,7 +158,12 @@ export function AiEnginesSettings({ config }: { config: HarnessConfig }) {
   const saveBaseUrl = async (id: AgentProvider, value: string) => {
     const next = { ...baseUrls, [id]: value.trim() || undefined };
     setBaseUrls(next);
-    try { await window.cth.updateConfig({ providerBaseUrls: next }); } catch { /* noop */ }
+    // A new or changed host asks in main ("Send your … key to …?"); adopt what
+    // main stored so a Cancel shows the previous URL again.
+    try {
+      const stored = await window.cth.updateConfig({ providerBaseUrls: next });
+      setBaseUrls({ ...(stored.providerBaseUrls ?? {}) });
+    } catch { /* noop */ }
   };
   const saveModel = async (id: AgentProvider, value: string) => {
     const next = { ...models, [id]: value.trim() || undefined };

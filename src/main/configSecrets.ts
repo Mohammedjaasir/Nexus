@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import type { HarnessConfig } from './config';
 import type { SecretField } from './configPolicy';
 
@@ -123,4 +125,62 @@ export function migrateConfigSecrets(cfg: HarnessConfig, deps: MigrationDeps): M
   } catch (e) {
     return { status: 'error', backup, error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/** How one secret write ended. */
+export type StoreOutcome = { kind: 'stored' } | { kind: 'plaintext' } | { kind: 'error'; error: string };
+
+/**
+ * Store one config secret (Task 12 review). Plaintext is used ONLY when this
+ * system has no secure storage at all; then any older encrypted copy is dropped
+ * so it cannot shadow the newer plaintext. Any other store failure (disk,
+ * unreadable secrets file, …) refuses the write: the caller keeps whatever was
+ * stored before, encrypted copy included, and reports the error.
+ */
+export function decideSecretStore(
+  deps: { encryptionAvailable(): boolean; setSecret(ref: string, v: string): { ok: boolean; error?: string }; deleteSecret(ref: string): void },
+  ref: string,
+  value: string
+): StoreOutcome {
+  if (!deps.encryptionAvailable()) {
+    try { deps.deleteSecret(ref); } catch { /* best-effort */ }
+    return { kind: 'plaintext' };
+  }
+  const r = deps.setSecret(ref, value);
+  if (r.ok) return { kind: 'stored' };
+  return { kind: 'error', error: r.error ?? 'could not store the secret' };
+}
+
+const BACKUP_RE = /^config\.pre-secrets-\d{14}(-\d+)?\.json$/;
+
+/** The config.pre-secrets-*.json backups in `dir` (they hold plaintext secrets). */
+export function listConfigBackups(dir: string): string[] {
+  try {
+    return readdirSync(dir).filter((f) => BACKUP_RE.test(f)).sort().map((f) => join(dir, f));
+  } catch {
+    return [];
+  }
+}
+
+function stamp(d: Date): string {
+  const p = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+/**
+ * Copy config.json to config.pre-secrets-<yyyymmddHHMMss>.json next to it,
+ * unless a backup with identical content already exists (a migration that
+ * keeps failing must not pile up plaintext copies). Returns the backup path.
+ */
+export function writeConfigBackup(src: string, now: Date = new Date()): string {
+  const dir = dirname(src);
+  const content = readFileSync(src);
+  for (const existing of listConfigBackups(dir)) {
+    try { if (readFileSync(existing).equals(content)) return existing; } catch { /* unreadable: ignore */ }
+  }
+  const ts = stamp(now);
+  let dst = join(dir, `config.pre-secrets-${ts}.json`);
+  for (let i = 1; listConfigBackups(dir).map((f) => basename(f)).includes(basename(dst)); i++) dst = join(dir, `config.pre-secrets-${ts}-${i}.json`);
+  writeFileSync(dst, content, { flag: 'wx' });
+  return dst;
 }

@@ -75,7 +75,9 @@ export const CONFIG_DEFAULTS: HarnessConfig = {
   slackProactivePosting: false,
   // Public tunnels are opt-in (O.9 #12, task 13). Off for new installs.
   slackPublicTunnel: false,
-  freeflowEnabled: true,
+  // Microphone feature: OFF for new installs (Task 12 review). Existing installs
+  // that never stored the key keep the old default (config.ts readConfig).
+  freeflowEnabled: false,
   groqApiKey: undefined,
   freeflowModel: 'whisper-large-v3-turbo',
   realtimeVoiceEnabled: false,

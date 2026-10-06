@@ -130,7 +130,7 @@ test('policy table classifies every HarnessConfig key, and nothing else', () => 
   const body = src.slice(src.indexOf('export interface HarnessConfig {'), src.indexOf('\n}\n', src.indexOf('export interface HarnessConfig {')));
   const keys = [...body.matchAll(/^ {2}(\w+)\??:/gm)].map((m) => m[1]).sort();
   assert.deepEqual(Object.keys(p.CONFIG_KEY_POLICY).sort(), keys);
-  for (const k of ['harnessHome', 'autoMode', 'defaultCommand', 'slackPort', 'webhookPort', 'slackPublicTunnel', 'webhookPublicTunnel', 'freeflowEnabled', 'realtimeVoiceEnabled']) {
+  for (const k of ['harnessHome', 'autoMode', 'defaultCommand', 'slackPort', 'webhookPort', 'slackPublicTunnel', 'webhookPublicTunnel', 'freeflowEnabled', 'realtimeVoiceEnabled', 'providerBaseUrls']) {
     assert.equal(p.CONFIG_KEY_POLICY[k], 'confirm', k);
   }
   for (const k of ['slackSigningSecret', 'slackBotToken', 'groqApiKey', 'webhookSecret']) assert.equal(p.CONFIG_KEY_POLICY[k], 'secret', k);
@@ -334,7 +334,89 @@ test('copy: autonomy row, banner and restore strings are the brief text', () => 
   });
   assert.match(read('src/renderer/src/nexus/agents/AgentsPage.tsx'), /<AutoModeBanner /);
   const idx = read('src/main/index.ts');
-  assert.ok(idx.includes("message: 'Remove the two settings Nexus added to your Claude configuration?'"));
-  assert.ok(idx.includes("detail: 'Nexus will remove skipDangerousModePermissionPrompt and skipAutoPermissionPrompt from ~/.claude/settings.json and keep a backup next to it. Nothing else in the file changes.'"));
+  assert.ok(idx.includes("message: 'Remove these two settings?'"));
+  assert.ok(idx.includes("detail: 'Older Nexus builds added them; you may also have set them yourself. Nexus will remove skipDangerousModePermissionPrompt and skipAutoPermissionPrompt from ~/.claude/settings.json and keep a backup next to it. Nothing else in the file changes.'"));
   assert.ok(idx.includes("buttons: ['Remove them', 'Cancel']"));
+});
+
+// ─── Fix round 1 ────────────────────────────────────────────────────────────
+
+test('provider base URLs: unchanged and removed entries apply; each new or changed host asks', () => {
+  const base = { ...cur, providerBaseUrls: { opencode: 'http://localhost:11434/v1', qwen: 'http://127.0.0.1:8000' } };
+  // Unchanged + one removal: applies directly, no dialog.
+  const same = p.classifyConfigPatch({ providerBaseUrls: { opencode: 'http://localhost:11434/v1', qwen: undefined } }, base);
+  assert.deepEqual(same.apply, { providerBaseUrls: { opencode: 'http://localhost:11434/v1' } });
+  assert.deepEqual(same.confirm, []);
+  // A changed host and a new one: two dialogs; meanwhile the old values stay.
+  const ch = p.classifyConfigPatch({ providerBaseUrls: { opencode: 'https://evil.example.com/v1', qwen: 'http://127.0.0.1:8000', crush: 'http://10.0.0.5:9000' } }, base);
+  assert.deepEqual(ch.apply, { providerBaseUrls: { opencode: 'http://localhost:11434/v1', qwen: 'http://127.0.0.1:8000' } });
+  assert.deepEqual(ch.confirm, [
+    { key: 'providerBaseUrls', value: { provider: 'opencode', url: 'https://evil.example.com/v1' } },
+    { key: 'providerBaseUrls', value: { provider: 'crush', url: 'http://10.0.0.5:9000' } }
+  ]);
+  // Confirming merges onto what the patch applies (and earlier confirmations).
+  const one = p.confirmedPatch('providerBaseUrls', ch.confirm[0].value, ch.apply);
+  assert.deepEqual(one, { providerBaseUrls: { opencode: 'https://evil.example.com/v1', qwen: 'http://127.0.0.1:8000' } });
+  const two = p.confirmedPatch('providerBaseUrls', ch.confirm[1].value, { ...ch.apply, ...one });
+  assert.deepEqual(two.providerBaseUrls, { opencode: 'https://evil.example.com/v1', qwen: 'http://127.0.0.1:8000', crush: 'http://10.0.0.5:9000' });
+  // Cancel = nothing confirmed: the stored map is ch.apply, i.e. unchanged.
+  // Malformed input is refused outright.
+  for (const bad of [{ calc: 'http://x' }, { opencode: 'file:///etc/passwd' }, { opencode: 'not a url' }, { opencode: 5 }, 'http://x', ['http://x']]) {
+    assert.deepEqual(p.classifyConfigPatch({ providerBaseUrls: bad }, base).rejected, ['providerBaseUrls'], JSON.stringify(bad));
+  }
+});
+
+test('provider base URL dialog names the provider and the full host', () => {
+  const d = p.confirmPrompt('providerBaseUrls', { provider: 'opencode', url: 'https://evil.example.com:8443/v1' });
+  assert.match(d.message, /^Send your .+ key to evil\.example\.com:8443\?$/);
+  assert.ok(d.detail.includes('https://evil.example.com:8443/v1'));
+  const { providerPreset } = loadTs('src/shared/agentProvider.ts');
+  assert.equal(d.message, `Send your ${providerPreset('opencode').label} key to evil.example.com:8443?`);
+});
+
+test('Free Flow is off by default for new installs', () => {
+  assert.equal(CONFIG_DEFAULTS.freeflowEnabled, false);
+});
+
+test('a secret is kept as plaintext only when there is no secure storage; other failures are refused', () => {
+  const calls = [];
+  const mk = (avail, ok) => ({
+    encryptionAvailable: () => avail,
+    setSecret: (r, v) => { calls.push(['set', r]); return ok ? { ok: true } : { ok: false, error: 'EACCES' }; },
+    deleteSecret: (r) => calls.push(['delete', r])
+  });
+  assert.deepEqual(s.decideSecretStore(mk(true, true), 'config:groqApiKey', 'gsk_x'), { kind: 'stored' });
+  calls.length = 0;
+  assert.deepEqual(s.decideSecretStore(mk(false, true), 'config:groqApiKey', 'gsk_x'), { kind: 'plaintext' });
+  assert.deepEqual(calls, [['delete', 'config:groqApiKey']], 'no store attempt, the stale copy is dropped');
+  calls.length = 0;
+  assert.deepEqual(s.decideSecretStore(mk(true, false), 'config:groqApiKey', 'gsk_x'), { kind: 'error', error: 'EACCES' });
+  assert.deepEqual(calls, [['set', 'config:groqApiKey']], 'the existing encrypted copy is never deleted on a failed store');
+  const idx = read('src/main/index.ts');
+  assert.match(idx, /function storeConfigSecret\(ref: string, value: string\): StoreOutcome \{\n  const r = decideSecretStore\(/);
+});
+
+test('migration backup: an identical earlier backup is reused, a different config gets a new one', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nx-backup-'));
+  const cfgPath = path.join(dir, 'config.json');
+  fs.writeFileSync(cfgPath, '{"slackBotToken":"xoxb-1"}');
+  const a = s.writeConfigBackup(cfgPath, new Date(2026, 9, 6, 12, 0, 0));
+  assert.equal(path.basename(a), 'config.pre-secrets-20261006120000.json');
+  assert.equal(s.writeConfigBackup(cfgPath, new Date(2026, 9, 6, 12, 0, 5)), a);
+  assert.equal(s.listConfigBackups(dir).length, 1);
+  fs.writeFileSync(cfgPath, '{"slackBotToken":"xoxb-2"}');
+  const b2 = s.writeConfigBackup(cfgPath, new Date(2026, 9, 6, 12, 0, 0));
+  assert.equal(path.basename(b2), 'config.pre-secrets-20261006120000-1.json');
+  assert.equal(fs.readFileSync(b2, 'utf8'), '{"slackBotToken":"xoxb-2"}');
+  assert.equal(fs.readFileSync(a, 'utf8'), '{"slackBotToken":"xoxb-1"}');
+  assert.equal(s.listConfigBackups(dir).length, 2);
+});
+
+test('full reset erases the plaintext backups; removing the legacy webhook secret switches the endpoint off', () => {
+  const idx = read('src/main/index.ts');
+  const reset = idx.slice(idx.indexOf("ipcMain.handle('app:resetAll'"), idx.indexOf('resetConfig();', idx.indexOf("ipcMain.handle('app:resetAll'")));
+  assert.match(reset, /for \(const f of secretBackups\(\)\) \{\n    try \{ rmSync\(f, \{ force: true \}\); \}/);
+  const wh = idx.slice(idx.indexOf("ipcMain.handle('webhook:setConfig'"), idx.indexOf("ipcMain.handle('webhook:setConfig'") + 2400);
+  assert.match(wh, /if \(p\.secret === null\) \{[\s\S]*integrations\.deleteSecret\(webhookSecretRef\('legacy'\)\)[\s\S]*secret: '', enabled: false/);
+  assert.ok(read('src/renderer/src/components/SettingsModal.tsx').includes('backups of your old settings file'));
 });

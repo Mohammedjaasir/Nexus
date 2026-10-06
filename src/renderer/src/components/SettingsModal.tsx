@@ -948,7 +948,8 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                 </div>
                 <div style={{ flex: 1, fontSize: 15, lineHeight: '22px', color: 'var(--cth-ink-700)' }}>
                   This permanently erases the lead agent's memory and every agent's workspace data,
-                  and cannot be undone. Any running sessions will be terminated and the app
+                  your settings, the saved Slack, webhook, Groq and organisation keys, and the
+                  backups of your old settings file, and cannot be undone. Any running sessions will be terminated and the app
                   will relaunch into onboarding. Are you sure?
                 </div>
               </div>
@@ -1507,6 +1508,13 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                       {secretStorage && !secretStorage.available && Object.values(secretsPresent).some(Boolean) && (
                         <span role="status" style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-coral)' }}>
                           Secrets stay in config.json because this system has no secure storage available.
+                        </span>
+                      )}
+                      {secretStorage && (secretStorage.corrupt?.length ?? 0) > 0 && (
+                        <span role="alert" style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-coral)' }}>
+                          The secure secrets file could not be read, so Nexus set it aside as{' '}
+                          <code style={{ wordBreak: 'break-all' }}>{secretStorage.corrupt![secretStorage.corrupt!.length - 1]}</code>{' '}
+                          instead of overwriting it. Keys that were stored in it need to be entered again.
                         </span>
                       )}
                       {secretStorage && secretStorage.backups.length > 0 && (

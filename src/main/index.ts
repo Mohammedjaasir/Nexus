@@ -20,7 +20,10 @@ import {
   modelForRole, OPS_STANDUP_MISSION, HEARTBEAT_MISSION, COMPACT_MAINTENANCE_MISSION, type HarnessConfig, type ScheduledMission
 } from './config';
 import { classifyConfigPatch, confirmPrompt, confirmedPatch, type SecretField } from './configPolicy';
-import { redactConfig, migrateConfigSecrets, secretRef, webhookSecretRef, ORG_API_KEY_REF, type RedactedConfig } from './configSecrets';
+import {
+  redactConfig, migrateConfigSecrets, secretRef, webhookSecretRef, ORG_API_KEY_REF, decideSecretStore, listConfigBackups,
+  writeConfigBackup, type RedactedConfig, type StoreOutcome
+} from './configSecrets';
 import { restoreClaudeSettings, claudeSettingsKeysPresent } from './claudeSettings';
 import { listDir, readFileText, readFileBinary, writeFileText, statAbs, expandTilde } from './fs';
 import { resolveAllowedRoot, derivedRootListsFolder } from './fsRoots';
@@ -3050,33 +3053,40 @@ ipcMain.handle('integrations:test', async (_evt, payload: unknown) => {
 
 // ─── Config hardening helpers (O.9 #8, #22) ─────────────────────────────────
 
-/** Store one config secret encrypted. True when it is in safeStorage (the
- *  caller then strips the plaintext); false when this system has no secure
- *  storage, in which case the caller keeps the plaintext so the feature keeps
- *  working, and any older encrypted copy is dropped so it cannot shadow the
- *  newer plaintext value. The value is never logged. */
-function storeConfigSecret(ref: string, value: string): boolean {
-  const r = integrations.setSecret(ref, value);
-  if (r.ok) return true;
-  console.warn('[config] secure storage unavailable; a secret stays in config.json:', ref);
-  try { integrations.deleteSecret(ref); } catch { /* best-effort */ }
-  return false;
+/** Store one config secret (see configSecrets.decideSecretStore): encrypted;
+ *  plaintext ONLY when this system has no secure storage; any other failure is
+ *  refused and the previous value (encrypted copy included) is kept. The value
+ *  is never logged, only the ref. */
+function storeConfigSecret(ref: string, value: string): StoreOutcome {
+  const r = decideSecretStore({
+    encryptionAvailable: () => integrations.encryptionAvailable(),
+    setSecret: (k, v) => integrations.setSecret(k, v),
+    deleteSecret: (k) => integrations.deleteSecret(k)
+  }, ref, value);
+  if (r.kind === 'plaintext') console.warn('[config] no secure storage on this system; a secret stays in config.json:', ref);
+  if (r.kind === 'error') console.error('[config] could not store a secret; the previous value is kept:', ref, r.error);
+  return r;
 }
 
 /** The config patch for secret writes: '' never reaches here (it means
  *  "unchanged"); null removes from both places; a value goes to the store and
- *  its plaintext field is cleared, or stays plaintext without secure storage. */
-function configSecretWrites(secrets: Array<{ field: SecretField; value: string | null }>): Partial<HarnessConfig> {
+ *  its plaintext field is cleared, stays plaintext without secure storage, or,
+ *  when storing fails, is left out of the patch (unchanged) and reported. */
+function configSecretWrites(secrets: Array<{ field: SecretField; value: string | null }>): { patch: Partial<HarnessConfig>; errors: string[] } {
   const out: Record<string, unknown> = {};
+  const errors: string[] = [];
   for (const { field, value } of secrets) {
     if (value === null) {
       integrations.deleteSecret(secretRef(field));
       out[field] = undefined;
-    } else {
-      out[field] = storeConfigSecret(secretRef(field), value) ? undefined : value;
+      continue;
     }
+    const r = storeConfigSecret(secretRef(field), value);
+    if (r.kind === 'stored') out[field] = undefined;
+    else if (r.kind === 'plaintext') out[field] = value;
+    else errors.push(`Could not save the secret: ${r.error}`);
   }
-  return out as Partial<HarnessConfig>;
+  return { patch: out as Partial<HarnessConfig>, errors };
 }
 
 /** Main-process confirmation for one security-relevant key (configPolicy). */
@@ -3106,17 +3116,20 @@ async function confirmConfigChange(key: keyof HarnessConfig, value: unknown, sen
 async function applyRendererConfigPatch(
   patch: unknown,
   sender: Electron.WebContents | null
-): Promise<{ next: HarnessConfig; declined: Array<keyof HarnessConfig>; rejected: string[] }> {
+): Promise<{ next: HarnessConfig; declined: Array<keyof HarnessConfig>; rejected: string[]; secretErrors: string[] }> {
   const c = classifyConfigPatch((patch && typeof patch === 'object' ? patch : {}) as Record<string, unknown>, readConfig());
   if (c.rejected.length) console.warn('[config] renderer update refused for keys:', c.rejected.join(', '));
   const confirmed: Partial<HarnessConfig> = {};
   const declined: Array<keyof HarnessConfig> = [];
   for (const item of c.confirm) {
-    if (await confirmConfigChange(item.key, item.value, sender)) Object.assign(confirmed, confirmedPatch(item.key, item.value));
+    // `base` lets a per-entry key (providerBaseUrls) merge onto what this
+    // patch already applies and what was confirmed before it.
+    if (await confirmConfigChange(item.key, item.value, sender)) Object.assign(confirmed, confirmedPatch(item.key, item.value, { ...c.apply, ...confirmed }));
     else declined.push(item.key);
   }
-  const next = writeConfig({ ...c.apply, ...confirmed, ...configSecretWrites(c.secrets) });
-  return { next, declined, rejected: c.rejected };
+  const secretWrites = configSecretWrites(c.secrets);
+  const next = writeConfig({ ...c.apply, ...confirmed, ...secretWrites.patch });
+  return { next, declined, rejected: c.rejected, secretErrors: secretWrites.errors };
 }
 
 /** The renderer's webhook list: secrets removed, `hasSecret` instead. */
@@ -3132,17 +3145,13 @@ function redactedOrgTrigger(): OrgTriggerConfig {
 /** config.pre-secrets-*.json backups next to config.json (they hold plaintext
  *  secrets, like config.json did; Settings says so and that they can go). */
 function secretBackups(): string[] {
-  try {
-    const dir = dirname(configFilePath());
-    return readdirSync(dir).filter((f) => /^config\.pre-secrets-\d{14}(-\d+)?\.json$/.test(f)).map((f) => join(dir, f));
-  } catch {
-    return [];
-  }
+  return listConfigBackups(dirname(configFilePath()));
 }
 
-/** Redacted config plus where the secrets live, for Settings → Connections. */
-function withSecretStorage(cfg: RedactedConfig): RedactedConfig & { secretStorage: { available: boolean; backups: string[] } } {
-  return { ...cfg, secretStorage: { available: integrations.encryptionAvailable(), backups: secretBackups() } };
+/** Redacted config plus where the secrets live, for Settings → Connections.
+ *  `corrupt`: unreadable secrets files that were set aside, never overwritten. */
+function withSecretStorage(cfg: RedactedConfig): RedactedConfig & { secretStorage: { available: boolean; backups: string[]; corrupt: string[] } } {
+  return { ...cfg, secretStorage: { available: integrations.encryptionAvailable(), backups: secretBackups(), corrupt: integrations.corruptSecretFiles() } };
 }
 
 /** O.9 #8 boot step: plaintext secrets → safeStorage, never losing one. */
@@ -3150,16 +3159,8 @@ function runConfigSecretMigration(): void {
   try {
     const r = migrateConfigSecrets(readConfig(), {
       encryptionAvailable: () => integrations.encryptionAvailable(),
-      backup: () => {
-        const src = configFilePath();
-        const d = new Date();
-        const p2 = (n: number): string => String(n).padStart(2, '0');
-        const ts = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
-        let dst = join(dirname(src), `config.pre-secrets-${ts}.json`);
-        for (let i = 1; existsSync(dst); i++) dst = join(dirname(src), `config.pre-secrets-${ts}-${i}.json`);
-        copyFileSync(src, dst);
-        return dst;
-      },
+      // Reuses an identical earlier backup instead of adding another copy.
+      backup: () => writeConfigBackup(configFilePath()),
       setSecret: (ref, v) => integrations.setSecret(ref, v),
       getSecret: (ref) => integrations.getSecret(ref),
       write: (next) => { persistConfig(next); }
@@ -3199,7 +3200,8 @@ ipcMain.handle('config:update', async (evt, patch: Partial<HarnessConfig>) => {
   // for a main-process dialog; secrets go to the encrypted store; internal keys
   // and unknown keys are refused. trustedEngineCommands stays shrink-only
   // (O.9 #6): adding happens only in ensureAllowedEngine's dialog.
-  const { next } = await applyRendererConfigPatch(patch, evt.sender);
+  const { next, secretErrors } = await applyRendererConfigPatch(patch, evt.sender);
+  if (secretErrors.length) console.error('[config] update kept the previous secret:', secretErrors.join('; '));
   // Live opt-in/out from Settings → Privacy (TELEMETRY.md).
   if (typeof patch?.telemetryEnabled === 'boolean') analytics.setEnabled(patch.telemetryEnabled);
   if (!hiveWasEnabled && hive.enabled()) {
@@ -3219,8 +3221,8 @@ ipcMain.handle('config:restoreClaudeSettings', async (evt) => {
   const owner = BrowserWindow.fromWebContents(evt.sender) ?? BrowserWindow.getFocusedWindow() ?? null;
   const boxOpts: Electron.MessageBoxOptions = {
     type: 'question',
-    message: 'Remove the two settings Nexus added to your Claude configuration?',
-    detail: 'Nexus will remove skipDangerousModePermissionPrompt and skipAutoPermissionPrompt from ~/.claude/settings.json and keep a backup next to it. Nothing else in the file changes.',
+    message: 'Remove these two settings?',
+    detail: 'Older Nexus builds added them; you may also have set them yourself. Nexus will remove skipDangerousModePermissionPrompt and skipAutoPermissionPrompt from ~/.claude/settings.json and keep a backup next to it. Nothing else in the file changes.',
     buttons: ['Remove them', 'Cancel'], defaultId: 1, cancelId: 1, noLink: true
   };
   const res = owner ? await dialog.showMessageBox(owner, boxOpts) : await dialog.showMessageBox(boxOpts);
@@ -4054,6 +4056,10 @@ ipcMain.handle('app:resetAll', () => {
   // encrypted store, so they are dropped explicitly (integration and provider
   // keys stay, as before).
   try { deleteConfigSecrets(); } catch (e) { console.error('[reset] config secrets:', e); }
+  // The pre-migration backups hold plaintext secrets; a full reset erases them too.
+  for (const f of secretBackups()) {
+    try { rmSync(f, { force: true }); } catch (e) { console.error('[reset] rm backup', f, e); }
+  }
   resetConfig();
   app.relaunch();
   app.exit(0);
@@ -4333,6 +4339,7 @@ ipcMain.handle('slack:setConfig', async (evt, patch: unknown) => {
   const cfg = readConfig();
   if (!cfg.slackEnabled || !readConfigSecret('slackSigningSecret', cfg)) stopSlackServer();
   else if (slackServer && cfg.slackPort !== portBefore) void startSlackServer();
+  if (r.secretErrors.length) return { ok: false, error: r.secretErrors[0] };
   return r.declined.includes('slackPort') ? { ok: false, error: 'The port was not changed.' } : { ok: true };
 });
 
@@ -4385,7 +4392,16 @@ ipcMain.handle('webhooks:save', (_evt, arg: unknown) => {
     seen.add(t.id);
     // A new secret goes to the encrypted store; config keeps '' (plaintext
     // only when this system has no secure storage).
-    if (t.secret) t.secret = storeConfigSecret(webhookSecretRef(t.id), t.secret) ? '' : t.secret;
+    if (t.secret) {
+      const prior = existing.find((x) => x.id === t.id);
+      const r = storeConfigSecret(webhookSecretRef(t.id), t.secret);
+      if (r.kind === 'stored') t.secret = '';
+      else if (r.kind === 'error') {
+        // Refused: keep what was stored before; a new endpoint stays secretless and off.
+        t.secret = prior?.secret ?? '';
+        if (!t.secret && !stored[t.id]) t.enabled = false;
+      }
+    }
     list.push(t);
   }
   // A dropped endpoint takes its secret with it, as it did in plaintext.
@@ -4462,7 +4478,10 @@ ipcMain.handle('org:setTrigger', (_evt, arg: unknown) => {
     integrations.deleteSecret(ORG_API_KEY_REF);
     apiKey = '';
   } else if (typeof p.apiKey === 'string' && p.apiKey.trim()) {
-    apiKey = storeConfigSecret(ORG_API_KEY_REF, p.apiKey.trim()) ? '' : p.apiKey.trim();
+    const r = storeConfigSecret(ORG_API_KEY_REF, p.apiKey.trim());
+    // A refused store keeps the previous key (current.apiKey, plus any encrypted copy).
+    if (r.kind === 'stored') apiKey = '';
+    else if (r.kind === 'plaintext') apiKey = p.apiKey.trim();
   }
   const next: OrgTriggerConfig = {
     apiKey,
@@ -4539,7 +4558,9 @@ ipcMain.handle('webhook:status', () => ({ running: webhookServer != null, url: l
 ipcMain.handle('webhook:generateSecret', () => {
   const secret = randomBytes(32).toString('hex');
   // Shown to the user once (this return); stored encrypted (O.9 #8).
-  writeConfig(configSecretWrites([{ field: 'webhookSecret', value: secret }]));
+  const w = configSecretWrites([{ field: 'webhookSecret', value: secret }]);
+  if (w.errors.length) return { ok: false, error: w.errors[0] };
+  writeConfig(w.patch);
   upsertLegacyWebhookTrigger({ secret });
   return { ok: true, secret };
 });
@@ -4551,16 +4572,27 @@ ipcMain.handle('webhook:setConfig', async (evt, patch: unknown) => {
   if (typeof p.enabled === 'boolean') next.webhookEnabled = p.enabled;
   const portBefore = readConfig().webhookPort;
   const r = await applyRendererConfigPatch(next, evt.sender);
-  upsertLegacyWebhookTrigger({
-    secret: typeof p.secret === 'string' ? p.secret.trim() : undefined,
-    enabled: typeof p.enabled === 'boolean' ? p.enabled : undefined
-  });
+  if (p.secret === null) {
+    // Removing the legacy secret removes the legacy endpoint's copy too and
+    // switches that endpoint off (a secretless endpoint is an open door).
+    integrations.deleteSecret(webhookSecretRef('legacy'));
+    const list = readConfig().webhookTriggers ?? [];
+    if (list.some((t) => t.id === 'legacy')) {
+      writeConfig({ webhookTriggers: list.map((t) => (t.id === 'legacy' ? { ...t, secret: '', enabled: false } : t)) });
+    }
+  } else {
+    upsertLegacyWebhookTrigger({
+      secret: typeof p.secret === 'string' ? p.secret.trim() : undefined,
+      enabled: typeof p.enabled === 'boolean' ? p.enabled : undefined
+    });
+  }
   // A confirmed port change rebinds a running server, as the dialog says.
   if (webhookServer && readConfig().webhookPort !== portBefore) stopWebhookServer();
   // Disabling stops the public surface immediately; the reconcile also picks up
   // the case where OTHER endpoints are still enabled, in which case the server
   // stays up minus the legacy one.
   reconcileWebhookServer();
+  if (r.secretErrors.length) return { ok: false, error: r.secretErrors[0] };
   return r.declined.includes('webhookPort') ? { ok: false, error: 'The port was not changed.' } : { ok: true };
 });
 
@@ -4576,7 +4608,13 @@ function upsertLegacyWebhookTrigger(patch: { secret?: string; enabled?: boolean 
   const fresh = patch.secret?.trim() ?? '';
   const hasSecret = !!fresh || !!readConfigSecrets(cfg).webhookSecrets.legacy;
   if (!hasSecret) return;
-  const secret = fresh ? (storeConfigSecret(webhookSecretRef('legacy'), fresh) ? '' : fresh) : prior?.secret ?? '';
+  let secret = prior?.secret ?? '';
+  if (fresh) {
+    const r = storeConfigSecret(webhookSecretRef('legacy'), fresh);
+    if (r.kind === 'stored') secret = '';
+    else if (r.kind === 'plaintext') secret = fresh;
+    else if (!secret && !readConfigSecrets(cfg).webhookSecrets.legacy) return;  // refused, nothing stored before
+  }
   const row: WebhookTrigger = {
     id: 'legacy',
     name: prior?.name ?? 'Default webhook',
@@ -4608,6 +4646,7 @@ ipcMain.handle('freeflow:setConfig', async (evt, patch: unknown) => {
   if (typeof p.model === 'string') next.freeflowModel = p.model.trim() || DEFAULT_GROQ_MODEL;
   const r = await applyRendererConfigPatch(next, evt.sender);
   if (r.declined.includes('freeflowEnabled')) return { ok: false, error: 'Free Flow stays off: the microphone was not allowed.' };
+  if (r.secretErrors.length) return { ok: false, error: r.secretErrors[0] };
   return { ok: true };
 });
 

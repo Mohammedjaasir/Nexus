@@ -415,7 +415,7 @@ export interface HarnessConfig {
   /** Where the secrets live: `available` false means this system has no secure
    *  storage and they stay in config.json; `backups` are the plaintext
    *  config.pre-secrets-*.json copies made before the move. Read-only. */
-  readonly secretStorage?: { available: boolean; backups: string[] };
+  readonly secretStorage?: { available: boolean; backups: string[]; corrupt?: string[] };
   /** Free Flow voice dictation — master flag (default off), user Groq key, model.
    *  Entry point B (hold-Option-to-talk) is handled in the renderer, no hotkey. */
   freeflowEnabled?: boolean;
