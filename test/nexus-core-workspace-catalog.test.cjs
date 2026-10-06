@@ -61,3 +61,56 @@ test('shared catalogue imports nothing from the renderer or shared/domain', () =
   const src = fs.readFileSync(path.join(__dirname, '..', 'src/shared/nexus/workspaceCatalog.ts'), 'utf8');
   assert.doesNotMatch(src, /from\s+['"][^'"]*(renderer|\/domain)['"]/);
 });
+
+const expand = (o) => Object.entries(o).flatMap(([a, bs]) => bs.map((b) => `${a}>${b}`));
+const pairsOf = (t) => t.map(([a, b]) => `${a}>${b}`);
+
+test('the full legacy domain mapping equals the one derived from the Phase A registry', () => {
+  const derived = {};
+  for (const w of WORKSPACES) for (const d of w.domainIds) derived[d] = w.id;
+  assert.deepEqual({ ...cat.LEGACY_DOMAIN_TO_WORKSPACE }, derived);
+});
+test('job transitions equal the plan set exactly', () => {
+  assert.deepEqual(pairsOf(seed.V7_JOB_TRANSITIONS), expand({
+    queued: ['leased', 'cancelled'],
+    leased: ['running', 'queued', 'failed', 'cancelled', 'interrupted'],
+    running: ['awaiting_approval', 'completed', 'partial', 'failed', 'cancelled', 'timed_out', 'interrupted'],
+    awaiting_approval: ['running', 'failed', 'cancelled', 'timed_out', 'interrupted'],
+    failed: ['retry_scheduled'], timed_out: ['retry_scheduled'], retry_scheduled: ['queued', 'cancelled']
+  }));
+});
+test('session transitions equal the plan set exactly', () => {
+  assert.deepEqual(pairsOf(seed.V7_SESSION_TRANSITIONS), expand({
+    open: ['running', 'failed', 'cancelled'],
+    running: ['awaiting_approval', 'completed', 'failed', 'cancelled', 'timed_out', 'interrupted'],
+    awaiting_approval: ['running', 'failed', 'cancelled', 'timed_out', 'interrupted']
+  }));
+});
+test('principals and memberships equal the plan seed exactly', () => {
+  assert.deepEqual(seed.V7_PRINCIPALS.map((p) => ({ ...p })), [
+    { id: 'user:local', kind: 'user', displayName: 'Local owner' },
+    { id: 'system', kind: 'system', displayName: 'Nexus platform' }
+  ]);
+  assert.deepEqual(seed.V7_MEMBERSHIPS.map((m) => ({ ...m })), [
+    { principalId: 'user:local', role: 'owner' },
+    { principalId: 'system', role: 'admin' }
+  ]);
+});
+test('relation to planned phase map equals the plan table exactly', () => {
+  const phases = Object.fromEntries(seed.V7_LINEAGE_RELATIONS.map((r) => [r.relation, r.plannedPhase]));
+  assert.deepEqual(phases, {
+    derived_from: 'B1', contains: 'B1', extracted_from: 'B1', built_from: 'B1', assembled_from: 'B1',
+    fixes: 'B2', tests: 'B2', executes: 'B2', found_in: 'B2', evidenced_by: 'B2', verified_by: 'B2',
+    summarizes: 'B2', recommends: 'B2', based_on: 'B2', depends_on: 'B2',
+    queried_from: 'B3a', visualizes: 'B3a', cites: 'B3a', analyzes: 'B3a',
+    tested_on: 'B3b', evaluates: 'B3b', evaluated_on: 'B3b',
+    run_of: 'B4', trained_on: 'B4', produced_by: 'B4', packages: 'B4', serves: 'B4',
+    resumed_from: 'B5', selected_from: 'B5', exported_from: 'B5',
+    deployed_as: 'B6', implements: 'unassigned'
+  });
+  const d = (r) => seed.V7_LINEAGE_RELATIONS.find((x) => x.relation === r).description;
+  assert.equal(d('serves'), 'A change set that serves a serving package or model export version.');
+  assert.equal(d('run_of'), 'A training run that belongs to an experiment.');
+  assert.equal(d('produced_by'), 'A model or checkpoint produced by a training run.');
+  assert.match(d('deployed_as'), /Deployment records arrive in B6; vocabulary only until then\.$/);
+});

@@ -39,14 +39,9 @@ export const V7_JOB_STATES: readonly { state: string; terminal: 0 | 1 }[] = [
 export const V7_JOB_TRANSITIONS: readonly (readonly [string, string])[] = [
   ['queued', 'leased'],
   ['queued', 'cancelled'],
-  ['queued', 'awaiting_approval'],
-  ['awaiting_approval', 'queued'],
-  ['awaiting_approval', 'running'],
-  ['awaiting_approval', 'cancelled'],
-  ['awaiting_approval', 'timed_out'],
-  ['awaiting_approval', 'interrupted'],
   ['leased', 'running'],
   ['leased', 'queued'],
+  ['leased', 'failed'],
   ['leased', 'cancelled'],
   ['leased', 'interrupted'],
   ['running', 'awaiting_approval'],
@@ -56,6 +51,11 @@ export const V7_JOB_TRANSITIONS: readonly (readonly [string, string])[] = [
   ['running', 'cancelled'],
   ['running', 'timed_out'],
   ['running', 'interrupted'],
+  ['awaiting_approval', 'running'],
+  ['awaiting_approval', 'failed'],
+  ['awaiting_approval', 'cancelled'],
+  ['awaiting_approval', 'timed_out'],
+  ['awaiting_approval', 'interrupted'],
   ['failed', 'retry_scheduled'],
   ['timed_out', 'retry_scheduled'],
   ['retry_scheduled', 'queued'],
@@ -75,9 +75,8 @@ export const V7_SESSION_STATES: readonly { state: string; terminal: 0 | 1 }[] = 
 
 export const V7_SESSION_TRANSITIONS: readonly (readonly [string, string])[] = [
   ['open', 'running'],
-  ['open', 'cancelled'],
-  ['open', 'interrupted'],
   ['open', 'failed'],
+  ['open', 'cancelled'],
   ['running', 'awaiting_approval'],
   ['running', 'completed'],
   ['running', 'failed'],
@@ -85,6 +84,7 @@ export const V7_SESSION_TRANSITIONS: readonly (readonly [string, string])[] = [
   ['running', 'timed_out'],
   ['running', 'interrupted'],
   ['awaiting_approval', 'running'],
+  ['awaiting_approval', 'failed'],
   ['awaiting_approval', 'cancelled'],
   ['awaiting_approval', 'timed_out'],
   ['awaiting_approval', 'interrupted']
@@ -95,46 +95,48 @@ export const BRIEF_LINEAGE_RELATIONS: readonly string[] = [
 ];
 
 export const V7_LINEAGE_RELATIONS: readonly { relation: string; description: string; plannedPhase: string }[] = [
-  { relation: 'derived_from', description: 'A version produced by transforming another version.', plannedPhase: 'B1' },
-  { relation: 'trained_on', description: 'A model version fitted on a dataset version.', plannedPhase: 'B3' },
-  { relation: 'evaluated_on', description: 'A version scored against an evaluation dataset version.', plannedPhase: 'B3' },
-  { relation: 'implements', description: 'A version that realises a specification or design version.', plannedPhase: 'B2' },
-  { relation: 'serves', description: 'A deployable version that serves a model or service version.', plannedPhase: 'B6' },
-  { relation: 'built_from', description: 'A build output made from a source version.', plannedPhase: 'B2' },
-  { relation: 'deployed_as', description: 'A version rolled out as a deployment.', plannedPhase: 'B6' },
-  { relation: 'depends_on', description: 'A version that requires another version to work.', plannedPhase: 'B1' },
-  { relation: 'contains', description: 'A collection version that holds another version.', plannedPhase: 'B1' },
-  { relation: 'extracted_from', description: 'A version extracted from a larger source version.', plannedPhase: 'B4' },
-  { relation: 'queried_from', description: 'A result version produced by querying a data version.', plannedPhase: 'B4' },
-  { relation: 'visualizes', description: 'A chart or dashboard version that presents a data version.', plannedPhase: 'B4' },
-  { relation: 'cites', description: 'A document version that references another version as a source.', plannedPhase: 'B5' },
-  { relation: 'analyzes', description: 'An analysis version that examines another version.', plannedPhase: 'B4' },
-  { relation: 'tested_on', description: 'A version exercised against a test input version.', plannedPhase: 'B5' },
-  { relation: 'run_of', description: 'A run record that executed a particular version.', plannedPhase: 'B3' },
-  { relation: 'produced_by', description: 'A version output by a run or job.', plannedPhase: 'B1' },
-  { relation: 'resumed_from', description: 'A run version continued from an earlier checkpoint version.', plannedPhase: 'B3' },
-  { relation: 'selected_from', description: 'A version chosen out of a set of candidate versions.', plannedPhase: 'B3' },
-  { relation: 'evaluates', description: 'An evaluation version that judges another version.', plannedPhase: 'B3' },
-  { relation: 'packages', description: 'A package version that bundles another version.', plannedPhase: 'B6' },
-  { relation: 'exported_from', description: 'A version exported from another version in a new format.', plannedPhase: 'B3' },
-  { relation: 'fixes', description: 'A version that corrects a defect recorded against another version.', plannedPhase: 'B5' },
-  { relation: 'assembled_from', description: 'A composite version assembled from several part versions.', plannedPhase: 'B2' },
-  { relation: 'tests', description: 'A test version that checks another version.', plannedPhase: 'B5' },
-  { relation: 'executes', description: 'A version that runs another version.', plannedPhase: 'B2' },
-  { relation: 'found_in', description: 'A finding version located within another version.', plannedPhase: 'B5' },
-  { relation: 'evidenced_by', description: 'A claim version backed by an evidence version.', plannedPhase: 'B5' },
-  { relation: 'verified_by', description: 'A version confirmed by a verification version.', plannedPhase: 'B5' },
-  { relation: 'summarizes', description: 'A summary version that condenses another version.', plannedPhase: 'B5' },
-  { relation: 'recommends', description: 'A recommendation version that proposes acting on another version.', plannedPhase: 'B4' },
-  { relation: 'based_on', description: 'A version that takes another version as its basis.', plannedPhase: 'B1' }
+  { relation: 'derived_from', description: 'A newer version of the same kind, a new artifact derived from another version, or a change set derived from its base repository commit.', plannedPhase: 'B1' },
+  { relation: 'contains', description: 'A repository snapshot that contains a change set, verified by git ancestry.', plannedPhase: 'B1' },
+  { relation: 'extracted_from', description: 'An API description extracted from a repository.', plannedPhase: 'B1' },
+  { relation: 'built_from', description: 'A build made from a repository.', plannedPhase: 'B1' },
+  { relation: 'assembled_from', description: 'An application assembled from a build.', plannedPhase: 'B1' },
+  { relation: 'fixes', description: 'A change set that fixes a defect.', plannedPhase: 'B2' },
+  { relation: 'tests', description: 'A test run that tests a build or an application.', plannedPhase: 'B2' },
+  { relation: 'executes', description: 'A test run that executes a test plan.', plannedPhase: 'B2' },
+  { relation: 'found_in', description: 'A defect found in a build.', plannedPhase: 'B2' },
+  { relation: 'evidenced_by', description: 'A defect evidenced by a test run.', plannedPhase: 'B2' },
+  { relation: 'verified_by', description: 'A defect verified by a test run.', plannedPhase: 'B2' },
+  { relation: 'summarizes', description: 'A quality report that summarizes a test run or a defect.', plannedPhase: 'B2' },
+  { relation: 'recommends', description: 'A release recommendation that recommends a build.', plannedPhase: 'B2' },
+  { relation: 'based_on', description: 'A release recommendation based on a quality report.', plannedPhase: 'B2' },
+  { relation: 'depends_on', description: 'An experiment that depends on an evaluation as its baseline, a test plan that depends on a report, or an application that depends on an API.', plannedPhase: 'B2' },
+  { relation: 'queried_from', description: 'A query that reads from a dataset.', plannedPhase: 'B3a' },
+  { relation: 'visualizes', description: 'A dashboard that visualizes a query.', plannedPhase: 'B3a' },
+  { relation: 'cites', description: 'A report or insight that cites a query, dashboard, analysis, experiment, evaluation or dataset.', plannedPhase: 'B3a' },
+  { relation: 'analyzes', description: 'An analysis that analyzes a dataset or a query.', plannedPhase: 'B3a' },
+  { relation: 'tested_on', description: 'An experiment that is tested on a dataset.', plannedPhase: 'B3b' },
+  { relation: 'evaluates', description: 'An evaluation that evaluates a model or a model export.', plannedPhase: 'B3b' },
+  { relation: 'evaluated_on', description: 'An evaluation that is run on a dataset.', plannedPhase: 'B3b' },
+  { relation: 'run_of', description: 'A training run that belongs to an experiment.', plannedPhase: 'B4' },
+  { relation: 'trained_on', description: 'A training run or model trained on a dataset.', plannedPhase: 'B4' },
+  { relation: 'produced_by', description: 'A model or checkpoint produced by a training run.', plannedPhase: 'B4' },
+  { relation: 'packages', description: 'A serving package that packages a model or a model export.', plannedPhase: 'B4' },
+  { relation: 'serves', description: 'A change set that serves a serving package or model export version.', plannedPhase: 'B4' },
+  { relation: 'resumed_from', description: 'A training run resumed from a checkpoint.', plannedPhase: 'B5' },
+  { relation: 'selected_from', description: 'A model selected from a checkpoint.', plannedPhase: 'B5' },
+  { relation: 'exported_from', description: 'A model export made from a model.', plannedPhase: 'B5' },
+  { relation: 'deployed_as', description: 'A version rolled out as a deployment. Deployment records arrive in B6; vocabulary only until then.', plannedPhase: 'B6' },
+  { relation: 'implements', description: 'A version that realises a specification or design version.', plannedPhase: 'unassigned' }
 ];
 
 export const V7_PRINCIPALS: readonly { id: string; kind: 'user' | 'system'; displayName: string }[] = [
-  { id: 'local-user', kind: 'user', displayName: 'Local user' },
-  { id: 'system', kind: 'system', displayName: 'System' }
+  { id: 'user:local', kind: 'user', displayName: 'Local owner' },
+  { id: 'system', kind: 'system', displayName: 'Nexus platform' }
 ];
 
-// Platform scope '*'. Phase 1 is single-user: the local user owns the platform.
+// Platform scope '*'. Phase 1 is single-user: the local owner owns the platform
+// and the system principal administers it.
 export const V7_MEMBERSHIPS: readonly { principalId: string; role: 'owner' | 'admin' }[] = [
-  { principalId: 'local-user', role: 'owner' }
+  { principalId: 'user:local', role: 'owner' },
+  { principalId: 'system', role: 'admin' }
 ];
