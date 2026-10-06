@@ -1,15 +1,9 @@
 import { buildContextHeader } from '../assistant/context';
 import { WORKSPACES } from '../workspaces/registry';
 
-/** The Start flow: describe what you want, confirm where it goes, then hand
- *  it to the lead agent. Pure: no React, no window, testable in node. */
-
-export const START_STEPS = [
-  { id: 'describe', label: 'Describe' },
-  { id: 'confirm', label: 'Confirm' },
-  { id: 'start', label: 'Start' }
-] as const;
-export type StartStepId = (typeof START_STEPS)[number]['id'];
+/** The Start flow, on one screen: describe what you want, see which
+ *  environment and project it goes to, then hand it to the lead agent.
+ *  Pure: no React, no window, testable in node. */
 
 /** Words that point at an environment. Matching is on word starts, so
  *  "dashboards" hits "dashboard". Weights favour specific terms over
@@ -67,4 +61,23 @@ export function buildStartRequest(input: { text: string; workspaceLabel: string;
     text: input.text.trim(),
     contextHeader: buildContextHeader({ workspace: input.workspaceLabel, project: input.project, page: 'Start' }) ?? ''
   };
+}
+
+/** The environment the request goes to: the person's own pick when they
+ *  made one, otherwise whatever the words detect (or none). Never returns
+ *  an id that is not in the registry. */
+export function chosenEnvironment(text: string, pickedId: string | null): string | null {
+  if (pickedId) return WORKSPACES.some((w) => w.id === pickedId) ? pickedId : null;
+  return detectEnvironment(text).id;
+}
+
+/** Why Start cannot run yet, or null when it can. One reason at a time, in
+ *  the order the screen is filled in. A starting lead agent is fine: the
+ *  request queues until it is ready. */
+export function startBlocker(input: { text: string; envId: string | null; hasProject: boolean; assistant: 'ready' | 'starting' | 'unavailable' }): string | null {
+  if (!input.text.trim()) return 'Describe what you want to work on.';
+  if (!input.envId) return 'Pick an environment for this work.';
+  if (!input.hasProject) return 'Choose a project, or a folder for a new one.';
+  if (input.assistant === 'unavailable') return 'No lead agent is running. Start one in Agents.';
+  return null;
 }

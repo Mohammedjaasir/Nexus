@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const loadTs = require('./load-ts.cjs');
 
-const { detectEnvironment, IDEAS, buildStartRequest, START_STEPS } = loadTs('src/renderer/src/nexus/start/startModel.ts');
+const { detectEnvironment, IDEAS, buildStartRequest, chosenEnvironment, startBlocker } = loadTs('src/renderer/src/nexus/start/startModel.ts');
 const { parseHash, formatRoute } = loadTs('src/renderer/src/nexus/router/routes.ts');
 const { WORKSPACES } = loadTs('src/renderer/src/nexus/workspaces/registry.ts');
 
@@ -55,8 +55,23 @@ test('request: the context header names environment and project; the text is unc
   assert.match(r.contextHeader, /page Start/);
 });
 
-test('steps: three steps in order', () => {
-  assert.deepEqual(START_STEPS.map((s) => s.id), ['describe', 'confirm', 'start']);
+test('environment: detection follows the words until the person picks one', () => {
+  assert.equal(chosenEnvironment('Train a model to classify support emails', null), 'ml');
+  assert.equal(chosenEnvironment('Train a model to classify support emails', 'dl'), 'dl');
+  assert.equal(chosenEnvironment('', null), null);
+  assert.equal(chosenEnvironment('hello there', null), null);
+  assert.equal(chosenEnvironment('anything', 'not-a-workspace'), null);
+});
+
+test('start: one reason at a time, in the order the person fills the screen', () => {
+  const ok = { text: 'Train a model', envId: 'ml', hasProject: true, assistant: 'ready' };
+  assert.equal(startBlocker(ok), null);
+  assert.equal(startBlocker({ ...ok, assistant: 'starting' }), null);
+  assert.match(startBlocker({ ...ok, text: '   ' }), /Describe/);
+  assert.match(startBlocker({ ...ok, envId: null }), /environment/);
+  assert.match(startBlocker({ ...ok, hasProject: false }), /project/);
+  assert.match(startBlocker({ ...ok, assistant: 'unavailable' }), /lead agent/);
+  assert.match(startBlocker({ text: '', envId: null, hasProject: false, assistant: 'unavailable' }), /Describe/);
 });
 
 test('routes: #/browse is the environment picker and round-trips', () => {
