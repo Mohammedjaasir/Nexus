@@ -15,7 +15,11 @@ function realSqliteOrSkip() {
   test('real SQLite suite: run with npm run test:db', { skip: 'needs Electron as node (better-sqlite3 is built for Electron)' }, () => {});
   return false;
 }
-const tmpDir = (prefix = 'nx-db-') => fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+const made = [];
+const rmAll = () => { for (const d of made.splice(0)) { try { fs.rmSync(d, { recursive: true, force: true, maxRetries: 3 }); } catch { /* best effort */ } } };
+process.on('exit', rmAll);
+function tmpDir(prefix = 'nx-db-') { const d = fs.mkdtempSync(path.join(os.tmpdir(), prefix)); made.push(d); return d; }
+const cleanupAll = rmAll;
 function openRaw(file) {
   const Database = require('better-sqlite3');
   const db = new Database(file);
@@ -72,7 +76,7 @@ const count = (db, t) => db.prepare(`SELECT COUNT(*) AS n FROM "${t}"`).get().n;
 function v6Fixture() {
   const dir = tmpDir(); const file = path.join(dir, 'harness.db');
   const db = buildV6(file); seedRealistic(db); const snap = legacySnapshot(db); db.close();
-  return { dir, file, snap };
+  return { dir, file, snap, cleanup: () => { try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3 }); } catch { /* best effort */ } } };
 }
 module.exports = { realSqliteOrSkip, tmpDir, openRaw, buildV6, seedRealistic, v6Fixture, legacySnapshot,
-  schemaObjects, allRows, count, LEGACY_TABLES, NOW, ELECTRON };
+  schemaObjects, allRows, count, cleanupAll, LEGACY_TABLES, NOW, ELECTRON };
