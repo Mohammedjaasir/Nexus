@@ -416,7 +416,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
         .catch(() => { /* best-effort */ });
     }
     // A hire manifest may carry a per-agent token budget — apply it to the
-    // same agentTokenCaps map the Command Center card writes.
+    // same agentTokenCaps map the workbench Team card writes.
     if (hireMeta?.tokenCap) {
       void window.cth
         .updateConfig({ agentTokenCaps: { ...(config.agentTokenCaps ?? {}), [id]: hireMeta.tokenCap } })

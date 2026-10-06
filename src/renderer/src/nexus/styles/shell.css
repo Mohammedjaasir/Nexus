@@ -2,6 +2,8 @@
 .nx-shell { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--nx-bar-h) minmax(0, 1fr) auto auto; height: 100%; background: var(--nx-ground); color: var(--nx-ink); font: 400 14px/1.5 var(--nx-font); }
 .nx-bar { display: flex; align-items: center; gap: var(--nx-s2); padding: 0 var(--nx-s3); border-bottom: 1px solid var(--nx-line); background: var(--nx-surface); min-width: 0; }
 .nx-bar__brand { font: 700 15px/1 var(--nx-font-display); }
+/* Boot splash wordmark (main.tsx); colour follows the splash in index.html. */
+.nx-boot-mark { font: 700 28px/1 var(--nx-font-display); color: inherit; }
 .nx-path { display: flex; align-items: center; gap: var(--nx-s1); min-width: 0; overflow: hidden; }
 .nx-path__seg { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 0; border-radius: var(--nx-r-ctl); background: none; font: 550 13px var(--nx-font); color: var(--nx-ink); white-space: nowrap; cursor: pointer; }
 .nx-path__seg:hover { background: var(--nx-sunken); }

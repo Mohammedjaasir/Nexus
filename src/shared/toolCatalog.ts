@@ -74,7 +74,7 @@ const BASE_TOOLS: ToolSpec[] = [
     bin: 'git',
     label: 'git',
     kind: 'prerequisite',
-    why: "Worktrees let agents work in parallel without fighting over one checkout, and the hive keeps its own history in git.",
+    why: "Worktrees let agents work in parallel without fighting over one checkout, and the shared agent folder keeps its own history in git.",
     essential: true,
     install: {
       posix: 'xcode-select --install   # macOS · or: sudo apt install git',

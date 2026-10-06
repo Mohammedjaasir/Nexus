@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { PixelButton } from '../PixelButton';
 import { useStore } from '@/store/store';
 import { TRIGGER_MODES, type TriggerMode, type WebhookTrigger } from '@shared/triggers';
 import {
@@ -9,7 +8,7 @@ import {
 import { JsonEditor } from './JsonEditor';
 import {
   Callout, Field, Hint, MiniButton, ModePicker, Muted, SecretField, SubCard, SubHeader,
-  Toggle, inputStyle
+  Toggle, SmallButton
 } from './ui';
 
 /**
@@ -124,9 +123,9 @@ export function WebhooksSection({ onSummary }: { onSummary?: (s: string) => void
       ))}
 
       <div style={{ marginTop: 8 }}>
-        <PixelButton variant="secondary" size="sm" onClick={() => { void add(); }} disabled={minting}>
+        <SmallButton variant="secondary" onClick={() => { void add(); }} disabled={minting}>
           {minting ? 'minting…' : 'add webhook'}
-        </PixelButton>
+        </SmallButton>
         <Hint>A new endpoint starts switched off. Copy its URL and secret, then turn it on.</Hint>
       </div>
     </>
@@ -215,26 +214,21 @@ function WebhookRow({ hook, url, serverRunning, onPatch, onDelete }: {
 
       {open && (
         <div style={{ marginTop: 4 }}>
-          <Field label="NAME">
+          <Field label="Name">
             {/* Mirror while typing, write through on blur. */}
             <input
               value={hook.name}
               onChange={(e) => onPatch({ name: e.target.value }, false)}
               onBlur={() => onPatch({ name: hook.name })}
               placeholder="Who calls this"
-              style={inputStyle}
+              className="nxh-input"
             />
           </Field>
 
-          <Field label="POST TO">
+          <Field label="Post to">
             {url ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{
-                  flex: 1, minWidth: 0, padding: '4px 6px',
-                  background: 'var(--cth-paper-100)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
-                  fontFamily: 'var(--cth-font-mono)', fontSize: 11, lineHeight: '15px',
-                  color: 'var(--cth-ink-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                }}>{url}</span>
+                <span className="nxh-code nxh-grow">{url}</span>
                 <MiniButton onClick={() => copy('url', url)} tone={copied === 'url' ? 'good' : 'plain'}>
                   {copied === 'url' ? 'copied' : 'copy'}
                 </MiniButton>
@@ -248,7 +242,7 @@ function WebhookRow({ hook, url, serverRunning, onPatch, onDelete }: {
             )}
           </Field>
 
-          <Field label="SECRET">
+          <Field label="Secret">
             {hook.secret ? (
               <SecretField
                 value={hook.secret}
@@ -261,7 +255,7 @@ function WebhookRow({ hook, url, serverRunning, onPatch, onDelete }: {
               // Main never sends a saved secret back (O.9 #8). It is shown once,
               // right after it is generated; a new one replaces it for good.
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ flex: 1, fontSize: 12, color: 'var(--cth-ink-700)' }}>
+                <span className="nxh-note nxh-grow">
                   {hook.hasSecret ? 'Saved. Generate a new secret to see one.' : 'No secret yet.'}
                 </span>
                 <MiniButton onClick={() => { void regenerate(); }}>generate secret</MiniButton>
@@ -270,15 +264,15 @@ function WebhookRow({ hook, url, serverRunning, onPatch, onDelete }: {
             <Hint>Callers echo this in the x-md-webhook-secret header.{hook.secret ? ' Copy it now: it is shown only this once.' : ''}</Hint>
           </Field>
 
-          <Field label="TRUST">
+          <Field label="Trust">
             <ModePicker value={hook.mode} onChange={(mode: TriggerMode) => onPatch({ mode })} />
           </Field>
 
-          <Field label="BODY SCHEMA">
+          <Field label="Body schema">
             {!schemaOpen && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <MiniButton onClick={() => setSchemaOpen(true)}>edit schema</MiniButton>
-                <span style={{ fontSize: 11, color: 'var(--cth-ink-500)' }}>
+                <span className="nxh-muted">
                   what an inbound body must look like
                 </span>
               </div>
@@ -288,10 +282,10 @@ function WebhookRow({ hook, url, serverRunning, onPatch, onDelete }: {
                 <JsonEditor value={schemaText} onChange={(v) => { setSchemaText(v); setSchemaError(null); }} />
                 {schemaError && <Callout>Not valid JSON — {schemaError}. Nothing was saved.</Callout>}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                  <PixelButton variant="primary" size="sm" onClick={saveSchema}>
+                  <SmallButton variant="primary" onClick={saveSchema}>
                     {schemaSaved ? 'saved' : 'save schema'}
-                  </PixelButton>
-                  <PixelButton variant="ghost" size="sm" onClick={() => setSchemaOpen(false)}>close</PixelButton>
+                  </SmallButton>
+                  <SmallButton variant="quiet" onClick={() => setSchemaOpen(false)}>close</SmallButton>
                 </div>
               </>
             )}
@@ -302,7 +296,7 @@ function WebhookRow({ hook, url, serverRunning, onPatch, onDelete }: {
             {!confirmDelete && <MiniButton tone="danger" onClick={() => setConfirmDelete(true)}>delete</MiniButton>}
             {confirmDelete && (
               <>
-                <span style={{ fontSize: 11, color: 'var(--cth-ink-500)' }}>Sure?</span>
+                <span className="nxh-muted">Sure?</span>
                 <MiniButton tone="danger" onClick={onDelete}>delete it</MiniButton>
                 <MiniButton onClick={() => setConfirmDelete(false)}>keep</MiniButton>
               </>

@@ -134,12 +134,12 @@
 .nxn-stuck__list { list-style: none; margin: 0; padding: 0 0 0 var(--nx-s3); border-left: 1px solid var(--nx-line); display: grid; gap: 2px; font: 400 12.5px/1.4 var(--nx-font); color: var(--nx-text-2); }
 .nxn-stuck__status { font: 500 11px var(--nx-font-id); color: var(--nx-text-3); }
 
-/* Activity: a vertical spine of events. */
-.nxa { list-style: none; margin: 0; padding: 0 0 0 var(--nx-s4); border-left: 1px solid var(--nx-line-strong); display: grid; gap: var(--nx-s2); }
-.nxa__item { position: relative; display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: var(--nx-s2); align-items: baseline; }
-.nxa__item::before { content: ""; position: absolute; left: calc(-1 * var(--nx-s4) - 4px); top: 0.5em; width: 7px; height: 7px; border: 1px solid var(--nx-line-strong); border-radius: 50%; background: var(--nx-surface); }
-.nxa__time { font: 400 11px/1.4 var(--nx-font-id); color: var(--nx-text-3); font-variant-numeric: tabular-nums; }
-.nxa__text { font: 400 13px/1.45 var(--nx-font); color: var(--nx-ink); overflow-wrap: anywhere; }
+/* Activity: a vertical spine of events. (.nxact, not .nxa: .nxa is the Agents page root in agents.css.) */
+.nxact { list-style: none; margin: 0; padding: 0 0 0 var(--nx-s4); border-left: 1px solid var(--nx-line-strong); display: grid; gap: var(--nx-s2); }
+.nxact__item { position: relative; display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: var(--nx-s2); align-items: baseline; }
+.nxact__item::before { content: ""; position: absolute; left: calc(-1 * var(--nx-s4) - 4px); top: 0.5em; width: 7px; height: 7px; border: 1px solid var(--nx-line-strong); border-radius: 50%; background: var(--nx-surface); }
+.nxact__time { font: 400 11px/1.4 var(--nx-font-id); color: var(--nx-text-3); font-variant-numeric: tabular-nums; }
+.nxact__text { font: 400 13px/1.45 var(--nx-font); color: var(--nx-ink); overflow-wrap: anywhere; }
 .nxa-board { margin: 0; max-height: 480px; overflow: auto; padding: var(--nx-s3); border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); background: var(--nx-surface); font: 400 12.5px/1.55 var(--nx-font-code); color: var(--nx-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 
 @media (prefers-reduced-motion: no-preference) {

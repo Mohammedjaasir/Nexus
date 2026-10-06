@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { PixelButton } from '../PixelButton';
 import { useStore } from '@/store/store';
 import { useCanonicalAgents, useRegistryIds } from '@/nexus/agents/agentIdentity';
 import { displayNameForId, visibleAgents } from '@shared/agentDisplay';
 import {
   Chip, Field, Hint, IntervalPicker, MiniButton, Muted, Select, SubCard, SubHeader,
-  Toggle, fmtInterval, inputStyle, textareaStyle
+  Toggle, fmtInterval, SmallButton
 } from './ui';
 
 /**
@@ -69,7 +68,7 @@ export function SchedulesSection({ onSummary }: { onSummary?: (s: string) => voi
   }, [missions, onSummary]);
 
   // Optimistic: the list is the truth on screen the moment you click, and the
-  // write is fire-and-forget (the house pattern across the Command Center).
+  // write is fire-and-forget (the house pattern across the agent workbench).
   const persist = (next: ScheduledMission[]) => {
     setMissions(next);
     void window.cth.saveMissions(next).catch(() => { /* noop */ });
@@ -113,46 +112,46 @@ export function SchedulesSection({ onSummary }: { onSummary?: (s: string) => voi
 
       {!adding && (
         <div style={{ marginTop: 8 }}>
-          <PixelButton variant="secondary" size="sm" onClick={() => setAdding(true)}>add a schedule</PixelButton>
+          <SmallButton variant="secondary" onClick={() => setAdding(true)}>add a schedule</SmallButton>
         </div>
       )}
       {adding && (
         <SubCard>
-          <div style={{ fontFamily: 'var(--cth-font-display)', fontSize: 8, color: 'var(--cth-ink-500)' }}>NEW SCHEDULE</div>
-          <Field label="LABEL">
+          <div className="nxh-title">New schedule</div>
+          <Field label="Label">
             <input
               value={mLabel}
               onChange={(e) => setMLabel(e.target.value)}
               placeholder="What this run is for"
-              style={inputStyle}
+              className="nxh-input"
             />
           </Field>
-          <Field label="GOES TO">
+          <Field label="Goes to">
             <Select value={mTo} onChange={setMTo} style={{ width: '100%' }}>
               <option value="broadcast">everyone</option>
               <option value="god">Lead agent</option>
               {agents.filter((a) => !a.isGod).map((a) => <option key={a.id} value={a.id}>{nameOf(a.id)}</option>)}
             </Select>
           </Field>
-          <Field label="EVERY">
+          <Field label="Every">
             <IntervalPicker value={mInterval} onChange={setMInterval} />
           </Field>
-          <Field label="PROMPT">
+          <Field label="Prompt">
             <textarea
               value={mBody}
               onChange={(e) => setMBody(e.target.value)}
               rows={3}
               placeholder="Sent word for word on every run."
-              style={textareaStyle}
+              className="nxh-input"
             />
           </Field>
           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-            <PixelButton variant="primary" size="sm" onClick={add} disabled={!mLabel.trim() || !mBody.trim()}>
+            <SmallButton variant="primary" onClick={add} disabled={!mLabel.trim() || !mBody.trim()}>
               add
-            </PixelButton>
-            <PixelButton variant="ghost" size="sm" onClick={() => { setAdding(false); setMLabel(''); setMBody(''); }}>
+            </SmallButton>
+            <SmallButton variant="quiet" onClick={() => { setAdding(false); setMLabel(''); setMBody(''); }}>
               cancel
-            </PixelButton>
+            </SmallButton>
           </div>
         </SubCard>
       )}
@@ -233,43 +232,38 @@ function MissionRow({ mission, targetName, agents, nameOf, onPatch, onDelete }: 
       {/* The prompt is the mission. Closed, you get the first line of it; open,
           you get the whole thing in an editor. It used to be invisible. */}
       {!open && (
-        <div style={{
-          marginTop: 6, padding: '4px 6px',
-          background: 'var(--cth-paper-100)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
-          fontFamily: 'var(--cth-font-mono)', fontSize: 11, lineHeight: '15px',
-          color: 'var(--cth-ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-        }}>{mission.body.trim() || 'No prompt set.'}</div>
+        <div className="nxh-code" style={{ marginTop: 6 }}>{mission.body.trim() || 'No prompt set.'}</div>
       )}
 
       {open && (
         <div style={{ marginTop: 4 }}>
-          <Field label="LABEL">
-            <input value={label} onChange={(e) => setLabel(e.target.value)} style={inputStyle} />
+          <Field label="Label">
+            <input value={label} onChange={(e) => setLabel(e.target.value)} className="nxh-input" />
           </Field>
-          <Field label="GOES TO">
+          <Field label="Goes to">
             <Select value={to} onChange={setTo} style={{ width: '100%' }}>
               <option value="broadcast">everyone</option>
               <option value="god">Lead agent</option>
               {agents.filter((a) => !a.isGod).map((a) => <option key={a.id} value={a.id}>{nameOf(a.id)}</option>)}
             </Select>
           </Field>
-          <Field label="EVERY">
+          <Field label="Every">
             <IntervalPicker value={intervalMs} onChange={setIntervalMs} />
             {heartbeat && <Hint>The beat adapts to how quiet the agents are, so this is the ceiling, not the exact gap.</Hint>}
           </Field>
-          <Field label="PROMPT">
+          <Field label="Prompt">
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={4}
               placeholder="Sent word for word on every run."
-              style={textareaStyle}
+              className="nxh-input"
             />
           </Field>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-            <PixelButton variant="primary" size="sm" onClick={save} disabled={!dirty || !label.trim()}>
+            <SmallButton variant="primary" onClick={save} disabled={!dirty || !label.trim()}>
               {saved && !dirty ? 'saved' : 'save'}
-            </PixelButton>
+            </SmallButton>
             <span style={{ flex: 1 }} />
             <MiniButton tone="danger" onClick={onDelete}>delete</MiniButton>
           </div>

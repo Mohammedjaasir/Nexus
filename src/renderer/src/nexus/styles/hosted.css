@@ -1,0 +1,112 @@
+/* Hosted tools: Nexus chrome for the existing components the workbench and the
+   Agents page host (Triggers, Graph, Skills, Workers, Semantic memory) and for
+   Manage projects. Only --nx-* tokens. Borders over shadows; 4px controls,
+   8px objects, full radius only for status chips. Some hosts render outside
+   .nx-shell (fullscreen, modals), so the focus ring is declared here too. */
+.nxh { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: var(--nx-s3); padding: var(--nx-s3) var(--nx-s4) var(--nx-s4); background: var(--nx-ground); color: var(--nx-ink); font: 400 13px/1.5 var(--nx-font); }
+.nxh--flush { gap: 0; padding: 0; overflow: hidden; }
+.nxh :focus-visible, .nxpd :focus-visible { outline: 2px solid var(--nx-ink); outline-offset: 2px; }
+.nxh__bar { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: var(--nx-s2); padding: var(--nx-s2) var(--nx-s3); border-bottom: 1px solid var(--nx-line); background: var(--nx-surface); }
+.nxh__body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--nx-s2); padding: var(--nx-s3); }
+.nxh-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--nx-s1) var(--nx-s2); }
+.nxh-title { margin: 0; font: 650 13.5px/1.3 var(--nx-font); color: var(--nx-ink); }
+.nxh-note { margin: 0; font: 400 12.5px/1.5 var(--nx-font); color: var(--nx-text-2); }
+.nxh-muted { margin: 0; font: 400 12.5px/1.5 var(--nx-font); color: var(--nx-text-3); }
+.nxh-hint { margin: var(--nx-s1) 0 0; font: 400 11.5px/1.45 var(--nx-font); color: var(--nx-text-3); }
+.nxh-error { margin: 0; font: 400 12px/1.45 var(--nx-font); color: var(--nx-bad); overflow-wrap: anywhere; }
+.nxh-label { font: 550 12px/1.3 var(--nx-font); color: var(--nx-text-2); }
+.nxh-field { display: grid; gap: var(--nx-s1); margin-top: var(--nx-s2); min-width: 0; }
+.nxh-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--nx-s2); min-width: 0; }
+.nxh-grow { flex: 1; min-width: 0; }
+.nxh-card { display: flex; flex-direction: column; gap: var(--nx-s2); min-width: 0; padding: var(--nx-s3); border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); background: var(--nx-surface); }
+.nxh-card--sub { gap: var(--nx-s1); margin-bottom: var(--nx-s2); padding: var(--nx-s2) var(--nx-s3); background: var(--nx-ground); }
+.nxh-list { display: flex; flex-direction: column; gap: var(--nx-s2); }
+.nxh-name { flex: 1; min-width: 0; font: 600 13px/1.35 var(--nx-font); color: var(--nx-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nxh-meta { display: flex; flex-wrap: wrap; gap: var(--nx-s1) var(--nx-s3); font: 400 11.5px/1.4 var(--nx-font-id); color: var(--nx-text-2); }
+.nxh-path { font: 400 11.5px/1.4 var(--nx-font-id); color: var(--nx-text-3); overflow-wrap: anywhere; }
+.nxh-code { min-width: 0; padding: 4px 8px; border: 1px solid var(--nx-line); border-radius: var(--nx-r-ctl); background: var(--nx-surface); font: 400 11.5px/1.4 var(--nx-font-id); color: var(--nx-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nxh-chip { flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border: 1px solid var(--nx-line-strong); border-radius: 999px; font: 550 11px/1 var(--nx-font); color: var(--nx-text-2); white-space: nowrap; }
+.nxh-chip[data-tone="ok"] { border-color: var(--nx-ok); color: var(--nx-ink); }
+.nxh-chip[data-tone="on"] { border-color: var(--nx-ink); color: var(--nx-ink); }
+.nxh-dot { flex: none; width: 8px; height: 8px; border-radius: 999px; background: var(--nx-line-strong); }
+.nxh-dot[data-tone="ok"] { background: var(--nx-ok); }
+.nxh-dot[data-tone="warn"] { background: var(--nx-warn); }
+.nxh-dot[data-tone="bad"] { background: var(--nx-bad); }
+
+.nxh-input, .nxh-select { box-sizing: border-box; height: 30px; min-width: 0; max-width: 100%; padding: 0 8px; border: 1px solid var(--nx-line-strong); border-radius: var(--nx-r-ctl); background: var(--nx-surface); color: var(--nx-ink); font: 400 13px/1.4 var(--nx-font); }
+.nxh-input { width: 100%; }
+.nxh-input--id { font: 400 12px/1.4 var(--nx-font-id); }
+.nxh-input--num { width: 72px; }
+textarea.nxh-input { height: auto; padding: var(--nx-s2); resize: vertical; font: 400 12px/1.5 var(--nx-font-code); }
+.nxh-input:focus-visible, .nxh-select:focus-visible { outline: 2px solid var(--nx-ink); outline-offset: 1px; }
+.nxh-input:read-only { background: var(--nx-sunken); }
+
+.nx-btn--sm { height: 26px; padding: 0 8px; gap: 4px; font-size: 12px; }
+.nx-btn--danger { border-color: var(--nx-bad); color: var(--nx-bad); }
+.nx-btn[aria-pressed="true"] { border-color: var(--nx-ink); background: var(--nx-ink); color: var(--nx-on-ink); }
+
+/* Segmented choice (Skills mode, memory model): pressed = selected. */
+.nxh-seg { display: flex; flex-wrap: wrap; gap: var(--nx-s1); }
+.nxh-seg__opt { flex: 1 1 0; min-width: 0; display: grid; gap: 2px; padding: 6px 10px; border: 1px solid var(--nx-line-strong); border-radius: var(--nx-r-ctl); background: var(--nx-surface); color: var(--nx-ink); font: 550 12.5px/1.3 var(--nx-font); text-align: left; cursor: pointer; }
+.nxh-seg__opt:hover { background: var(--nx-sunken); }
+.nxh-seg__opt[aria-pressed="true"] { border-color: var(--nx-ink); box-shadow: inset 0 0 0 1px var(--nx-ink); background: var(--nx-sunken); }
+.nxh-seg__detail { font: 400 11.5px/1.3 var(--nx-font); color: var(--nx-text-3); }
+.nxh-seg--inline .nxh-seg__opt { flex: none; }
+
+.nxh-callout { margin: var(--nx-s1) 0 0; padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line); border-left: 3px solid var(--nx-warn); border-radius: var(--nx-r-ctl); background: var(--nx-surface); font: 400 12.5px/1.5 var(--nx-font); color: var(--nx-ink); }
+.nxh-callout[data-tone="bad"] { border-left-color: var(--nx-bad); }
+.nxh-callout[data-tone="note"] { border-left-color: var(--nx-line-strong); }
+.nxh-pre { margin: 0; max-height: 40vh; overflow: auto; padding: var(--nx-s2); border: 1px solid var(--nx-line); border-radius: var(--nx-r-ctl); background: var(--nx-sunken); font: 400 12px/1.5 var(--nx-font-code); color: var(--nx-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* A thin level meter beside its number (context bar). */
+.nxh-meter { flex: 1; min-width: 40px; height: 6px; border: 1px solid var(--nx-line-strong); border-radius: 2px; background: var(--nx-sunken); overflow: hidden; }
+.nxh-meter > span { display: block; height: 100%; background: var(--nx-text-2); }
+
+/* Disclosure: a header button over a body (trigger types, rows inside them). */
+.nxh-disc { min-width: 0; border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); background: var(--nx-surface); }
+.nxh-disc__head { width: 100%; display: flex; align-items: flex-start; gap: var(--nx-s2); padding: var(--nx-s2) var(--nx-s3); border: 0; border-radius: var(--nx-r-obj); background: none; color: var(--nx-ink); font: inherit; text-align: left; cursor: pointer; }
+.nxh-disc__head:hover { background: var(--nx-sunken); }
+.nxh-disc__head[aria-expanded="true"] { border-bottom: 1px solid var(--nx-line); border-radius: var(--nx-r-obj) var(--nx-r-obj) 0 0; }
+.nxh-disc__title { display: block; font: 650 13.5px/1.3 var(--nx-font); color: var(--nx-ink); }
+.nxh-disc__blurb { display: block; margin-top: 2px; font: 400 12.5px/1.45 var(--nx-font); color: var(--nx-text-2); }
+.nxh-disc__body { padding: var(--nx-s2) var(--nx-s3) var(--nx-s3); }
+.nxh-sub__head { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--nx-s2); padding: 0; border: 0; border-radius: var(--nx-r-ctl); background: none; color: var(--nx-ink); font: inherit; text-align: left; cursor: pointer; }
+.nxh-sub__title { display: block; font: 550 12.5px/1.35 var(--nx-font); color: var(--nx-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nxh-sub__sub { display: block; font: 400 11.5px/1.4 var(--nx-font); color: var(--nx-text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nxh-caret { flex: none; width: 6px; height: 6px; margin: 6px 2px 0; border-right: 1.5px solid var(--nx-text-2); border-bottom: 1.5px solid var(--nx-text-2); transform: rotate(-45deg); }
+.nxh-sub__head .nxh-caret { margin-top: 0; }
+[aria-expanded="true"] > .nxh-caret { transform: rotate(45deg); }
+
+/* Semantic memory on the Agents page (MemoryPanel): flows inside the column. */
+.nxh-mem { display: flex; flex-direction: column; gap: var(--nx-s3); font: 400 13px/1.5 var(--nx-font); color: var(--nx-ink); }
+.nxh-mem__pill { align-self: flex-start; }
+
+/* Graph (MemoryGraphPanel): chrome around the SVG; the graph keeps its legend. */
+.nxh-graph { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--nx-ground); }
+.nxh-graph__stage { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.nxh-graph__detail { position: absolute; top: var(--nx-s3); right: var(--nx-s3); width: min(300px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: var(--nx-s2); padding: var(--nx-s3); }
+.nxh-legend { display: flex; flex-wrap: wrap; gap: var(--nx-s1) var(--nx-s3); padding: var(--nx-s2) var(--nx-s3); border-top: 1px solid var(--nx-line); background: var(--nx-surface); font: 400 11.5px/1.3 var(--nx-font); color: var(--nx-text-2); }
+.nxh-legend__item { display: inline-flex; align-items: center; gap: var(--nx-s1); }
+.nxh-legend__swatch { width: 14px; height: 2px; border-radius: 1px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .nxh-disc__head, .nxh-seg__opt { transition: background var(--nx-t-fast) var(--nx-ease-in); }
+}
+
+/* Manage projects (ProjectDashboardModal + ProjectSummaryCard). */
+.nxpd-layer { position: fixed; inset: 0; z-index: 250; display: flex; align-items: center; justify-content: center; padding: var(--nx-s6); background: color-mix(in oklab, var(--nx-ink) 28%, transparent); }
+.nxpd { width: 840px; max-width: 96vw; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; color: var(--nx-ink); font: 400 13px/1.5 var(--nx-font); }
+.nxpd__head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--nx-s2); padding: var(--nx-s3) var(--nx-s4); border-bottom: 1px solid var(--nx-line); }
+.nxpd__title { margin: 0; font: 650 16px/1.3 var(--nx-font-display); color: var(--nx-ink); }
+.nxpd__bar { flex: none; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--nx-s2); padding: var(--nx-s2) var(--nx-s4); border-bottom: 1px solid var(--nx-line); background: var(--nx-ground); }
+.nxpd__body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--nx-s3); padding: var(--nx-s4); background: var(--nx-ground); }
+.nxpd__picker { display: flex; flex-wrap: wrap; gap: var(--nx-s1); }
+.nxps { display: flex; flex-direction: column; border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); background: var(--nx-surface); }
+.nxps__head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--nx-s2) var(--nx-s3); padding: var(--nx-s3) var(--nx-s4); border-bottom: 1px solid var(--nx-line); }
+.nxps__name { margin: 0; font: 650 15px/1.3 var(--nx-font-display); color: var(--nx-ink); }
+.nxps__body { display: flex; flex-direction: column; gap: var(--nx-s3); padding: var(--nx-s4); }
+.nxps__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--nx-s2); }
+.nxps__roles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--nx-s2); }
+.nxps__menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 10; min-width: 220px; padding: var(--nx-s1); display: grid; gap: 1px; }
+.nxps__foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--nx-s2); padding-top: var(--nx-s3); border-top: 1px solid var(--nx-line); }
+.nxps .nx-health { max-width: 260px; }

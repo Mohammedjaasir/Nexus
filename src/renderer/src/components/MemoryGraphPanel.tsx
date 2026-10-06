@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '@/store/store';
-import { PixelBadge } from './PixelBadge';
 import { Icon } from './Icon';
 import type { MessageAct } from '@/scene/office/MessageEnvelope';
 import {
@@ -14,8 +13,9 @@ import { useRegistryIds } from '@/nexus/agents/agentIdentity';
 import { forceLayout, type Positions } from './memoryGraph/forceLayout';
 
 /** The memory-graph tab: hive agents as nodes, messages as edges, an optional
- *  topic layer from each agent's memory file. SVG-rendered (DESIGN.md neo-pixel:
- *  square nodes, hard offset shadows, VT323/Pixelify). See MEMORY_GRAPH_SPEC.md.
+ *  topic layer from each agent's memory file. SVG-rendered on the Nexus tokens:
+ *  neutral nodes, borders not shadows; edge colour encodes the message act and
+ *  is always named in the legend. See MEMORY_GRAPH_SPEC.md.
  *
  *  All data comes from the existing preload bridge: store.agents + hiveLog +
  *  hiveMemory. No new IPC. Click an agent to jump to its memory; hover to peek. */
@@ -184,26 +184,23 @@ export function MemoryGraphPanel({
   const messageEdgeCount = graph.edges.filter((e) => e.kind === 'message').length;
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--cth-paper-200)' }}>
+    <div className="nxh-graph">
       {/* toolbar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', flexShrink: 0,
-        borderBottom: '1px solid var(--cth-ink-300)', background: 'var(--cth-cream-100)', flexWrap: 'wrap'
-      }}>
-        <Toggle on={showTopics} onClick={() => setShowTopics((v) => !v)} label="topics" />
-        <button onClick={refresh} title="Refresh" style={iconBtn}>
-          <Icon name="gear" /> refresh
+      <div className="nxh__bar">
+        <Toggle on={showTopics} onClick={() => setShowTopics((v) => !v)} label="Topics" />
+        <button type="button" onClick={refresh} className="nx-btn nx-btn--sm nx-btn--quiet">
+          Refresh
         </button>
         <div style={{ flex: 1 }} />
         {showTopics && (
-          <span style={{ fontSize: 11, color: 'var(--cth-ink-500)' }}>
+          <span className="nxh-muted" role="status">
             {loadingTopics ? 'reading memory…' : `showing ${graph.topicShown} of ${graph.topicTotal} topics`}
           </span>
         )}
       </div>
 
       {/* canvas */}
-      <div ref={wrapRef} style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <div ref={wrapRef} className="nxh-graph__stage">
         <svg
           width={dims.w}
           height={dims.h}
@@ -212,7 +209,7 @@ export function MemoryGraphPanel({
         >
           <defs>
             <pattern id="mg-grid" width={32} height={32} patternUnits="userSpaceOnUse">
-              <circle cx={1} cy={1} r={1} fill="var(--cth-ink-100)" />
+              <circle cx={1} cy={1} r={1} fill="var(--nx-line)" />
             </pattern>
             {MARKER_ACTS.map((act) => (
               <marker
@@ -228,7 +225,7 @@ export function MemoryGraphPanel({
             ))}
           </defs>
 
-          <rect x={0} y={0} width={dims.w} height={dims.h} fill="var(--cth-paper-100)" />
+          <rect x={0} y={0} width={dims.w} height={dims.h} fill="var(--nx-surface)" />
           <rect x={0} y={0} width={dims.w} height={dims.h} fill="url(#mg-grid)" />
 
           {/* edges */}
@@ -254,7 +251,7 @@ export function MemoryGraphPanel({
               const y1 = sp.y + uy * sr;
               const x2 = tp.x - ux * tr;
               const y2 = tp.y - uy * tr;
-              const stroke = isTopic ? 'var(--cth-ink-300)' : actColor(e.lastAct);
+              const stroke = isTopic ? 'var(--nx-line-strong)' : actColor(e.lastAct);
               const w = isTopic ? 1 : 1 + Math.min(e.weight, 4) * 0.6;
               return (
                 <line
@@ -294,23 +291,21 @@ export function MemoryGraphPanel({
                   onClick={() => { if (navigable && !moved.current) onJumpToMemory(n.id); }}
                   style={{ cursor: navigable ? 'pointer' : 'grab' }}
                 >
-                  {/* hard offset shadow */}
-                  <rect x={-half + 2} y={-half + 2} width={s} height={s} fill="var(--cth-ink-900)" />
                   {/* body */}
                   <rect
-                    x={-half} y={-half} width={s} height={s}
+                    x={-half} y={-half} width={s} height={s} rx={3}
                     fill={nodeFill(n)}
-                    stroke="var(--cth-ink-900)"
+                    stroke="var(--nx-ink)"
                     strokeWidth={n.kind === 'agent' && n.isGod ? 2 : 1.5}
                   />
                   {/* double border for god + human */}
                   {((n.kind === 'agent' && n.isGod) || (n.kind === 'pseudo' && n.id === 'human')) && (
-                    <rect x={-half + 3} y={-half + 3} width={s - 6} height={s - 6}
-                      fill="none" stroke="var(--cth-ink-900)" strokeWidth={1} />
+                    <rect x={-half + 3} y={-half + 3} width={s - 6} height={s - 6} rx={2}
+                      fill="none" stroke="var(--nx-ink)" strokeWidth={1} />
                   )}
                   {/* status ring for agents */}
                   {n.kind === 'agent' && (
-                    <rect x={-half - 2} y={-half - 2} width={s + 4} height={s + 4}
+                    <rect x={-half - 2} y={-half - 2} width={s + 4} height={s + 4} rx={4}
                       fill="none" stroke={`var(--cth-status-${n.status})`} strokeWidth={1.5} />
                   )}
                 </g>
@@ -333,9 +328,9 @@ export function MemoryGraphPanel({
                   textAnchor="middle"
                   opacity={dim ? 0.25 : 1}
                   style={{
-                    fontFamily: isTopic ? 'var(--cth-font-mono)' : 'var(--cth-font-ui)',
-                    fontSize: isTopic ? 12 : 11,
-                    fill: isTopic ? 'var(--cth-ink-700)' : 'var(--cth-ink-900)'
+                    fontFamily: isTopic ? 'var(--nx-font-id)' : 'var(--nx-font)',
+                    fontSize: isTopic ? 11 : 11.5,
+                    fill: isTopic ? 'var(--nx-text-2)' : 'var(--nx-ink)'
                   }}
                 >{truncate(n.label, isTopic ? 20 : 16)}</text>
               );
@@ -345,9 +340,8 @@ export function MemoryGraphPanel({
 
         {/* empty hint */}
         {messageEdgeCount === 0 && !showTopics && (
-          <div style={{
-            position: 'absolute', top: 10, left: 0, right: 0, textAlign: 'center',
-            fontSize: 12, color: 'var(--cth-ink-500)', pointerEvents: 'none'
+          <div className="nxh-muted" role="status" style={{
+            position: 'absolute', top: 10, left: 0, right: 0, textAlign: 'center', pointerEvents: 'none'
           }}>No messages logged yet. Agents are shown from the roster.</div>
         )}
 
@@ -377,8 +371,8 @@ function NodeTip({ node, memories }: { node: GraphNode; memories: Record<string,
       <>
         <div style={tipTitle}>{node.label}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '2px 0 4px' }}>
-          <PixelBadge status={node.status} />
-          <span style={{ fontSize: 11, color: 'var(--cth-ink-500)' }}>{node.degree} message link{node.degree === 1 ? '' : 's'}</span>
+          <span className="nxh-chip">{STATUS_LABEL[node.status] ?? node.status}</span>
+          <span className="nxh-muted">{node.degree} message link{node.degree === 1 ? '' : 's'}</span>
         </div>
         <div style={tipBody}>{snippet}</div>
       </>
@@ -410,7 +404,7 @@ function EdgeTip({ edge, nodeById }: { edge: GraphEdge; nodeById: Map<string, Gr
   return (
     <>
       <div style={tipTitle}>{a} {arrow} {b}</div>
-      <div style={{ fontSize: 11, color: 'var(--cth-ink-500)', margin: '2px 0' }}>
+      <div className="nxh-muted" style={{ margin: '2px 0' }}>
         {edge.weight} message{edge.weight === 1 ? '' : 's'} · last: {edge.lastAct ?? '—'}
       </div>
       {edge.lastSubject && <div style={tipBody}>{truncate(edge.lastSubject, 80)}</div>}
@@ -425,17 +419,16 @@ function Legend() {
     { c: actColor('propose'), label: 'propose' },
     { c: actColor('agree'), label: 'agree/done' },
     { c: actColor('refuse'), label: 'refuse' },
-    { c: 'var(--cth-ink-300)', label: 'inform/topic' }
+    { c: 'var(--nx-line-strong)', label: 'inform/topic' }
   ];
   return (
-    <div style={{
-      position: 'absolute', bottom: 8, left: 8, padding: '5px 7px',
-      background: 'var(--cth-cream-100)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
-      display: 'flex', flexWrap: 'wrap', gap: '2px 10px', maxWidth: 280, pointerEvents: 'none'
+    <div className="nxh-legend" aria-label="Edge colours" style={{
+      position: 'absolute', bottom: 8, left: 8, maxWidth: 300, pointerEvents: 'none',
+      border: '1px solid var(--nx-line)', borderRadius: 'var(--nx-r-ctl)'
     }}>
       {items.map((it) => (
-        <span key={it.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--cth-ink-700)' }}>
-          <span style={{ width: 9, height: 3, background: it.c, display: 'inline-block' }} /> {it.label}
+        <span key={it.label} className="nxh-legend__item">
+          <span className="nxh-legend__swatch" style={{ background: it.c }} /> {it.label}
         </span>
       ))}
     </div>
@@ -451,22 +444,15 @@ function Tooltip({ x, y, wrap, children }: { x: number; y: number; wrap: { w: nu
       position: 'absolute', left: Math.max(6, left), top: flipUp ? undefined : y + 14,
       bottom: flipUp ? wrap.h - y + 14 : undefined,
       width: W, padding: 8, pointerEvents: 'none', zIndex: 5,
-      background: 'var(--cth-cream-50)', boxShadow: '2px 2px 0 var(--cth-ink-900), inset 0 0 0 1px var(--cth-ink-300)'
+      background: 'var(--nx-surface)', border: '1px solid var(--nx-line)', borderRadius: 'var(--nx-r-obj)',
+      boxShadow: 'var(--nx-shadow-float)'
     }}>{children}</div>
   );
 }
 
 function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px 2px', border: 'none', cursor: 'pointer',
-        background: on ? 'var(--cth-lilac)' : 'var(--cth-cream-200)',
-        boxShadow: on ? 'inset 0 0 0 1px var(--cth-ink-300)' : 'inset 0 0 0 1px var(--cth-ink-100)',
-        fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-900)'
-      }}
-    >
+    <button type="button" className="nx-btn nx-btn--sm" aria-pressed={on} onClick={onClick}>
       <Icon name={on ? 'check' : 'plus'} /> {label}
     </button>
   );
@@ -476,18 +462,18 @@ function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; labe
 
 const MARKER_ACTS: MessageAct[] = ['request', 'inform', 'propose', 'query', 'agree', 'refuse', 'done'];
 
-/** Speech-act → colour. Mirrors ACT_COLOR in MessageEnvelope.ts so the graph
- *  speaks the same visual language as the floor's flying envelopes. */
+/** Speech-act → colour: a categorical data encoding, always named in the
+ *  legend (the legacy ring hues; there is no --nx-* categorical set). */
 function actColor(act?: MessageAct): string {
   switch (act) {
     case 'request': return 'var(--cth-sky)';
     case 'query': return 'var(--cth-lilac)';
-    case 'propose': return 'var(--cth-lemon)';
-    case 'agree': return 'var(--cth-mint)';
-    case 'done': return 'var(--cth-mint)';
-    case 'refuse': return 'var(--cth-coral)';
+    case 'propose': return 'var(--nx-warn)';
+    case 'agree': return 'var(--nx-ok)';
+    case 'done': return 'var(--nx-ok)';
+    case 'refuse': return 'var(--nx-bad)';
     case 'inform':
-    default: return 'var(--cth-ink-300)';
+    default: return 'var(--nx-line-strong)';
   }
 }
 
@@ -499,9 +485,10 @@ function nodeSize(n: GraphNode): number {
 function nodeRadius(n: GraphNode): number { return nodeSize(n) / 2; }
 
 function nodeFill(n: GraphNode): string {
-  if (n.kind === 'agent') return `var(--cth-${n.accent})`;
-  if (n.kind === 'topic') return 'var(--cth-cream-200)';
-  return n.id === 'human' ? 'var(--cth-lemon-light)' : 'var(--cth-ink-300)';
+  // Neutral: colour means provenance in Nexus, and agents have no workspace.
+  if (n.kind === 'agent') return 'var(--nx-surface)';
+  if (n.kind === 'topic') return 'var(--nx-sunken)';
+  return n.id === 'human' ? 'var(--nx-sunken)' : 'var(--nx-line-strong)';
 }
 
 function isNeighbor(graph: GraphData, a: string, b: string): boolean {
@@ -525,15 +512,15 @@ function memorySnippet(text: string): string {
   return truncate(lines.slice(0, 3).join(' '), 200) || 'No memory recorded yet.';
 }
 
-const iconBtn: React.CSSProperties = {
-  display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px 2px', border: 'none', cursor: 'pointer',
-  background: 'var(--cth-cream-200)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
-  fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-900)'
-};
-
 const tipTitle: React.CSSProperties = {
-  fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-900)', lineHeight: '16px'
+  fontFamily: 'var(--nx-font)', fontSize: 12.5, fontWeight: 600, color: 'var(--nx-ink)', lineHeight: '17px'
 };
 const tipBody: React.CSSProperties = {
-  fontSize: 11, lineHeight: '15px', color: 'var(--cth-ink-700)'
+  fontFamily: 'var(--nx-font)', fontSize: 12, lineHeight: '16px', color: 'var(--nx-text-2)'
+};
+
+/** Status words, the same as the status badge elsewhere. */
+const STATUS_LABEL: Record<string, string> = {
+  idle: 'idle', thinking: 'working', working: 'working', waiting: 'waiting', blocked: 'needs you',
+  success: 'done', ghost: 'gone', compacting: 'compacting', looping: 'looping', typing: 'your draft'
 };

@@ -23,6 +23,9 @@ interface NexusUi {
   /** Bumped to ask the intent line to take focus (Ctrl/Cmd+J, "Ask" buttons). */
   intentFocusTick: number;
   focusIntent: () => void;
+  /** Bumped to open the Agents page's Semantic memory panel (palette entry). */
+  memoryTick: number;
+  openSemanticMemory: () => void;
   /** What the user has selected on the current surface (not persisted). */
   selection: Selection | null;
   setSelection: (s: Selection | null) => void;
@@ -47,6 +50,8 @@ export const useNexusUi = create<NexusUi>((set) => ({
   addRequest: (r) => set((s) => ({ requests: [...s.requests, r] })),
   intentFocusTick: 0,
   focusIntent: () => set((s) => ({ intentFocusTick: s.intentFocusTick + 1 })),
+  memoryTick: 0,
+  openSemanticMemory: () => set((s) => ({ memoryTick: s.memoryTick + 1 })),
   selection: null,
   setSelection: (s) => set({ selection: s })
 }));

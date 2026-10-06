@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react';
-import { PixelButton } from './PixelButton';
 
 /**
  * WORKERS — live god-triggered ephemeral Slack workers (the Phase-1 spawn loop):
@@ -33,32 +32,9 @@ function fmtTokens(n: number): string {
   return `${(n / 1_000_000).toFixed(2)}M`;
 }
 
-const card: React.CSSProperties = {
-  background: 'var(--cth-paper-100)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
-  padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6
-};
-const metaRow: React.CSSProperties = {
-  display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontFamily: 'var(--cth-font-mono)',
-  fontSize: 11, color: 'var(--cth-ink-700)'
-};
-const sectionHead: React.CSSProperties = {
-  fontFamily: 'var(--cth-font-ui)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
-  letterSpacing: 0.5, color: 'var(--cth-ink-900)', margin: '2px 0'
-};
-
 function StatusBadge({ w }: { w: WorkerSnapshot }) {
   const releasing = w.status === 'releasing';
-  return (
-    <span style={{
-      fontFamily: 'var(--cth-font-mono)', fontSize: 10, padding: '1px 6px',
-      textTransform: 'uppercase', letterSpacing: 0.5,
-      color: releasing ? 'var(--cth-paper-100)' : 'var(--cth-ink-900)',
-      background: releasing ? 'var(--cth-ink-700)' : 'var(--cth-green, #2f8f4e)',
-      boxShadow: releasing ? 'none' : 'inset 0 0 0 1px var(--cth-ink-100)'
-    }}>
-      {releasing ? 'stopping' : 'working'}
-    </span>
-  );
+  return <span className="nxh-chip" data-tone={releasing ? undefined : 'ok'}>{releasing ? 'stopping' : 'working'}</span>;
 }
 
 export function WorkersTab() {
@@ -87,48 +63,36 @@ export function WorkersTab() {
   const max = data?.maxWorkers ?? 4;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '12px 14px 16px', overflow: 'auto' }}>
-      <div>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-          <span style={sectionHead}>Live workers</span>
-          <span style={{ fontFamily: 'var(--cth-font-mono)', fontSize: 11, color: 'var(--cth-ink-700)' }}>
-            {live.length} / {max}
-          </span>
+    <div className="nxh">
+      <section className="nxh-list" aria-labelledby="nxh-workers-live">
+        <div className="nxh-head">
+          <h3 className="nxh-title" id="nxh-workers-live">Live workers</h3>
+          <span className="nxh-meta">{live.length} / {max}</span>
         </div>
-        <p style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 11, color: 'var(--cth-ink-700)', margin: '2px 0 8px' }}>
+        <p className="nxh-note">
           Isolated workers the lead agent spins up to handle Slack messages — they run to completion, reply in-thread, then tear down.
         </p>
 
         {live.length === 0 ? (
-          <div style={{ ...card, color: 'var(--cth-ink-700)', fontFamily: 'var(--cth-font-ui)', fontSize: 12 }}>
-            No workers running right now.
-          </div>
+          <div className="nxh-card"><p className="nxh-muted" role="status">No workers running right now.</p></div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="nxh-list">
             {live.map((w) => (
-              <div key={w.workerId} style={card}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                    <StatusBadge w={w} />
-                    <span style={{
-                      fontFamily: 'var(--cth-font-ui)', fontSize: 12, fontWeight: 600, color: 'var(--cth-ink-900)',
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-                    }}>{w.name}</span>
-                    {w.hasSlack && (
-                      <span title="replies to a Slack thread" style={{
-                        fontFamily: 'var(--cth-font-mono)', fontSize: 10, color: 'var(--cth-ink-700)',
-                        boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)', padding: '0 5px'
-                      }}>slack</span>
-                    )}
-                  </div>
-                  <PixelButton
+              <div key={w.workerId} className="nxh-card">
+                <div className="nxh-row" style={{ flexWrap: 'nowrap' }}>
+                  <StatusBadge w={w} />
+                  <span className="nxh-name">{w.name}</span>
+                  {w.hasSlack && <span className="nxh-chip" title="replies to a Slack thread">Slack</span>}
+                  <button
+                    type="button"
+                    className="nx-btn nx-btn--sm"
                     onClick={() => stop(w.workerId)}
                     disabled={w.releasing || !!stopping[w.workerId]}
                   >
-                    {w.releasing || stopping[w.workerId] ? 'stopping…' : 'stop'}
-                  </PixelButton>
+                    {w.releasing || stopping[w.workerId] ? 'Stopping…' : 'Stop'}
+                  </button>
                 </div>
-                <div style={metaRow}>
+                <div className="nxh-meta">
                   <span title="worker / PTY id">{w.workerId}</span>
                   <span title="base branch the worktree was cut from">base: {w.baseBranch}</span>
                   <span title="time since spawn">up {relAge(w.ageMs)}</span>
@@ -143,21 +107,19 @@ export function WorkersTab() {
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       {preserved.length > 0 && (
-        <div>
-          <span style={sectionHead}>Preserved worktrees ({preserved.length})</span>
-          <p style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 11, color: 'var(--cth-ink-700)', margin: '2px 0 8px' }}>
+        <section className="nxh-list" aria-labelledby="nxh-workers-kept">
+          <h3 className="nxh-title" id="nxh-workers-kept">Preserved worktrees ({preserved.length})</h3>
+          <p className="nxh-note">
             Finished workers whose worktree held un-integrated work — kept (never auto-discarded) and auto-reclaimed once the work lands in its base branch.
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="nxh-list">
             {preserved.map((p) => (
-              <div key={p.wtPath} style={card}>
-                <div style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 12, fontWeight: 600, color: 'var(--cth-ink-900)' }}>
-                  {p.workerId}
-                </div>
-                <div style={metaRow}>
+              <div key={p.wtPath} className="nxh-card">
+                <div className="nxh-name">{p.workerId}</div>
+                <div className="nxh-meta">
                   <span style={{ wordBreak: 'break-all' }}>{p.wtPath}</span>
                   <span>base: {p.baseBranch}</span>
                   <span>kept {relAge(Math.max(0, Date.now() - p.preservedAt))} ago</span>
@@ -165,7 +127,7 @@ export function WorkersTab() {
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { PixelButton } from '../PixelButton';
 import type { TriggerHistoryEntry } from '@shared/triggers';
 
 /**
@@ -127,68 +126,68 @@ function clampBody(body: string): { text: string; clipped: boolean } {
 /* ───────────────────────────────── styles ────────────────────────────────── */
 
 const tinyCaps: CSSProperties = {
-  fontFamily: 'var(--cth-font-display)', fontSize: 9, lineHeight: '12px',
-  color: 'var(--cth-ink-500)'
+  fontFamily: 'var(--nx-font)', fontSize: 11, lineHeight: '14px', fontWeight: 550,
+  color: 'var(--nx-text-3)'
 };
 const uiText: CSSProperties = {
-  fontFamily: 'var(--cth-font-ui)', fontSize: 12, lineHeight: '17px',
-  color: 'var(--cth-ink-900)'
+  fontFamily: 'var(--nx-font)', fontSize: 12.5, lineHeight: '18px',
+  color: 'var(--nx-ink)'
 };
-const muted: CSSProperties = { ...uiText, color: 'var(--cth-ink-500)' };
+const muted: CSSProperties = { ...uiText, color: 'var(--nx-text-3)' };
 const ellipsis: CSSProperties = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
 
 const cardStyle: CSSProperties = {
-  background: 'var(--cth-paper-100)',
-  boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
-  padding: 8, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0
+  background: 'var(--nx-surface)',
+  border: '1px solid var(--nx-line)', borderRadius: 'var(--nx-r-obj)',
+  padding: 12, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0
 };
 const pendingCardStyle: CSSProperties = {
   ...cardStyle,
-  background: 'var(--cth-cream-100)',
-  boxShadow: 'inset 0 0 0 2px var(--cth-lemon)'
+  borderColor: 'var(--nx-line-strong)', borderLeft: '3px solid var(--nx-warn)'
 };
 const bodyBox: CSSProperties = {
-  background: 'var(--cth-cream-200)',
-  boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
+  background: 'var(--nx-sunken)',
+  border: '1px solid var(--nx-line)', borderRadius: 'var(--nx-r-ctl)',
   padding: '6px 8px',
-  fontFamily: 'var(--cth-font-mono)', fontSize: 12, lineHeight: '17px',
-  color: 'var(--cth-ink-900)',
+  fontFamily: 'var(--nx-font-code)', fontSize: 12, lineHeight: '17px',
+  color: 'var(--nx-ink)',
   whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', wordBreak: 'break-word'
 };
 const linkButton: CSSProperties = {
-  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-  fontFamily: 'var(--cth-font-ui)', fontSize: 11, lineHeight: '16px',
-  color: 'var(--cth-ink-700)', textDecoration: 'underline', textAlign: 'left'
+  background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: 'var(--nx-r-ctl)',
+  fontFamily: 'var(--nx-font)', fontSize: 12, lineHeight: '16px',
+  color: 'var(--nx-text-2)', textDecoration: 'underline', textAlign: 'left'
 };
 
-function badgeStyle(fill: string, line: string): CSSProperties {
+/** A status chip: the word carries the meaning; the border hue only echoes it. */
+function badgeStyle(line: string): CSSProperties {
   return {
-    fontFamily: 'var(--cth-font-display)', fontSize: 9, lineHeight: '12px',
-    padding: '3px 5px 2px', background: fill, boxShadow: `inset 0 0 0 1px ${line}`,
-    color: 'var(--cth-ink-900)', flexShrink: 0
+    display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 8px', borderRadius: 999,
+    fontFamily: 'var(--nx-font)', fontSize: 11, fontWeight: 550, lineHeight: 1,
+    border: `1px solid ${line}`, color: 'var(--nx-ink)', flexShrink: 0, whiteSpace: 'nowrap'
   };
 }
 
-function Badge({ fill, line, children }: { fill: string; line: string; children: string }) {
-  return <span style={badgeStyle(fill, line)}>{children}</span>;
+function Badge({ line, children }: { line: string; children: string }) {
+  return <span style={badgeStyle(line)}>{children}</span>;
 }
 
 function KindBadge({ kind }: { kind: TriggerHistoryEntry['kind'] }) {
   return kind === 'directive'
-    ? <Badge fill="var(--cth-lemon-light)" line="var(--cth-lemon)">directive</Badge>
-    : <Badge fill="var(--cth-sky-light)" line="var(--cth-sky)">communication</Badge>;
+    ? <Badge line="var(--nx-line-strong)">directive</Badge>
+    : <Badge line="var(--nx-line-strong)">communication</Badge>;
 }
 
 function DecisionBadge({ decision }: { decision: NonNullable<TriggerHistoryEntry['decision']> }) {
   switch (decision) {
     case 'pending':
-      return <Badge fill="var(--cth-lemon-light)" line="var(--cth-lemon)">needs you</Badge>;
+      return <Badge line="var(--nx-warn)">needs you</Badge>;
     case 'approved':
-      return <Badge fill="var(--cth-mint-light)" line="var(--cth-mint)">approved</Badge>;
+      return <Badge line="var(--nx-ok)">approved</Badge>;
     case 'rejected':
-      return <Badge fill="var(--cth-coral-light)" line="var(--cth-coral)">rejected</Badge>;
+      return <Badge line="var(--nx-bad)">rejected</Badge>;
     default:
-      return <Badge fill="var(--cth-cream-200)" line="var(--cth-ink-300)">auto-allowed</Badge>;
+      return <Badge line="var(--nx-line-strong)">auto-allowed</Badge>;
   }
 }
 
@@ -255,11 +254,8 @@ function ExchangeCard({
   return (
     <div style={pending ? pendingCardStyle : cardStyle}>
       {pending && (
-        <div style={{
-          background: 'var(--cth-lemon-light)', boxShadow: 'inset 0 0 0 1px var(--cth-lemon)',
-          padding: '4px 6px 3px', ...tinyCaps, color: 'var(--cth-ink-900)'
-        }}>
-          WAITING FOR YOU
+        <div style={{ ...tinyCaps, color: 'var(--nx-ink)' }}>
+          Waiting for you
         </div>
       )}
 
@@ -270,11 +266,11 @@ function ExchangeCard({
           </span>
           <span style={{ ...tinyCaps, flexShrink: 0 }}>{relTime(Date.now() - ex.latestAt)}</span>
         </div>
-        <div style={{ ...muted, ...ellipsis, fontSize: 11 }} title={head.peer}>
+        <div style={{ ...muted, ...ellipsis }} title={head.peer}>
           {hasInbound ? 'from' : 'to'} {head.peer || 'unknown'}
         </div>
         {head.title && (
-          <div style={{ ...uiText, ...ellipsis, color: 'var(--cth-ink-700)' }} title={head.title}>
+          <div style={{ ...uiText, ...ellipsis, color: 'var(--nx-text-2)' }} title={head.title}>
             {head.title}
           </div>
         )}
@@ -289,7 +285,7 @@ function ExchangeCard({
         <MessageBlock
           key={m.id}
           msg={m}
-          label={m.direction === 'inbound' ? 'THEY SENT' : hasInbound ? 'WE REPLIED' : 'WE SENT'}
+          label={m.direction === 'inbound' ? 'They sent' : hasInbound ? 'We replied' : 'We sent'}
           expanded={!!expanded[m.id]}
           onToggle={() => toggle(m.id)}
         />
@@ -297,38 +293,38 @@ function ExchangeCard({
 
       {pending && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ ...uiText, fontSize: 11, lineHeight: '16px', color: 'var(--cth-ink-700)' }}>
+          <div style={{ ...uiText, color: 'var(--nx-text-2)' }}>
             {pending.kind === 'directive'
               ? 'Approve and this goes to the lead agent, which hands it to the team. Reject and it is dropped. Nothing runs.'
               : 'Approve and the lead agent reads this. Reject and it is dropped — nothing runs.'}
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <PixelButton
-              variant="primary"
-              size="sm"
+            <button
+              type="button"
+              className="nx-btn nx-btn--sm nx-btn--primary"
               disabled={!!busy[pending.id]}
               onClick={() => onDecide(pending.id, 'approved')}
               title="Send this message through to the lead agent"
             >
               {busy[pending.id] ? 'one sec…' : 'approve'}
-            </PixelButton>
-            <PixelButton
-              variant="secondary"
-              size="sm"
+            </button>
+            <button
+              type="button"
+              className="nx-btn nx-btn--sm"
               disabled={!!busy[pending.id]}
               onClick={() => onDecide(pending.id, 'rejected')}
               title="Drop this message. Nothing is sent"
             >
               reject
-            </PixelButton>
+            </button>
           </div>
         </div>
       )}
 
-      {tail && <div style={{ ...muted, fontSize: 11 }}>{tail}</div>}
+      {tail && <div style={muted}>{tail}</div>}
 
       {taskId && (
-        <div style={{ ...tinyCaps, ...ellipsis }} title={taskId}>TASK {taskId}</div>
+        <div style={{ ...tinyCaps, ...ellipsis }} title={taskId}>Task <span style={{ fontFamily: 'var(--nx-font-id)' }}>{taskId}</span></div>
       )}
     </div>
   );
@@ -340,7 +336,7 @@ function EmptyState({ title, body }: { title: string; body: string }) {
   return (
     <div style={{ ...cardStyle, gap: 4 }}>
       <div style={uiText}>{title}</div>
-      <div style={{ ...muted, fontSize: 11, lineHeight: '16px' }}>{body}</div>
+      <div style={muted}>{body}</div>
     </div>
   );
 }
@@ -437,15 +433,9 @@ export function TriggerHistoryTab() {
   const pendingCount = counts[source].pending;
 
   return (
-    <div style={{
-      flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
-      background: 'var(--cth-paper-200)'
-    }}>
+    <div className="nxh nxh--flush">
       {/* Section switcher — the panel is too narrow to stack both lists. */}
-      <div style={{
-        display: 'flex', flexShrink: 0,
-        background: 'var(--cth-cream-200)', boxShadow: 'inset 0 -1px 0 var(--cth-ink-300)'
-      }}>
+      <div className="nxh__bar nxh-seg nxh-seg--inline" role="group" aria-label="Source">
         {SECTIONS.map((s) => {
           const active = s.key === source;
           const p = counts[s.key].pending;
@@ -453,40 +443,23 @@ export function TriggerHistoryTab() {
             <button
               key={s.key}
               type="button"
+              className="nxh-seg__opt"
+              aria-pressed={active}
               onClick={() => { setSource(s.key); setConfirmClear(false); setError(null); }}
-              style={{
-                flex: 1, height: 32, padding: '0 8px', border: 'none', cursor: 'pointer',
-                background: active ? 'var(--cth-paper-200)' : 'transparent',
-                boxShadow: active ? 'inset 0 -2px 0 var(--cth-ink-900)' : 'none',
-                fontFamily: 'var(--cth-font-display)', fontSize: 9, lineHeight: '12px',
-                color: active ? 'var(--cth-ink-900)' : 'var(--cth-ink-500)',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                minWidth: 0
-              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              <span style={ellipsis}>{s.label.toUpperCase()}</span>
-              {p > 0 && (
-                <span style={{
-                  ...badgeStyle('var(--cth-lemon-light)', 'var(--cth-lemon)'),
-                  padding: '2px 4px 1px'
-                }}>{p}</span>
-              )}
+              <span style={ellipsis}>{s.label}</span>
+              {p > 0 && <span style={badgeStyle('var(--nx-warn)')}>{p} held</span>}
             </button>
           );
         })}
       </div>
 
-      <div style={{
-        flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden',
-        padding: 8, display: 'flex', flexDirection: 'column', gap: 8
-      }}>
-        <div style={{ ...muted, fontSize: 11, lineHeight: '16px' }}>{section.blurb}</div>
+      <div className="nxh__body">
+        <div style={muted}>{section.blurb}</div>
 
         {pendingCount > 0 && (
-          <div style={{
-            background: 'var(--cth-lemon-light)', boxShadow: 'inset 0 0 0 1px var(--cth-lemon)',
-            padding: '6px 8px', ...uiText, fontSize: 11, lineHeight: '16px'
-          }}>
+          <div className="nxh-callout">
             {pendingCount === 1
               ? 'One message is held, waiting on your yes or no.'
               : `${pendingCount} messages are held, waiting on your yes or no.`}
@@ -494,10 +467,7 @@ export function TriggerHistoryTab() {
         )}
 
         {error && (
-          <div style={{
-            background: 'var(--cth-coral-light)', boxShadow: 'inset 0 0 0 1px var(--cth-coral)',
-            padding: '6px 8px', ...uiText, fontSize: 11, lineHeight: '16px'
-          }}>{error}</div>
+          <div className="nxh-callout" data-tone="bad" role="alert">{error}</div>
         )}
 
         {exchanges.length === 0 ? (
@@ -533,27 +503,27 @@ export function TriggerHistoryTab() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
             {confirmClear ? (
               <>
-                <div style={{ ...muted, fontSize: 11, lineHeight: '16px' }}>
+                <div style={muted}>
                   Delete all {counts[source].total} {section.label.toLowerCase()} messages? The record
                   is gone for good.
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <PixelButton variant="destructive" size="sm" onClick={clear}>delete them</PixelButton>
-                  <PixelButton variant="ghost" size="sm" onClick={() => setConfirmClear(false)}>
+                  <button type="button" className="nx-btn nx-btn--sm nx-btn--danger" onClick={clear}>delete them</button>
+                  <button type="button" className="nx-btn nx-btn--sm nx-btn--quiet" onClick={() => setConfirmClear(false)}>
                     keep them
-                  </PixelButton>
+                  </button>
                 </div>
               </>
             ) : (
               <div>
-                <PixelButton
-                  variant="ghost"
-                  size="sm"
+                <button
+                  type="button"
+                  className="nx-btn nx-btn--sm nx-btn--quiet"
                   onClick={() => setConfirmClear(true)}
                   title="Delete this section’s history"
                 >
                   clear history
-                </PixelButton>
+                </button>
               </div>
             )}
           </div>

@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { DomainId } from '@shared/domain';
 import type { Project } from '@shared/project';
-import { PixelPanel } from '../components/PixelPanel';
-import { PixelButton } from '../components/PixelButton';
 import { useStore } from '../store/store';
 import { ProjectSummaryCard } from './ProjectSummaryCard';
 import { ProjectImportModal } from './ProjectImportModal';
@@ -84,142 +82,66 @@ export function ProjectDashboardModal({ isOpen, onClose, onNewProject, onOpenPro
 
   return (
     <>
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(23, 20, 16, 0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 250,
-          padding: 24
-        }}
-      >
-        <div style={{ width: 840, maxWidth: '96vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
-          <PixelPanel
-            variant="dialog"
-            noPadding
-            style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
-          >
-            {/* Title Bar */}
-            <div
-              style={{
-                padding: '10px 16px',
-                background: 'var(--cth-cream-200)',
-                borderBottom: '1.5px solid var(--cth-ink-900)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}
-            >
-              <span style={{ fontFamily: 'var(--cth-font-display)', fontSize: 12, fontWeight: 700, color: 'var(--cth-ink-900)' }}>
-                PROJECT WORKSPACE DASHBOARD
-              </span>
-              <button
-                onClick={onClose}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--cth-font-ui)',
-                  fontSize: 16,
-                  lineHeight: 1,
-                  padding: '2px 6px',
-                  color: 'var(--cth-ink-700)'
-                }}
-              >
-                ✕
-              </button>
-            </div>
-            {/* Top Toolbar */}
-            <div
-              style={{
-                padding: '12px 16px',
-                borderBottom: '1.5px solid var(--cth-ink-200)',
-                background: 'var(--cth-cream-100)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}
-            >
-              <div style={{ fontFamily: 'var(--cth-font-display)', fontSize: 11, color: 'var(--cth-ink-500)' }}>
-                ACTIVE PROJECTS ({projects.length})
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {onNewProject && (
-                  <PixelButton variant="secondary" size="sm" onClick={onNewProject}>
-                    + New Project
-                  </PixelButton>
-                )}
-                <PixelButton variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
-                  + Import Existing Project
-                </PixelButton>
-              </div>
-            </div>
+      <div className="nxpd-layer">
+        <div className="nxpd nx-float" role="dialog" aria-modal="true" aria-labelledby="nxpd-title">
+          <header className="nxpd__head">
+            <h2 className="nxpd__title" id="nxpd-title">Manage projects</h2>
+            <button type="button" className="nx-btn nx-btn--quiet nx-btn--sm" onClick={onClose} aria-label="Close">
+              Close
+            </button>
+          </header>
 
-            {/* Content Area */}
-            <div style={{ padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Project selector strip */}
-              {projects.length > 1 && (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 4 }}>
-                  {projects.map((p) => {
-                    const isSelected = (currentProject?.id === p.id);
-                    return (
-                      <button
-                        key={p.id}
-                        onClick={() => handleSelectProject(p)}
-                        style={{
-                          padding: '6px 12px',
-                          background: isSelected ? 'var(--cth-mint-light)' : 'var(--cth-cream-100)',
-                          boxShadow: isSelected
-                            ? 'inset 0 0 0 2px var(--cth-mint)'
-                            : 'inset 0 0 0 1px var(--cth-ink-200)',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontFamily: 'var(--cth-font-ui)',
-                          fontSize: 12,
-                          color: 'var(--cth-ink-900)'
-                        }}
-                      >
-                        {isSelected ? '● ' : ''}{p.name}
-                      </button>
-                    );
-                  })}
-                </div>
+          <div className="nxpd__bar">
+            <span className="nxh-label">Projects ({projects.length})</span>
+            <div className="nxh-row">
+              {onNewProject && (
+                <button type="button" className="nx-btn nx-btn--sm" onClick={onNewProject}>New project</button>
               )}
-
-              {/* Main Project Summary View */}
-              {currentProject ? (
-                <ProjectSummaryCard
-                  project={currentProject}
-                  onOpenProject={onOpenProject ?? onClose}
-                  onRefreshProject={handleRefreshActive}
-                  onChangeDomain={handleChangeDomain}
-                  isRefreshing={refreshing}
-                />
-              ) : (
-                <div
-                  style={{
-                    padding: 32,
-                    textAlign: 'center',
-                    background: 'var(--cth-cream-100)',
-                    boxShadow: 'inset 0 0 0 1px var(--cth-ink-200)'
-                  }}
-                >
-                  <p style={{ fontFamily: 'var(--cth-font-display)', fontSize: 13, marginBottom: 12 }}>
-                    No Projects Configured Yet
-                  </p>
-                  <p style={{ fontSize: 12, color: 'var(--cth-ink-500)', maxWidth: 460, margin: '0 auto 16px' }}>
-                    Import an existing repository or workspace folder to unlock domain-specialized AI agent environments.
-                  </p>
-                  <PixelButton variant="primary" onClick={() => setImportOpen(true)}>
-                    Import Existing Project Now →
-                  </PixelButton>
-                </div>
-              )}
+              <button type="button" className="nx-btn nx-btn--sm" onClick={() => setImportOpen(true)}>Import a folder</button>
             </div>
-          </PixelPanel>
+          </div>
+
+          <div className="nxpd__body">
+            {/* Project selector strip */}
+            {projects.length > 1 && (
+              <div className="nxpd__picker" role="group" aria-label="Project">
+                {projects.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="nx-btn nx-btn--sm"
+                    aria-pressed={currentProject?.id === p.id}
+                    onClick={() => handleSelectProject(p)}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Main project summary */}
+            {currentProject ? (
+              <ProjectSummaryCard
+                project={currentProject}
+                onOpenProject={onOpenProject ?? onClose}
+                onRefreshProject={handleRefreshActive}
+                onChangeDomain={handleChangeDomain}
+                isRefreshing={refreshing}
+              />
+            ) : (
+              <div className="nx-empty" role="status">
+                <h3 className="nx-empty__title">No projects yet</h3>
+                <p className="nx-empty__body" style={{ margin: 0 }}>
+                  Import a folder you already work in. Agents use it as their working directory.
+                </p>
+                <div className="nx-empty__actions">
+                  <button type="button" className="nx-btn nx-btn--primary" onClick={() => setImportOpen(true)}>
+                    Import a folder
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

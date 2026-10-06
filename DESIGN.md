@@ -63,6 +63,7 @@ Sizes are not tokenised; each stylesheet sets its own `font` shorthand. In pract
 
 - `src/renderer/src/nexus/`: all Spine UI. Subfolders: `agents`, `assistant`, `chrome`, `components`, `data`, `design` (provenance), `intent`, `launcher`, `pages`, `project`, `review`, `router`, `routes`, `runs`, `state`, `styles`, `ui`, `workspaces`.
 - Pure models (no React or `window`, loadable by `test/load-ts.cjs`) include `provenance.ts`, `launcher/indexModel.ts`, `router/routes.ts`, `project/spineModel.ts`, `project/passport.ts`, `runs/runModel.ts`, `review/reviewModel.ts`, `intent/intentContext.ts`.
+- `nexus/agents/workbench`: the agent workbench (header, section tabs, native lead sections, hosted tools) mounted on the Agents page and in fullscreen.
 - `src/renderer/src/design/tokens.css`: the legacy `--cth-*` tokens, now references to `--nx-*`.
 - `src/renderer/src/design/tokens.ts`: sRGB mirror of the light-theme values. Its runtime colours are read only by `scene/office`; `AddAgentModal`, `AgentCard`, `PixelPanel`, `store` and `memoryGraph/buildGraph` import only its types (`AccentColorName`). Update with `tokens.css`.
 - `src/renderer/src/design/global.css`: reset, focus ring, scrollbars, keyframes, markdown preview, reduced-motion rule.
@@ -86,6 +87,6 @@ The launcher surfaces are the one place ambient motion is allowed: the Start pag
 
 ## Legacy screens
 
-The IDE, settings, modals, terminals and the project Command Center are not redesigned. They are re-skinned: every `--cth-*` colour token points at a `--nx-*` role, and `--cth-font-ui` is Instrument Sans, so they follow the Spine palette and both themes. The `--cth-*` names are legacy (`cream`, `paper`, `ink` describe the old palette); the role mapping is documented at the top of `design/tokens.css`. Do not add new tokens to the `--cth-*` set; add `--nx-*` tokens instead.
+The project Command Center is retired. Agents work in the agent workbench (`nexus/agents/workbench/*`), which is Nexus-native; its hosted tools (Triggers, History, Memory, Graph, Skills, Workers), the Agents page's Semantic memory panel and Manage projects use the Nexus classes in `styles/hosted.css` instead of pixel chrome. The IDE, settings, the remaining modals and the terminals are not redesigned. They are re-skinned: every `--cth-*` colour token points at a `--nx-*` role, and `--cth-font-ui` is Instrument Sans, so they follow the Spine palette and both themes. The `--cth-*` names are legacy (`cream`, `paper`, `ink` describe the old palette); the role mapping is documented at the top of `design/tokens.css`. Do not add new tokens to the `--cth-*` set; add `--nx-*` tokens instead.
 
 The office floor (`scene/office/*`) is isolated legacy code. It is not rendered by any Nexus surface.

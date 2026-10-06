@@ -914,7 +914,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
       onClick={busy ? undefined : onClose}
       style={{
         position: 'fixed', inset: 0,
-        background: 'rgba(26, 19, 32, 0.7)',
+        background: 'color-mix(in oklab, var(--nx-ink) 28%, transparent)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 300
       }}
@@ -924,7 +924,10 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
         style={{
           width: 840, maxWidth: '92vw', maxHeight: '88vh',
           display: 'flex', flexDirection: 'column',
-          filter: 'drop-shadow(4px 4px 0 rgba(26, 19, 32, 0.25))'
+          // A floating layer: hairline border, 8px object radius, the one float
+          // shadow. The old hard offset shadow is gone (inventory 2.13).
+          border: '1px solid var(--nx-line)', borderRadius: 'var(--nx-r-obj)',
+          overflow: 'hidden', boxShadow: 'var(--nx-shadow-float)'
         }}
       >
         <PixelPanel
@@ -1234,9 +1237,9 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                     </>
                   )}
 
-                  {/* AGENTS & MODELS — what powers the office */}
+                  {/* AGENTS & MODELS — what powers the agents */}
                   {/* PREREQUISITES — the external tools the app leans on and
-                      whether this machine has them. It was a Command Center tab,
+                      whether this machine has them. It was a tab of the retired lead panel,
                       which was the wrong home: it is machine-wide state, not
                       something about the agent whose terminal you are reading. */}
                   {activeSection === 'Prerequisites' && <SetupPanel onDone={onClose} />}

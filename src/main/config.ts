@@ -64,7 +64,7 @@ export { OPS_STANDUP_MISSION } from './configDefaults';
  *
  *  Shipped DISABLED by default (opt-in): unlike the standup, which only sends a
  *  hive message, the heartbeat types into god's PTY, so the user turns it on
- *  explicitly in the Command Center once they want active re-engagement.
+ *  explicitly in the agent workbench once they want active re-engagement.
  *  `intervalMs` is the normal-cadence base; the scheduler derives a tighter beat
  *  when an agent looks stuck and a slower one right after a re-engage. */
 export const HEARTBEAT_MISSION: ScheduledMission = {
@@ -216,7 +216,7 @@ export interface HarnessConfig {
   costCapTokens?: number;
   /** Per-agent total-token ceiling, keyed by agent id. When an agent's own total
    *  tokens exceed its cap the breaker trips that agent alone (independent of the
-   *  floor budget). Set from each agent's card in the Command Center. */
+   *  floor budget). Set from each agent's card in the lead workbench's Team section. */
   agentTokenCaps?: Record<string, number>;
   /** Agent ids whose automatic inbox/queue delivery is paused. Pending messages
    *  stay durable until the operator explicitly resumes delivery. */

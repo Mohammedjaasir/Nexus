@@ -115,6 +115,7 @@ export function NeedsYouSection() {
         {error && <p className="nxs__error" role="alert">Could not read tasks: {error}</p>}
         {error && waiting.length === 0 ? null : loaded && waiting.length === 0 ? (
           <EmptyState
+            level={4}
             icon="check"
             title="All clear"
             body="Nothing needs you right now. When an agent asks a question or needs an approval, it appears here."

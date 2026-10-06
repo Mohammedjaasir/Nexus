@@ -35,7 +35,7 @@ input, textarea, [contenteditable='true'] {
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='17' height='18'><g fill='none' stroke='%23fdf6e3' stroke-width='4' stroke-linecap='round'><path d='M5 2.5h7M8.5 3v12M5 15.5h7'/></g><g fill='none' stroke='%23261d31' stroke-width='1.6' stroke-linecap='round'><path d='M5 2.5h7M8.5 3v12M5 15.5h7'/></g></svg>") 8 9, text;
 }
 
-/* Command Center tab bar scrolls horizontally when it overflows a narrow
+/* Legacy tab bar scrolls horizontally when it overflows a narrow
    sidebar; hide the scrollbar (overlay on mac, hidden elsewhere) — scroll with
    trackpad / Shift+wheel, like a browser tab strip. */
 .cth-tabbar { scrollbar-width: none; -ms-overflow-style: none; }

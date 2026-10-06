@@ -13,7 +13,7 @@ import { Muted, Scroll, TriggerCard } from './ui';
  * This panel is a sidebar, so four flat forms would open as a wall. Each type is
  * a collapsed card carrying its name, a one-line "what this is", and a live
  * summary chip; schedules opens expanded because it is the incumbent and the
- * office calendar deep-links here. Inside a card, each row collapses the same
+ * old calendar deep-linked here. Inside a card, each row collapses the same
  * way, so nothing is more than two disclosures from legible.
  */
 export function TriggersTab() {
@@ -25,10 +25,9 @@ export function TriggersTab() {
   return (
     <Scroll>
       <Muted>Everything that can start work without you typing.</Muted>
-      <div style={{ height: 8 }} />
 
       <TriggerCard
-        title="SCHEDULES"
+        title="Schedules"
         blurb="Run a prompt on a repeating clock."
         summary={schedulesSummary}
         defaultOpen
@@ -37,7 +36,7 @@ export function TriggersTab() {
       </TriggerCard>
 
       <TriggerCard
-        title="CONTEXT"
+        title="Context"
         blurb="Compact or clear an agent as its context fills."
         summary={contextSummary}
       >
@@ -45,7 +44,7 @@ export function TriggersTab() {
       </TriggerCard>
 
       <TriggerCard
-        title="WEBHOOKS"
+        title="Webhooks"
         blurb="Let an outside system post work in."
         summary={webhooksSummary}
       >
@@ -53,7 +52,7 @@ export function TriggersTab() {
       </TriggerCard>
 
       <TriggerCard
-        title="ORGANISATION"
+        title="Organisation"
         blurb="Configuration only. No transport exists yet, so nothing is sent or received."
         summary={orgSummary}
       >

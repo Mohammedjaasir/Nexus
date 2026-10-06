@@ -264,7 +264,7 @@ export const DEFAULT_DROP_HTML = `<style>
       <p class="kicker">Nexus</p>
       <h1 class="big">0.4.4</h1>
       <p class="lede" style="font-size:clamp(1.05rem,2.1vw,1.3rem);margin-top:.5em">
-        The release where Windows finally joined the floor — and the first run
+        The release where Windows agents finally joined in — and the first run
         stopped quietly failing.
       </p>
       <div class="stat">
@@ -311,7 +311,7 @@ export const DEFAULT_DROP_HTML = `<style>
   <section class="page p3">
     <div class="content">
       <p class="kicker">The first five minutes</p>
-      <h1>Setup finishes. The floor wakes up.</h1>
+      <h1>Setup finishes. The agents wake up.</h1>
       <p class="lede">Four separate bugs sat on the very first thing a new user does.</p>
       <ul class="rows">
         <li><i>Wizard</i><div><b>The suggested folder works</b>
@@ -320,7 +320,7 @@ export const DEFAULT_DROP_HTML = `<style>
         <li><i>Wizard</i><div><b>It tells you at step one</b>
           <p>An empty folder used to walk you through all four steps before bouncing
           you back. The panel no longer overflows a short screen either.</p></div></li>
-        <li><i>Hive</i><div><b>Services start at setup, not next launch</b>
+        <li><i>Agents</i><div><b>Services start at setup, not next launch</b>
           <p>On a fresh install the message router, hooks and telemetry stayed dead
           until you restarted — so mail never moved and agents never reported.</p></div></li>
         <li><i>Agents</i><div><b>Restart &amp; Continue has something to resume</b>
@@ -355,7 +355,7 @@ export const DEFAULT_DROP_HTML = `<style>
           <span class="tag">Prerequisites</span>
           <h2>Whether you actually have the tools</h2>
           <p>MemPalace, uv, git and every agent engine, with live status and where
-          each one sits on disk. One button asks Michael to fill in the gaps.</p>
+          each one sits on disk. One button asks the lead agent to fill in the gaps.</p>
         </div>
         <div class="card">
           <span class="tag">Release drops</span>
@@ -396,11 +396,11 @@ export const DEFAULT_DROP_HTML = `<style>
         <li><i>Agents</i><div><b>Grok 4.6 in the model picker</b></div></li>
         <li><i>Agents</i><div><b>OpenCode runs the model you actually have</b></div></li>
         <li><i>Board</i><div><b>Task cards stop going missing</b></div></li>
-        <li><i>Hive</i><div><b>A wake nudge survives an odd message id</b></div></li>
-        <li><i>Hive</i><div><b>Compact fires once, not every hour</b></div></li>
-        <li><i>Hive</i><div><b>The cost ledger is out of your git history</b></div></li>
-        <li><i>Office</i><div><b>The floor stops rendering when nobody is looking</b></div></li>
-        <li><i>Layout</i><div><b>Michael sits first on the dock again</b></div></li>
+        <li><i>Agents</i><div><b>A wake nudge survives an odd message id</b></div></li>
+        <li><i>Agents</i><div><b>Compact fires once, not every hour</b></div></li>
+        <li><i>Agents</i><div><b>The cost ledger is out of your git history</b></div></li>
+        <li><i>Display</i><div><b>The agent view stops rendering when nobody is looking</b></div></li>
+        <li><i>Layout</i><div><b>The lead agent sits first on the dock again</b></div></li>
       </ul>
     </div>
     <div class="nav">

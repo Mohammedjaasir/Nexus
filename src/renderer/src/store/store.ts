@@ -216,7 +216,7 @@ interface State {
   taskDetailId: string | null;
   openTaskDetail: (id: string) => void;
   closeTaskDetail: () => void;
-  /** One-shot prefill for the Command Center's dispatch box (a task detail's
+  /** One-shot prefill for the lead workbench's Requests box (a task detail's
    *  "assign" from anywhere in the app). seq-keyed like ccTabRequest. */
   dispatchSeedRequest: { text: string; seq: number } | null;
   requestDispatchSeed: (text: string) => void;
@@ -894,7 +894,7 @@ export function selectedAgent(s: State): Agent | undefined {
   return s.agents.find(a => a.id === s.selectedId);
 }
 
-/** Whether the Command Center's Trigger History tab has anything to be about
+/** Whether the lead workbench's History section has anything to be about
  *  yet: an organisation key is set, or at least one webhook exists. Derived from
  *  the two mirrors rather than stored beside them, so it cannot fall out of step
  *  with the thing it describes. Use as `useStore(triggerHistoryVisible)`. */

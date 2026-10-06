@@ -2,91 +2,49 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import { TRIGGER_MODES, type TriggerMode } from '@shared/triggers';
 
 /**
- * Shared chrome for the Triggers tab.
- *
- * They mirror the retired lead panel's own `Section`/`Scroll`/`Muted` exactly
- * (same paddings, same fonts, same `inset` hairlines) and add the collapse behaviour this tab needs —
- * four types of dense config do not fit down a sidebar as flat forms.
+ * Shared chrome for the Triggers tab, on the Nexus hosted classes
+ * (nexus/styles/hosted.css): bordered surfaces, 4px controls, 8px objects,
+ * sentence-case labels. The collapse behaviour is unchanged — four types of
+ * dense config do not fit down a sidebar as flat forms.
  */
-
-/* ───────────────────────────── shared styles ─────────────────────────────── */
-
-export const inputStyle: CSSProperties = {
-  width: '100%', boxSizing: 'border-box', padding: '6px 8px',
-  background: 'var(--cth-paper-100)', border: 'none',
-  boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
-  fontFamily: 'var(--cth-font-ui)', fontSize: 12, lineHeight: '17px',
-  color: 'var(--cth-ink-900)', outline: 'none'
-};
-
-export const monoInputStyle: CSSProperties = {
-  ...inputStyle,
-  fontFamily: 'var(--cth-font-mono)'
-};
-
-export const textareaStyle: CSSProperties = {
-  ...monoInputStyle,
-  resize: 'vertical'
-};
-
-export const selectStyle: CSSProperties = {
-  padding: '3px 6px', background: 'var(--cth-paper-100)', border: 'none',
-  boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
-  fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-900)',
-  cursor: 'pointer', minWidth: 0, maxWidth: '100%'
-};
 
 /* ───────────────────────────── text helpers ──────────────────────────────── */
 
 export function Muted({ children }: { children: ReactNode }) {
-  return <div style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>{children}</div>;
+  return <p className="nxh-muted">{children}</p>;
 }
 
 /** One line of explanation under a control. Smaller than Muted, never a tooltip —
  *  a sidebar hides tooltips behind the window edge half the time. */
 export function Hint({ children }: { children: ReactNode }) {
-  return <div style={{ fontSize: 11, lineHeight: '15px', color: 'var(--cth-ink-500)', marginTop: 3 }}>{children}</div>;
+  return <p className="nxh-hint">{children}</p>;
 }
 
 export function Chip({ children, tone = 'plain' }: { children: ReactNode; tone?: 'plain' | 'on' | 'off' }) {
-  const bg = tone === 'on' ? 'var(--cth-lemon)' : tone === 'off' ? 'var(--cth-cream-200)' : 'var(--cth-cream-100)';
-  const line = tone === 'on' ? 'var(--cth-ink-900)' : 'var(--cth-ink-100)';
-  return (
-    <span style={{
-      flexShrink: 0, padding: '2px 5px 1px',
-      fontFamily: 'var(--cth-font-display)', fontSize: 8, lineHeight: '12px',
-      background: bg, boxShadow: `inset 0 0 0 1px ${line}`, color: 'var(--cth-ink-900)'
-    }}>{children}</span>
-  );
+  return <span className="nxh-chip" data-tone={tone === 'on' ? 'on' : undefined}>{children}</span>;
 }
 
 export function Callout({ children, tone = 'warn' }: { children: ReactNode; tone?: 'warn' | 'note' }) {
-  const warn = tone === 'warn';
-  return (
-    <div style={{
-      marginTop: 6, padding: '6px 8px',
-      fontSize: 11, lineHeight: '15px', color: 'var(--cth-ink-900)',
-      background: warn ? 'var(--cth-coral-light)' : 'var(--cth-cream-200)',
-      boxShadow: `inset 0 0 0 1px ${warn ? 'var(--cth-coral)' : 'var(--cth-ink-100)'}`
-    }}>{children}</div>
-  );
+  return <div className="nxh-callout" data-tone={tone === 'warn' ? 'bad' : 'note'}>{children}</div>;
 }
 
 /* ─────────────────────────────── controls ────────────────────────────────── */
+
+/** A small Nexus button (replaces the pixel button in this tab). */
+export function SmallButton({ children, onClick, variant = 'secondary', disabled, type = 'button' }: {
+  children: ReactNode; onClick?: () => void; variant?: 'primary' | 'secondary' | 'quiet'; disabled?: boolean; type?: 'button' | 'submit';
+}) {
+  const v = variant === 'primary' ? ' nx-btn--primary' : variant === 'quiet' ? ' nx-btn--quiet' : '';
+  return <button type={type} className={`nx-btn nx-btn--sm${v}`} onClick={onClick} disabled={disabled}>{children}</button>;
+}
 
 export function Toggle({ on, onClick, onLabel = 'on', offLabel = 'off' }: {
   on: boolean; onClick: () => void; onLabel?: string; offLabel?: string;
 }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: '2px 8px 1px', border: 'none', cursor: 'pointer', flexShrink: 0,
-        background: on ? 'var(--cth-lemon)' : 'var(--cth-cream-200)',
-        boxShadow: `inset 0 0 0 1px ${on ? 'var(--cth-ink-900)' : 'var(--cth-ink-700)'}`,
-        fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-900)'
-      }}
-    >{on ? onLabel : offLabel}</button>
+    <button type="button" className="nx-btn nx-btn--sm" aria-pressed={on} onClick={onClick}>
+      {on ? onLabel : offLabel}
+    </button>
   );
 }
 
@@ -95,16 +53,10 @@ export function MiniButton({ children, onClick, tone = 'plain', disabled }: {
 }) {
   return (
     <button
+      type="button"
+      className={`nx-btn nx-btn--sm${tone === 'danger' ? ' nx-btn--danger' : ''}`}
       onClick={onClick}
       disabled={disabled}
-      style={{
-        flexShrink: 0, padding: '2px 7px 1px', border: 'none',
-        cursor: disabled ? 'default' : 'pointer',
-        background: tone === 'good' ? 'var(--cth-mint)' : 'var(--cth-cream-200)',
-        boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
-        fontFamily: 'var(--cth-font-ui)', fontSize: 11,
-        color: disabled ? 'var(--cth-ink-300)' : tone === 'danger' ? 'var(--cth-coral)' : 'var(--cth-ink-900)'
-      }}
     >{children}</button>
   );
 }
@@ -113,11 +65,9 @@ export function Select({ value, onChange, children, style }: {
   value: string; onChange: (v: string) => void; children: ReactNode; style?: CSSProperties;
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      style={{ ...selectStyle, ...style }}
-    >{children}</select>
+    <select className="nxh-select" value={value} onChange={(e) => onChange(e.target.value)} style={style}>
+      {children}
+    </select>
   );
 }
 
@@ -125,11 +75,8 @@ export function Select({ value, onChange, children, style }: {
  *  narrow for a label column that does not truncate the thing it labels. */
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div style={{ marginTop: 8 }}>
-      <div style={{
-        fontFamily: 'var(--cth-font-display)', fontSize: 8, lineHeight: '12px',
-        color: 'var(--cth-ink-500)', marginBottom: 4
-      }}>{label}</div>
+    <div className="nxh-field">
+      <div className="nxh-label">{label}</div>
       {children}
     </div>
   );
@@ -138,12 +85,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 /* ───────────────────────────── containers ───────────────────────────────── */
 
 export function Scroll({ children }: { children: ReactNode }) {
-  return (
-    <div style={{
-      flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', overflowX: 'hidden',
-      padding: 10, background: 'var(--cth-paper-200)'
-    }}>{children}</div>
-  );
+  return <div className="nxh">{children}</div>;
 }
 
 /**
@@ -160,42 +102,23 @@ export function TriggerCard({ title, blurb, summary, defaultOpen = false, childr
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ marginBottom: 8, background: 'var(--cth-paper-100)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)' }}>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'flex-start', gap: 6, textAlign: 'left',
-          padding: '8px 10px', border: 'none', cursor: 'pointer',
-          background: 'var(--cth-cream-200)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)'
-        }}
-      >
-        <span style={{ flexShrink: 0, width: 8, fontSize: 11, lineHeight: '13px', color: 'var(--cth-ink-500)' }}>
-          {open ? '▾' : '▸'}
+    <div className="nxh-disc">
+      <button type="button" className="nxh-disc__head" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <span className="nxh-caret" aria-hidden="true" />
+        <span className="nxh-grow">
+          <span className="nxh-disc__title">{title}</span>
+          <span className="nxh-disc__blurb">{blurb}</span>
         </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{
-            display: 'block', fontFamily: 'var(--cth-font-display)', fontSize: 9, lineHeight: '13px',
-            color: 'var(--cth-ink-900)'
-          }}>{title}</span>
-          <span style={{ display: 'block', fontFamily: 'var(--cth-font-ui)', fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)', marginTop: 2 }}>
-            {blurb}
-          </span>
-        </span>
-        {summary !== undefined && <Chip>{summary}</Chip>}
+        {summary !== undefined && summary !== '' && <Chip>{summary}</Chip>}
       </button>
-      <div style={{ display: open ? 'block' : 'none', padding: '8px 10px 10px' }}>{children}</div>
+      <div className="nxh-disc__body" hidden={!open}>{children}</div>
     </div>
   );
 }
 
 /** A card inside a card — one webhook, one context rule. */
 export function SubCard({ children }: { children: ReactNode }) {
-  return (
-    <div style={{
-      marginBottom: 6, padding: '8px 10px 10px',
-      background: 'var(--cth-cream-100)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)'
-    }}>{children}</div>
-  );
+  return <div className="nxh-card nxh-card--sub">{children}</div>;
 }
 
 /** Header row inside a SubCard: a disclosure caret, a title, and controls. */
@@ -203,26 +126,12 @@ export function SubHeader({ open, onToggle, title, sub, right }: {
   open: boolean; onToggle: () => void; title: ReactNode; sub?: ReactNode; right?: ReactNode;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <button
-        onClick={onToggle}
-        style={{
-          flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left',
-          padding: 0, border: 'none', background: 'transparent', cursor: 'pointer'
-        }}
-      >
-        <span style={{ flexShrink: 0, width: 8, fontSize: 11, color: 'var(--cth-ink-500)' }}>{open ? '▾' : '▸'}</span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{
-            display: 'block', fontFamily: 'var(--cth-font-ui)', fontSize: 12, lineHeight: '16px',
-            color: 'var(--cth-ink-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-          }}>{title}</span>
-          {sub !== undefined && (
-            <span style={{
-              display: 'block', fontSize: 11, lineHeight: '15px', color: 'var(--cth-ink-500)',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-            }}>{sub}</span>
-          )}
+    <div className="nxh-row" style={{ flexWrap: 'nowrap' }}>
+      <button type="button" className="nxh-sub__head" aria-expanded={open} onClick={onToggle}>
+        <span className="nxh-caret" aria-hidden="true" />
+        <span className="nxh-grow">
+          <span className="nxh-sub__title">{title}</span>
+          {sub !== undefined && <span className="nxh-sub__sub">{sub}</span>}
         </span>
       </button>
       {right}
@@ -308,9 +217,11 @@ export function IntervalPicker({ value, onChange, minMs = MINUTE, maxMs = Number
         {preset && <option value={CUSTOM}>custom…</option>}
       </Select>
       {showCustom && (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <span className="nxh-row" style={{ gap: 4 }}>
           <input
             type="number"
+            className="nxh-input nxh-input--id nxh-input--num"
+            aria-label="Minutes"
             min={Math.max(1, Math.round(minMs / MINUTE))}
             max={Number.isFinite(maxMs) ? Math.round(maxMs / MINUTE) : undefined}
             value={Math.max(1, Math.round(value / MINUTE))}
@@ -318,9 +229,8 @@ export function IntervalPicker({ value, onChange, minMs = MINUTE, maxMs = Number
               const mins = Number(e.target.value);
               if (Number.isFinite(mins) && mins > 0) onChange(clamp(Math.round(mins) * MINUTE));
             }}
-            style={{ ...monoInputStyle, width: 68, padding: '3px 5px' }}
           />
-          <span style={{ fontSize: 11, color: 'var(--cth-ink-500)' }}>min</span>
+          <span className="nxh-muted">min</span>
         </span>
       )}
     </div>
@@ -332,9 +242,11 @@ export function IntervalPicker({ value, onChange, minMs = MINUTE, maxMs = Number
 export function PctField({ value, onChange }: { value: number; onChange: (pct: number) => void }) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div className="nxh-row" style={{ flexWrap: 'nowrap' }}>
       <input
         type="number"
+        className="nxh-input nxh-input--id nxh-input--num"
+        aria-label="Percent"
         min={0}
         max={100}
         value={pct}
@@ -342,15 +254,9 @@ export function PctField({ value, onChange }: { value: number; onChange: (pct: n
           const n = Number(e.target.value);
           onChange(Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 0);
         }}
-        style={{ ...monoInputStyle, width: 60, padding: '3px 5px' }}
       />
-      <span style={{ fontSize: 11, color: 'var(--cth-ink-500)' }}>%</span>
-      <div style={{
-        flex: 1, minWidth: 40, height: 8,
-        background: 'var(--cth-cream-200)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)'
-      }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: pct === 0 ? 'var(--cth-ink-300)' : 'var(--cth-lemon)' }} />
-      </div>
+      <span className="nxh-muted">%</span>
+      <span className="nxh-meter" aria-hidden="true"><span style={{ width: `${pct}%` }} /></span>
     </div>
   );
 }
@@ -371,15 +277,15 @@ export function SecretField({ value, revealed, onReveal, onCopy, copied, placeho
 }) {
   const readOnly = !onChange;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div className="nxh-row" style={{ flexWrap: 'nowrap' }}>
       <input
         type={revealed ? 'text' : 'password'}
+        className="nxh-input nxh-input--id"
         value={value}
         readOnly={readOnly}
         placeholder={placeholder}
         onChange={(e) => onChange?.(e.target.value)}
         onBlur={onBlur}
-        style={{ ...monoInputStyle, flex: 1, minWidth: 0, padding: '4px 6px' }}
       />
       <MiniButton onClick={onReveal}>{revealed ? 'hide' : 'show'}</MiniButton>
       {onCopy && <MiniButton onClick={onCopy} tone={copied ? 'good' : 'plain'}>{copied ? 'copied' : 'copy'}</MiniButton>}

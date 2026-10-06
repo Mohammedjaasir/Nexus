@@ -51,13 +51,13 @@ export function OrgSection({ onSummary }: { onSummary?: (s: string) => void }) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ flex: 1, fontSize: 12, color: 'var(--cth-ink-700)' }}>
+        <span className="nxh-note nxh-grow">
           Accept messages from your organisation
         </span>
         <Toggle on={cfg.enabled} onClick={() => apply({ ...cfg, enabled: !cfg.enabled })} />
       </div>
 
-      <Field label="ORGANISATION KEY">
+      <Field label="Organisation key">
         <SecretField
           value={cfg.apiKey}
           revealed={revealed}
@@ -70,7 +70,7 @@ export function OrgSection({ onSummary }: { onSummary?: (s: string) => void }) {
         {saveError && <Callout>{saveError}</Callout>}
       </Field>
 
-      <Field label="TRUST">
+      <Field label="Trust">
         <ModePicker value={cfg.mode} onChange={(mode: TriggerMode) => apply({ ...cfg, mode })} />
       </Field>
 

@@ -61,9 +61,9 @@ export interface RestoreTeamState {
   /** True when the run in flight was started automatically at boot, not by a
    *  click. Drives the "restoring your team…" banner. */
   autoRestoring: boolean;
-  /** Outcome of the last run ("restored 3 · 1 failed — …"), or null. */
   /** Agents the scheduled boot restore is about to respawn; 0 when none is scheduled. */
   pendingCount: number;
+  /** Outcome of the last run ("restored 3 · 1 failed — …"), or null. */
   restoreNote: string | null;
   restoreTeam: () => Promise<void>;
 }

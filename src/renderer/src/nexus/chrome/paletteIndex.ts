@@ -1,4 +1,5 @@
 import type { Route } from '../router/routes';
+import type { Section as SettingsSection } from '@/components/SettingsModal';
 import { WORKSPACES } from '../workspaces/registry';
 import { recentProjects } from '../data/selectors';
 
@@ -8,7 +9,9 @@ export type PaletteEntry = {
   label: string;
   hint?: string;
   route?: Route;
-  action?: 'newProject' | 'openIde' | 'openSettings';
+  action?: 'newProject' | 'openIde' | 'openSettings' | 'openSemanticMemory';
+  /** With action 'openSettings': the Settings section to open on. */
+  settingsSection?: SettingsSection;
 };
 
 type P = { id: string; name: string; rootPath: string; domainId: string; updatedAt: number };
@@ -26,7 +29,9 @@ const PAGES: PaletteEntry[] = [
 const ACTIONS: PaletteEntry[] = [
   { id: 'act:new', group: 'Actions', label: 'New project', action: 'newProject' },
   { id: 'act:ide', group: 'Actions', label: 'Open Files (IDE)', action: 'openIde' },
-  { id: 'act:settings', group: 'Actions', label: 'Open Settings', action: 'openSettings' }
+  { id: 'act:settings', group: 'Actions', label: 'Open Settings', action: 'openSettings' },
+  { id: 'act:settings-memory', group: 'Actions', label: 'Open settings: Memory & Knowledge', hint: 'semantic memory setup', action: 'openSettings', settingsSection: 'Memory & Knowledge' },
+  { id: 'act:semantic-memory', group: 'Actions', label: 'Agents: Semantic memory', hint: 'memory model and search', action: 'openSemanticMemory' }
 ];
 
 export function buildPaletteIndex(projects: P[]): PaletteEntry[] {

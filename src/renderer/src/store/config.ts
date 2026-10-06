@@ -352,7 +352,7 @@ export function modelsForProvider(provider: AgentProvider): ModelOption[] {
   return AGENT_MODELS;
 }
 
-/** Providers shown in the Command Center's cross-provider model picker.
+/** Providers shown in the workbench's cross-provider model picker.
  *  God must remain on a provider with a working inbox drain; otherwise switching
  *  to a terminal-only provider would silently disable orchestration. */
 export function modelProvidersForAgent(isGod = false) {

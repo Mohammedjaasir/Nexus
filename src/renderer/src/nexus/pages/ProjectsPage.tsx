@@ -47,7 +47,7 @@ export function ProjectsPage() {
       {status === 'error' && projects.length === 0 ? <LoadError error={error} onRetry={refresh} />
         : status === 'loading' && projects.length === 0 ? <RowsSkeleton />
         : projects.length === 0 ? (
-          <EmptyState icon="projects" title="No projects yet" body="Create a project or import a folder you already work in. Agents use it as their working directory."
+          <EmptyState level={2} icon="projects" title="No projects yet" body="Create a project or import a folder you already work in. Agents use it as their working directory."
             actions={<><Button variant="primary" icon="plus" onClick={() => actions.openNewProject()}>New project</Button><Button icon="import" onClick={actions.openImport}>Import</Button></>} />
         ) : shown.length === 0 ? (
           <p className="nx-muted" role="status">No projects match these filters.</p>

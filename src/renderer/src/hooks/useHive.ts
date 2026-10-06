@@ -47,14 +47,16 @@ const BOOT_GRACE_MS = 35_000;
 // submitToPty additionally waits for the terminal's readiness handshake.
 const SEED_BOOT_MS = 12_000;
 
-// The first thing Michael (god) is told on a fresh spawn — orient him and put
-// him to work running the floor. Kept terse and action-oriented.
+// The first thing the lead agent (id 'god') is told on a fresh spawn — orient it
+// and put it to work coordinating the team. Kept terse and action-oriented.
+// Protocol addresses ('god') and file names stay exact; the agent's system
+// prompt exposes the team root as $HIVE_ROOT.
 const INITIAL_GOD_PROMPT = [
-  "You're online as Michael, the orchestrator of the hive. Get oriented, then start running the floor:",
+  "You're online as the lead agent, the orchestrator of this agent team. Get oriented, then start coordinating the team:",
   '1. Read your memory.md and drain every message in your inbox.',
   '2. Review board.md + tasks.json and the current roster of agents (active vs archived).',
-  '3. Check fleet health: read fleet.json in the hive root for every agent\'s live tokens, cost, status, breaker level, and inbox backlog (`claude agents` will NOT show your hive\'s agents). Flag anyone stalled, over-budget, or breaker-armed.',
-  '4. Skim COMMANDS.md (hive root) for the Claude Code commands you can use — and run `mempalace wake-up` for a memory digest if the CLI is available.',
+  '3. Check fleet health: read fleet.json in $HIVE_ROOT for every agent\'s live tokens, cost, status, breaker level, and inbox backlog (`claude agents` will NOT show your team\'s agents). Flag anyone stalled, over-budget, or breaker-armed.',
+  '4. Skim COMMANDS.md (in $HIVE_ROOT) for the Claude Code commands you can use — and run `mempalace wake-up` for a memory digest if the CLI is available.',
   'Then begin orchestrating: triage requests, delegate work to the team, and keep everyone unblocked. You are fully autonomous — there is no approval queue, so handle tool-permission prompts in this session yourself (the human can approve them remotely from their phone).'
 ].join('\n');
 
@@ -140,7 +142,7 @@ function enrichTaskPrompt(text: string): string {
     `ENRICH TASK: ${text}`,
     '',
     '(Identify the relevant project, cd in, gather READ-ONLY context, then send the improved,',
-    'self-contained prompt to Michael via an outbox message with "to":"god". Do not do the task yourself.)'
+    `self-contained prompt to the lead agent via an outbox message with "to":"${GOD_ID}". Do not do the task yourself.)`
   ].join('\n');
 }
 
@@ -154,7 +156,7 @@ function terminalWorkOrderPrompt(msg: {
   createdAt: string;
 }): string {
   return [
-    'WORK ORDER FROM HIVE',
+    'WORK ORDER FROM THE AGENT TEAM',
     `Message: ${msg.id}`,
     `From: ${msg.from}`,
     `Subject: ${msg.subject}`,
@@ -164,7 +166,7 @@ function terminalWorkOrderPrompt(msg: {
     msg.body,
     '',
     'Notes:',
-    '- This arrived through your terminal because this provider does not support hive inbox.',
+    '- This arrived through your terminal because this provider cannot read the agent inbox.',
     '- Work in your current cwd.',
     '- When done, report changes, validation, blockers, and next step in this terminal.'
   ].join('\n');
@@ -633,7 +635,7 @@ export function useHive(config: HarnessConfig | null): void {
           if (fresh.length) {
             useStore.getState().enqueueMessage(
               a.id,
-              'You have new hive inbox message(s) — read your inbox, act on them now, and move handled ones to inbox/.done/. Act autonomously; only message god if you genuinely need a decision.'
+              `You have new inbox message(s) — read your inbox, act on them now, and move handled ones to inbox/.done/. Act autonomously; only message the lead agent ("to":"${GOD_ID}") if you genuinely need a decision.`
             );
             for (const m of fresh) seen.add(m.id);
           }

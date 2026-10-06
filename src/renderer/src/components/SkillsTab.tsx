@@ -10,7 +10,6 @@
  * click — the catalog links out and the user chooses.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PixelButton } from './PixelButton';
 import type { LocalSkill, CatalogSkill } from '../../../preload';
 
 type Mode = 'installed' | 'browse';
@@ -22,15 +21,7 @@ const PROVIDER_LABEL: Record<LocalSkill['provider'], string> = {
 };
 
 function Chip({ text, tone = 'quiet' }: { text: string; tone?: 'quiet' | 'accent' }) {
-  return (
-    <span style={{
-      fontSize: 10, fontFamily: 'var(--cth-font-display)', letterSpacing: 0.4,
-      padding: '2px 6px', flexShrink: 0, textTransform: 'uppercase',
-      color: 'var(--cth-ink-900)',
-      background: tone === 'accent' ? 'var(--cth-mint-light)' : 'var(--cth-cream-200)',
-      boxShadow: `inset 0 0 0 1px ${tone === 'accent' ? 'var(--cth-mint)' : 'var(--cth-ink-300)'}`
-    }}>{text}</span>
-  );
+  return <span className="nxh-chip" data-tone={tone === 'accent' ? 'on' : undefined}>{text}</span>;
 }
 
 export function SkillsTab({ agentCwd }: { agentCwd?: string }) {
@@ -140,62 +131,37 @@ export function SkillsTab({ agentCwd }: { agentCwd?: string }) {
     }
   };
 
-  const actionBtn = (kind: 'primary' | 'quiet' | 'danger'): React.CSSProperties => ({
-    padding: '3px 9px 2px', border: 'none', cursor: 'pointer', flexShrink: 0,
-    fontFamily: 'var(--cth-font-ui)', fontSize: 11,
-    color: 'var(--cth-ink-900)',
-    background:
-      kind === 'primary' ? 'var(--cth-mint-light)'
-      : kind === 'danger' ? 'var(--cth-coral-light)'
-      : 'var(--cth-cream-200)',
-    boxShadow: `inset 0 0 0 1px ${
-      kind === 'primary' ? 'var(--cth-mint)' : kind === 'danger' ? 'var(--cth-coral)' : 'var(--cth-ink-300)'
-    }`
-  });
-
-  const tabBtn = (m: Mode, label: string): React.CSSProperties => ({
-    padding: '4px 10px 3px', border: 'none', cursor: 'pointer',
-    fontFamily: 'var(--cth-font-ui)', fontSize: 12,
-    background: mode === m ? 'var(--cth-lemon-light)' : 'var(--cth-cream-200)',
-    boxShadow: `inset 0 0 0 1px ${mode === m ? 'var(--cth-lemon)' : 'var(--cth-ink-300)'}`,
-    color: 'var(--cth-ink-900)'
-  });
+  const actionClass = (kind: 'primary' | 'quiet' | 'danger') =>
+    `nx-btn nx-btn--sm${kind === 'primary' ? ' nx-btn--primary' : kind === 'danger' ? ' nx-btn--danger' : ''}`;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>
+    <div className="nxh nxh--flush">
       {/* Controls */}
-      <div style={{
-        flexShrink: 0, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
-        padding: 10, borderBottom: '1px solid var(--cth-ink-300)'
-      }}>
-        <button onClick={() => setMode('installed')} style={tabBtn('installed', 'installed')}>
-          installed{local ? ` (${local.length})` : ''}
-        </button>
-        <button onClick={() => setMode('browse')} style={tabBtn('browse', 'browse')}>
-          browse{catalog ? ` (${catalog.length})` : ''}
-        </button>
+      <div className="nxh__bar">
+        <div className="nxh-seg nxh-seg--inline" role="group" aria-label="Skills">
+          <button type="button" className="nxh-seg__opt" aria-pressed={mode === 'installed'} onClick={() => setMode('installed')}>
+            Installed{local ? ` (${local.length})` : ''}
+          </button>
+          <button type="button" className="nxh-seg__opt" aria-pressed={mode === 'browse'} onClick={() => setMode('browse')}>
+            Browse{catalog ? ` (${catalog.length})` : ''}
+          </button>
+        </div>
         <input
+          className="nxh-input"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={mode === 'installed' ? 'Search installed skills…' : 'Search the skills catalog…'}
-          style={{
-            flex: 1, minWidth: 140, padding: '4px 8px',
-            background: 'var(--cth-paper-100)', color: 'var(--cth-ink-900)',
-            border: 'none', boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)',
-            fontFamily: 'var(--cth-font-ui)', fontSize: 12
-          }}
+          aria-label={mode === 'installed' ? 'Search installed skills' : 'Search the skills catalog'}
+          style={{ flex: 1, minWidth: 140, width: 'auto' }}
         />
         {mode === 'browse' && (
           <select
+            className="nxh-select"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             title="Categories as published by the catalog"
-            style={{
-              padding: '4px 6px', maxWidth: 210,
-              background: 'var(--cth-paper-100)', color: 'var(--cth-ink-900)',
-              border: 'none', boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)',
-              fontFamily: 'var(--cth-font-ui)', fontSize: 12
-            }}
+            aria-label="Category"
+            style={{ maxWidth: 210 }}
           >
             <option value="all">all categories</option>
             {categories.map(([c, n]) => <option key={c} value={c}>{c} ({n})</option>)}
@@ -203,29 +169,26 @@ export function SkillsTab({ agentCwd }: { agentCwd?: string }) {
         )}
         {mode === 'browse' && (
           <select
+            className="nxh-select"
             value={owner}
             onChange={(e) => setOwner(e.target.value)}
-            style={{
-              padding: '4px 6px', maxWidth: 190,
-              background: 'var(--cth-paper-100)', color: 'var(--cth-ink-900)',
-              border: 'none', boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)',
-              fontFamily: 'var(--cth-font-ui)', fontSize: 12
-            }}
+            aria-label="Publisher"
+            style={{ maxWidth: 190 }}
           >
             <option value="all">all publishers</option>
             {owners.map(([o, n]) => <option key={o} value={o}>{o} ({n})</option>)}
           </select>
         )}
-        <PixelButton
-          variant="ghost"
-          size="sm"
+        <button
+          type="button"
+          className="nx-btn nx-btn--sm nx-btn--quiet"
           onClick={() => (mode === 'installed' ? void loadLocal() : void loadCatalog(true))}
           disabled={busy}
-        >{busy ? 'loading…' : 'refresh'}</PixelButton>
+        >{busy ? 'Loading…' : 'Refresh'}</button>
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 10 }}>
+      <div className="nxh__body">
         {mode === 'installed' ? (
           local === null ? <Muted>Scanning…</Muted>
           : shownLocal.length === 0 ? (
@@ -235,52 +198,46 @@ export function SkillsTab({ agentCwd }: { agentCwd?: string }) {
                 : 'Nothing matches that search.'}
             </Muted>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="nxh-list">
               {shownLocal.map((s) => (
-                <div key={s.id + s.path} style={rowStyle}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'var(--cth-font-display)', fontSize: 11, flex: 1, minWidth: 0 }}>
-                      {s.name.toUpperCase()}
-                    </span>
+                <div key={s.id + s.path} className="nxh-card">
+                  <div className="nxh-row" style={{ flexWrap: 'nowrap' }}>
+                    <span className="nxh-name">{s.name}</span>
                     <Chip text={PROVIDER_LABEL[s.provider]} />
                     <Chip text={s.scope} tone={s.scope === 'project' ? 'accent' : 'quiet'} />
                   </div>
                   {s.description && (
-                    <div style={{ fontSize: 12, color: 'var(--cth-ink-700)', lineHeight: 1.45 }}>
+                    <p className="nxh-note">
                       {s.description.length > 220 ? `${s.description.slice(0, 220)}…` : s.description}
-                    </div>
+                    </p>
                   )}
-                  <div style={{
-                    fontFamily: 'var(--cth-font-mono)', fontSize: 10.5,
-                    color: 'var(--cth-ink-500)', wordBreak: 'break-all'
-                  }}>{s.path}</div>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button onClick={() => void window.cth.skillsReveal(s.path)} style={actionBtn('quiet')}>
+                  <div className="nxh-path">{s.path}</div>
+                  <div className="nxh-row">
+                    <button type="button" onClick={() => void window.cth.skillsReveal(s.path)} className={actionClass('quiet')}>
                       open folder
                     </button>
                     {s.scope === 'bundled' ? (
                       // Bundled skills ship inside the app and are re-copied into
                       // every agent on spawn, so "removing" one would silently come
                       // back. Say that instead of offering a button that lies.
-                      <span style={{ fontSize: 11, color: 'var(--cth-ink-500)' }}>
-                        ships with the app
-                      </span>
+                      <span className="nxh-muted">ships with the app</span>
                     ) : confirming === s.path ? (
                       <>
-                        <button onClick={() => void uninstall(s)} style={actionBtn('danger')}>
+                        <button type="button" onClick={() => void uninstall(s)} className={actionClass('danger')}>
                           delete {s.name}?
                         </button>
-                        <button onClick={() => setConfirming(null)} style={actionBtn('quiet')}>cancel</button>
+                        <button type="button" onClick={() => setConfirming(null)} className={actionClass('quiet')}>cancel</button>
                       </>
                     ) : (
                       <button
+                        type="button"
                         onClick={() => setConfirming(s.path)}
                         disabled={action[s.path]?.busy}
-                        style={actionBtn('quiet')}
+                        className={actionClass('quiet')}
                       >{action[s.path]?.busy ? 'removing…' : 'uninstall'}</button>
                     )}
                     {action[s.path]?.error && (
-                      <span style={{ fontSize: 11, color: 'var(--cth-coral)' }}>{action[s.path]?.error}</span>
+                      <span className="nxh-error" role="alert">{action[s.path]?.error}</span>
                     )}
                   </div>
                 </div>
@@ -291,46 +248,39 @@ export function SkillsTab({ agentCwd }: { agentCwd?: string }) {
         : (
           <>
             {catalogMeta?.error && (
-              <div style={{
-                marginBottom: 8, padding: 8, fontSize: 12, color: 'var(--cth-ink-900)',
-                background: 'var(--cth-coral-light)', boxShadow: 'inset 0 0 0 1px var(--cth-coral)'
-              }}>
+              <div className="nxh-callout" data-tone="bad" role="status">
                 Showing a cached copy — {catalogMeta.error}.
               </div>
             )}
-            <div style={{ fontSize: 11, color: 'var(--cth-ink-500)', marginBottom: 8 }}>
+            <p className="nxh-muted">
               {totalMatching} matching{totalMatching > shownCatalog.length ? ` · showing the first ${shownCatalog.length}` : ''}
               {' · '}curated by abubakarsiddik31/claude-skills-collection
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            </p>
+            <div className="nxh-list">
               {shownCatalog.map((s) => (
-                <div key={s.url + s.name} style={rowStyle}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'var(--cth-font-display)', fontSize: 11, flex: 1, minWidth: 0 }}>
-                      {s.name.toUpperCase()}
-                    </span>
+                <div key={s.url + s.name} className="nxh-card">
+                  <div className="nxh-row" style={{ flexWrap: 'nowrap' }}>
+                    <span className="nxh-name">{s.name}</span>
                     <Chip text={s.category} />
                     <Chip text={s.owner} />
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--cth-ink-700)', lineHeight: 1.45 }}>
-                    {s.description}
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <p className="nxh-note">{s.description}</p>
+                  <div className="nxh-row">
                     <button
+                      type="button"
                       onClick={() => void install(s)}
                       disabled={!!action[s.url]?.busy || !!action[s.url]?.done}
-                      style={actionBtn(action[s.url]?.done ? 'quiet' : 'primary')}
+                      className={actionClass(action[s.url]?.done ? 'quiet' : 'primary')}
                     >
                       {action[s.url]?.busy ? 'installing…' : action[s.url]?.done ?? 'install'}
                     </button>
                     <button
+                      type="button"
                       onClick={() => void window.cth.openExternal(s.url)}
-                      style={actionBtn('quiet')}
+                      className={actionClass('quiet')}
                     >learn more</button>
                     {action[s.url]?.error && (
-                      <span style={{ fontSize: 11, color: 'var(--cth-coral)', flex: 1, minWidth: 0 }}>
-                        {action[s.url]?.error}
-                      </span>
+                      <span className="nxh-error nxh-grow" role="alert">{action[s.url]?.error}</span>
                     )}
                   </div>
                 </div>
@@ -343,12 +293,6 @@ export function SkillsTab({ agentCwd }: { agentCwd?: string }) {
   );
 }
 
-const rowStyle: React.CSSProperties = {
-  display: 'flex', flexDirection: 'column', gap: 5, padding: 10,
-  background: 'var(--cth-paper-100)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)',
-  color: 'var(--cth-ink-900)'
-};
-
 function Muted({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 12, color: 'var(--cth-ink-500)', padding: 6 }}>{children}</div>;
+  return <p className="nxh-muted" role="status">{children}</p>;
 }

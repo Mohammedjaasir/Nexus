@@ -44,6 +44,7 @@ export function TasksSection({ onRequests }: { onRequests: () => void }) {
         {error && <p className="nxs__error" role="alert">Could not read tasks: {error}</p>}
         {error && tasks.length === 0 ? null : loaded && tasks.length === 0 ? (
           <EmptyState
+            level={4}
             icon="completion"
             title="No tasks"
             body="No tasks yet. Send a request to the lead agent to start one."

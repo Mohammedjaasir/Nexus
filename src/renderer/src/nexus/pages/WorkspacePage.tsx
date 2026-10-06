@@ -60,11 +60,11 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
           : status === 'loading' && projects.length === 0 ? <RowsSkeleton count={3} />
           : mine.length > 0 ? <div className="nx-rows">{mine.map((p) => <ProjectRow key={p.id} project={p} onOpen={() => navigate({ name: 'project', id: p.id, tool: 'bench' })} />)}</div>
           : unmappable ? (
-            <EmptyState icon={ws.icon} title={`No ${ws.label} projects yet`}
+            <EmptyState level={2} icon={ws.icon} title={`No ${ws.label} projects yet`}
               body={<>Projects are grouped by the domain the analyzer detects, and none map to {ws.label} today. {ws.label} work will arrive through handoffs in a later phase.</>}
               actions={<Button onClick={() => navigate({ name: 'projects' })}>See all projects</Button>} />
           ) : (
-            <EmptyState icon={ws.icon} title={`No ${ws.label} projects yet`} body="Create one here, or import a folder; it joins this workspace when its domain matches."
+            <EmptyState level={2} icon={ws.icon} title={`No ${ws.label} projects yet`} body="Create one here, or import a folder; it joins this workspace when its domain matches."
               actions={<><Button variant="primary" icon="plus" onClick={() => actions.openNewProject(ws.defaultDomainId)}>New project</Button><Button icon="import" onClick={actions.openImport}>Import</Button></>} />
           )}
       </section>

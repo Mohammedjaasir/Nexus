@@ -1,7 +1,7 @@
 /**
  * Single source of truth for the Claude Code command reference.
  *
- * Consumed by BOTH the renderer (the Command Center "commands" tab) and the main
+ * Consumed by BOTH the renderer (the commands reference) and the main
  * process (rendered to `<hive>/COMMANDS.md`, which the orchestrator agent reads),
  * so the human's cheat-sheet and the agent's reference never drift.
  *
@@ -56,7 +56,7 @@ export const COMMAND_GROUPS: CmdGroup[] = [
       { cmd: '/model', kind: 'slash', desc: 'Switch the model for this session (saved as default); arrows tune effort.', usage: '/model opus' },
       { cmd: '/effort', kind: 'slash', desc: 'Set reasoning effort: low / medium / high / xhigh / max.', usage: '/effort high' },
       { cmd: '/fast', kind: 'slash', desc: 'Toggle fast mode — Opus with faster output, no model downgrade.' },
-      { cmd: 'claude --model claude-sonnet-4-6[1m]', kind: 'cli', desc: 'Launch on a specific model. The [1m] suffix selects the 1M-token window (Dwight).' },
+      { cmd: 'claude --model claude-sonnet-4-6[1m]', kind: 'cli', desc: 'Launch on a specific model. The [1m] suffix selects the 1M-token window.' },
       { cmd: 'claude --fallback-model sonnet', kind: 'cli', desc: 'Auto-fall back to another model when the primary is unavailable.' }
     ]
   },

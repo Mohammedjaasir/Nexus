@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import type { Project } from '@shared/project';
 import type { ProjectGraphStats } from '@shared/graph';
 import { getDomainDefinition, type DomainId } from '@shared/domain';
-import { PixelPanel } from '../components/PixelPanel';
-import { PixelButton } from '../components/PixelButton';
-import { Icon } from '../components/Icon';
+import { repoHealth } from '@/nexus/data/selectors';
+
+const HEALTH_TIP = 'Heuristic from the project analyzer: tests, docs, entry points and git status.';
 
 export interface ProjectSummaryCardProps {
   project: Project;
@@ -15,6 +15,8 @@ export interface ProjectSummaryCardProps {
   isRefreshing?: boolean;
 }
 
+/** One project's analyzer summary inside Manage projects. Nexus chrome
+ *  (nexus/styles/hosted.css); health reads exactly as the passport does. */
 export function ProjectSummaryCard({
   project,
   onOpenProject,
@@ -26,6 +28,7 @@ export function ProjectSummaryCard({
   const [domainMenuOpen, setDomainMenuOpen] = useState(false);
   const [graphStats, setGraphStats] = useState<ProjectGraphStats | null>(null);
   const primaryDomainDef = getDomainDefinition(project.domainId);
+  const health = repoHealth(project);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,196 +38,64 @@ export function ProjectSummaryCard({
     return () => { cancelled = true; };
   }, [project.id, project.lastAnalyzedAt, isRefreshing]);
 
-  const healthColor =
-    project.health.healthScore >= 80
-      ? 'var(--cth-mint)'
-      : project.health.healthScore >= 50
-      ? 'var(--cth-lemon)'
-      : 'var(--cth-coral)';
-
   return (
-    <PixelPanel variant="default" noPadding style={{ width: '100%' }}>
-      {/* Top Header */}
-      <div
-        style={{
-          padding: '12px 16px',
-          borderBottom: '2px solid var(--cth-ink-100)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'var(--cth-cream-200)'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'var(--cth-mint-light)',
-              boxShadow: 'inset 0 0 0 1.5px var(--cth-ink-900)'
-            }}
-          >
-            <Icon name="folder" />
-          </div>
-          <div>
-            <div
-              style={{
-                fontFamily: 'var(--cth-font-display)',
-                fontSize: 14,
-                fontWeight: 700,
-                color: 'var(--cth-ink-900)'
-              }}
-            >
-              {project.name}
-            </div>
-            <div
-              style={{
-                fontFamily: 'var(--cth-font-ui)',
-                fontSize: 11,
-                color: 'var(--cth-ink-500)',
-                wordBreak: 'break-all'
-              }}
-            >
-              {project.rootPath}
-            </div>
-          </div>
+    <article className="nxps" aria-labelledby={`nxps-${project.id}`}>
+      <header className="nxps__head">
+        <div style={{ minWidth: 0 }}>
+          <h3 className="nxps__name" id={`nxps-${project.id}`}>{project.name}</h3>
+          <div className="nxh-path">{project.rootPath}</div>
         </div>
+        {health !== null && (
+          <div className="nx-health" title={HEALTH_TIP}>
+            <span className="nx-health__label">Repo health <strong>{health} of 100</strong></span>
+            <span className="nx-health__track" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={health} aria-label={`Repo health ${health} of 100`}>
+              <span className="nx-health__fill" style={{ width: `${health}%` }} />
+            </span>
+          </div>
+        )}
+      </header>
 
-        {/* Health Score Badge */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '4px 10px',
-            background: 'var(--cth-cream-100)',
-            boxShadow: `inset 0 0 0 1.5px ${healthColor}`
-          }}
-        >
-          <span style={{ fontSize: 10, fontFamily: 'var(--cth-font-display)', color: 'var(--cth-ink-500)' }}>
-            HEALTH:
-          </span>
-          <span
-            style={{
-              fontSize: 14,
-              fontFamily: 'var(--cth-font-display)',
-              fontWeight: 700,
-              color: 'var(--cth-ink-900)'
-            }}
-          >
-            {project.health.healthScore}%
-          </span>
-        </div>
-      </div>
-
-      {/* Main Body Grid */}
-      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {/* Domain Information & Selector */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '10px 12px',
-            background: 'var(--cth-cream-100)',
-            boxShadow: 'inset 0 0 0 1px var(--cth-ink-200)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ fontSize: 10, fontFamily: 'var(--cth-font-display)', color: 'var(--cth-ink-500)' }}>
-              DOMAIN:
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '2px 8px',
-                  background: 'var(--cth-sky-light)',
-                  boxShadow: 'inset 0 0 0 1px var(--cth-sky)',
-                  fontFamily: 'var(--cth-font-ui)',
-                  fontSize: 12,
-                  fontWeight: 600
-                }}
-              >
-                ⚡ {primaryDomainDef.name}
-              </span>
-
-              {project.secondaryDomains && project.secondaryDomains.length > 0 && (
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {project.secondaryDomains.map((secId) => {
-                    const secDef = getDomainDefinition(secId);
-                    return (
-                      <span
-                        key={secId}
-                        style={{
-                          padding: '1px 6px',
-                          background: 'var(--cth-cream-200)',
-                          boxShadow: 'inset 0 0 0 1px var(--cth-ink-200)',
-                          fontSize: 10,
-                          color: 'var(--cth-ink-700)'
-                        }}
-                      >
-                        + {secDef.name}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+      <div className="nxps__body">
+        {/* Domain and selector */}
+        <div className="nxh-card nxh-row" style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <div className="nxh-row">
+            <span className="nxh-label">Domain</span>
+            <span className="nxh-chip" data-tone="on">{primaryDomainDef.name}</span>
+            {project.secondaryDomains && project.secondaryDomains.length > 0 && project.secondaryDomains.map((secId) => (
+              <span key={secId} className="nxh-chip">+ {getDomainDefinition(secId).name}</span>
+            ))}
           </div>
 
           <div style={{ position: 'relative' }}>
-            <PixelButton
-              variant="secondary"
-              size="sm"
+            <button
+              type="button"
+              className="nx-btn nx-btn--sm"
+              aria-haspopup="menu"
+              aria-expanded={domainMenuOpen}
               onClick={() => setDomainMenuOpen(!domainMenuOpen)}
             >
-              Change Domain ▾
-            </PixelButton>
+              Change domain
+            </button>
 
             {domainMenuOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: '100%',
-                  marginTop: 4,
-                  width: 200,
-                  background: 'var(--cth-cream-100)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15), inset 0 0 0 1.5px var(--cth-ink-900)',
-                  zIndex: 100,
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}
-              >
+              <div className="nx-float nxps__menu" role="menu" aria-label="Domain">
                 {(['software-engineering', 'ai-ml', 'cybersecurity'] as DomainId[]).map((dId) => {
                   const dDef = getDomainDefinition(dId);
                   const isCurrent = project.domainId === dId;
                   return (
                     <button
                       key={dId}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={isCurrent}
+                      className={`nx-menu__item${isCurrent ? ' is-current' : ''}`}
                       onClick={() => {
                         onChangeDomain?.(dId);
                         setDomainMenuOpen(false);
                       }}
-                      style={{
-                        padding: '8px 12px',
-                        border: 'none',
-                        borderBottom: '1px solid var(--cth-ink-100)',
-                        background: isCurrent ? 'var(--cth-mint-light)' : 'transparent',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontFamily: 'var(--cth-font-ui)',
-                        fontSize: 12,
-                        color: 'var(--cth-ink-900)'
-                      }}
                     >
-                      {isCurrent ? '✓ ' : ''}{dDef.name}
+                      <span className="nx-menu__text">{dDef.name}</span>
+                      {isCurrent && <span className="nx-menu__note">Current</span>}
                     </button>
                   );
                 })}
@@ -233,308 +104,118 @@ export function ProjectSummaryCard({
           </div>
         </div>
 
-        {/* Recommended Domain Agents */}
-        <div
-          style={{
-            padding: '10px 12px',
-            background: 'var(--cth-cream-100)',
-            boxShadow: 'inset 0 0 0 1px var(--cth-ink-200)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: 10, fontFamily: 'var(--cth-font-display)', color: 'var(--cth-ink-500)' }}>
-              RECOMMENDED AGENTS ({primaryDomainDef.agentRoles.length} ROLES)
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--cth-ink-400)', fontFamily: 'var(--cth-font-ui)' }}>
-              Domain-Specialized Profile Registry
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 6 }}>
+        {/* Recommended domain agents */}
+        <section className="nxh-card" aria-labelledby={`nxps-roles-${project.id}`}>
+          <h4 className="nxh-title" id={`nxps-roles-${project.id}`}>
+            Recommended agents <span className="nxh-muted">({primaryDomainDef.agentRoles.length} roles)</span>
+          </h4>
+          <div className="nxps__roles">
             {primaryDomainDef.agentRoles.map((role) => (
-              <div
-                key={role.roleId}
-                style={{
-                  padding: '6px 8px',
-                  background: 'var(--cth-cream-200)',
-                  boxShadow: 'inset 0 0 0 1px var(--cth-ink-200)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 3
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontFamily: 'var(--cth-font-display)', fontSize: 10, fontWeight: 700, color: 'var(--cth-ink-900)' }}>
-                    {role.title}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    fontSize: 9,
-                    color: 'var(--cth-ink-600)',
-                    fontFamily: 'var(--cth-font-ui)',
-                    lineHeight: 1.2,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}
-                  title={role.description}
-                >
+              <div key={role.roleId} className="nxh-card nxh-card--sub" style={{ marginBottom: 0 }}>
+                <span className="nxh-name">{role.title}</span>
+                <span className="nxh-muted" title={role.description} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {role.description}
-                </div>
+                </span>
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* Breakdown Stats Grid */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: 10
-          }}
-        >
-          {/* Languages */}
-          <div
-            style={{
-              padding: 10,
-              background: 'var(--cth-cream-100)',
-              boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)'
-            }}
-          >
-            <div
-              style={{
-                fontSize: 9,
-                fontFamily: 'var(--cth-font-display)',
-                color: 'var(--cth-ink-500)',
-                marginBottom: 6
-              }}
-            >
-              LANGUAGES ({project.detectedLanguages.length})
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {project.detectedLanguages.slice(0, 5).map((lang) => (
-                <span
-                  key={lang.language}
-                  style={{
-                    padding: '2px 6px',
-                    background: 'var(--cth-cream-200)',
-                    boxShadow: 'inset 0 0 0 1px var(--cth-ink-200)',
-                    fontSize: 11,
-                    fontFamily: 'var(--cth-font-ui)'
-                  }}
-                >
-                  {lang.language} ({lang.fileCount})
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Frameworks & Dependencies */}
-          <div
-            style={{
-              padding: 10,
-              background: 'var(--cth-cream-100)',
-              boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)'
-            }}
-          >
-            <div
-              style={{
-                fontSize: 9,
-                fontFamily: 'var(--cth-font-display)',
-                color: 'var(--cth-ink-500)',
-                marginBottom: 6
-              }}
-            >
-              FRAMEWORKS & DEPS ({project.dependencies.length})
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {project.frameworks.length > 0 ? (
-                project.frameworks.map((fw) => (
-                  <span
-                    key={fw}
-                    style={{
-                      padding: '2px 6px',
-                      background: 'var(--cth-lemon-light)',
-                      boxShadow: 'inset 0 0 0 1px var(--cth-lemon)',
-                      fontSize: 11,
-                      fontFamily: 'var(--cth-font-ui)'
-                    }}
-                  >
-                    {fw}
-                  </span>
+        {/* Breakdown */}
+        <div className="nxps__grid">
+          <section className="nxh-card">
+            <h4 className="nxh-label" style={{ margin: 0 }}>Languages ({project.detectedLanguages.length})</h4>
+            <div className="nxh-row" style={{ gap: 4 }}>
+              {project.detectedLanguages.length > 0
+                ? project.detectedLanguages.slice(0, 5).map((lang) => (
+                  <span key={lang.language} className="nxh-chip">{lang.language} ({lang.fileCount})</span>
                 ))
-              ) : (
-                <span style={{ fontSize: 11, color: 'var(--cth-ink-500)' }}>None detected</span>
-              )}
+                : <span className="nxh-muted">None detected</span>}
             </div>
-          </div>
+          </section>
 
-          {/* Test Suites & Documentation */}
-          <div
-            style={{
-              padding: 10,
-              background: 'var(--cth-cream-100)',
-              boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)'
-            }}
-          >
-            <div
-              style={{
-                fontSize: 9,
-                fontFamily: 'var(--cth-font-display)',
-                color: 'var(--cth-ink-500)',
-                marginBottom: 6
-              }}
-            >
-              TESTS & DOCS
+          <section className="nxh-card">
+            <h4 className="nxh-label" style={{ margin: 0 }}>Frameworks and dependencies ({project.dependencies.length})</h4>
+            <div className="nxh-row" style={{ gap: 4 }}>
+              {project.frameworks.length > 0
+                ? project.frameworks.map((fw) => <span key={fw} className="nxh-chip">{fw}</span>)
+                : <span className="nxh-muted">None detected</span>}
             </div>
-            <div style={{ fontSize: 11, lineHeight: '18px', color: 'var(--cth-ink-700)' }}>
-              <div>🧪 Test Suites: <strong>{project.testSuites.length}</strong></div>
-              <div>📖 Doc Files: <strong>{project.documentationFiles.length}</strong></div>
-            </div>
-          </div>
+          </section>
 
-          {/* Git Status */}
-          <div
-            style={{
-              padding: 10,
-              background: 'var(--cth-cream-100)',
-              boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)'
-            }}
-          >
-            <div
-              style={{
-                fontSize: 9,
-                fontFamily: 'var(--cth-font-display)',
-                color: 'var(--cth-ink-500)',
-                marginBottom: 6
-              }}
-            >
-              GIT REPOSITORY
+          <section className="nxh-card">
+            <h4 className="nxh-label" style={{ margin: 0 }}>Tests and docs</h4>
+            <div className="nxh-note">
+              <div>Test suites: <strong>{project.testSuites.length}</strong></div>
+              <div>Doc files: <strong>{project.documentationFiles.length}</strong></div>
             </div>
-            <div style={{ fontSize: 11, lineHeight: '18px', color: 'var(--cth-ink-700)' }}>
+          </section>
+
+          <section className="nxh-card">
+            <h4 className="nxh-label" style={{ margin: 0 }}>Git repository</h4>
+            <div className="nxh-note">
               {project.gitInfo?.isRepo ? (
                 <>
-                  <div>Branch: <strong>{project.gitInfo.branch ?? 'HEAD'}</strong></div>
-                  <div>Working Tree: <strong>{project.gitInfo.isClean ? 'Clean' : 'Modified'}</strong></div>
+                  <div>Branch: <span className="nx-id">{project.gitInfo.branch ?? 'HEAD'}</span></div>
+                  <div>Working tree: <strong>{project.gitInfo.isClean ? 'Clean' : 'Modified'}</strong></div>
                 </>
               ) : (
-                <span style={{ color: 'var(--cth-ink-400)' }}>No Git repo detected</span>
+                <span className="nxh-muted">No git repository detected</span>
               )}
             </div>
-          </div>
+          </section>
         </div>
 
-        {/* Important Files & Entry Points */}
+        {/* Important files and entry points */}
         {(project.entryPoints.length > 0 || project.importantFiles.length > 0) && (
-          <div
-            style={{
-              padding: '8px 12px',
-              background: 'var(--cth-cream-100)',
-              boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
-              fontSize: 11,
-              color: 'var(--cth-ink-700)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4
-            }}
-          >
+          <div className="nxh-card nxh-note">
             {project.entryPoints.length > 0 && (
               <div>
-                <strong>Entry Points:</strong> {project.entryPoints.join(', ')}
+                <strong>Entry points:</strong> <span className="nx-id">{project.entryPoints.join(', ')}</span>
               </div>
             )}
             {project.importantFiles.length > 0 && (
               <div>
-                <strong>Key Configs:</strong> {project.importantFiles.slice(0, 6).join(', ')}
+                <strong>Key configs:</strong> <span className="nx-id">{project.importantFiles.slice(0, 6).join(', ')}</span>
               </div>
             )}
           </div>
         )}
 
-        {/* Project Knowledge Graph Summary Strip */}
-        <div
-          style={{
-            padding: '10px 14px',
-            background: 'var(--cth-cream-100)',
-            boxShadow: 'inset 0 0 0 1.5px var(--cth-mint)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 8
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontFamily: 'var(--cth-font-display)',
-                fontSize: 10,
-                color: 'var(--cth-ink-500)',
-                marginBottom: 4
-              }}
-            >
-              PROJECT KNOWLEDGE GRAPH
-            </div>
-            <div
-              style={{
-                fontFamily: 'var(--cth-font-ui)',
-                fontSize: 12,
-                color: 'var(--cth-ink-900)',
-                display: 'flex',
-                gap: 12,
-                flexWrap: 'wrap'
-              }}
-            >
-              <span><strong>Nodes:</strong> {graphStats?.nodeCount ?? '…'}</span>
-              <span>• <strong>Edges:</strong> {graphStats?.edgeCount ?? '…'}</span>
-              <span>• <strong>Files:</strong> {graphStats?.fileCount ?? '…'}</span>
-              <span>• <strong>Functions:</strong> {graphStats?.functionCount ?? '…'}</span>
-              <span>• <strong>Classes:</strong> {graphStats?.classCount ?? '…'}</span>
-              <span>• <strong>Tests:</strong> {graphStats?.testCount ?? '…'}</span>
-            </div>
+        {/* Project knowledge graph summary */}
+        <section className="nxh-card">
+          <h4 className="nxh-label" style={{ margin: 0 }}>Project knowledge graph</h4>
+          <div className="nxh-meta" aria-busy={graphStats === null}>
+            <span>Nodes {graphStats?.nodeCount ?? '…'}</span>
+            <span>Edges {graphStats?.edgeCount ?? '…'}</span>
+            <span>Files {graphStats?.fileCount ?? '…'}</span>
+            <span>Functions {graphStats?.functionCount ?? '…'}</span>
+            <span>Classes {graphStats?.classCount ?? '…'}</span>
+            <span>Tests {graphStats?.testCount ?? '…'}</span>
           </div>
-        </div>
+        </section>
 
-        {/* Action Controls */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingTop: 8,
-            borderTop: '1px solid var(--cth-ink-100)'
-          }}
-        >
+        {/* Actions */}
+        <div className="nxps__foot">
           <div>
             {onBack && (
-              <PixelButton variant="secondary" onClick={onBack}>
-                ← Back
-              </PixelButton>
+              <button type="button" className="nx-btn" onClick={onBack}>Back</button>
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            <PixelButton
-              variant="secondary"
-              onClick={onRefreshProject}
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? 'Analyzing…' : '↻ Re-analyze'}
-            </PixelButton>
+          <div className="nxh-row">
+            <button type="button" className="nx-btn" onClick={onRefreshProject} disabled={isRefreshing}>
+              {isRefreshing ? 'Analyzing…' : 'Re-analyze'}
+            </button>
 
             {onOpenProject && (
-              <PixelButton variant="primary" onClick={onOpenProject}>
-                Open Project →
-              </PixelButton>
+              <button type="button" className="nx-btn nx-btn--primary" onClick={onOpenProject}>
+                Open project
+              </button>
             )}
           </div>
         </div>
       </div>
-    </PixelPanel>
+    </article>
   );
 }

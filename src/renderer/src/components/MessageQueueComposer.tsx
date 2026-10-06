@@ -659,7 +659,7 @@ function FreeFlowButton({ agentId, hasGroqKey }: { agentId: string; hasGroqKey: 
                 width: HINT_W, padding: '10px 12px', boxSizing: 'border-box',
                 display: 'flex', flexDirection: 'column', gap: 7,
                 background: 'var(--cth-paper-100)',
-                boxShadow: 'inset 0 0 0 1.5px var(--cth-ink-500), 4px 4px 0 rgba(26,19,32,0.25)',
+                boxShadow: 'inset 0 0 0 1px var(--nx-line-strong), var(--nx-shadow-float)', borderRadius: 'var(--nx-r-obj)',
                 fontFamily: 'var(--cth-font-ui)', fontSize: 11, lineHeight: '15px',
                 color: 'var(--cth-ink-900)', textAlign: 'left', whiteSpace: 'normal'
               }}

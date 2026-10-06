@@ -10,7 +10,7 @@ import { DEFAULT_CONTEXT_TRIGGER, DEFAULT_ORG_TRIGGER } from '../shared/triggers
 
 /** The built-in hourly ops standup: god reviews who's doing what + whether tasks
  *  are on track and agents are running, and every terminal's context is compacted.
- *  Shipped enabled by default; users can toggle it off in the Command Center. */
+ *  Shipped enabled by default; users can toggle it off in the agent workbench. */
 export const OPS_STANDUP_MISSION: ScheduledMission = {
   id: 'ops-standup',
   label: 'Hourly ops standup',

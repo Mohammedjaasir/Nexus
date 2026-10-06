@@ -1,7 +1,7 @@
 /**
  * Command reference for the xAI Grok CLI.
  *
- * Kept in the same shape as the Claude/Codex references so the Command Center
+ * Kept in the same shape as the Claude/Codex references so the app
  * and generated hive command guide can render provider-native commands.
  */
 import type { CmdGroup } from './claudeCommands';

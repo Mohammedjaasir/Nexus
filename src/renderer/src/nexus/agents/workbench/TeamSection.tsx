@@ -78,7 +78,7 @@ export function TeamSection() {
         )}
 
         {ordered.length === 0 ? (
-          <EmptyState icon="agents" title="No agents" body="No agents are running." />
+          <EmptyState level={4} icon="agents" title="No agents" body="No agents are running." />
         ) : (
           <ul className="nxs__list" aria-label="Agents">
             {ordered.map((a) => (

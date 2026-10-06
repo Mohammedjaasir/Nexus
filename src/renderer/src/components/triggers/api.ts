@@ -52,7 +52,7 @@ export async function getContextTrigger(): Promise<ContextTriggerConfig> {
 }
 
 /** Fire and forget — the controls have already moved, which is the house
- *  pattern for config writes across the Command Center. */
+ *  pattern for config writes across the agent workbench. */
 export function setContextTrigger(cfg: ContextTriggerConfig): void {
   void window.cth.setContextTrigger(cfg).catch(() => { /* optimistic */ });
 }

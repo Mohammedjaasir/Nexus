@@ -44,14 +44,14 @@ export function ProjectBench({ id, tool }: { id: string; tool: ProjectTool }) {
   }, [id, known, active?.id, setActiveProject, attempt]);
 
   if (!known && status === 'error' && projectCount === 0) {
-    return <div className="nx-page"><EmptyState icon="refresh" title="Couldn't load your projects" body={loadError ?? 'The project list could not be loaded.'} actions={<Button variant="primary" onClick={() => { void reloadProjects(); }}>Retry</Button>} /></div>;
+    return <div className="nx-page"><EmptyState level={1} icon="refresh" title="Couldn't load your projects" body={loadError ?? 'The project list could not be loaded.'} actions={<Button variant="primary" onClick={() => { void reloadProjects(); }}>Retry</Button>} /></div>;
   }
   if (!known && status !== 'loading') {
-    return <div className="nx-page"><EmptyState icon="projects" title="That project isn't in your list" body="It may have been removed. Open Projects to pick another."
+    return <div className="nx-page"><EmptyState level={1} icon="projects" title="That project isn't in your list" body="It may have been removed. Open Projects to pick another."
       actions={<Button variant="primary" onClick={() => navigate({ name: 'projects' })}>Back to Projects</Button>} /></div>;
   }
   if (err) {
-    return <div className="nx-page"><EmptyState icon="refresh" title="Couldn't open the project" body={err} actions={<Button variant="primary" onClick={() => setAttempt((n) => n + 1)}>Retry</Button>} /></div>;
+    return <div className="nx-page"><EmptyState level={1} icon="refresh" title="Couldn't open the project" body={err} actions={<Button variant="primary" onClick={() => setAttempt((n) => n + 1)}>Retry</Button>} /></div>;
   }
   if (!active || active.id !== id) {
     return <div className="nx-page"><p className="nx-muted" role="status">Opening {known?.name ?? 'project'}…</p></div>;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '@/store/store';
 import type { HarnessConfig } from '@/store/config';
 import { AgentWorkbench } from './workbench/AgentWorkbench';
@@ -10,6 +10,11 @@ import { leadAgentId } from '@shared/agentDisplay';
 import { useRestoreTeam } from '@/hooks/useRestoreTeam';
 import { restoreStatusLine, type RestoreStatus } from '@/hooks/restoreTeamPolicy';
 import { AutoModeBanner } from './AutoModeBanner';
+import { useNexusUi } from '../state/uiStore';
+
+/** The last palette request to open Semantic memory that was honoured, so a
+ *  later visit to the page does not reopen it on its own. */
+let handledMemoryTick = 0;
 
 /** Agents: a plain list plus the selected agent's real terminal. */
 export function AgentsPage({ config }: { config: HarnessConfig }) {
@@ -20,6 +25,16 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
   const godStatus = useStore((s) => s.godStatus);
   const setAddAgentOpen = useStore((s) => s.setAddAgentOpen);
   const fullscreenAgentId = useStore((s) => s.fullscreenAgentId);
+  // Semantic memory (the model picker) is one click away: the summary below,
+  // or the palette's "Agents: Semantic memory" entry, which opens it here.
+  const memoryTick = useNexusUi((s) => s.memoryTick);
+  const memRef = useRef<HTMLDetailsElement | null>(null);
+  useEffect(() => {
+    if (memoryTick === handledMemoryTick || !memRef.current) return;
+    handledMemoryTick = memoryTick;
+    memRef.current.open = true;
+    memRef.current.querySelector('summary')?.focus();
+  }, [memoryTick]);
 
   const hint = useRegistryIds();
   // App's config prop is read once at launch; the auto mode line follows main
@@ -59,6 +74,13 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
     if (target) s.setFullscreen(target.id);
   };
 
+  const memory = (
+    <details className="nxa__mem" ref={memRef}>
+      <summary className="nxa__mem-sum nx-focusable">Semantic memory</summary>
+      <div className="nxa__mem-body"><MemoryPanel defaultOpen /></div>
+    </details>
+  );
+
   const addButton = (primary: boolean) => (
     <button type="button" className={`nx-btn nx-focusable${primary ? ' nx-btn--primary' : ''}`} onClick={() => setAddAgentOpen(true)}>
       <Icon name="plus" /> Add agent
@@ -84,8 +106,9 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
 
       {rows.length === 0 ? (
         godStatus === 'booting' ? (
-          <div className="nxa__empty" role="status">
-            <p className="nxa__note">The lead agent is starting. Its terminal appears here when it is ready.</p>
+          <div className="nxa__empty">
+            <p className="nxa__note" role="status">The lead agent is starting. Its terminal appears here when it is ready.</p>
+            {memory}
           </div>
         ) : (
           <div className="nxa__empty">
@@ -94,6 +117,7 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
               <p className="nx-empty__body">No agents are running. Add one to see its terminal here.</p>
               <div className="nx-empty__actions">{addButton(true)}</div>
             </div>
+            {memory}
           </div>
         )
       ) : (
@@ -119,10 +143,7 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
               </li>
             ))}
           </ul>
-          <details className="nxa__mem">
-            <summary className="nxa__mem-sum nx-focusable">Semantic memory</summary>
-            <div className="nxa__mem-body"><MemoryPanel defaultOpen /></div>
-          </details>
+          {memory}
           </div>
           <section className="nxa__term" role="region" aria-label={`${current?.title ?? 'Agent'} panel`}>
             {agent ? <AgentWorkbench agent={agent} /> : null}

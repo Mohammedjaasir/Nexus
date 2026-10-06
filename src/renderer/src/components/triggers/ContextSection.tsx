@@ -3,7 +3,7 @@ import type { ContextRule, ContextTriggerConfig } from '@shared/triggers';
 import { getContextTrigger, setContextTrigger } from './api';
 import {
   Callout, Field, Hint, IntervalPicker, Muted, PctField, SubCard, SubHeader, Toggle,
-  fmtInterval, textareaStyle
+  fmtInterval
 } from './ui';
 
 /**
@@ -117,7 +117,7 @@ function RuleCard({ title, blurb, rule, messageLabel, messageHint, messagePlaceh
       )}
       {open && (
         <div style={{ marginTop: 4 }}>
-          <Field label="NO SOONER THAN EVERY">
+          <Field label="No sooner than every">
             {/* Main clamps a context cadence to 1 minute … 24 hours, so the
                 picker offers exactly that range and never labels a value it
                 cannot actually store. */}
@@ -128,11 +128,11 @@ function RuleCard({ title, blurb, rule, messageLabel, messageHint, messagePlaceh
               maxMs={86_400_000}
             />
           </Field>
-          <Field label="CONTEXT BAR">
+          <Field label="Context bar">
             <PctField value={rule.minContextPct} onChange={(minContextPct) => onPatch({ minContextPct })} />
             <Hint>How full the window must be before this may run. 0% = time alone.</Hint>
           </Field>
-          <Field label="BAR ON BIG WINDOWS">
+          <Field label="Bar on big windows">
             <PctField
               value={rule.minContextPctLargeWindow}
               onChange={(minContextPctLargeWindow) => onPatch({ minContextPctLargeWindow })}
@@ -145,7 +145,7 @@ function RuleCard({ title, blurb, rule, messageLabel, messageHint, messagePlaceh
               onChange={(e) => onPatch({ message: e.target.value })}
               rows={3}
               placeholder={messagePlaceholder}
-              style={textareaStyle}
+              className="nxh-input"
             />
             <Hint>{messageHint}</Hint>
           </Field>

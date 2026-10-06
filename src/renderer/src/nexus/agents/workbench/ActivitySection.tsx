@@ -46,11 +46,11 @@ export function ActivitySection() {
           {loaded && entries.length === 0 ? (
             <p className="nxs__note">No activity yet.</p>
           ) : (
-            <ol className="nxa">
+            <ol className="nxact">
               {entries.map((e, i) => (
-                <li key={`${e.ts ?? ''}-${i}`} className="nxa__item">
-                  <span className="nxa__time">{timeOf(e.ts)}</span>
-                  <span className="nxa__text">{activityLine(e, name)}</span>
+                <li key={`${e.ts ?? ''}-${i}`} className="nxact__item">
+                  <span className="nxact__time">{timeOf(e.ts)}</span>
+                  <span className="nxact__text">{activityLine(e, name)}</span>
                 </li>
               ))}
             </ol>

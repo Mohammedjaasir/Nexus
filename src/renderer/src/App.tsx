@@ -96,7 +96,7 @@ export function App() {
       // Mirror the active office theme so OfficeFloor renders it (gated on the
       // tvShowOffices flag; off = always the office). Settings keeps this synced.
       useStore.getState().setOfficeTheme(c.tvShowOffices ? (c.officeTheme ?? 'office') : 'office');
-      // Mirror the triggers so Settings → Connections and the Command Center's
+      // Mirror the triggers so Settings → Connections and the workbench's
       // Triggers tab read one list, not two copies that drift — whichever surface
       // saves calls these same setters and the other repaints. No extra IPC: main
       // deep-fills both fields on every config read (withTriggerDefaults), so
@@ -223,7 +223,7 @@ export function App() {
   }), []);
 
   if (!config) {
-    return <div style={{ width: '100vw', height: '100vh', background: 'var(--nx-frame)' }} />;
+    return <div style={{ width: '100vw', height: '100vh', background: 'var(--nx-ground)' }} />;
   }
 
   if (!config.onboardingComplete) {

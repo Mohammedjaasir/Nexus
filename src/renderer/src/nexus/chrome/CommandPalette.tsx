@@ -11,6 +11,7 @@ export function CommandPalette() {
   const setOpen = useNexusUi((s) => s.setPaletteOpen);
   const projects = useStore((s) => s.projects);
   const actions = useShellActions();
+  const openMemory = useNexusUi((s) => s.openSemanticMemory);
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
   const input = useRef<HTMLInputElement | null>(null);
@@ -26,7 +27,8 @@ export function CommandPalette() {
     if (e.route) navigate(e.route);
     else if (e.action === 'newProject') actions.openNewProject();
     else if (e.action === 'openIde') actions.openIde();
-    else if (e.action === 'openSettings') actions.openSettings();
+    else if (e.action === 'openSettings') actions.openSettings(e.settingsSection);
+    else if (e.action === 'openSemanticMemory') { navigate({ name: 'agents' }); openMemory(); }
   };
 
   return (
