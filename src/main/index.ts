@@ -792,7 +792,7 @@ function stampContextRun(action: 'compact' | 'clear'): number {
   const map = contextRunMap();
   const at = Date.now();
   map[action] = at;
-  try { persist.setKv(CONTEXT_LAST_RUN_KV_KEY, map); } catch { /* DB best-effort */ }
+  persist.setKv(CONTEXT_LAST_RUN_KV_KEY, map); // the queue owns errors and retries
   return at;
 }
 
@@ -948,7 +948,7 @@ function ensureDefaultMissions(): void {
     if (typeof retiring.lastFiredAt === 'number' && retiring.lastFiredAt > 0) {
       const map = contextRunMap();
       map.compact = retiring.lastFiredAt;
-      try { persist.setKv(CONTEXT_LAST_RUN_KV_KEY, map); } catch { /* DB best-effort */ }
+      persist.setKv(CONTEXT_LAST_RUN_KV_KEY, map); // the queue owns errors and retries
     }
     console.log('[triggers] retired the compact-maintenance mission into contextTrigger.compact',
       `(enabled: ${retiring.enabled}, everyMs: ${retiring.intervalMs})`);
@@ -1739,8 +1739,7 @@ function heldTokens(): Map<string, string> {
 }
 
 function persistHeldTokens(): void {
-  try { persist.setKv(HELD_TOKENS_KV_KEY, Object.fromEntries(heldTokens())); }
-  catch (e) { console.error('[webhook] could not persist held-token map:', e); }
+  persist.setKv(HELD_TOKENS_KV_KEY, Object.fromEntries(heldTokens())); // queued and retried on failure
 }
 
 /** Drop mappings whose history entry has aged out of the (capped) ledger — the
@@ -2308,13 +2307,13 @@ function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
   if (!isFloor) {
     const saveBounds = debounce(() => {
       if (win.isDestroyed() || win.isMinimized() || win.isMaximized()) return;
-      try { persist.setKv('window.bounds', win.getBounds()); } catch { /* DB best-effort */ }
+      persist.setKv('window.bounds', win.getBounds());
     }, 400);
     win.on('resized', saveBounds);
     win.on('moved', saveBounds);
     win.on('close', () => {
       if (win.isDestroyed() || win.isMinimized() || win.isMaximized()) return;
-      try { persist.setKv('window.bounds', win.getBounds()); } catch { /* DB best-effort */ }
+      persist.setKv('window.bounds', win.getBounds());
     });
   }
 

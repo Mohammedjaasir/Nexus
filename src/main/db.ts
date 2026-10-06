@@ -31,6 +31,7 @@ import type {
 import type { ProjectPlan } from '../shared/plan';
 import type { ProjectGapAnalysisResult } from '../shared/gap';
 import type { ProjectGoal } from '../shared/goal';
+import { LegacyWriteQueue } from './legacyWriteQueue';
 
 /** A captured user prompt, as returned to the renderer (camelCase columns). */
 export interface CommandHistoryRow {
@@ -165,6 +166,8 @@ const MIGRATIONS: Array<(db: Database.Database) => void> = [
 
 export class PersistStore {
   private db: Database.Database | null = null;
+  /** Every write goes through this queue: a failed, early or paused write is retried, never dropped. */
+  private readonly queue = new LegacyWriteQueue({ isReady: () => this.db !== null });
 
   /** @param dbPath  Override the DB location (tests). Defaults to userData/harness.db. */
   constructor(private dbPath?: string) {}
@@ -182,6 +185,8 @@ export class PersistStore {
     db.pragma('foreign_keys = ON');
     this.migrate(db);
     this.db = db;
+    // Anything written before the DB was open (or while paused) goes in now, in order.
+    this.queue.flush(() => this.db !== null);
   }
 
   private migrate(db: Database.Database): void {
@@ -199,11 +204,40 @@ export class PersistStore {
 
   /** Close the handle (checkpoints WAL). Safe to call when already closed. */
   close(): void {
+    // One last synchronous attempt (it stops at the first failure, so shutdown is
+    // bounded by one busy_timeout), then say what could not be saved.
+    try { this.queue.flush(() => this.db !== null); } catch (e) { console.error('[legacy-store] final flush failed:', e); }
+    this.queue.dispose();
+    if (this.queue.size > 0) {
+      console.error(`[legacy-store] closing with ${this.queue.size} unsaved write(s): ${this.queue.pendingLabels().join(', ')}`);
+    }
     try { this.db?.close(); } catch { /* best-effort on shutdown */ }
     this.db = null;
   }
 
   get isOpen(): boolean { return this.db !== null; }
+
+  /** Number of writes waiting to be (re)tried. */
+  get pendingWrites(): number { return this.queue.size; }
+
+  /** Hold all writes (a migration is running). They queue and flush on resumeWrites(). */
+  pauseWrites(): void { this.queue.pause(); }
+
+  resumeWrites(): { written: number; remaining: number } {
+    return this.queue.resume(() => this.db !== null);
+  }
+
+  private requireDb(): Database.Database {
+    if (!this.db) throw new Error('database is not open');
+    return this.db;
+  }
+
+  private write(label: string, run: (db: Database.Database) => void, key?: string): void {
+    this.queue.submit(label, () => {
+      if (!this.db) throw new Error('database is not open');
+      run(this.db);
+    }, this.db !== null, key);
+  }
 
   // ─── kv (scalar app state) ─────────────────────────────────────────────────
 
@@ -217,22 +251,28 @@ export class PersistStore {
 
   /** Upsert a JSON-encoded scalar. */
   setKv(key: string, value: unknown): void {
-    if (!this.db) return;
-    this.db.prepare(
-      `INSERT INTO kv (key, value, updated_at) VALUES (?, ?, ?)
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
-    ).run(key, JSON.stringify(value), Date.now());
+    // Serialize now so a retry writes this value, not whatever the object became later.
+    const json = JSON.stringify(value);
+    const at = Date.now();
+    this.write('setKv', (db) => {
+      db.prepare(
+        `INSERT INTO kv (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      ).run(key, json, at);
+    }, `kv:${key}`);
   }
 
   // ─── command history (net-new) ─────────────────────────────────────────────
 
   /** Record one submitted prompt. Empty text or missing agent id are ignored. */
   addHistory(entry: { agentId: string; cwd?: string | null; text: string }): void {
-    if (!this.db) return;
     const text = (entry.text ?? '').trim();
     if (!text || !entry.agentId) return;
-    this.db.prepare('INSERT INTO command_history (agent_id, cwd, text, ts) VALUES (?, ?, ?, ?)')
-      .run(entry.agentId, entry.cwd ?? null, text, Date.now());
+    const ts = Date.now();
+    this.write('addHistory', (db) => {
+      db.prepare('INSERT INTO command_history (agent_id, cwd, text, ts) VALUES (?, ?, ?, ?)')
+        .run(entry.agentId, entry.cwd ?? null, text, ts);
+    });
   }
 
   /** Most-recent-first history, optionally scoped to one agent. */
@@ -265,7 +305,11 @@ export class PersistStore {
 
   /** Save or overwrite a project. */
   saveProject(project: Project): void {
-    if (!this.db) return;
+    const snap: Project = { ...project };
+    this.write('saveProject', (db) => this.saveProjectNow(db, snap), `project:${project.id}`);
+  }
+
+  private saveProjectNow(db: Database.Database, project: Project): void {
     const metadata = {
       secondaryDomains: project.secondaryDomains ?? [],
       detectedLanguages: project.detectedLanguages ?? [],
@@ -278,7 +322,9 @@ export class PersistStore {
       gitInfo: project.gitInfo
     };
 
-    this.db.prepare(`
+    const healthJson = JSON.stringify(project.health ?? { healthScore: 0 });
+    const metadataJson = JSON.stringify(metadata);
+    db.prepare(`
       INSERT INTO projects (
         id, name, root_path, domain_id, project_type, description,
         metadata_json, health_json, created_at, updated_at, last_analyzed_at
@@ -300,8 +346,8 @@ export class PersistStore {
       project.domainId,
       project.projectType,
       project.description ?? null,
-      JSON.stringify(metadata),
-      JSON.stringify(project.health ?? { healthScore: 0 }),
+      metadataJson,
+      healthJson,
       project.createdAt || Date.now(),
       project.updatedAt || Date.now(),
       project.lastAnalyzedAt || Date.now()
@@ -329,26 +375,45 @@ export class PersistStore {
 
   /** Update an existing project partially. */
   updateProject(id: string, patch: Partial<Project>): Project | null {
-    const existing = this.getProject(id);
-    if (!existing) return null;
-    const updated: Project = {
-      ...existing,
-      ...patch,
-      id: existing.id, // prevent ID mutation
-      updatedAt: Date.now()
-    };
-    this.saveProject(updated);
-    return updated;
+    // Read-modify-write. When the DB is not open this returns null (as before)
+    // and logs. When it is open and the read or write throws, the WHOLE operation
+    // is queued, so the retry re-reads and applies the patch to the latest row.
+    if (!this.db) { console.error(`[legacy-store] updateProject(${id}) skipped: database is not open`); return null; }
+    let result: Project | null = null;
+    const outcome = this.queue.submit('updateProject', () => {
+      const existing = this.getProject(id);
+      if (!existing) { result = null; return; }
+      const updated: Project = { ...existing, ...patch, id: existing.id, updatedAt: Date.now() };
+      this.saveProjectNow(this.requireDb(), updated);
+      result = updated;
+    }, true);
+    if (outcome === 'written') return result;
+    // Queued: hand back the best-known optimistic value (null when it cannot be read).
+    try {
+      const existing = this.getProject(id);
+      return existing ? { ...existing, ...patch, id: existing.id, updatedAt: Date.now() } : null;
+    } catch { return null; }
   }
 
   /** Delete a project by ID. Returns true if removed. */
   deleteProject(id: string): boolean {
-    if (!this.db || !id) return false;
-    const res = this.db.prepare('DELETE FROM projects WHERE id = ?').run(id);
-    if (this.getActiveProjectId() === id) {
-      this.setActiveProjectId(null);
-    }
-    return res.changes > 0;
+    // Same contract as updateProject: not open -> false + log; open and the
+    // write throws -> the whole operation is queued (returns whether the row was seen).
+    if (!id) return false;
+    if (!this.db) { console.error(`[legacy-store] deleteProject(${id}) skipped: database is not open`); return false; }
+    let removed = false;
+    const outcome = this.queue.submit('deleteProject', () => {
+      const db = this.db;
+      if (!db) throw new Error('database is not open');
+      const res = db.prepare('DELETE FROM projects WHERE id = ?').run(id);
+      if (this.getActiveProjectId() === id) db.prepare(
+          `INSERT INTO kv (key, value, updated_at) VALUES (?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+        ).run('active_project_id', 'null', Date.now());
+      removed = res.changes > 0;
+    }, true);
+    if (outcome === 'written') return removed;
+    try { return this.getProject(id) !== null; } catch { return false; }
   }
 
   /** Get active project ID from kv store. */
@@ -358,7 +423,7 @@ export class PersistStore {
 
   /** Set active project ID in kv store. */
   setActiveProjectId(id: string | null): void {
-    this.setKv('active_project_id', id);
+    this.setKv('active_project_id', id); // queued (coalesced per key) like every kv write
   }
 
   // ─── project knowledge graph ──────────────────────────────────────────────
@@ -368,22 +433,25 @@ export class PersistStore {
    * Replaces any existing graph for this projectId.
    */
   saveProjectGraph(projectId: string, nodes: ProjectGraphNode[], edges: ProjectGraphEdge[]): void {
-    if (!this.db || !projectId) return;
+    if (!projectId) return;
+    this.write('saveProjectGraph', (db) => this.saveProjectGraphNow(db, projectId, nodes, edges), `graph:${projectId}`);
+  }
 
-    const deleteNodes = this.db.prepare('DELETE FROM project_graph_nodes WHERE project_id = ?');
-    const deleteEdges = this.db.prepare('DELETE FROM project_graph_edges WHERE project_id = ?');
+  private saveProjectGraphNow(db: Database.Database, projectId: string, nodes: ProjectGraphNode[], edges: ProjectGraphEdge[]): void {
+    const deleteNodes = db.prepare('DELETE FROM project_graph_nodes WHERE project_id = ?');
+    const deleteEdges = db.prepare('DELETE FROM project_graph_edges WHERE project_id = ?');
 
-    const insertNode = this.db.prepare(`
+    const insertNode = db.prepare(`
       INSERT INTO project_graph_nodes (id, project_id, kind, name, path, metadata_json)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    const insertEdge = this.db.prepare(`
+    const insertEdge = db.prepare(`
       INSERT INTO project_graph_edges (id, project_id, source_id, target_id, kind, metadata_json)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    const tx = this.db.transaction(() => {
+    const tx = db.transaction(() => {
       deleteNodes.run(projectId);
       deleteEdges.run(projectId);
 
@@ -644,9 +712,11 @@ export class PersistStore {
 
   /** Delete a project's knowledge graph entirely. */
   deleteProjectGraph(projectId: string): void {
-    if (!this.db || !projectId) return;
-    this.db.prepare('DELETE FROM project_graph_nodes WHERE project_id = ?').run(projectId);
-    this.db.prepare('DELETE FROM project_graph_edges WHERE project_id = ?').run(projectId);
+    if (!projectId) return;
+    this.write('deleteProjectGraph', (db) => db.transaction(() => {
+      db.prepare('DELETE FROM project_graph_nodes WHERE project_id = ?').run(projectId);
+      db.prepare('DELETE FROM project_graph_edges WHERE project_id = ?').run(projectId);
+    })(), `graph:${projectId}`);
   }
 
   // ─── Phase 8A: Project Plans ──────────────────────────────────────────────
@@ -668,8 +738,10 @@ export class PersistStore {
 
   /** Save or update a project's milestone and task graph plan. */
   saveProjectPlan(plan: ProjectPlan): void {
-    if (!this.db || !plan?.projectId) return;
-    this.db
+    if (!plan?.projectId) return;
+    const json = JSON.stringify(plan);
+    const at = Date.now();
+    this.write('saveProjectPlan', (db) => db
       .prepare(
         `INSERT INTO project_plans (project_id, plan_json, updated_at)
          VALUES (?, ?, ?)
@@ -677,13 +749,13 @@ export class PersistStore {
            plan_json  = excluded.plan_json,
            updated_at = excluded.updated_at`
       )
-      .run(plan.projectId, JSON.stringify(plan), Date.now());
+      .run(plan.projectId, json, at), `plan:${plan.projectId}`);
   }
 
   /** Delete a project's plan. */
   deleteProjectPlan(projectId: string): void {
-    if (!this.db || !projectId) return;
-    this.db.prepare('DELETE FROM project_plans WHERE project_id = ?').run(projectId);
+    if (!projectId) return;
+    this.write('deleteProjectPlan', (db) => db.prepare('DELETE FROM project_plans WHERE project_id = ?').run(projectId), `plan:${projectId}`);
   }
 
   // ─── Phase 8B: Project Gap Analysis Records ───────────────────────────────
@@ -705,8 +777,10 @@ export class PersistStore {
 
   /** Save or update a project's gap analysis result. */
   saveProjectGapAnalysis(result: ProjectGapAnalysisResult): void {
-    if (!this.db || !result?.projectId) return;
-    this.db
+    if (!result?.projectId) return;
+    const json = JSON.stringify(result);
+    const at = Date.now();
+    this.write('saveProjectGapAnalysis', (db) => db
       .prepare(
         `INSERT INTO project_gaps (project_id, gaps_json, updated_at)
          VALUES (?, ?, ?)
@@ -714,13 +788,13 @@ export class PersistStore {
            gaps_json  = excluded.gaps_json,
            updated_at = excluded.updated_at`
       )
-      .run(result.projectId, JSON.stringify(result), Date.now());
+      .run(result.projectId, json, at), `gaps:${result.projectId}`);
   }
 
   /** Delete a project's gap analysis records. */
   deleteProjectGapAnalysis(projectId: string): void {
-    if (!this.db || !projectId) return;
-    this.db.prepare('DELETE FROM project_gaps WHERE project_id = ?').run(projectId);
+    if (!projectId) return;
+    this.write('deleteProjectGapAnalysis', (db) => db.prepare('DELETE FROM project_gaps WHERE project_id = ?').run(projectId), `gaps:${projectId}`);
   }
 
   // ─── Phase 8C: Project Goals & Required Capabilities ──────────────────────
@@ -742,8 +816,10 @@ export class PersistStore {
 
   /** Save or update a project's goal definition. */
   saveProjectGoal(goal: ProjectGoal): void {
-    if (!this.db || !goal?.projectId) return;
-    this.db
+    if (!goal?.projectId) return;
+    const json = JSON.stringify(goal);
+    const at = Date.now();
+    this.write('saveProjectGoal', (db) => db
       .prepare(
         `INSERT INTO project_goals (project_id, goal_json, updated_at)
          VALUES (?, ?, ?)
@@ -751,13 +827,13 @@ export class PersistStore {
            goal_json  = excluded.goal_json,
            updated_at = excluded.updated_at`
       )
-      .run(goal.projectId, JSON.stringify(goal), Date.now());
+      .run(goal.projectId, json, at), `goal:${goal.projectId}`);
   }
 
   /** Delete a project's goal records. */
   deleteProjectGoal(projectId: string): void {
-    if (!this.db || !projectId) return;
-    this.db.prepare('DELETE FROM project_goals WHERE project_id = ?').run(projectId);
+    if (!projectId) return;
+    this.write('deleteProjectGoal', (db) => db.prepare('DELETE FROM project_goals WHERE project_id = ?').run(projectId), `goal:${projectId}`);
   }
 }
 
