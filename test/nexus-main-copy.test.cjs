@@ -44,3 +44,18 @@ test('round 1: spoken, breaker, control and heartbeat copy stay neutral', () => 
   ];
   for (const [f, s] of bans) assert.ok(!read(f).includes(s), `${f}: ${s}`);
 });
+
+test('agent-facing protocol strings in main carry no persona names (B0a final review, finding 5)', () => {
+  // Only string content counts: comment lines are dropped first.
+  const PERSONA = /\b(Michael|Dwight|Jim|Pam|Ryan|Creed|Oscar|Kevin|Angela|Stanley|Andy|Toby|Meredith|Phyllis|Kelly)\b/;
+  const files = ['index.ts', 'hive.ts', 'realtimeActions.ts', 'realtimeFloorWatcher.ts', 'realtimeCompletionWatcher.ts', 'slack.ts', 'webhook.ts', 'closingTime.ts'];
+  for (const f of files) {
+    const code = read(`src/main/${f}`).split(/\r?\n/).filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).map((l) => l.replace(/\s\/\/ .*$/, ''));
+    for (const l of code) assert.doesNotMatch(l, PERSONA, `${f}: ${l.slice(0, 120)}`);
+  }
+  const idx = read('src/main/index.ts');
+  assert.match(idx, /5\. REPORT TO THE LEAD — the agent then tells you \(the lead agent, inbox address "god"\) what it did\./);
+  const hive = read('src/main/hive.ts');
+  assert.match(hive, /You are the lead agent\\'s PREP ASSISTANT\./);
+  assert.match(hive, /with "to":"god", "act":"request"/);
+});
