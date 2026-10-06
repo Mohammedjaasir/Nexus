@@ -46,7 +46,7 @@ interface TriggersApi {
   deleteWebhook: (id: string) => Promise<{ ok: boolean; error?: string }>;
   /** Preload resolves the bare secret string (older builds: `{ ok, secret }`). */
   generateWebhookSecret: () => Promise<string | { ok: boolean; secret?: string }>;
-  webhooksStatus: () => Promise<{ running: boolean; url?: string }>;
+  webhooksStatus: () => Promise<{ running: boolean; url?: string; port?: number; tunnel?: boolean }>;
   getOrgTrigger: () => Promise<OrgTriggerConfig>;
   setOrgTrigger: (cfg: Omit<OrgTriggerConfig, 'apiKey'> & { apiKey: string | null }) => Promise<{ ok: boolean; error?: string }>;
 }
@@ -380,6 +380,45 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
   // Whether the connect-steps help panel is expanded.
   const [showSlackHelp, setShowSlackHelp] = useState(false);
 
+  // --- Public tunnels (task 13, O.9 #11-12) ------------------------------------
+  // Both servers listen on this computer only; a tunnel is a per-server opt-in.
+  // Turning one on asks in main (config:update policy); the toggle adopts main's
+  // answer, so Cancel leaves it off.
+  const [slackTunnel, setSlackTunnel] = useState(config.slackPublicTunnel === true);
+  const [webhookTunnel, setWebhookTunnel] = useState(config.webhookPublicTunnel === true);
+  const [postureNotice, setPostureNotice] = useState(config.serverPostureNoticeV1 === true);
+  const [slackLocalPort, setSlackLocalPort] = useState<number | undefined>(undefined);
+  const [webhookLocalPort, setWebhookLocalPort] = useState<number | undefined>(undefined);
+  const [tunnelBusy, setTunnelBusy] = useState(false);
+  const refreshServerStatus = async () => {
+    try {
+      const s = await window.cth.slackStatus();
+      setRunning(s.running);
+      setSlackLocalPort(s.port);
+      setTunnelUrl(s.url ?? '');
+    } catch { /* status unavailable */ }
+    try {
+      const w = await triggersApi().webhooksStatus();
+      setWebhookRunning(w.running);
+      setWebhookLocalPort(w.port);
+      setWebhookUrl(w.url ?? '');
+    } catch { /* status unavailable */ }
+  };
+  const toggleTunnel = async (key: 'slackPublicTunnel' | 'webhookPublicTunnel', want: boolean) => {
+    setTunnelBusy(true);
+    try {
+      const next = await window.cth.updateConfig({ [key]: want } as Partial<HarnessConfig>);
+      const on = (next as Partial<HarnessConfig>)[key] === true;
+      if (key === 'slackPublicTunnel') setSlackTunnel(on); else setWebhookTunnel(on);
+    } catch { /* keep the previous state */ }
+    await refreshServerStatus();
+    setTunnelBusy(false);
+  };
+  const dismissPostureNotice = async () => {
+    setPostureNotice(false);
+    try { await window.cth.updateConfig({ serverPostureNoticeV1: false } as Partial<HarnessConfig>); } catch { /* shows again next time */ }
+  };
+
   // --- Webhook triggers (a LIST; src/shared/triggers.ts owns the type) ---------
   // The list itself lives in the store, not in local state: the Triggers tab
   // edits the same webhooks, and one of the two surfaces holding a private copy
@@ -534,6 +573,9 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
       setSlackChannel(cc.slackChannelId ?? '');
       setSlackPort(String(cc.slackPort ?? 3847));
       setSlackProactivePosting(cc.slackProactivePosting ?? false);
+      setSlackTunnel(cc.slackPublicTunnel === true);
+      setWebhookTunnel(cc.webhookPublicTunnel === true);
+      setPostureNotice(cc.serverPostureNoticeV1 === true);
       const kgOn = (cc as { knowledgeGraph?: { enabled?: boolean } }).knowledgeGraph?.enabled === true;
       setKgEnabled(kgOn);
       setFreeflowEnabled(cc.freeflowEnabled !== false);
@@ -548,6 +590,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     window.cth.slackStatus().then((s) => {
       if (!alive) return;
       setRunning(s.running);
+      setSlackLocalPort(s.port);
       if (s.url) setTunnelUrl(s.url);
     }).catch(() => { /* status unavailable - assume not running */ });
     // Triggers: re-read main and push the result into the shared mirror. App
@@ -567,6 +610,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
         const s = await triggersApi().webhooksStatus();
         if (!alive) return;
         setWebhookRunning(s.running);
+        setWebhookLocalPort(s.port);
         if (s.url) setWebhookUrl(s.url);
       } catch { /* status unavailable - assume not listening */ }
     })();
@@ -612,7 +656,8 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
         setRunning(true);
         // Keep the last URL if this start returned none (tunnel hiccup) - don't blank it.
         if (res.url) setTunnelUrl(res.url);
-        setSlackNote(res.url ? 'listening' : (res.error ?? 'started, but tunnel unavailable'));
+        setSlackNote(res.url ? 'listening' : slackTunnel ? (res.error ?? 'started, but tunnel unavailable') : 'listening');
+        void refreshServerStatus();
       } else {
         setSlackNote(res.error ?? 'failed to start');
       }
@@ -719,7 +764,10 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
   };
 
   /** Endpoint URL for one webhook: every entry shares the tunnel, the id picks it. */
-  const webhookEndpoint = (id: string) => (webhookUrl ? `${webhookUrl.replace(/\/$/, '')}/${id}` : '');
+  // Without a tunnel the endpoint is the local one (this computer only).
+  const webhookEndpoint = (id: string) => (webhookTunnel
+    ? (webhookUrl ? `${webhookUrl.replace(/\/$/, '')}/${id}` : '')
+    : (webhookRunning && webhookLocalPort != null ? `http://127.0.0.1:${webhookLocalPort}/${id}` : ''));
   const copyTunnel = () => { void window.cth.copyToClipboard(tunnelUrl); };
 
   // --- Organisation trigger handlers ---
@@ -1534,6 +1582,61 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
 
                       <div style={{ height: 2, background: 'var(--cth-ink-300)' }} />
 
+                      {/* Public tunnels (task 13, O.9 #11-12). Both servers listen on
+                          this computer only; each tunnel is its own opt-in, and
+                          turning one on asks in main. */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{
+                          fontFamily: 'var(--cth-font-display)', fontSize: 8, lineHeight: '12px',
+                          color: 'var(--cth-ink-500)', textTransform: 'uppercase', marginBottom: 2
+                        }}>
+                          Public tunnels
+                        </div>
+                        {postureNotice && (
+                          <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-700)' }}>
+                              Public tunnels stay on for the Slack and webhook connections you already use. New connections start with them off.
+                            </span>
+                            <PixelButton variant="ghost" size="sm" onClick={() => void dismissPostureNotice()}>dismiss</PixelButton>
+                          </div>
+                        )}
+                        {([
+                          {
+                            key: 'slackPublicTunnel' as const,
+                            on: slackTunnel,
+                            label: 'Public tunnel for Slack',
+                            helper: "Slack can reach this computer only through a public tunnel (tunnelmole). Off by default. Requests still need Slack's signature."
+                          },
+                          {
+                            key: 'webhookPublicTunnel' as const,
+                            on: webhookTunnel,
+                            label: 'Public tunnel for webhooks',
+                            helper: "Callers outside this computer can reach your webhooks only through a public tunnel. Each request still needs the webhook's secret."
+                          }
+                        ]).map((t) => (
+                          <div key={t.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <span style={{ fontSize: 13, lineHeight: '20px', color: 'var(--cth-ink-900)' }}>{t.label}</span>
+                              <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>{t.helper}</span>
+                              <span style={{ fontSize: 12, lineHeight: '16px', color: t.on ? 'var(--cth-coral)' : 'var(--cth-ink-500)' }}>
+                                This makes the endpoint reachable from the internet.
+                              </span>
+                            </div>
+                            <PixelButton
+                              variant={t.on ? 'primary' : 'secondary'}
+                              size="sm"
+                              aria-pressed={t.on}
+                              onClick={() => void toggleTunnel(t.key, !t.on)}
+                              disabled={tunnelBusy}
+                            >
+                              {t.on ? 'on' : 'off'}
+                            </PixelButton>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div style={{ height: 2, background: 'var(--cth-ink-300)' }} />
+
                       {/* Slack integration */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         <div style={{
@@ -1690,10 +1793,17 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                               )}
                             </div>
 
+                            {running && !slackTunnel && slackLocalPort != null && (
+                              <span role="status" style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-700)' }}>
+                                Listening on this computer only (127.0.0.1:{slackLocalPort}).
+                              </span>
+                            )}
+
                             {/* Keep the Request URL visible while connected even after a
                                 modal reopen; when stopped, show the last URL greyed
-                                since Slack reuses it until the next Start. */}
-                            {(running || tunnelUrl) && (
+                                since Slack reuses it until the next Start. Only with a
+                                tunnel: without one there is no public URL. */}
+                            {slackTunnel && (running || tunnelUrl) && (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, opacity: running ? 1 : 0.55 }}>
                                 <span style={slackLabelStyle}>
                                   {running
@@ -1782,11 +1892,17 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                           }}>{WEBHOOK_API_DOC}</pre>
                         )}
 
-                        {/* Public surface warning. Loud, not buried. */}
-                        <span style={{ fontSize: 12, lineHeight: '16px', color: '#C8423E' }}>
-                          Every webhook you switch on is a PUBLIC endpoint anyone holding its secret can post to.
-                          New ones arrive off.
-                        </span>
+                        {/* Public surface warning, only while the tunnel is on. Loud, not buried. */}
+                        {webhookTunnel ? (
+                          <span style={{ fontSize: 12, lineHeight: '16px', color: '#C8423E' }}>
+                            Every webhook you switch on is a PUBLIC endpoint anyone holding its secret can post to.
+                            New ones arrive off.
+                          </span>
+                        ) : webhookRunning && webhookLocalPort != null ? (
+                          <span role="status" style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-700)' }}>
+                            Listening on this computer only (127.0.0.1:{webhookLocalPort}).
+                          </span>
+                        ) : null}
 
                         {webhookTriggers.length === 0 ? (
                           <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>

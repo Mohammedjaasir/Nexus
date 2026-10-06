@@ -188,6 +188,8 @@ export async function testOllamaConnection(
 
 import http from 'node:http';
 import { resolve } from 'node:path';
+import { timingSafeEqual } from 'node:crypto';
+import { bearerFrom, logRefused } from './hookAuth';
 
 const PLACEHOLDER_PREFIX_RE = /^([a-zA-Z]:)?[/\\\\]*(?:path[/\\\\]+to[/\\\\]+(?:current[/\\\\]+)?(?:project[/\\\\]+|workspace[/\\\\]+)?|current[/\\\\]+project[/\\\\]+|(?:project|workspace)[/\\\\]+|path[/\\\\]+to[/\\\\]+)/i;
 const EMBEDDED_PLACEHOLDER_RE = /[/\\\\]+path[/\\\\]+to[/\\\\]+(?:current[/\\\\]+)?(?:project|workspace)?[/\\\\]+/i;
@@ -269,15 +271,35 @@ export interface OllamaBridgeInstance {
   close: () => void;
 }
 
+/**
+ * Loopback bridge between an OpenCode agent and a local Ollama. Every request
+ * needs `Authorization: Bearer <opts.token>` (the per-agent token OpenCode sends
+ * as its provider apiKey; O.9 #15). The header is stripped before forwarding.
+ * Anything else gets 401 and a log line.
+ */
 export async function startOllamaBridge(
   workspace: string,
-  upstreamHost?: string
+  upstreamHost: string | undefined,
+  opts: { token: string }
 ): Promise<OllamaBridgeInstance> {
+  if (typeof opts?.token !== 'string' || !opts.token) throw new Error('startOllamaBridge needs a token');
+  const expected = Buffer.from(opts.token);
   const rawBase = (upstreamHost || DEFAULT_OLLAMA_HOST).trim().replace(/\/v1\/?$/i, '').replace(/\/+$/, '');
   const base = rawBase.replace('localhost', '127.0.0.1');
   const upstreamUrl = new URL(base);
 
   const server = http.createServer((req, res) => {
+    const provided = bearerFrom(req.headers.authorization);
+    const given = Buffer.from(provided ?? '');
+    if (!provided || given.length !== expected.length || !timingSafeEqual(given, expected)) {
+      logRefused('OllamaBridge', provided ? 'bad-token' : 'no-token', provided ? 'wrong token' : 'no bearer token');
+      try {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'unauthorized' }));
+      } catch { /* socket gone */ }
+      req.resume();
+      return;
+    }
     const targetPath = req.url || '/';
     const reqChunks: Buffer[] = [];
 
@@ -293,6 +315,8 @@ export async function startOllamaBridge(
       // Sanitize headers: strip host, force identity encoding so SSE/JSON is uncompressed
       const fwdHeaders: Record<string, string | string[] | undefined> = { ...req.headers };
       delete fwdHeaders.host;
+      // The bridge token is for this hop only; never send it upstream.
+      delete fwdHeaders.authorization;
       delete fwdHeaders['accept-encoding'];
       fwdHeaders['accept-encoding'] = 'identity';
       if (reqBody.length > 0) {

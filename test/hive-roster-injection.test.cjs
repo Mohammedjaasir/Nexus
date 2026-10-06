@@ -29,6 +29,7 @@ require.cache[electron] = {
 
 const { HiveManager } = loadTs('src/main/hive.ts');
 const { HookServer } = loadTs('src/main/hooks.ts');
+const { AgentTokens } = loadTs('src/main/hookAuth.ts');
 
 const CONFIG = { notifications: false };
 
@@ -40,14 +41,18 @@ async function floor(t, { steer } = {}) {
   const home = tmpHome();
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const hive = new HiveManager(() => home);
-  await hive.ensureAgent({ id: 'god-1', name: 'Michael', provider: 'claude', cwd: home, isGod: true });
-  await hive.ensureAgent({ id: 'jim-1', name: 'Jim', provider: 'claude', cwd: home });
+  // Hook messages are signed per agent (O.9 #13); the shims send HIVE_HOOK_TOKEN.
+  const tokens = new AgentTokens();
+  hive.setHookTokens(tokens);
+  const tok = {};
+  tok['god-1'] = (await hive.ensureAgent({ id: 'god-1', name: 'Michael', provider: 'claude', cwd: home, isGod: true })).env.HIVE_HOOK_TOKEN;
+  tok['jim-1'] = (await hive.ensureAgent({ id: 'jim-1', name: 'Jim', provider: 'claude', cwd: home })).env.HIVE_HOOK_TOKEN;
 
   const control = steer
     ? { takeSteer: (id) => (id === 'god-1' ? steer : null), shouldHalt: () => false, toolDecision: () => ({ deny: false }) }
     : undefined;
-  const server = new HookServer(hive, () => null, () => CONFIG, control, undefined);
-  const fire = (agent_id, hook_event_name) => server.handle({ agent_id, hook_event_name, session_id: 's1' });
+  const server = new HookServer(hive, () => null, () => CONFIG, tokens, control, undefined);
+  const fire = (agent_id, hook_event_name) => server.handle({ agent_id, hook_token: tok[agent_id], hook_event_name, session_id: 's1' });
   return { home, hive, server, fire };
 }
 

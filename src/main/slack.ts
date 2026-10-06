@@ -10,22 +10,23 @@
  *   - on a plain `message` event, strips a leading bot mention and emits the
  *     text via `onMessage`.
  *
- * It also opens a `tunnelmole` tunnel so the local port is reachable from Slack's
- * servers; the tunnel URL is what the user pastes into their Slack app's Event
- * Subscriptions → Request URL. The tunnel is best-effort: the local handler is
- * the security boundary and stays up even if the tunnel can't be established.
+ * The server listens on loopback only (O.9 #11). When the operator opts in
+ * (`slackPublicTunnel`, O.9 #12) it also opens a `tunnelmole` tunnel so Slack's
+ * servers can reach it; the tunnel URL is what the user pastes into their Slack
+ * app's Event Subscriptions → Request URL. The tunnel is best-effort: the local
+ * handler is the security boundary and stays up even if the tunnel can't be
+ * established.
  *
  * Runs in the Electron main process. Deliberately free of any `electron`
  * import so it can be unit-/smoke-tested as a plain Node module.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { request as httpsRequest } from 'node:https';
+import type { AddressInfo } from 'node:net';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-// NOTE: `tunnelmole` is an ESM-only package. The Electron main process is bundled
-// as CommonJS, so a static `import` gets externalized into `require('tunnelmole')`
-// and throws ERR_REQUIRE_ESM at load. It is imported dynamically inside
-// `openTunnel()` instead — Rollup preserves dynamic import() in CJS output, which
-// can load ESM. Do not hoist this back to a top-level import.
+// The tunnel (tunnelmole, ESM-only) is opened through serverPosture.ts, which
+// imports it dynamically. Loopback binding lives there too (O.9 #11).
+import { closeLoopback, listenLoopback, openPublicTunnel, type LoopbackListener } from './serverPosture';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const {
@@ -79,6 +80,10 @@ export interface SlackWebhookServerOptions {
    *  coordinates needed to reply back in the originating thread. May be async
    *  (e.g. to download file attachments before forwarding via IPC). */
   onMessage: (m: SlackInboundMessage) => void | Promise<void>;
+  /** Open a public tunnel to the bound port. Off unless the operator opted in. */
+  publicTunnel?: boolean;
+  /** Injectable for tests; defaults to tunnelmole. Receives the BOUND port. */
+  openTunnel?: (port: number) => Promise<string>;
 }
 
 /** A verified, de-mentioned inbound Slack message plus the coordinates needed to
@@ -106,13 +111,13 @@ export interface SlackInboundMessage {
 const MAX_BODY_BYTES = 1024 * 1024; // 1 MB
 /** Slack's recommended replay window: reject timestamps more than 5 min off. */
 const REPLAY_WINDOW_SECONDS = 60 * 5;
-/** Cap how long we wait for the public tunnel before giving up (server stays up). */
-const TUNNEL_START_TIMEOUT_MS = 10_000;
 
 export class SlackWebhookServer {
-  private server: Server | null = null;
+  private server: LoopbackListener | null = null;
   private tunnelUrl: string | null = null;
   private readonly port: number;
+  private readonly publicTunnel: boolean;
+  private readonly openTunnelFn: (port: number) => Promise<string>;
   private readonly signingSecret: string;
   private readonly channelId?: string;
   private readonly onMessage: (m: SlackInboundMessage) => void | Promise<void>;
@@ -133,14 +138,38 @@ export class SlackWebhookServer {
     this.signingSecret = opts.signingSecret;
     this.channelId = opts.channelId?.trim() || undefined;
     this.onMessage = opts.onMessage;
+    this.publicTunnel = opts.publicTunnel === true;
+    this.openTunnelFn = opts.openTunnel ?? openPublicTunnel;
+  }
+
+  /** The 127.0.0.1 address the server is bound to, or null when stopped. */
+  address(): AddressInfo | null {
+    const a = this.server?.primary.address();
+    return a && typeof a === 'object' ? a : null;
+  }
+
+  /** The bound local port, or null when stopped. */
+  boundPort(): number | null {
+    return this.server ? this.server.port : null;
+  }
+
+  /** Is the local HTTP server bound? (A tunnel failure leaves it bound.) */
+  listening(): boolean {
+    return this.server != null;
+  }
+
+  /** Whether this server was started with a public tunnel. */
+  tunneled(): boolean {
+    return this.publicTunnel;
   }
 
   /**
-   * Bind the local HTTP server, then open a public tunnel to it. The HTTP
-   * handler (the security boundary) is live the instant `listen` resolves; the
-   * tunnel is opened afterwards and is non-fatal — if it can't be established
-   * (offline, loca.lt down, timed out) the server keeps running and we report
-   * the tunnel error without a URL.
+   * Bind the local HTTP server on loopback, then — only when the operator opted
+   * in — open a public tunnel to it. The HTTP handler (the security boundary) is
+   * live the instant `listen` resolves; the tunnel is opened afterwards and is
+   * non-fatal — if it can't be established (offline, timed out) the server
+   * keeps running and we report the tunnel error without a URL. Opted out:
+   * `{ ok: true }`, no URL.
    */
   async start(): Promise<{ ok: boolean; url?: string; error?: string }> {
     if (this.server) return { ok: false, error: 'already running' };
@@ -151,8 +180,9 @@ export class SlackWebhookServer {
       this.stop();
       return { ok: false, error: `failed to bind port ${this.port}: ${errMsg(e)}` };
     }
+    if (!this.publicTunnel) return { ok: true };
     try {
-      const url = await this.openTunnel();
+      const url = await this.openTunnelFn(this.server!.port);
       if (!url) throw new Error('tunnelmole returned empty URL');
       this.tunnelUrl = url;
       // tunnelmole runs in the background; there is no close handle to wire here.
@@ -167,33 +197,13 @@ export class SlackWebhookServer {
    *  Note: tunnelmole has no documented close handle; teardown is best-effort. */
   stop(): void {
     this.tunnelUrl = null;
-    try { this.server?.close(); } catch { /* noop */ }
+    closeLoopback(this.server);
     this.server = null;
   }
 
-  private listen(): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      const server = createServer((req, res) => this.handleRequest(req, res));
-      const onError = (e: Error): void => reject(e);
-      server.once('error', onError);
-      server.listen(this.port, () => {
-        server.off('error', onError);
-        this.server = server;
-        resolve();
-      });
-    });
-  }
-
-  private async openTunnel(): Promise<string> {
-    // TODO: optional persistent domain — pass `domain` here when config carries one.
-    // Dynamic import keeps the ESM-only `tunnelmole` out of the CJS require graph.
-    const { tunnelmole } = await import('tunnelmole');
-    return new Promise<string>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('timed out')), TUNNEL_START_TIMEOUT_MS);
-      tunnelmole({ port: this.port })
-        .then((url) => { clearTimeout(timer); resolve(url); })
-        .catch((e) => { clearTimeout(timer); reject(e); });
-    });
+  /** Loopback only (O.9 #11): 127.0.0.1, plus ::1 when available. Never 0.0.0.0. */
+  private async listen(): Promise<void> {
+    this.server = await listenLoopback((req, res) => this.handleRequest(req, res), this.port);
   }
 
   /** Buffer the raw body (needed verbatim for the HMAC) under a size cap, then

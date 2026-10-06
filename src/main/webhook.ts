@@ -15,7 +15,8 @@
  *   - POST / (bare) is an alias for the endpoint with id `legacy`, so a caller
  *     holding the pre-multi-endpoint URL keeps working across the upgrade.
  *
- * SECURITY — this is a PUBLIC surface (tunnel-forwarded), unlike the loopback
+ * SECURITY — this can be a PUBLIC surface (when the operator opts into the
+ * tunnel; otherwise it listens on loopback only), unlike the loopback
  * /reply endpoint, so the gate is strict. Every property of the single-endpoint
  * version is preserved, plus the ones multi-tenancy adds:
  *   - constant-time secret comparison (`timingSafeEqual`, length-guarded), against
@@ -39,14 +40,13 @@
  * access, which lives in the main entrypoint); this class owns only transport,
  * the secret gate, schema validation, rate limiting, and the tunnel.
  */
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { validateAgainstSchema, type InboundKind } from '../shared/triggers';
-// NOTE: `tunnelmole` is an ESM-only package. The Electron main process is bundled
-// as CommonJS, so a static `import` gets externalized into `require('tunnelmole')`
-// and throws ERR_REQUIRE_ESM at load. It is imported dynamically inside
-// `openTunnel()` instead — Rollup preserves dynamic import() in CJS output, which
-// can load ESM. Do not hoist this back to a top-level import.
+// The tunnel (tunnelmole, ESM-only) is opened through serverPosture.ts, which
+// imports it dynamically. Loopback binding lives there too (O.9 #11).
+import { closeLoopback, listenLoopback, openPublicTunnel, type LoopbackListener } from './serverPosture';
 
 /** One servable endpoint — the structural subset of `WebhookTrigger` this class
  *  needs. A whole `WebhookTrigger` is assignable, so callers pass config rows
@@ -116,13 +116,16 @@ export interface WebhookServerOptions {
    * never reveal or enumerate any other task.
    */
   lookupStatus: (token: string) => WebhookTaskStatus | null;
+  /** Open a public tunnel to the bound port (O.9 #12). Off unless the operator
+   *  opted in (`webhookPublicTunnel`); without it the server is loopback-only. */
+  publicTunnel?: boolean;
+  /** Injectable for tests; defaults to tunnelmole. Receives the BOUND port. */
+  openTunnel?: (port: number) => Promise<string>;
 }
 
 /** Reject bodies larger than this before buffering — callers send tiny JSON; the
  *  cap stops an unauthenticated peer forcing unbounded memory use pre-auth. */
 const MAX_BODY_BYTES = 1024 * 1024; // 1 MB
-/** Cap how long we wait for the public tunnel before giving up (server stays up). */
-const TUNNEL_START_TIMEOUT_MS = 10_000;
 /** Basic abuse guard: at most this many requests per fixed window, globally. */
 const RATE_LIMIT = 120;
 /** …and this many per endpoint, so one noisy caller burns its own budget first
@@ -141,9 +144,11 @@ export const LEGACY_ENDPOINT_ID = 'legacy';
 const UNKNOWN_BUCKET = ':unknown';
 
 export class WebhookServer {
-  private server: Server | null = null;
+  private server: LoopbackListener | null = null;
   private tunnelUrl: string | null = null;
   private readonly port: number;
+  private readonly publicTunnel: boolean;
+  private readonly openTunnelFn: (port: number) => Promise<string>;
   private endpoints = new Map<string, WebhookEndpoint>();
   private readonly onMessage: (msg: WebhookInbound, endpoint: WebhookEndpointRef) => WebhookDispatch | null;
   private readonly lookupStatus: (token: string) => WebhookTaskStatus | null;
@@ -159,6 +164,8 @@ export class WebhookServer {
     this.port = opts.port;
     this.onMessage = opts.onMessage;
     this.lookupStatus = opts.lookupStatus;
+    this.publicTunnel = opts.publicTunnel === true;
+    this.openTunnelFn = opts.openTunnel ?? openPublicTunnel;
     this.setEndpoints(opts.endpoints);
   }
 
@@ -201,11 +208,28 @@ export class WebhookServer {
     return this.server != null;
   }
 
+  /** The 127.0.0.1 address the server is bound to, or null when stopped. */
+  address(): AddressInfo | null {
+    const a = this.server?.primary.address();
+    return a && typeof a === 'object' ? a : null;
+  }
+
+  /** The bound local port, or null when stopped. */
+  boundPort(): number | null {
+    return this.server ? this.server.port : null;
+  }
+
+  /** Whether this server was started with a public tunnel. */
+  tunneled(): boolean {
+    return this.publicTunnel;
+  }
+
   /**
-   * Bind the local HTTP server, then open a public tunnel to it. The HTTP handler
-   * (the security boundary) is live the instant `listen` resolves; the tunnel is
-   * opened afterwards and is non-fatal — if it can't be established the server
-   * keeps running and we report the tunnel error without a URL.
+   * Bind the local HTTP server on loopback, then — only when the operator opted
+   * in — open a public tunnel to it. The HTTP handler (the security boundary) is
+   * live the instant `listen` resolves; the tunnel is opened afterwards and is
+   * non-fatal — if it can't be established the server keeps running and we
+   * report the tunnel error without a URL. Opted out: `{ ok: true }`, no URL.
    */
   async start(): Promise<{ ok: boolean; url?: string; error?: string }> {
     if (this.server) return { ok: false, error: 'already running' };
@@ -216,8 +240,9 @@ export class WebhookServer {
       this.stop();
       return { ok: false, error: `failed to bind port ${this.port}: ${errMsg(e)}` };
     }
+    if (!this.publicTunnel) return { ok: true };
     try {
-      const url = await this.openTunnel();
+      const url = await this.openTunnelFn(this.server!.port);
       if (!url) throw new Error('tunnelmole returned empty URL');
       this.tunnelUrl = url;
       // tunnelmole runs in the background; there is no close handle to wire here.
@@ -232,33 +257,13 @@ export class WebhookServer {
    *  Note: tunnelmole has no documented close handle; teardown is best-effort. */
   stop(): void {
     this.tunnelUrl = null;
-    try { this.server?.close(); } catch { /* noop */ }
+    closeLoopback(this.server);
     this.server = null;
   }
 
-  private listen(): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      const server = createServer((req, res) => this.handleRequest(req, res));
-      const onError = (e: Error): void => reject(e);
-      server.once('error', onError);
-      server.listen(this.port, () => {
-        server.off('error', onError);
-        this.server = server;
-        resolve();
-      });
-    });
-  }
-
-  private async openTunnel(): Promise<string> {
-    // TODO: optional persistent domain — pass `domain` here when config carries one.
-    // Dynamic import keeps the ESM-only `tunnelmole` out of the CJS require graph.
-    const { tunnelmole } = await import('tunnelmole');
-    return new Promise<string>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('timed out')), TUNNEL_START_TIMEOUT_MS);
-      tunnelmole({ port: this.port })
-        .then((url) => { clearTimeout(timer); resolve(url); })
-        .catch((e) => { clearTimeout(timer); reject(e); });
-    });
+  /** Loopback only (O.9 #11): 127.0.0.1, plus ::1 when available. Never 0.0.0.0. */
+  private async listen(): Promise<void> {
+    this.server = await listenLoopback((req, res) => this.handleRequest(req, res), this.port);
   }
 
   /** Fixed-window limiter — bounds total work before any parse/crypto runs. */

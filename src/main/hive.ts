@@ -38,6 +38,7 @@ import {
 import { MCP_CATALOG } from '../shared/mcpCatalog';
 import { LEAD_HIVE_ROLE } from '../shared/agentDisplay';
 import { expandTilde } from './fs';
+import type { AgentTokens } from './hookAuth';
 
 /** The subset of HarnessConfig the hive consumes for the default-MCP merge.
  *  Kept as a local shape so hive.ts never imports the foundation-owned config
@@ -287,6 +288,13 @@ export class HiveManager {
   /** The collector URL agents are pointed at, or null when telemetry is off. */
   otelEndpoint(): string | null {
     return this._otelEndpoint;
+  }
+
+  /** Per-agent tokens for the hook pipe and the telemetry collector (O.9 #13–14).
+   *  Set once by main; ensureAgent issues one per agent id into HIVE_HOOK_TOKEN. */
+  private hookTokens: AgentTokens | null = null;
+  setHookTokens(tokens: AgentTokens | null): void {
+    this.hookTokens = tokens;
   }
 
   // — paths —
@@ -630,6 +638,11 @@ export class HiveManager {
       HIVE_ROOT: root,
       AGENT_DIR: dir
     };
+    // O.9 #13: this agent's per-run token. Every shim and plugin sends it with
+    // each hook message, and Claude's OTel exporter sends it as a bearer token.
+    // Re-issued on every (re)spawn; the old token stops working.
+    const hookToken = this.hookTokens ? this.hookTokens.issue(meta.id) : null;
+    if (hookToken) env.HIVE_HOOK_TOKEN = hookToken;
     // The bundled-node launcher, so an agent can run the hive's .cjs helpers (KG
     // CLI, Slack reply helper) even when `node` is not on its PATH. Invoking the
     // Electron binary directly would open a second app window, so this must stay
@@ -729,7 +742,7 @@ export class HiveManager {
             // the user hasn't set one.
             const upstream = process.env[desc.baseUrlEnv]
               || (desc.api === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1');
-            const port = await this.startProxyBridge(meta.id, { sock, sessionId, api: desc.api, upstream });
+            const port = await this.startProxyBridge(meta.id, { sock, sessionId, api: desc.api, upstream, hookToken });
             // Only redirect the CLI through the proxy if the sidecar actually bound a
             // port. On failure leave routing untouched → the CLI talks to its real
             // upstream directly (degraded: no synthesized hive events, but it still
@@ -779,6 +792,8 @@ export class HiveManager {
       env.OTEL_METRIC_EXPORT_INTERVAL = '5000'; // 5s — near-live without spamming
       env.OTEL_LOGS_EXPORT_INTERVAL = '2000';
       env.OTEL_RESOURCE_ATTRIBUTES = `agent.id=${meta.id},agent.name=${meta.name}`;
+      // O.9 #14: the collector refuses requests without this agent's token.
+      if (hookToken) env.OTEL_EXPORTER_OTLP_HEADERS = 'Authorization=Bearer%20' + hookToken;
     }
     const args: string[] = [];
     if (!claudeProvider) return { args, env };
@@ -965,7 +980,7 @@ export class HiveManager {
    */
   private startProxyBridge(
     agentId: string,
-    cfg: { sock: string; sessionId: string; api: 'openai' | 'anthropic'; upstream: string }
+    cfg: { sock: string; sessionId: string; api: 'openai' | 'anthropic'; upstream: string; hookToken?: string | null }
   ): Promise<number> {
     this.stopProxyBridge(agentId);
     const script = this.proxyShimPath();
@@ -984,7 +999,9 @@ export class HiveManager {
             AGENT_ID: agentId,
             UPSTREAM_BASE_URL: cfg.upstream,
             HIVE_PROXY_SESSION: cfg.sessionId,
-            HIVE_PROXY_API: cfg.api
+            HIVE_PROXY_API: cfg.api,
+            // The sidecar emits this agent's hook messages, so it carries its token.
+            ...(cfg.hookToken ? { HIVE_HOOK_TOKEN: cfg.hookToken } : {})
           },
           // Read the port line from stdout; never inherit stdio (the sidecar must
           // never write into the agent's terminal or leak request bodies to a log).
@@ -2143,6 +2160,8 @@ process.stdin.on('end', () => {
   let payload = {};
   try { payload = JSON.parse(data || '{}'); } catch (_) {}
   if (!payload.agent_id) payload.agent_id = process.env.AGENT_ID || null;
+  // O.9 #13: every message carries this agent's per-run token.
+  payload.hook_token = process.env.HIVE_HOOK_TOKEN || null;
   const sock = process.env.HIVE_SOCK;
   if (isStatus) {
     // Status-line mode: Claude Code pipes the session status JSON (incl.
@@ -2217,6 +2236,7 @@ process.stdin.on('end', () => {
     tool_name: tc.name,
     tool_input: tc.args
   };
+  payload.hook_token = process.env.HIVE_HOOK_TOKEN || null;
   let resp = '';
   const done = () => {
     // Translate the HookServer's Claude-shaped reply into agy's contract. CRITICAL:
@@ -2262,6 +2282,7 @@ function post(payload) {
   try {
     if (!SOCK) return;
     payload.agent_id = payload.agent_id || AGENT;
+    payload.hook_token = process.env.HIVE_HOOK_TOKEN || null;
     var c = net.createConnection(SOCK, function () { try { c.end(JSON.stringify(payload) + '\\n'); } catch (e) {} });
     c.on('error', function () {});
   } catch (e) {}
@@ -2303,6 +2324,7 @@ function post(payload) {
   try {
     if (!SOCK) return;
     payload.agent_id = payload.agent_id || AGENT;
+    payload.hook_token = process.env.HIVE_HOOK_TOKEN || null;
     const c = createConnection(SOCK, () => { try { c.end(JSON.stringify(payload) + '\\n'); } catch (e) {} });
     c.on('error', () => {});
   } catch (e) {}
@@ -2423,6 +2445,7 @@ function ctxSize(model) {
 // Fire-and-forget emit of a shim-shaped payload to the hive socket. Never throws.
 function emit(payload) {
   if (!SOCK) return;
+  payload.hook_token = process.env.HIVE_HOOK_TOKEN || null;
   try {
     const c = net.createConnection(SOCK, function () { c.end(JSON.stringify(payload) + '\\n'); });
     c.on('error', function () {});
@@ -2657,6 +2680,7 @@ process.stdin.on('end', () => {
     notification_type: grok.notificationType,
     message: grok.message
   };
+  payload.hook_token = process.env.HIVE_HOOK_TOKEN || null;
   let resp = '';
   const done = () => {
     let out = null;

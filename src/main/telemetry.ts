@@ -22,13 +22,16 @@
  * CONSTRUCTION. Downstream durable stores (Lane A's cost-ledger, Lane B's
  * SQLite) inherit that guarantee and must never persist a raw record either.
  *
- * Transport posture mirrors `slack.ts`: the local handler bound to 127.0.0.1 is
- * the security boundary. Runs in the Electron main process; deliberately free of
+ * Transport: bound to 127.0.0.1, and every request needs the agent's per-run
+ * token (`Authorization: Bearer <token>`, injected through
+ * OTEL_EXPORTER_OTLP_HEADERS; O.9 #14). The token names the agent; data claiming
+ * another `agent.id` is dropped. Anything unauthenticated gets 401. Runs in the Electron main process; deliberately free of
  * any `electron` import so it can be smoke-tested as a plain Node module.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readAgentUsage } from './transcript';
 import { normalizeModel } from './pricing';
+import { bearerFrom, logRefused, type AgentTokens } from './hookAuth';
 
 // ─── The locked cross-lane contract (do not change without re-agreeing) ───────
 
@@ -116,6 +119,8 @@ export interface TelemetryCollectorOptions {
   emit?: (channel: string, payload: unknown) => void;
   /** Resolve an agent's cwd (from the hive registry) for the transcript fallback. */
   resolveCwd?: (agentId: string) => string | null;
+  /** Per-agent tokens (O.9 #14). Without them every request is refused. */
+  tokens?: AgentTokens;
 }
 
 export class TelemetryCollector {
@@ -125,6 +130,7 @@ export class TelemetryCollector {
   private readonly port: number;
   private readonly emit?: (channel: string, payload: unknown) => void;
   private readonly resolveCwd?: (agentId: string) => string | null;
+  private readonly tokens?: AgentTokens;
 
   /** sessionId → running accumulation. */
   private readonly sessions = new Map<string, SessionAccum>();
@@ -143,6 +149,7 @@ export class TelemetryCollector {
     this.port = opts.port ?? 0;
     this.emit = opts.emit;
     this.resolveCwd = opts.resolveCwd;
+    this.tokens = opts.tokens;
   }
 
   /** Bind the loopback OTLP listener. The handler is live the instant this
@@ -233,6 +240,16 @@ export class TelemetryCollector {
 
   private handleRequest(req: IncomingMessage, res: ServerResponse): void {
     if (req.method !== 'POST') { res.writeHead(405); res.end(); return; }
+    // O.9 #14: authenticate before buffering. The token decides which agent this
+    // batch may speak for.
+    const token = bearerFrom(req.headers.authorization);
+    const authAgent = token && this.tokens ? this.tokens.agentFor(token) : null;
+    if (!authAgent) {
+      logRefused('telemetry', token ? 'bad-token' : 'no-token', token ? 'unknown token' : 'no bearer token');
+      try { res.writeHead(401); res.end(); } catch { /* socket gone */ }
+      req.resume();
+      return;
+    }
     const chunks: Buffer[] = [];
     let size = 0;
     let aborted = false;
@@ -252,8 +269,8 @@ export class TelemetryCollector {
       const url = req.url ?? '';
       try {
         const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-        if (url.includes('/v1/metrics')) this.ingestMetrics(body);
-        else if (url.includes('/v1/logs')) this.ingestLogs(body);
+        if (url.includes('/v1/metrics')) this.ingestMetrics(body, authAgent);
+        else if (url.includes('/v1/logs')) this.ingestLogs(body, authAgent);
       } catch { /* malformed batch — drop it, never throw into the socket */ }
       // OTLP success response is an empty JSON ExportServiceResponse.
       res.writeHead(200, { 'content-type': 'application/json' });
@@ -267,7 +284,9 @@ export class TelemetryCollector {
 
   // ─── OTLP decode → normalize → accumulate ──────────────────────────────────
 
-  private ingestMetrics(body: unknown): void {
+  /** `authAgent` is the agent the request's token belongs to; points naming
+   *  any other agent are ignored. */
+  private ingestMetrics(body: unknown, authAgent: string): void {
     const root = body as { resourceMetrics?: ResourceMetrics[] };
     if (!Array.isArray(root?.resourceMetrics)) return;
     const touched = new Set<string>(); // agentIds with new data this batch
@@ -280,7 +299,7 @@ export class TelemetryCollector {
             const attrs = flattenAttrs(dp.attributes);
             const agentId = str(attrs['agent.id']) || str(resAttrs['agent.id']);
             const sessionId = str(attrs['session.id']);
-            if (!agentId || !sessionId) continue;
+            if (!agentId || !sessionId || agentId !== authAgent) continue;
             const accum = this.session(agentId, sessionId);
             const model = normalizeModel(str(attrs['model']));
             if (model) accum.model = model;
@@ -305,7 +324,7 @@ export class TelemetryCollector {
     for (const agentId of touched) this.publishUsage(agentId);
   }
 
-  private ingestLogs(body: unknown): void {
+  private ingestLogs(body: unknown, authAgent: string): void {
     const root = body as { resourceLogs?: ResourceLogs[] };
     if (!Array.isArray(root?.resourceLogs)) return;
     for (const rl of root.resourceLogs) {
@@ -316,7 +335,7 @@ export class TelemetryCollector {
           const name = str(attrs['event.name']) || str(lr.body?.stringValue);
           const agentId = str(attrs['agent.id']) || str(resAttrs['agent.id']);
           const sessionId = str(attrs['session.id']);
-          if (!agentId) continue;
+          if (!agentId || agentId !== authAgent) continue;
           if (name === 'tool_result') {
             const span: ToolSpan = {
               agentId,

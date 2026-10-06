@@ -39,6 +39,8 @@ import {
 } from './git';
 import { HiveManager, type AgentMeta, type HiveMessage, type HiveTask } from './hive';
 import { HookServer } from './hooks';
+import { AgentTokens } from './hookAuth';
+import { closePublicTunnels, planServerPosture } from './serverPosture';
 import { agentDisplayName } from './displayNames';
 import { CircuitBreaker, type BreakerInput } from './breaker';
 import type { UsageProvider } from './usage';
@@ -249,6 +251,12 @@ async function enableCodexRemoteForSpawn(
 /** Live PTY id → its hive agent id, recorded at spawn. The pty:kill handler only
  *  gets the PTY id, so this lets a closed tab archive the right registry agent. */
 const ptyToAgent = new Map<string, string>();
+/** O.9 #13–14: one per-run token per agent for the hook pipe and the telemetry
+ *  collector. Issued by hive.ensureAgent, revoked on PTY teardown. */
+const agentTokens = new AgentTokens();
+/** PTY id → the hook token its agent was spawned with, so a teardown revokes
+ *  only that token and never a newer one issued by a respawn of the same agent. */
+const ptyHookTokens = new Map<string, string>();
 /** PTY id → the spawn it should auto restart-and-continue into once a first-time
  *  CLI install finishes. The missing-CLI short-circuit runs the engine's installer
  *  in this PTY; when it exits cleanly the exit handler re-runs the SAME spawn (with
@@ -270,6 +278,7 @@ const control = new ControlRegistry();
 // over loopback OTLP/JSON and exposes the locked usage-provider seam. resolveCwd
 // lets the transcript fallback find an agent's cwd from the hive registry.
 const telemetry = new TelemetryCollector({
+  tokens: agentTokens,
   emit: (channel, payload) => { try { liveWebContents()?.send(channel, payload); } catch { /* window tore down */ } },
   resolveCwd: (agentId) => hive.registry().agents[agentId]?.cwd ?? null
 });
@@ -296,7 +305,8 @@ let breakerBeatTimer: ReturnType<typeof setInterval> | null = null;
 telemetry.onApiError((agentId) => breaker.recordError(agentId));
 // HookServer needs BOTH: Oscar's control registry (HITL pause/gate/steer/halt via
 // hook returns) AND Jim's breaker (feed recordToolUse on each PostToolUse).
-const hookServer = new HookServer(hive, () => liveWebContents(), () => readConfig(), control, breaker);
+hive.setHookTokens(agentTokens);
+const hookServer = new HookServer(hive, () => liveWebContents(), () => readConfig(), agentTokens, control, breaker);
 const memory = new MemoryManager(
   () => readConfig().harnessHome,
   () => { const c = readConfig(); return { enabled: c.semanticMemory !== false, model: c.embeddingModel ?? 'minilm' }; }
@@ -429,8 +439,13 @@ function teardownPty(id: string): void {
   try { integrationBroker.revoke(id); } catch { /* best-effort */ }
   // 1) Archive the agent — retained + flagged; only live-PTY agents are active.
   const agentId = ptyToAgent.get(id);
+  const hookToken = ptyHookTokens.get(id);
+  ptyHookTokens.delete(id);
   if (agentId) {
     ptyToAgent.delete(id);
+    // O.9 #13: the dead PTY's token stops working — unless a respawn already
+    // replaced it, in which case the live agent keeps its new token.
+    if (hookToken && agentTokens.verify(agentId, hookToken)) agentTokens.revoke(agentId);
     // Drop breaker state so a dead agent can't leak/zombie a tripped level.
     try { breaker.forget(agentId); } catch { /* best-effort */ }
     // W1 — kill this agent's proxy-bridge sidecar (qwen), if any, so a dead
@@ -1538,6 +1553,8 @@ async function startSlackServer(): Promise<{ ok: boolean; url?: string; error?: 
     port: cfg.slackPort && cfg.slackPort > 0 ? cfg.slackPort : 3847,
     signingSecret,
     channelId: cfg.slackChannelId,
+    // O.9 #11–12: loopback only; the public tunnel only when opted in.
+    publicTunnel: cfg.slackPublicTunnel === true,
     // Fires from the HTTP server's event loop (not the IPC thread); route through
     // liveWebContents() so a message arriving during window teardown can't throw.
     // Downloads any file attachments (bot token stays in main; local paths go to IPC).
@@ -1563,10 +1580,12 @@ async function startSlackServer(): Promise<{ ok: boolean; url?: string; error?: 
     }
   });
   const res = await slackServer.start();
-  // ok:false means we never bound the port → drop the instance. ok:true with no
-  // url just means the tunnel is unavailable; the local handler is still live.
-  if (!res.ok) { slackServer = null; return res; }
+  // ok:false is either "never bound" (drop it) or "bound, tunnel unavailable"
+  // (keep it, so it stays stoppable — same rule as the webhook server).
+  if (!res.ok && !slackServer.listening()) { slackServer = null; return res; }
   if (res.url) lastSlackUrl = res.url;
+  // No tunnel: there is no public Request URL to show (an old one is dead).
+  if (cfg.slackPublicTunnel !== true) lastSlackUrl = undefined;
   // Bring up the loopback reply endpoint (token-gated, never tunneled) and drop
   // the discovery file for the bundled helper. Best-effort: reply path being
   // unavailable must not sink ingestion.
@@ -1950,7 +1969,9 @@ async function startWebhookServer(): Promise<{ ok: boolean; url?: string; error?
     port: cfg.webhookPort && cfg.webhookPort > 0 ? cfg.webhookPort : WEBHOOK_DEFAULT_PORT,
     endpoints,
     onMessage: handleWebhookMessage,
-    lookupStatus: lookupWebhookStatus
+    lookupStatus: lookupWebhookStatus,
+    // O.9 #11–12: loopback only; the public tunnel only when opted in.
+    publicTunnel: cfg.webhookPublicTunnel === true
   });
   webhookServer = server;
   const res = await server.start();
@@ -1960,6 +1981,7 @@ async function startWebhookServer(): Promise<{ ok: boolean; url?: string; error?
   if (!res.ok && !server.listening()) { webhookServer = null; return res; }
   analytics.trackFeature('webhook_trigger');
   if (res.url) lastWebhookUrl = res.url;
+  if (cfg.webhookPublicTunnel !== true) lastWebhookUrl = undefined;
   startWebhookDoneObserver();
   return res;
 }
@@ -1984,7 +2006,11 @@ function reconcileWebhookServer(): void {
  *  when no tunnel has ever come up — the UI shows the endpoint, just not a URL
  *  it could hand out yet. */
 function webhookEndpointUrls(): { id: string; url: string }[] {
-  const base = (webhookServer?.publicUrl() ?? lastWebhookUrl ?? '').replace(/\/+$/, '');
+  // Without a tunnel the only address is the local one (this computer only).
+  const localPort = webhookServer?.boundPort() ?? null;
+  const base = (readConfig().webhookPublicTunnel === true
+    ? (webhookServer?.publicUrl() ?? lastWebhookUrl ?? '')
+    : (localPort != null ? `http://127.0.0.1:${localPort}` : '')).replace(/\/+$/, '');
   return (readConfig().webhookTriggers ?? []).map((t) => ({
     id: t.id,
     url: base ? `${base}/${encodeURIComponent(t.id)}` : ''
@@ -2666,6 +2692,7 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
       );
       opts.args = [...(opts.args ?? []), ...inj.args];
       seedPrompt = inj.seedPrompt;
+      if (inj.env.HIVE_HOOK_TOKEN) ptyHookTokens.set(opts.id, inj.env.HIVE_HOOK_TOKEN);
       // Point the agent's mempalace CLI at the shared palace + the `kg` CLI at the
       // enterprise knowledge store (both no-ops / empty when their flags are off).
       opts.env = { ...(opts.env ?? {}), ...inj.env, ...memory.env(), ...knowledge.env() };
@@ -2849,11 +2876,16 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
         // so `--model local/<id>` resolves cleanly in OpenCode; cloud models stay untouched.
         const localModel = (isLocalModel ? modelSlug.replace(/^(local|ollama)\//i, '') : modelSlug.slice(6)) || 'local';
         let targetBaseUrl = effectiveLocalBaseUrl;
+        // O.9 #15: the bridge only answers requests carrying this agent's own
+        // token, which OpenCode sends as the provider apiKey (Bearer).
+        let bridgeToken: string | undefined;
         if (isLocalModel) {
           try {
-            const bridge = await startOllamaBridge(opts.cwd, effectiveLocalBaseUrl);
+            const token = randomBytes(32).toString('hex');
+            const bridge = await startOllamaBridge(opts.cwd, effectiveLocalBaseUrl, { token });
             activeOllamaBridges.set(opts.id, bridge);
             targetBaseUrl = `http://127.0.0.1:${bridge.port}/v1`;
+            bridgeToken = token;
           } catch (err) {
             console.error('[spawn] startOllamaBridge failed, using direct url:', err);
           }
@@ -2862,7 +2894,7 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
           local: {
             npm: '@ai-sdk/openai-compatible',
             name: 'Local (Ollama)',
-            options: { baseURL: targetBaseUrl },
+            options: bridgeToken ? { baseURL: targetBaseUrl, apiKey: bridgeToken } : { baseURL: targetBaseUrl },
             models: { [localModel]: { name: localModel } }
           }
         };
@@ -3168,6 +3200,48 @@ function withSecretStorage(cfg: RedactedConfig): RedactedConfig & { secretStorag
   };
 }
 
+/**
+ * Task 13 (O.9 #12): apply a changed tunnel opt-in to a running server. Off:
+ * every tunnel opened for that server's port stops forwarding at once, and the
+ * server restarts loopback-only. On (already confirmed in main): the server
+ * restarts and opens a tunnel. A stopped server just picks it up on its next start.
+ */
+async function applyTunnelPosture(before: HarnessConfig, after: HarnessConfig): Promise<void> {
+  const slackChanged = (before.slackPublicTunnel === true) !== (after.slackPublicTunnel === true);
+  const webhookChanged = (before.webhookPublicTunnel === true) !== (after.webhookPublicTunnel === true);
+  if (slackChanged) {
+    const port = slackServer?.boundPort() ?? (before.slackPort && before.slackPort > 0 ? before.slackPort : 3847);
+    if (after.slackPublicTunnel !== true) { await closePublicTunnels(port); lastSlackUrl = undefined; }
+    if (slackServer) {
+      const r = await startSlackServer();
+      if (!r.ok) console.error('[slack] restart after tunnel change failed:', r.error);
+    }
+  }
+  if (webhookChanged) {
+    const port = webhookServer?.boundPort() ?? (before.webhookPort && before.webhookPort > 0 ? before.webhookPort : WEBHOOK_DEFAULT_PORT);
+    if (after.webhookPublicTunnel !== true) { await closePublicTunnels(port); lastWebhookUrl = undefined; }
+    if (webhookServer) {
+      stopWebhookServer();
+      const r = await startWebhookServer();
+      if (!r.ok) console.error('[webhook] restart after tunnel change failed:', r.error);
+    }
+  }
+}
+
+/** Task 13 boot step (`serverPostureV1`, once): before this build every running
+ *  Slack or webhook server was tunneled. Keep the tunnel for the connections
+ *  already in use (Settings shows a notice once); new ones start without. */
+function runServerPostureMigration(): void {
+  try {
+    const plan = planServerPosture(readConfig());
+    if (!plan) return;
+    writeConfig(plan);
+    console.log('[config] server posture set: Slack tunnel', plan.slackPublicTunnel ? 'on' : 'off', '| webhook tunnel', plan.webhookPublicTunnel ? 'on' : 'off');
+  } catch (e) {
+    console.error('[config] server posture migration failed (will retry next launch):', e);
+  }
+}
+
 /** O.9 #8 boot step: plaintext secrets → safeStorage, never losing one. */
 function runConfigSecretMigration(): void {
   try {
@@ -3209,6 +3283,7 @@ ipcMain.handle('config:update', async (evt, patch: Partial<HarnessConfig>) => {
   // relaunch, so bootstrap here on the null → set transition. Gated on the
   // transition so ordinary config writes never re-enter it.
   const hiveWasEnabled = hive.enabled();
+  const postureBefore = readConfig();
   // O.9 #22: every key goes through the allow-list (configPolicy). Security-
   // relevant keys (auto mode on, home, engine, ports, tunnels, microphone) wait
   // for a main-process dialog; secrets go to the encrypted store; internal keys
@@ -3219,6 +3294,8 @@ ipcMain.handle('config:update', async (evt, patch: Partial<HarnessConfig>) => {
   const saveError = secretErrors.length ? secretErrors[0] : undefined;
   // Live opt-in/out from Settings → Privacy (TELEMETRY.md).
   if (typeof patch?.telemetryEnabled === 'boolean') analytics.setEnabled(patch.telemetryEnabled);
+  // Task 13: a tunnel switched on or off applies to a running server now.
+  await applyTunnelPosture(postureBefore, next);
   if (!hiveWasEnabled && hive.enabled()) {
     console.log('[hive] harnessHome configured — bootstrapping hive services');
     try { bootstrapHiveServices(); } catch (e) { console.error('[hive] bootstrap after onboarding:', e); }
@@ -4305,7 +4382,11 @@ ipcMain.handle('slack:start', () => startSlackServer());
 ipcMain.handle('slack:stop', () => { stopSlackServer(); return { ok: true }; });
 /** Current connection state + last Request URL — lets Settings hydrate the
  *  "Connected" badge and re-show the persisted tunnel URL on reopen. */
-ipcMain.handle('slack:status', () => ({ running: slackServer != null, url: lastSlackUrl }));
+ipcMain.handle('slack:status', () => ({
+  running: slackServer != null, url: lastSlackUrl,
+  // Task 13: where it listens, and whether a public tunnel is on.
+  port: slackServer?.boundPort() ?? undefined, tunnel: readConfig().slackPublicTunnel === true
+}));
 /** Absolute path to the bundled reply helper, for the prompt the office worker
  *  runs to post its summary back in-thread. No secret crosses this boundary. */
 ipcMain.handle('slack:replyScriptPath', () => slackReplyScriptPath());
@@ -4460,7 +4541,9 @@ ipcMain.handle('webhooks:generateSecret', () => randomBytes(32).toString('hex'))
 ipcMain.handle('webhooks:status', () => ({
   running: webhookServer != null,
   url: lastWebhookUrl,
-  endpoints: webhookEndpointUrls()
+  endpoints: webhookEndpointUrls(),
+  port: webhookServer?.boundPort() ?? undefined,
+  tunnel: readConfig().webhookPublicTunnel === true
 }));
 
 /** Normalise one endpoint coming back from the renderer. Unknown/blank fields
@@ -4592,7 +4675,10 @@ ipcMain.handle('triggerHistory:decide', (_evt, arg: unknown) => {
 ipcMain.handle('webhook:start', () => startWebhookServer());
 ipcMain.handle('webhook:stop', () => { stopWebhookServer(); return { ok: true }; });
 /** Current state + last public endpoint URL, for the Settings badge/URL field. */
-ipcMain.handle('webhook:status', () => ({ running: webhookServer != null, url: lastWebhookUrl }));
+ipcMain.handle('webhook:status', () => ({
+  running: webhookServer != null, url: lastWebhookUrl,
+  port: webhookServer?.boundPort() ?? undefined, tunnel: readConfig().webhookPublicTunnel === true
+}));
 /** Mint a strong (256-bit) secret, persist it, and return it so Settings can show
  *  it for the user to copy into their client. The previous secret is replaced. */
 ipcMain.handle('webhook:generateSecret', () => {
@@ -5463,6 +5549,8 @@ app.whenReady().then(() => {
   // them. Backs config.json up first, verifies every secret, and leaves the file
   // untouched on any failure (readers fall back to the plaintext).
   runConfigSecretMigration();
+  // Task 13: decide the tunnel posture BEFORE Slack/webhooks auto-start below.
+  runServerPostureMigration();
   // Bootstrap the hive (if harnessHome is configured) and start the message router.
   bootstrapHiveServices();
   // Survive sleep/lock. macOS freezes libuv timers during true system sleep, so a

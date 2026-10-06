@@ -376,8 +376,12 @@ export interface HarnessConfig {
   /** Set once every plaintext secret in this file has been moved into the
    *  encrypted store (configSecrets.migrateConfigSecrets). Main-only. */
   secretsMigratedV1?: boolean;
-  /** One-time server posture seed (O.9 #12, task 13). Main-only. */
+  /** One-time server posture seed (O.9 #12, task 13). Main-only. True in the
+   *  defaults, so only a config.json written before task 13 is migrated. */
   serverPostureV1?: boolean;
+  /** Set by that migration when it kept a tunnel on; Settings → Connections shows
+   *  a one-time notice until the user dismisses it (renderer may only clear it). */
+  serverPostureNoticeV1?: boolean;
   /** Opt-in public tunnel for the Slack server (task 13). Turning it on needs a
    *  main-process confirmation; turning it off never does. */
   slackPublicTunnel?: boolean;
@@ -523,7 +527,10 @@ export function readConfig(): HarnessConfig {
     const legacyAuto = onboarded && !('autoMode' in parsed) ? { autoMode: true } : {};
     // Same rule for Free Flow: its default went from on to off for new installs.
     const legacyFreeflow = onboarded && !('freeflowEnabled' in parsed) ? { freeflowEnabled: true } : {};
-    return migrateTriggersV1(withTriggerDefaults({ ...DEFAULTS, ...legacyAuto, ...legacyFreeflow, ...parsed }));
+    // Task 13: a config.json from before the server posture migration still
+    // needs it (the default `true` is for files written from now on).
+    const legacyPosture = parsed && typeof parsed === 'object' && !('serverPostureV1' in parsed) ? { serverPostureV1: false } : {};
+    return migrateTriggersV1(withTriggerDefaults({ ...DEFAULTS, ...legacyAuto, ...legacyFreeflow, ...legacyPosture, ...parsed }));
   } catch {
     return withTriggerDefaults({ ...DEFAULTS });
   }

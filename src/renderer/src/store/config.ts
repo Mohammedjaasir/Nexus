@@ -102,6 +102,8 @@ export interface HarnessConfig {
   /** Opt-in public tunnels (task 13). Turning one on asks in main. */
   slackPublicTunnel?: boolean;
   webhookPublicTunnel?: boolean;
+  /** The posture migration kept a tunnel on; Settings shows a one-time notice. */
+  serverPostureNoticeV1?: boolean;
   /** Which secrets main holds (read-only; config:get is redacted). */
   readonly secretsPresent?: {
     slackSigningSecret: boolean; slackBotToken: boolean; groqApiKey: boolean; webhookSecret: boolean; orgApiKey: boolean;

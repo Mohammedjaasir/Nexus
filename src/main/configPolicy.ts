@@ -29,6 +29,7 @@ export const CONFIG_KEY_POLICY: Record<keyof HarnessConfig, KeyPolicy> = {
   audience: 'renderer',
   registeredRepos: 'renderer',        // validated: additions must be existing folders
   autoModeReviewedV1: 'renderer',     // the auto mode banner's answer
+  serverPostureNoticeV1: 'renderer',  // validated: false only (dismiss the notice)
   defaultModel: 'renderer',           // validated: a model id
   godProvider: 'renderer',            // validated: a provider id (lead engine picker)
   godModel: 'renderer',               // validated: a model id (lead engine picker)
@@ -250,6 +251,10 @@ export function classifyConfigPatch(
       case 'autoModeReviewedV1':
         if (typeof value === 'boolean') apply[key] = value; else out.rejected.push(key);
         break;
+      case 'serverPostureNoticeV1':
+        // Only main sets the notice; the renderer can only dismiss it.
+        if (value === false) apply[key] = false; else out.rejected.push(key);
+        break;
       default:
         apply[key] = value;
     }
@@ -392,8 +397,8 @@ export function confirmPrompt(key: keyof HarnessConfig, value: unknown): { messa
     case 'slackPublicTunnel':
     case 'webhookPublicTunnel':
       return {
-        message: `Open a public tunnel to the ${key === 'slackPublicTunnel' ? 'Slack' : 'webhook'} server?`,
-        detail: 'Anyone on the internet who has the tunnel address can reach this server. Requests still need the secret.',
+        message: `Open a public tunnel for ${key === 'slackPublicTunnel' ? 'Slack' : 'webhooks'}?`,
+        detail: `Nexus will ask tunnelmole for a public URL that forwards to this computer. Anyone with the URL can send requests; each request is still checked (${key === 'slackPublicTunnel' ? "Slack's signature" : "the webhook's secret"}). You can turn it off in Settings → Connections.`,
         confirmLabel: 'Open tunnel'
       };
     case 'freeflowEnabled':

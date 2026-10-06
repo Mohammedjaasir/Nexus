@@ -8,6 +8,10 @@
  *   - report lifecycle boundaries while renderer-side guarded queues deliver
  *     inbox work only after the session reaches a safe idle prompt.
  *
+ * Every message must carry the agent's per-run token (`hook_token`, from the
+ * agent's HIVE_HOOK_TOKEN env) for the `agent_id` it names (O.9 #13). Anything
+ * else gets `{}` and is never acted on. The pipe keeps the Windows default DACL.
+ *
  * Runs in the Electron main process.
  */
 import { createServer, type Server } from 'node:net';
@@ -19,10 +23,13 @@ import type { ControlRegistry } from './control';
 import type { CircuitBreaker } from './breaker';
 import { estimateCostUsd } from './pricing';
 import { notificationTitle } from './displayNames';
+import { authorizeHookPayload, logRefused, type AgentTokens } from './hookAuth';
 
 interface HookPayload {
   hook_event_name?: string;
   agent_id?: string | null;
+  /** The agent's per-run token (HIVE_HOOK_TOKEN), sent by every shim. */
+  hook_token?: unknown;
   session_id?: string;
   transcript_path?: string;
   /** Status-line payloads only: the session's live context accounting. */
@@ -64,6 +71,9 @@ export class HookServer {
     private hive: HiveManager,
     private getWebContents: () => WebContents | null,
     private getConfig: () => HarnessConfig,
+    /** Per-agent tokens (O.9 #13): a payload is handled only when its
+     *  `hook_token` verifies for its `agent_id`. */
+    private tokens: AgentTokens,
     /** #7C — operator control state. Optional so tests can omit it. */
     private control?: ControlRegistry,
     /** Circuit breaker (Lane A #6.6b) — fed the hook-derived signals (session id,
@@ -114,6 +124,12 @@ export class HookServer {
   }
 
   private handle(p: HookPayload): unknown {
+    // O.9 #13: authenticate first. An unsigned or wrongly signed message gets
+    // nothing back and changes nothing (no transcript capture, no emit).
+    if (!authorizeHookPayload(p, this.tokens)) {
+      logRefused('hooks', typeof p?.agent_id === 'string' ? p.agent_id : '-', `agent ${typeof p?.agent_id === 'string' ? p.agent_id : 'unknown'}, event ${typeof p?.hook_event_name === 'string' ? p.hook_event_name : 'unknown'}`);
+      return {};
+    }
     const agentId = p.agent_id ?? undefined;
     const event = p.hook_event_name ?? 'Unknown';
     if (agentId && typeof p.transcript_path === 'string' && p.transcript_path) {

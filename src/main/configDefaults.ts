@@ -86,6 +86,9 @@ export const CONFIG_DEFAULTS: HarnessConfig = {
   webhookSecret: undefined,
   webhookPort: undefined,
   webhookPublicTunnel: false,
+  // A config.json written from now on starts with the posture already decided;
+  // readConfig marks an older file `false` so index.ts migrates it once.
+  serverPostureV1: true,
   // Triggers. These three are the ONLY object/array defaults that get handed
   // straight back out of `readConfig` for a config that never persisted them, so
   // `withTriggerDefaults` re-copies them on every read — see the note there.
