@@ -142,7 +142,7 @@ export function UpdateToast() {
       position: 'fixed', right: 16, bottom: 16, zIndex: 400,
       maxWidth: 340,
       background: 'var(--cth-cream-50)',
-      boxShadow: '0 0 0 2px var(--cth-ink-900), 4px 5px 0 0 rgba(26,19,32,0.25)',
+      border: '1px solid var(--nx-line)', borderRadius: 'var(--nx-r-obj)', boxShadow: 'var(--nx-shadow-float)',
       padding: '10px 12px',
       display: 'flex', flexDirection: 'column', gap: 8,
       fontFamily: 'var(--cth-font-ui)'

@@ -27,13 +27,17 @@ export function ProjectSummaryCard({
 }: ProjectSummaryCardProps) {
   const [domainMenuOpen, setDomainMenuOpen] = useState(false);
   const [graphStats, setGraphStats] = useState<ProjectGraphStats | null>(null);
+  const [graphError, setGraphError] = useState(false);
   const primaryDomainDef = getDomainDefinition(project.domainId);
   const health = repoHealth(project);
 
   useEffect(() => {
     let cancelled = false;
+    setGraphError(false);
     window.cth.projectGraphGetStats(project.id).then((st) => {
       if (!cancelled) setGraphStats(st);
+    }).catch(() => {
+      if (!cancelled) { setGraphStats(null); setGraphError(true); }
     });
     return () => { cancelled = true; };
   }, [project.id, project.lastAnalyzedAt, isRefreshing]);
@@ -70,7 +74,6 @@ export function ProjectSummaryCard({
             <button
               type="button"
               className="nx-btn nx-btn--sm"
-              aria-haspopup="menu"
               aria-expanded={domainMenuOpen}
               onClick={() => setDomainMenuOpen(!domainMenuOpen)}
             >
@@ -78,7 +81,7 @@ export function ProjectSummaryCard({
             </button>
 
             {domainMenuOpen && (
-              <div className="nx-float nxps__menu" role="menu" aria-label="Domain">
+              <div className="nx-float nxps__menu" role="group" aria-label="Domain">
                 {(['software-engineering', 'ai-ml', 'cybersecurity'] as DomainId[]).map((dId) => {
                   const dDef = getDomainDefinition(dId);
                   const isCurrent = project.domainId === dId;
@@ -86,8 +89,7 @@ export function ProjectSummaryCard({
                     <button
                       key={dId}
                       type="button"
-                      role="menuitemradio"
-                      aria-checked={isCurrent}
+                      aria-pressed={isCurrent}
                       className={`nx-menu__item${isCurrent ? ' is-current' : ''}`}
                       onClick={() => {
                         onChangeDomain?.(dId);
@@ -185,6 +187,9 @@ export function ProjectSummaryCard({
         {/* Project knowledge graph summary */}
         <section className="nxh-card">
           <h4 className="nxh-label" style={{ margin: 0 }}>Project knowledge graph</h4>
+          {graphError ? (
+            <p className="nxh-muted" role="status">Graph stats unavailable</p>
+          ) : (
           <div className="nxh-meta" aria-busy={graphStats === null}>
             <span>Nodes {graphStats?.nodeCount ?? '…'}</span>
             <span>Edges {graphStats?.edgeCount ?? '…'}</span>
@@ -193,6 +198,7 @@ export function ProjectSummaryCard({
             <span>Classes {graphStats?.classCount ?? '…'}</span>
             <span>Tests {graphStats?.testCount ?? '…'}</span>
           </div>
+          )}
         </section>
 
         {/* Actions */}

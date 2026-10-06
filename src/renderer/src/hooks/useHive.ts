@@ -50,13 +50,13 @@ const SEED_BOOT_MS = 12_000;
 // The first thing the lead agent (id 'god') is told on a fresh spawn — orient it
 // and put it to work coordinating the team. Kept terse and action-oriented.
 // Protocol addresses ('god') and file names stay exact; the agent's system
-// prompt exposes the team root as $HIVE_ROOT.
+// prompt gives the team folder as its HIVE_ROOT path.
 const INITIAL_GOD_PROMPT = [
   "You're online as the lead agent, the orchestrator of this agent team. Get oriented, then start coordinating the team:",
   '1. Read your memory.md and drain every message in your inbox.',
   '2. Review board.md + tasks.json and the current roster of agents (active vs archived).',
-  '3. Check fleet health: read fleet.json in $HIVE_ROOT for every agent\'s live tokens, cost, status, breaker level, and inbox backlog (`claude agents` will NOT show your team\'s agents). Flag anyone stalled, over-budget, or breaker-armed.',
-  '4. Skim COMMANDS.md (in $HIVE_ROOT) for the Claude Code commands you can use — and run `mempalace wake-up` for a memory digest if the CLI is available.',
+  '3. Check fleet health: read fleet.json in the shared team folder (the HIVE_ROOT path in your system prompt) for every agent\'s live tokens, cost, status, breaker level, and inbox backlog (`claude agents` will NOT show your team\'s agents). Flag anyone stalled, over-budget, or breaker-armed.',
+  '4. Skim COMMANDS.md (in the shared team folder) for the Claude Code commands you can use — and run `mempalace wake-up` for a memory digest if the CLI is available.',
   'Then begin orchestrating: triage requests, delegate work to the team, and keep everyone unblocked. You are fully autonomous — there is no approval queue, so handle tool-permission prompts in this session yourself (the human can approve them remotely from their phone).'
 ].join('\n');
 

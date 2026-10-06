@@ -38,7 +38,7 @@ const extensions = [json(), EditorView.lineWrapping, editorTheme, syntaxHighligh
 
 export function JsonEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <div style={{ background: 'var(--nx-surface)', border: '1px solid var(--nx-line-strong)', borderRadius: 'var(--nx-r-ctl)', overflow: 'hidden' }}>
+    <div className="nxh-editor">
       <CodeMirror
         value={value}
         onChange={onChange}

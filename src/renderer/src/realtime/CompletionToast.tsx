@@ -103,7 +103,7 @@ export function CompletionToast(): JSX.Element | null {
           style={{
             pointerEvents: 'auto',
             background: 'var(--cth-paper-100)',
-            boxShadow: 'inset 0 0 0 1.5px var(--cth-ink-500), 4px 4px 0 0 var(--cth-ink-900)',
+            border: '1px solid var(--nx-line)', borderRadius: 'var(--nx-r-obj)', boxShadow: 'var(--nx-shadow-float)',
             padding: 12,
             display: 'flex',
             flexDirection: 'column',

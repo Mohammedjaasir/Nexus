@@ -56,10 +56,13 @@ textarea.nxh-input { height: auto; padding: var(--nx-s2); resize: vertical; font
 .nxh-callout { margin: var(--nx-s1) 0 0; padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line); border-left: 3px solid var(--nx-warn); border-radius: var(--nx-r-ctl); background: var(--nx-surface); font: 400 12.5px/1.5 var(--nx-font); color: var(--nx-ink); }
 .nxh-callout[data-tone="bad"] { border-left-color: var(--nx-bad); }
 .nxh-callout[data-tone="note"] { border-left-color: var(--nx-line-strong); }
+/* Code editor wrapper (JsonEditor): CodeMirror drops its own outline, so focus shows here. */
+.nxh-editor { background: var(--nx-surface); border: 1px solid var(--nx-line-strong); border-radius: var(--nx-r-ctl); overflow: hidden; }
+.nxh-editor:focus-within { border-color: var(--nx-ink); outline: 2px solid var(--nx-ink); outline-offset: 1px; }
 .nxh-pre { margin: 0; max-height: 40vh; overflow: auto; padding: var(--nx-s2); border: 1px solid var(--nx-line); border-radius: var(--nx-r-ctl); background: var(--nx-sunken); font: 400 12px/1.5 var(--nx-font-code); color: var(--nx-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* A thin level meter beside its number (context bar). */
-.nxh-meter { flex: 1; min-width: 40px; height: 6px; border: 1px solid var(--nx-line-strong); border-radius: 2px; background: var(--nx-sunken); overflow: hidden; }
+.nxh-meter { flex: 1; min-width: 40px; height: 6px; border: 1px solid var(--nx-line-strong); border-radius: var(--nx-r-ctl); background: var(--nx-sunken); overflow: hidden; }
 .nxh-meter > span { display: block; height: 100%; background: var(--nx-text-2); }
 
 /* Disclosure: a header button over a body (trigger types, rows inside them). */
