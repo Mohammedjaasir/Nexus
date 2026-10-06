@@ -105,12 +105,15 @@ test('a target that appears after the initial check is not overwritten', () => {
   assert.deepEqual(leftovers(out), []);
   db.close();
 });
+// Another module may define its own `__testing` (lineageService does); what matters is backup's hook.
+const refsBackupHook = (text) => /afterWrite|backupAndVerifyWithHook/.test(text)
+  || (/__testing/.test(text) && /from\s+['"][^'"]*\bbackup['"]|require\(\s*['"][^'"]*\bbackup['"]/.test(text));
 test('no source file other than backup.ts references the test hook', () => {
   const root = path.join(__dirname, '..', 'src'); const hits = [];
   const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) {
     const f = path.join(d, e.name);
     if (e.isDirectory()) walk(f);
-    else if (/\.(ts|tsx)$/.test(e.name) && !f.endsWith(path.join('nexus', 'db', 'backup.ts')) && /afterWrite|__testing/.test(fs.readFileSync(f, 'utf8'))) hits.push(f);
+    else if (/\.(ts|tsx)$/.test(e.name) && !f.endsWith(path.join('nexus', 'db', 'backup.ts')) && refsBackupHook(fs.readFileSync(f, 'utf8'))) hits.push(f);
   } };
   walk(root); assert.deepEqual(hits, []);
 });

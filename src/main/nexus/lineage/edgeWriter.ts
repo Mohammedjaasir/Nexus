@@ -47,6 +47,8 @@ export function isKnownRelation(db: Database.Database, relation: unknown): relat
  */
 export function wouldCycle(db: Database.Database, fromVersionId: VersionId, toVersionId: VersionId): boolean {
   if (fromVersionId === toVersionId) return true;
+  // Shortcut: nothing consumes `from` yet, so it cannot be reached from anywhere (ix_edges_to).
+  if (db.prepare('SELECT 1 FROM artifact_edges WHERE to_version_id = ? LIMIT 1').get(fromVersionId) === undefined) return false;
   return db.prepare(`WITH RECURSIVE up(v) AS (
       SELECT ?
       UNION

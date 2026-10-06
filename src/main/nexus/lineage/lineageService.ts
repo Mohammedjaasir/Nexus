@@ -31,6 +31,16 @@
  *   clamped to 1..32. Each version appears once, at its minimum depth, with the
  *   alphabetically first relation that reaches it at that depth; results are
  *   ordered by depth, then version id.
+ * - Walk visibility. Every reached version is checked with
+ *   `auth.authorize(p, 'lineage.read', project scope + the workspace of its
+ *   artifact's STORED owner participation)`, once per distinct (project, workspace)
+ *   per walk (cached). This is a read-only filter: it writes no audit rows. A
+ *   version the caller cannot read is dropped from the result and the walk does
+ *   NOT expand through it, so nothing beyond it is revealed either (no redacted
+ *   markers). A version reachable by another, readable path still appears there.
+ * - Node cap. A walk returns at most MAX_LINEAGE_NODES versions. When more
+ *   readable versions were reachable, the walk stops and reports
+ *   `truncated: true`; the nodes returned are the shallowest ones, in result order.
  */
 import type Database from 'better-sqlite3';
 import type {
@@ -50,14 +60,21 @@ export interface RecordEdgeInput {
 
 export const DEFAULT_LINEAGE_DEPTH = 6;
 export const MAX_LINEAGE_DEPTH = 32;
+export const MAX_LINEAGE_NODES = 5000;
+export interface LineageWalk { nodes: LineageNode[]; truncated: boolean }
 const IN_CHUNK = 500;
+/** The node cap in force; only the test hook below lowers it. */
+let nodeCap = MAX_LINEAGE_NODES;
 const PLATFORM = { type: 'platform' } as const;
 
 interface EndpointRow {
   id: string; artifact_id: string; project_id: string; status: VersionStatus; produced_by_job_id: string | null;
   owner_workspace_id: string | null;
 }
-interface NodeRow { id: string; artifact_id: string; kind: string; version_no: number; status: VersionStatus }
+interface NodeRow {
+  id: string; artifact_id: string; kind: string; version_no: number; status: VersionStatus; project_id: string;
+  owner_workspace_id: string | null;
+}
 
 const isStr = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
 const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -114,24 +131,38 @@ export class LineageService {
   }
 
   /** The sources of a version, transitively: edges followed from consumer to source. */
-  upstream(p: Principal, versionId: VersionId, o?: { depth?: number }): LineageNode[] {
+  upstream(p: Principal, versionId: VersionId, o?: { depth?: number }): LineageWalk {
     return this.walk(p, versionId, 'up', o);
   }
 
   /** The consumers of a version, transitively: edges followed from source to consumer. */
-  downstream(p: Principal, versionId: VersionId, o?: { depth?: number }): LineageNode[] {
+  downstream(p: Principal, versionId: VersionId, o?: { depth?: number }): LineageWalk {
     return this.walk(p, versionId, 'down', o);
   }
 
   // ---------- helpers ----------
 
-  private walk(p: Principal, versionId: VersionId, dir: 'up' | 'down', o?: { depth?: number }): LineageNode[] {
+  private walk(p: Principal, versionId: VersionId, dir: 'up' | 'down', o?: { depth?: number }): LineageWalk {
     const depth = clampDepth(o === undefined || o === null ? undefined : (isPlainObject(o) ? o.depth : NaN));
     const start = this.loadEndpoint(p, versionId, 'lineage.read');
+    const cap = nodeCap;
     const [near, far] = dir === 'up' ? ['from_version_id', 'to_version_id'] : ['to_version_id', 'from_version_id'];
-    const seen = new Map<string, { depth: number; relation: string }>([[start.id, { depth: 0, relation: '' }]]);
+    // Read-only visibility per (project, stored owner workspace); the start's scope was just required.
+    const readable = new Map<string, boolean>([[scopeKey(start.project_id, start.owner_workspace_id), true]]);
+    const canRead = (projectId: string, ws: string | null): boolean => {
+      const key = scopeKey(projectId, ws);
+      let ok = readable.get(key);
+      if (ok === undefined) {
+        ok = this.deps.auth.authorize(p, 'lineage.read', ws ? { type: 'project', projectId, workspaceId: ws } : { type: 'project', projectId }).allowed;
+        readable.set(key, ok);
+      }
+      return ok;
+    };
+    const seen = new Set<string>([start.id]);
+    const nodes: LineageNode[] = [];
+    let truncated = false;
     let frontier = [start.id];
-    for (let d = 1; d <= depth && frontier.length > 0; d++) {
+    for (let d = 1; d <= depth && frontier.length > 0 && !truncated; d++) {
       const reached = new Map<string, string>();
       for (const chunk of chunks(frontier)) {
         const rows = this.db.prepare(`SELECT ${far} AS v, relation FROM artifact_edges WHERE ${near} IN (${chunk.map(() => '?').join(',')})`)
@@ -142,24 +173,27 @@ export class LineageService {
           if (prev === undefined || r.relation < prev) reached.set(r.v, r.relation);
         }
       }
-      frontier = [...reached.keys()].sort();
-      for (const v of frontier) seen.set(v, { depth: d, relation: reached.get(v)! });
+      const ids = [...reached.keys()].sort();
+      const info = new Map<string, NodeRow>();
+      for (const chunk of chunks(ids)) {
+        const rows = this.db.prepare(`SELECT v.id, v.artifact_id, a.kind, v.version_no, v.status, v.project_id, a.owner_workspace_id
+          FROM artifact_versions v JOIN artifacts a ON a.id = v.artifact_id WHERE v.id IN (${chunk.map(() => '?').join(',')})`)
+          .all(...chunk) as NodeRow[];
+        for (const r of rows) info.set(r.id, r);
+      }
+      const next: string[] = [];
+      for (const id of ids) {
+        seen.add(id);
+        const n = info.get(id)!;
+        if (!canRead(n.project_id, n.owner_workspace_id)) continue;     // dropped, and never expanded
+        if (nodes.length >= cap) { truncated = true; break; }
+        nodes.push({ versionId: id, artifactId: n.artifact_id, kind: n.kind, versionNo: n.version_no, status: n.status,
+          depth: d, relation: reached.get(id) as LineageRelation });
+        next.push(id);
+      }
+      frontier = next;
     }
-    seen.delete(start.id);
-    const ids = [...seen.keys()];
-    const info = new Map<string, NodeRow>();
-    for (const chunk of chunks(ids)) {
-      const rows = this.db.prepare(`SELECT v.id, v.artifact_id, a.kind, v.version_no, v.status FROM artifact_versions v
-        JOIN artifacts a ON a.id = v.artifact_id WHERE v.id IN (${chunk.map(() => '?').join(',')})`).all(...chunk) as NodeRow[];
-      for (const r of rows) info.set(r.id, r);
-    }
-    return ids
-      .map((id): LineageNode => {
-        const n = info.get(id)!; const s = seen.get(id)!;
-        return { versionId: id, artifactId: n.artifact_id, kind: n.kind, versionNo: n.version_no, status: n.status,
-          depth: s.depth, relation: s.relation as LineageRelation };
-      })
-      .sort((a, b) => a.depth - b.depth || (a.versionId < b.versionId ? -1 : a.versionId > b.versionId ? 1 : 0));
+    return { nodes, truncated };
   }
 
   /**
@@ -211,8 +245,22 @@ function clampDepth(raw: unknown): number {
   return Math.min(MAX_LINEAGE_DEPTH, Math.max(1, Math.trunc(raw)));
 }
 
+function scopeKey(projectId: string, ws: string | null): string {
+  return `${projectId}\u0000${ws ?? ''}`;
+}
+
 function chunks<T>(xs: T[]): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < xs.length; i += IN_CHUNK) out.push(xs.slice(i, i + IN_CHUNK));
   return out;
 }
+
+/** Test-only entry points. Production code must not use these. */
+export const __testing = {
+  /** Runs `fn` with the walk node cap lowered to `n`, then restores it. */
+  withNodeCap<T>(n: number, fn: () => T): T {
+    const prev = nodeCap;
+    nodeCap = n;
+    try { return fn(); } finally { nodeCap = prev; }
+  }
+};
