@@ -32,6 +32,7 @@ import type { ProjectPlan } from '../shared/plan';
 import type { ProjectGapAnalysisResult } from '../shared/gap';
 import type { ProjectGoal } from '../shared/goal';
 import { LegacyWriteQueue } from './legacyWriteQueue';
+import type { MigrationContext } from './nexus/db/migrationTypes';
 
 /** A captured user prompt, as returned to the renderer (camelCase columns). */
 export interface CommandHistoryRow {
@@ -61,7 +62,7 @@ export interface CommandHistoryRow {
  *     lands as a later migration.
  */
 
-const MIGRATIONS: Array<(db: Database.Database) => void> = [
+export const MIGRATIONS: Array<(db: Database.Database, ctx: MigrationContext | null) => void> = [
   // → user_version 1 (Phase A): scalar kv + net-new command history.
   (db) => {
     db.exec(`
@@ -197,7 +198,7 @@ export class PersistStore {
       // Each migration + its version bump run in one transaction so a crash
       // mid-migration never leaves a half-applied schema at the wrong version.
       const run = db.transaction(() => {
-        MIGRATIONS[i](db);
+        MIGRATIONS[i](db, null);
         db.pragma(`user_version = ${i + 1}`);
       });
       run();
