@@ -40,6 +40,7 @@ import {
 import { HiveManager, type AgentMeta, type HiveMessage, type HiveTask } from './hive';
 import { HookServer } from './hooks';
 import { AgentTokens } from './hookAuth';
+import { daemonRestartError, planDaemonRestart, readDaemonFingerprint, tokenFingerprint, writeDaemonFingerprint } from './codexDaemon';
 import { closePublicTunnels, planServerPosture } from './serverPosture';
 import { agentDisplayName } from './displayNames';
 import { CircuitBreaker, type BreakerInput } from './breaker';
@@ -183,7 +184,15 @@ function runCodexDaemonCommand(
 async function enableCodexRemoteForSpawn(
   opts: SpawnOptions & { hive?: AgentMeta },
   agentId: string
-): Promise<boolean> {
+): Promise<{ remote: boolean; error?: string }> {
+  const r = await enableCodexRemoteInner(opts, agentId);
+  return typeof r === 'boolean' ? { remote: r } : r;
+}
+
+async function enableCodexRemoteInner(
+  opts: SpawnOptions & { hive?: AgentMeta },
+  agentId: string
+): Promise<boolean | { remote: false; error: string }> {
   if (process.platform === 'win32') return false;
   const realHome = opts.env?.CODEX_HOME;
   if (!realHome) return false;
@@ -217,6 +226,20 @@ async function enableCodexRemoteForSpawn(
     // shellEnv's resolver mirrors PtyManager's (which is private + returns
     // {path, found}); the daemon just needs the best executable path.
     const executable = resolveCliCommand(opts.command);
+    // Task 13 (O.9 #13): the daemon runs the hooks with the env it was started
+    // with. This spawn's HIVE_HOOK_TOKEN is new, so a daemon still holding an
+    // older token (a respawn, or one left from before a main restart) is
+    // stopped first. If it cannot be stopped it would keep the dead token, so
+    // the agent runs as a local terminal and says why, instead of going dark.
+    const fingerprint = tokenFingerprint(opts.env?.HIVE_HOOK_TOKEN);
+    const plan = planDaemonRestart(readDaemonFingerprint(realHome), fingerprint);
+    if (plan.stop !== 'none') {
+      const stopped = await runCodexDaemonCommand(executable, ['app-server', 'daemon', 'stop'], env);
+      if (!stopped.ok && plan.stop === 'required') {
+        console.error('[codex-remote] daemon holds an old hook token and did not stop:', stopped.error);
+        return { remote: false, error: daemonRestartError(stopped.error ?? 'stop failed') };
+      }
+    }
     const started = await runCodexDaemonCommand(
       executable,
       ['app-server', 'daemon', 'start'],
@@ -226,6 +249,7 @@ async function enableCodexRemoteForSpawn(
       console.warn('[codex-remote] daemon start failed; starting local TUI:', started.error);
       return false;
     }
+    writeDaemonFingerprint(realHome, fingerprint);
     const enabled = await runCodexDaemonCommand(
       executable,
       ['app-server', 'daemon', 'enable-remote-control'],
@@ -1252,6 +1276,9 @@ let slackReplyServer: SlackReplyServer | null = null;
 /** Last public tunnel URL handed out — persisted so Settings can re-show the
  *  Request URL after a reopen (Slack reuses it until the server is stopped). */
 let lastSlackUrl: string | undefined;
+/** Why the Slack tunnel is not up while it is opted in (refused or failed), for
+ *  Settings → Connections. Cleared on a successful or tunnel-less start. */
+let lastSlackTunnelError: string | undefined;
 
 /** AUTONOMOUS REQUEST PROTOCOL — built PER MESSAGE (not a static const) so it can
  *  embed the request's concrete `channel`, `thread_ts`, and the resolved helper
@@ -1548,6 +1575,9 @@ async function startSlackServer(): Promise<{ ok: boolean; url?: string; error?: 
   if (!cfg.slackEnabled || !signingSecret) {
     return { ok: false, error: 'slack disabled or missing signing secret' };
   }
+  // A restart never leaves the previous public URL forwarding (task 13).
+  const prevSlackPort = slackServer?.boundPort();
+  if (prevSlackPort != null) closePublicTunnels(prevSlackPort);
   slackServer?.stop();
   slackServer = new SlackWebhookServer({
     port: cfg.slackPort && cfg.slackPort > 0 ? cfg.slackPort : 3847,
@@ -1584,6 +1614,8 @@ async function startSlackServer(): Promise<{ ok: boolean; url?: string; error?: 
   // (keep it, so it stays stoppable — same rule as the webhook server).
   if (!res.ok && !slackServer.listening()) { slackServer = null; return res; }
   if (res.url) lastSlackUrl = res.url;
+  lastSlackTunnelError = cfg.slackPublicTunnel === true && !res.ok ? res.error : undefined;
+  if (!res.ok) lastSlackUrl = undefined;
   // No tunnel: there is no public Request URL to show (an old one is dead).
   if (cfg.slackPublicTunnel !== true) lastSlackUrl = undefined;
   // Bring up the loopback reply endpoint (token-gated, never tunneled) and drop
@@ -1624,8 +1656,13 @@ async function startSlackReplyServer(): Promise<void> {
 }
 
 /** Stop and forget the Slack server (+ reply endpoint). Best-effort; safe to call
- *  when not running. The last tunnel URL is retained so Settings keeps showing it. */
+ *  when not running. Its public tunnels are closed, so the old URL is forgotten. */
 function stopSlackServer(): void {
+  // Stop means no public URL forwards anywhere any more (task 13).
+  const port = slackServer?.boundPort();
+  if (port != null) closePublicTunnels(port);
+  lastSlackUrl = undefined;
+  lastSlackTunnelError = undefined;
   try { slackServer?.stop(); } catch (e) { console.error('[slack] stop failed:', e); }
   slackServer = null;
   try { slackReplyServer?.stop(); } catch (e) { console.error('[slack] reply stop failed:', e); }
@@ -1644,6 +1681,8 @@ let webhookServer: WebhookServer | null = null;
 /** Last public tunnel URL handed out — retained so Settings can re-show the
  *  endpoint after a reopen (the tunnel rotates it per restart). */
 let lastWebhookUrl: string | undefined;
+/** Why the webhook tunnel is not up while it is opted in, for Settings. */
+let lastWebhookTunnelError: string | undefined;
 
 /** Local port the shared server binds to. The port is a property of the SERVER,
  *  not of any one trigger — `webhookPort` stays the (legacy) override. */
@@ -1981,7 +2020,8 @@ async function startWebhookServer(): Promise<{ ok: boolean; url?: string; error?
   if (!res.ok && !server.listening()) { webhookServer = null; return res; }
   analytics.trackFeature('webhook_trigger');
   if (res.url) lastWebhookUrl = res.url;
-  if (cfg.webhookPublicTunnel !== true) lastWebhookUrl = undefined;
+  if (cfg.webhookPublicTunnel !== true || !res.ok) lastWebhookUrl = undefined;
+  lastWebhookTunnelError = cfg.webhookPublicTunnel === true && !res.ok ? res.error : undefined;
   startWebhookDoneObserver();
   return res;
 }
@@ -2018,8 +2058,13 @@ function webhookEndpointUrls(): { id: string; url: string }[] {
 }
 
 /** Stop and forget the webhook server. Best-effort; safe when not running. The
- *  last tunnel URL is retained so Settings keeps showing it. */
+ *  public tunnels are closed, so the old URL is forgotten. */
 function stopWebhookServer(): void {
+  // Stop means no public URL forwards anywhere any more (task 13).
+  const port = webhookServer?.boundPort();
+  if (port != null) closePublicTunnels(port);
+  lastWebhookUrl = undefined;
+  lastWebhookTunnelError = undefined;
   try { webhookServer?.stop(); } catch (e) { console.error('[webhook] stop failed:', e); }
   webhookServer = null;
   // The done-observer deliberately OUTLIVES the server (it is a ledger concern,
@@ -2913,10 +2958,19 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
   // Start/enable the daemon under this agent's isolated CODEX_HOME and connect
   // the TUI to it so the thread is visible in ChatGPT mobile. Best-effort: an
   // unavailable/older Codex install still gets a normal local terminal.
+  let codexRemoteError: string | undefined;
   if (provider === 'codex' && opts.hive?.id) {
-    await enableCodexRemoteForSpawn(opts, opts.hive.id);
+    codexRemoteError = (await enableCodexRemoteForSpawn(opts, opts.hive.id)).error;
   }
   const res = ptyManager.spawn(opts, owner);
+  if (codexRemoteError && opts.hive?.id) {
+    // Shown on the agent (a "needs your attention" notification), not just logged.
+    const agentId = opts.hive.id;
+    const message = codexRemoteError;
+    setTimeout(() => {
+      try { liveWebContents()?.send('hive:hookEvent', { agentId, event: 'Notification', message, blocked: false }); } catch { /* window gone */ }
+    }, 1500);
+  }
   if (res.ok) analytics.track('agent_spawned', { provider });
   syncKeepAwake(); // arm the power-save blocker while ≥1 agent PTY is alive (#18)
   // Hand the resolved worktree path back to the renderer so it can persist it on
@@ -2926,7 +2980,7 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
   const worktreePath = worktreePaths.get(opts.id);
   // `cwd` echoes back the TILDE-EXPANDED absolute path so the renderer's agent
   // record matches what the registry and the PTY actually used.
-  return { ...res, cwd: opts.cwd, ...(worktreePath ? { worktreePath } : {}), ...(resumeNotFound ? { resumeNotFound: true } : {}), ...(didResume ? { resumed: true } : {}), ...(seedPrompt ? { seedPrompt } : {}) };
+  return { ...res, cwd: opts.cwd, ...(worktreePath ? { worktreePath } : {}), ...(resumeNotFound ? { resumeNotFound: true } : {}), ...(didResume ? { resumed: true } : {}), ...(seedPrompt ? { seedPrompt } : {}), ...(codexRemoteError ? { codexRemoteError } : {}) };
 }
 ipcMain.handle('pty:write', (_evt, id: string, data: string) => {
   if (typeof id !== 'string' || typeof data !== 'string') return { ok: false, error: 'invalid args' };
@@ -3211,7 +3265,7 @@ async function applyTunnelPosture(before: HarnessConfig, after: HarnessConfig): 
   const webhookChanged = (before.webhookPublicTunnel === true) !== (after.webhookPublicTunnel === true);
   if (slackChanged) {
     const port = slackServer?.boundPort() ?? (before.slackPort && before.slackPort > 0 ? before.slackPort : 3847);
-    if (after.slackPublicTunnel !== true) { await closePublicTunnels(port); lastSlackUrl = undefined; }
+    if (after.slackPublicTunnel !== true) { closePublicTunnels(port); lastSlackUrl = undefined; lastSlackTunnelError = undefined; }
     if (slackServer) {
       const r = await startSlackServer();
       if (!r.ok) console.error('[slack] restart after tunnel change failed:', r.error);
@@ -3219,8 +3273,9 @@ async function applyTunnelPosture(before: HarnessConfig, after: HarnessConfig): 
   }
   if (webhookChanged) {
     const port = webhookServer?.boundPort() ?? (before.webhookPort && before.webhookPort > 0 ? before.webhookPort : WEBHOOK_DEFAULT_PORT);
-    if (after.webhookPublicTunnel !== true) { await closePublicTunnels(port); lastWebhookUrl = undefined; }
+    if (after.webhookPublicTunnel !== true) { closePublicTunnels(port); lastWebhookUrl = undefined; lastWebhookTunnelError = undefined; }
     if (webhookServer) {
+      // stopWebhookServer closes every tunnel on the old port before the restart.
       stopWebhookServer();
       const r = await startWebhookServer();
       if (!r.ok) console.error('[webhook] restart after tunnel change failed:', r.error);
@@ -4385,7 +4440,8 @@ ipcMain.handle('slack:stop', () => { stopSlackServer(); return { ok: true }; });
 ipcMain.handle('slack:status', () => ({
   running: slackServer != null, url: lastSlackUrl,
   // Task 13: where it listens, and whether a public tunnel is on.
-  port: slackServer?.boundPort() ?? undefined, tunnel: readConfig().slackPublicTunnel === true
+  port: slackServer?.boundPort() ?? undefined, tunnel: readConfig().slackPublicTunnel === true,
+  tunnelError: lastSlackTunnelError
 }));
 /** Absolute path to the bundled reply helper, for the prompt the office worker
  *  runs to post its summary back in-thread. No secret crosses this boundary. */
@@ -4543,7 +4599,8 @@ ipcMain.handle('webhooks:status', () => ({
   url: lastWebhookUrl,
   endpoints: webhookEndpointUrls(),
   port: webhookServer?.boundPort() ?? undefined,
-  tunnel: readConfig().webhookPublicTunnel === true
+  tunnel: readConfig().webhookPublicTunnel === true,
+  tunnelError: lastWebhookTunnelError
 }));
 
 /** Normalise one endpoint coming back from the renderer. Unknown/blank fields
@@ -4677,7 +4734,8 @@ ipcMain.handle('webhook:stop', () => { stopWebhookServer(); return { ok: true };
 /** Current state + last public endpoint URL, for the Settings badge/URL field. */
 ipcMain.handle('webhook:status', () => ({
   running: webhookServer != null, url: lastWebhookUrl,
-  port: webhookServer?.boundPort() ?? undefined, tunnel: readConfig().webhookPublicTunnel === true
+  port: webhookServer?.boundPort() ?? undefined, tunnel: readConfig().webhookPublicTunnel === true,
+  tunnelError: lastWebhookTunnelError
 }));
 /** Mint a strong (256-bit) secret, persist it, and return it so Settings can show
  *  it for the user to copy into their client. The previous secret is replaced. */
@@ -5570,21 +5628,23 @@ app.whenReady().then(() => {
   // failure (offline) is logged, not fatal. The tunnel URL is ephemeral and
   // changes per restart, so the user re-pastes it via Settings → Start.
   const slackCfg = readConfig();
-  if (slackCfg.slackEnabled && readConfigSecret('slackSigningSecret', slackCfg)) {
-    void startSlackServer().then((r) => {
+  // Slack first, then webhooks — one after the other, never at once: tunnelmole
+  // resolves every pending open on one global URL_ASSIGNED event (task 13).
+  const bootSlack: Promise<unknown> = slackCfg.slackEnabled && readConfigSecret('slackSigningSecret', slackCfg)
+    ? startSlackServer().then((r) => {
       if (!r.ok) console.error('[slack] auto-start failed:', r.error);
       else console.log('[slack] webhook listening', r.url ? `(tunnel: ${r.url})` : '(no tunnel)');
-    });
-  }
+    }).catch((e) => console.error('[slack] auto-start failed:', e))
+    : Promise.resolve();
   // Auto-start the generic webhook only for endpoints the user has explicitly
   // enabled (each with its own secret) — never a default-on public surface.
-  // Opt-in, like Slack; an install with no enabled endpoint opens no tunnel.
-  if (enabledWebhookEndpoints().length > 0) {
-    void startWebhookServer().then((r) => {
+  void bootSlack.then(() => {
+    if (enabledWebhookEndpoints().length === 0) return;
+    return startWebhookServer().then((r) => {
       if (!r.ok) console.error('[webhook] auto-start failed:', r.error);
       else console.log('[webhook] listening', r.url ? `(tunnel: ${r.url})` : '(no tunnel)');
     });
-  }
+  }).catch((e) => console.error('[webhook] auto-start failed:', e));
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

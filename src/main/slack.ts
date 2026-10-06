@@ -26,7 +26,7 @@ import type { AddressInfo } from 'node:net';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 // The tunnel (tunnelmole, ESM-only) is opened through serverPosture.ts, which
 // imports it dynamically. Loopback binding lives there too (O.9 #11).
-import { closeLoopback, listenLoopback, openPublicTunnel, type LoopbackListener } from './serverPosture';
+import { closeLoopback, closePublicTunnels, listenLoopback, openPublicTunnel, tunnelBlockReason, type LoopbackListener } from './serverPosture';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const {
@@ -84,6 +84,9 @@ export interface SlackWebhookServerOptions {
   publicTunnel?: boolean;
   /** Injectable for tests; defaults to tunnelmole. Receives the BOUND port. */
   openTunnel?: (port: number) => Promise<string>;
+  /** Injectable for tests; defaults to closePublicTunnels. Called by stop() so no
+   *  earlier public URL keeps forwarding to the port after a stop or restart. */
+  closeTunnel?: (port: number) => void;
 }
 
 /** A verified, de-mentioned inbound Slack message plus the coordinates needed to
@@ -118,6 +121,7 @@ export class SlackWebhookServer {
   private readonly port: number;
   private readonly publicTunnel: boolean;
   private readonly openTunnelFn: (port: number) => Promise<string>;
+  private readonly closeTunnelFn: (port: number) => void;
   private readonly signingSecret: string;
   private readonly channelId?: string;
   private readonly onMessage: (m: SlackInboundMessage) => void | Promise<void>;
@@ -140,6 +144,7 @@ export class SlackWebhookServer {
     this.onMessage = opts.onMessage;
     this.publicTunnel = opts.publicTunnel === true;
     this.openTunnelFn = opts.openTunnel ?? openPublicTunnel;
+    this.closeTunnelFn = opts.closeTunnel ?? closePublicTunnels;
   }
 
   /** The 127.0.0.1 address the server is bound to, or null when stopped. */
@@ -181,6 +186,10 @@ export class SlackWebhookServer {
       return { ok: false, error: `failed to bind port ${this.port}: ${errMsg(e)}` };
     }
     if (!this.publicTunnel) return { ok: true };
+    // tunnelmole forwards to `localhost` (::1 first): never open a tunnel that a
+    // program holding ::1 on this port could receive.
+    const blocked = tunnelBlockReason(this.server!);
+    if (blocked) return { ok: false, error: blocked };
     try {
       const url = await this.openTunnelFn(this.server!.port);
       if (!url) throw new Error('tunnelmole returned empty URL');
@@ -197,6 +206,9 @@ export class SlackWebhookServer {
    *  Note: tunnelmole has no documented close handle; teardown is best-effort. */
   stop(): void {
     this.tunnelUrl = null;
+    // Every tunnel that forwarded to this port stops before the port is released,
+    // so a restart (or another program taking the port) never inherits it.
+    if (this.server) { try { this.closeTunnelFn(this.server.port); } catch { /* best-effort */ } }
     closeLoopback(this.server);
     this.server = null;
   }

@@ -247,7 +247,8 @@ test('index.ts: servers start with the opt-in, the migration runs before auto-st
   const mig = idx.indexOf('  runServerPostureMigration();');
   assert.ok(mig > 0 && mig < idx.indexOf('const slackCfg = readConfig();'), 'migration must run before the Slack/webhook auto-start');
   assert.match(idx, /await applyTunnelPosture\(postureBefore, next\)/);
-  assert.match(idx, /await closePublicTunnels\(port\)/);
+  assert.match(idx, /closePublicTunnels\(port\); lastSlackUrl = undefined/);
+  assert.match(idx, /closePublicTunnels\(port\); lastWebhookUrl = undefined/);
 });
 
 // ─── O.9 #13: hook pipe ──────────────────────────────────────────────────────
@@ -449,4 +450,209 @@ test('O.9 #15: a bridge cannot start without a token; OpenCode sends it as apiKe
   const idx = read('src/main/index.ts');
   assert.match(idx, /startOllamaBridge\(opts\.cwd, effectiveLocalBaseUrl, \{ token \}\)/);
   assert.match(idx, /apiKey: bridgeToken/);
+});
+
+// ─── Fix round 1 ─────────────────────────────────────────────────────────────
+
+const posture = loadTs('src/main/serverPosture.ts');
+const codexDaemon = loadTs('src/main/codexDaemon.ts');
+
+/** A fake tunnelmole: records each options object; never touches the network. */
+function fakeTunnelmole({ delayMs = 0, hang = false } = {}) {
+  const calls = [];
+  const fn = (options) => {
+    calls.push({ options, at: Date.now() });
+    if (hang) return new Promise(() => {});
+    const n = calls.length;
+    return new Promise((r) => setTimeout(() => r(`https://fake-${n}.example`), delayMs));
+  };
+  return { fn, calls };
+}
+/** What a tunnelmole forwarder does per request: GET localhost:<options.port>. */
+const forward = (options, p = '/alpha') => get(`http://localhost:${options.port}${p}`);
+
+/** Hold [::1]:port so 127.0.0.1:port is free but ::1 is taken. Null without IPv6 loopback. */
+async function holdV6() {
+  const blocker = http.createServer((q, r) => r.end('intruder'));
+  try { await new Promise((res, rej) => { blocker.once('error', rej); blocker.listen(0, '::1', res); }); }
+  catch { return null; }
+  return blocker;
+}
+
+test('round 1: a ::1 bind failure is reported, not swallowed', async (t) => {
+  const blocker = await holdV6();
+  if (!blocker) { t.skip('no IPv6 loopback'); return; }
+  const port = blocker.address().port;
+  const l = await posture.listenLoopback((q, r) => r.end('ok'), port);
+  assert.equal(l.v6, null);
+  assert.equal(l.v6Error, 'EADDRINUSE');
+  assert.match(posture.tunnelBlockReason(l), /another program is using port \d+ on \[::1\] \(EADDRINUSE\)/);
+  posture.closeLoopback(l);
+  blocker.close();
+  assert.equal(posture.tunnelBlockReason({ v6Error: 'EADDRNOTAVAIL', port: 1 }), null, 'no IPv6 loopback is safe');
+  assert.equal(posture.tunnelBlockReason({ v6Error: null, port: 1 }), null);
+});
+
+test('round 1: with ::1 held by another program the tunnel is refused, the local server still runs', async (t) => {
+  for (const make of [mk, mkSlack]) {
+    const blocker = await holdV6();
+    if (!blocker) { t.skip('no IPv6 loopback'); return; }
+    const port = blocker.address().port;
+    let opened = 0;
+    const s = make({ port, publicTunnel: true, openTunnel: async () => { opened++; return 'https://t'; } });
+    const r = await s.start();
+    assert.equal(r.ok, false);
+    assert.match(r.error, /public tunnel was not opened: another program is using port/);
+    assert.equal(opened, 0, 'the tunnel must not open');
+    assert.equal(s.listening(), true);
+    assert.equal(await probe('127.0.0.1', port), 'open');
+    s.stop();
+    // Without a tunnel the same situation is fine: nothing is forwarded.
+    const local = make({ port, publicTunnel: false });
+    assert.deepEqual(await local.start(), { ok: true });
+    local.stop();
+    blocker.close();
+  }
+});
+
+test('round 1: the sink keeps its ::1 listener, so a closed tunnel answers 410 on localhost', async (t) => {
+  const port = await posture.ensureTunnelSink();
+  assert.equal(await get(`http://127.0.0.1:${port}/`), 410);
+  assert.equal(await get(`http://localhost:${port}/`), 410);
+  const blocker = await holdV6();
+  if (!blocker) { t.skip('no IPv6 loopback'); return; }
+  blocker.close();
+  assert.equal(await probe('::1', port), 'open', 'the sink must still listen on ::1');
+});
+
+test('round 1: stop() closes every tunnel on the port; a restart never inherits the old URL', async (t) => {
+  const fake = fakeTunnelmole();
+  posture.setTunnelmoleForTests(fake.fn);
+  t.after(() => posture.setTunnelmoleForTests(null));
+  const sinkPort = await posture.ensureTunnelSink();
+  const s = mk({ publicTunnel: true });
+  const r = await s.start();
+  assert.equal(r.ok, true);
+  const port = s.boundPort();
+  const first = fake.calls[0].options;
+  assert.equal(first.port, port);
+  const live = await forward(first);
+  assert.equal(typeof live, 'number');
+  assert.notEqual(live, 410);
+  s.stop();
+  assert.equal(first.port, sinkPort, 'stop must retarget the old tunnel');
+  assert.equal(await forward(first), 410);
+  assert.equal(posture.liveTunnelCount(port), 0);
+  // Restart on the same port (a port change or Start again): only the new URL works.
+  const again = mk({ port, publicTunnel: true });
+  await again.start();
+  const second = fake.calls[1].options;
+  assert.equal(second.port, port);
+  assert.equal(await forward(first), 410, 'the earlier URL still forwards nowhere');
+  assert.notEqual(await forward(second), 410);
+  again.stop();
+  assert.equal(await forward(second), 410);
+  // Slack does the same.
+  const sl = mkSlack({ publicTunnel: true });
+  await sl.start();
+  const third = fake.calls[2].options;
+  assert.equal(third.port, sl.boundPort());
+  sl.stop();
+  assert.equal(third.port, sinkPort);
+});
+
+test('round 1: server stop() calls the injected closeTunnel with the bound port', async () => {
+  for (const make of [mk, mkSlack]) {
+    const closed = [];
+    const s = make({ publicTunnel: false, closeTunnel: (p) => closed.push(p) });
+    await s.start();
+    const port = s.boundPort();
+    s.stop();
+    assert.deepEqual(closed, [port]);
+  }
+});
+
+test('round 1: index.ts closes tunnels on Stop and before every restart', () => {
+  const idx = read('src/main/index.ts');
+  const body = (name) => { const i = idx.indexOf(`function ${name}(`); return idx.slice(i, idx.indexOf('\n}\n', i)); };
+  assert.match(body('stopSlackServer'), /closePublicTunnels\(port\)[\s\S]*slackServer\?\.stop\(\)/);
+  assert.match(body('stopWebhookServer'), /closePublicTunnels\(port\)[\s\S]*webhookServer\?\.stop\(\)/);
+  assert.match(body('startSlackServer'), /closePublicTunnels\(prevSlackPort\);\s*slackServer\?\.stop\(\)/);
+  assert.match(body('applyTunnelPosture'), /stopWebhookServer\(\);\s*const r = await startWebhookServer\(\)/);
+  assert.match(idx, /tunnelError: lastSlackTunnelError/);
+  assert.match(idx, /tunnelError: lastWebhookTunnelError/);
+  const settings = read('src/renderer/src/components/SettingsModal.tsx');
+  assert.match(settings, /t\.on && t\.error/);
+});
+
+test('round 1: a tunnel that connects after the timeout is dead, not live', async (t) => {
+  const fake = fakeTunnelmole({ hang: true });
+  posture.setTunnelmoleForTests(fake.fn, 50);
+  t.after(() => posture.setTunnelmoleForTests(null));
+  const sinkPort = await posture.ensureTunnelSink();
+  await assert.rejects(() => posture.openPublicTunnel(4321), /timed out/);
+  assert.equal(fake.calls[0].options.port, sinkPort);
+  assert.equal(posture.liveTunnelCount(4321), 0);
+});
+
+test('round 1: tunnel opens are serialized (tunnelmole has one global URL_ASSIGNED)', async (t) => {
+  const fake = fakeTunnelmole({ delayMs: 80 });
+  posture.setTunnelmoleForTests(fake.fn);
+  t.after(() => posture.setTunnelmoleForTests(null));
+  const [a, b] = await Promise.all([posture.openPublicTunnel(5001), posture.openPublicTunnel(5002)]);
+  assert.notEqual(a, b);
+  assert.ok(fake.calls[1].at - fake.calls[0].at >= 70, 'the second open started before the first resolved');
+  posture.closePublicTunnels(5001); posture.closePublicTunnels(5002);
+  const idx = read('src/main/index.ts');
+  assert.match(idx, /void bootSlack\.then\(\(\) => \{\s*if \(enabledWebhookEndpoints\(\)\.length === 0\) return;\s*return startWebhookServer\(\)/,
+    'boot must start webhooks after Slack');
+});
+
+test('round 1: tunnelmole is pinned and still reads options.port per forwarded request', () => {
+  const pkg = JSON.parse(read('package.json'));
+  assert.equal(pkg.dependencies.tunnelmole, '2.4.0');
+  const lock = JSON.parse(read('package-lock.json'));
+  assert.equal(lock.packages[''].dependencies.tunnelmole, '2.4.0');
+  assert.equal(JSON.parse(read('node_modules/tunnelmole/package.json')).version, '2.4.0');
+  const src = read('node_modules/tunnelmole/dist/src/message-handlers/forwarded-request.js');
+  const start = src.indexOf('export default async function forwardedRequest(forwardedRequestMessage, websocket, options)');
+  assert.ok(start >= 0, 'forwardedRequest signature changed: closePublicTunnels relies on it');
+  const handler = src.slice(start, src.indexOf('\n}\n', start));
+  assert.match(handler, /const port = options\.port;/, 'the forwarder must read options.port per request');
+  assert.match(handler, /hostname: 'localhost',\s*method,\s*port,/, 'the forwarder must use that port for localhost');
+});
+
+test('round 1: Codex Remote daemon restarts when its hook token changed', () => {
+  const { planDaemonRestart, tokenFingerprint, readDaemonFingerprint, writeDaemonFingerprint, daemonRestartError } = codexDaemon;
+  const tok = 'a'.repeat(64);
+  const fp = tokenFingerprint(tok);
+  assert.ok(!fp.includes(tok) && fp.length === 32);
+  assert.equal(tokenFingerprint(''), '');
+  assert.deepEqual(planDaemonRestart(null, fp), { stop: 'best-effort', start: true });
+  assert.deepEqual(planDaemonRestart(tokenFingerprint('b'.repeat(64)), fp), { stop: 'required', start: true });
+  assert.deepEqual(planDaemonRestart(fp, fp), { stop: 'none', start: true });
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nx-codex-daemon-'));
+  try {
+    assert.equal(readDaemonFingerprint(home), null);
+    writeDaemonFingerprint(home, fp);
+    assert.equal(readDaemonFingerprint(home), fp);
+    assert.ok(!fs.readFileSync(path.join(home, '.nexus-daemon-token'), 'utf8').includes(tok));
+  } finally { fs.rmSync(home, { recursive: true, force: true }); }
+  assert.match(daemonRestartError('x'), /needs your attention/);
+  const idx = read('src/main/index.ts');
+  const i = idx.indexOf('async function enableCodexRemoteInner(');
+  const body = idx.slice(i, idx.indexOf('\n}\n', i));
+  assert.match(body, /if \(process\.platform === 'win32'\) return false;/, 'Windows unchanged');
+  const stop = body.indexOf("['app-server', 'daemon', 'stop']");
+  const start = body.indexOf("['app-server', 'daemon', 'start']");
+  assert.ok(stop > 0 && stop < start, 'stop must run before start');
+  assert.match(body, /!stopped\.ok && plan\.stop === 'required'[\s\S]*return \{ remote: false, error: daemonRestartError/);
+  assert.match(body, /writeDaemonFingerprint\(realHome, fingerprint\)/);
+  assert.match(idx, /send\('hive:hookEvent', \{ agentId, event: 'Notification', message/);
+});
+
+test('round 1: hookAuth documents what env-held tokens do not cover', () => {
+  const src = read('src/main/hookAuth.ts');
+  assert.match(src, /SAME user can read another process's environment/);
+  assert.match(src, /do NOT guard against a same-user process/);
 });

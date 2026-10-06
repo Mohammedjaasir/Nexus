@@ -46,7 +46,7 @@ interface TriggersApi {
   deleteWebhook: (id: string) => Promise<{ ok: boolean; error?: string }>;
   /** Preload resolves the bare secret string (older builds: `{ ok, secret }`). */
   generateWebhookSecret: () => Promise<string | { ok: boolean; secret?: string }>;
-  webhooksStatus: () => Promise<{ running: boolean; url?: string; port?: number; tunnel?: boolean }>;
+  webhooksStatus: () => Promise<{ running: boolean; url?: string; port?: number; tunnel?: boolean; tunnelError?: string }>;
   getOrgTrigger: () => Promise<OrgTriggerConfig>;
   setOrgTrigger: (cfg: Omit<OrgTriggerConfig, 'apiKey'> & { apiKey: string | null }) => Promise<{ ok: boolean; error?: string }>;
 }
@@ -390,17 +390,23 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
   const [slackLocalPort, setSlackLocalPort] = useState<number | undefined>(undefined);
   const [webhookLocalPort, setWebhookLocalPort] = useState<number | undefined>(undefined);
   const [tunnelBusy, setTunnelBusy] = useState(false);
+  // Why an opted-in tunnel is not up (refused because another program holds the
+  // port on ::1, or tunnelmole failed). Main reports it in the status calls.
+  const [slackTunnelError, setSlackTunnelError] = useState<string | undefined>(undefined);
+  const [webhookTunnelError, setWebhookTunnelError] = useState<string | undefined>(undefined);
   const refreshServerStatus = async () => {
     try {
       const s = await window.cth.slackStatus();
       setRunning(s.running);
       setSlackLocalPort(s.port);
+      setSlackTunnelError(s.tunnelError);
       setTunnelUrl(s.url ?? '');
     } catch { /* status unavailable */ }
     try {
       const w = await triggersApi().webhooksStatus();
       setWebhookRunning(w.running);
       setWebhookLocalPort(w.port);
+      setWebhookTunnelError(w.tunnelError);
       setWebhookUrl(w.url ?? '');
     } catch { /* status unavailable */ }
   };
@@ -591,6 +597,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
       if (!alive) return;
       setRunning(s.running);
       setSlackLocalPort(s.port);
+      setSlackTunnelError(s.tunnelError);
       if (s.url) setTunnelUrl(s.url);
     }).catch(() => { /* status unavailable - assume not running */ });
     // Triggers: re-read main and push the result into the shared mirror. App
@@ -611,6 +618,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
         if (!alive) return;
         setWebhookRunning(s.running);
         setWebhookLocalPort(s.port);
+        setWebhookTunnelError(s.tunnelError);
         if (s.url) setWebhookUrl(s.url);
       } catch { /* status unavailable - assume not listening */ }
     })();
@@ -1604,12 +1612,14 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                           {
                             key: 'slackPublicTunnel' as const,
                             on: slackTunnel,
+                            error: slackTunnelError,
                             label: 'Public tunnel for Slack',
                             helper: "Slack can reach this computer only through a public tunnel (tunnelmole). Off by default. Requests still need Slack's signature."
                           },
                           {
                             key: 'webhookPublicTunnel' as const,
                             on: webhookTunnel,
+                            error: webhookTunnelError,
                             label: 'Public tunnel for webhooks',
                             helper: "Callers outside this computer can reach your webhooks only through a public tunnel. Each request still needs the webhook's secret."
                           }
@@ -1621,6 +1631,9 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                               <span style={{ fontSize: 12, lineHeight: '16px', color: t.on ? 'var(--cth-coral)' : 'var(--cth-ink-500)' }}>
                                 This makes the endpoint reachable from the internet.
                               </span>
+                              {t.on && t.error && (
+                                <span role="alert" style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-coral)' }}>{t.error}</span>
+                              )}
                             </div>
                             <PixelButton
                               variant={t.on ? 'primary' : 'secondary'}
@@ -1808,7 +1821,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                                 <span style={slackLabelStyle}>
                                   {running
                                     ? 'Request URL - paste into Slack Event Subscriptions'
-                                    : 'last Request URL - Slack reuses it until you Stop'}
+                                    : 'last Request URL (stopped: it no longer forwards here)'}
                                 </span>
                                 <div style={{ display: 'flex', gap: 6 }}>
                                   <input

@@ -1233,7 +1233,7 @@ const api = {
     ipcRenderer.invoke('slack:stop'),
   /** Current connection state + last Request URL (so Settings can hydrate the
    *  "Connected" badge and re-show the persisted tunnel URL on reopen). */
-  slackStatus: (): Promise<{ running: boolean; url?: string; port?: number; tunnel?: boolean }> =>
+  slackStatus: (): Promise<{ running: boolean; url?: string; port?: number; tunnel?: boolean; tunnelError?: string }> =>
     ipcRenderer.invoke('slack:status'),
   /** Post a reply into a Slack thread (the bot token stays in main). Used for the
    *  renderer's immediate "queued" ack. */
@@ -1261,7 +1261,7 @@ const api = {
   webhookStop: (): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('webhook:stop'),
   /** Current state + last endpoint URL (so Settings can hydrate the badge/URL). */
-  webhookStatus: (): Promise<{ running: boolean; url?: string; port?: number; tunnel?: boolean }> =>
+  webhookStatus: (): Promise<{ running: boolean; url?: string; port?: number; tunnel?: boolean; tunnelError?: string }> =>
     ipcRenderer.invoke('webhook:status'),
   /** Mint + persist a fresh secret and return it for the user to copy. */
   webhookGenerateSecret: (): Promise<{ ok: boolean; secret?: string }> =>
@@ -1307,7 +1307,7 @@ const api = {
   generateWebhookSecret: (): Promise<string> => ipcRenderer.invoke('webhooks:generateSecret'),
   /** Server state, the tunnel root, and each endpoint's full public URL (`url` is
    *  '' until a tunnel has come up). */
-  webhooksStatus: (): Promise<{ running: boolean; url?: string; endpoints: { id: string; url: string }[]; port?: number; tunnel?: boolean }> =>
+  webhooksStatus: (): Promise<{ running: boolean; url?: string; endpoints: { id: string; url: string }[]; port?: number; tunnel?: boolean; tunnelError?: string }> =>
     ipcRenderer.invoke('webhooks:status'),
 
   // ─── Triggers: organisation (clone-node peer messaging) ─────────────────────

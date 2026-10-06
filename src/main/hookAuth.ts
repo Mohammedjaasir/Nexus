@@ -5,8 +5,14 @@
  * when its PTY goes away. Tokens live only in main's memory; a main restart kills
  * the PTYs that held the old ones.
  *
- * The named pipe keeps the Windows default DACL (Node cannot set one); the token
- * is the control against other same-user processes.
+ * Scope: these tokens live in agent environments (HIVE_HOOK_TOKEN,
+ * OTEL_EXPORTER_OTLP_HEADERS, OPENCODE_CONFIG_CONTENT), and a process running
+ * as the SAME user can read another process's environment (for example
+ * /proc/<pid>/environ, or a debugger API on Windows). They guard against other
+ * users, network callers and anything that merely finds the pipe or port; they
+ * do NOT guard against a same-user process that sets out to read them. The
+ * named pipe keeps the Windows default DACL (Node cannot set one), which already
+ * limits writers to the owner, SYSTEM and Administrators.
  */
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 

@@ -46,7 +46,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { validateAgainstSchema, type InboundKind } from '../shared/triggers';
 // The tunnel (tunnelmole, ESM-only) is opened through serverPosture.ts, which
 // imports it dynamically. Loopback binding lives there too (O.9 #11).
-import { closeLoopback, listenLoopback, openPublicTunnel, type LoopbackListener } from './serverPosture';
+import { closeLoopback, closePublicTunnels, listenLoopback, openPublicTunnel, tunnelBlockReason, type LoopbackListener } from './serverPosture';
 
 /** One servable endpoint — the structural subset of `WebhookTrigger` this class
  *  needs. A whole `WebhookTrigger` is assignable, so callers pass config rows
@@ -121,6 +121,9 @@ export interface WebhookServerOptions {
   publicTunnel?: boolean;
   /** Injectable for tests; defaults to tunnelmole. Receives the BOUND port. */
   openTunnel?: (port: number) => Promise<string>;
+  /** Injectable for tests; defaults to closePublicTunnels. Called by stop() so no
+   *  earlier public URL keeps forwarding to the port after a stop or restart. */
+  closeTunnel?: (port: number) => void;
 }
 
 /** Reject bodies larger than this before buffering — callers send tiny JSON; the
@@ -149,6 +152,7 @@ export class WebhookServer {
   private readonly port: number;
   private readonly publicTunnel: boolean;
   private readonly openTunnelFn: (port: number) => Promise<string>;
+  private readonly closeTunnelFn: (port: number) => void;
   private endpoints = new Map<string, WebhookEndpoint>();
   private readonly onMessage: (msg: WebhookInbound, endpoint: WebhookEndpointRef) => WebhookDispatch | null;
   private readonly lookupStatus: (token: string) => WebhookTaskStatus | null;
@@ -166,6 +170,7 @@ export class WebhookServer {
     this.lookupStatus = opts.lookupStatus;
     this.publicTunnel = opts.publicTunnel === true;
     this.openTunnelFn = opts.openTunnel ?? openPublicTunnel;
+    this.closeTunnelFn = opts.closeTunnel ?? closePublicTunnels;
     this.setEndpoints(opts.endpoints);
   }
 
@@ -241,6 +246,10 @@ export class WebhookServer {
       return { ok: false, error: `failed to bind port ${this.port}: ${errMsg(e)}` };
     }
     if (!this.publicTunnel) return { ok: true };
+    // tunnelmole forwards to `localhost` (::1 first): never open a tunnel that a
+    // program holding ::1 on this port could receive.
+    const blocked = tunnelBlockReason(this.server!);
+    if (blocked) return { ok: false, error: blocked };
     try {
       const url = await this.openTunnelFn(this.server!.port);
       if (!url) throw new Error('tunnelmole returned empty URL');
@@ -257,6 +266,9 @@ export class WebhookServer {
    *  Note: tunnelmole has no documented close handle; teardown is best-effort. */
   stop(): void {
     this.tunnelUrl = null;
+    // Every tunnel that forwarded to this port stops before the port is released,
+    // so a restart (or another program taking the port) never inherits it.
+    if (this.server) { try { this.closeTunnelFn(this.server.port); } catch { /* best-effort */ } }
     closeLoopback(this.server);
     this.server = null;
   }
