@@ -7,6 +7,6 @@ export const NEXUS_ICON_NAMES = [
   'import', 'refresh', 'lock', 'check', 'circle', 'close', 'sparkles',
   'sde', 'ml', 'dl', 'data', 'research', 'qa', 'uiux', 'devops', 'yourProjects',
   'dataset', 'appBox', 'rocket', 'help',
-  'bench', 'changes', 'plan', 'runs', 'terminal'
+  'bench', 'changes', 'completion', 'runs', 'terminal'
 ] as const;
 export type NexusIconName = (typeof NEXUS_ICON_NAMES)[number];

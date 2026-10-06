@@ -1,7 +1,7 @@
 import { getWorkspace } from '../workspaces/registry';
 import type { WorkspaceId } from '../workspaces/types';
 
-export const PROJECT_TOOLS = ['bench', 'changes', 'plan', 'runs'] as const;
+export const PROJECT_TOOLS = ['bench', 'changes', 'completion', 'runs'] as const;
 export type ProjectTool = (typeof PROJECT_TOOLS)[number];
 
 export type Route =
@@ -39,7 +39,8 @@ export function parseHash(hash: string): Route {
     if (!id) return notFound;
     if (parts[0] === 'w' && parts.length === 2) return getWorkspace(id) ? { name: 'workspace', id: id as WorkspaceId } : notFound;
     if (parts[0] === 'p') {
-      const tool = (parts[2] ?? 'bench') as ProjectTool;
+      // The old plan tool's links ('#/p/<id>/plan') open Completion.
+      const tool = (parts[2] === 'plan' ? 'completion' : parts[2] ?? 'bench') as ProjectTool;
       return (PROJECT_TOOLS as readonly string[]).includes(tool) ? { name: 'project', id, tool } : notFound;
     }
   }
@@ -61,7 +62,7 @@ const TITLES: Record<string, string> = {
   artifacts: 'Artifacts', handoffs: 'Handoffs', deployments: 'Deployments', agents: 'Agents', 'not-found': 'Not found'
 };
 
-const TOOL_TITLES: Record<ProjectTool, string> = { bench: 'Project', changes: 'Changes', plan: 'Plan', runs: 'Runs' };
+const TOOL_TITLES: Record<ProjectTool, string> = { bench: 'Project', changes: 'Changes', completion: 'Completion', runs: 'Runs' };
 
 export function routeTitle(r: Route): string {
   if (r.name === 'workspace') return `${getWorkspace(r.id)?.label ?? r.id} workspace`;

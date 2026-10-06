@@ -18,39 +18,3 @@ export interface TaskExecutionPlan {
   assembledPrompt: string;
   verificationRuleIds: string[];
 }
-
-export interface TaskVerificationRuleResult {
-  ruleId: string;
-  ruleName: string;
-  command: string;
-  exitCode: number;
-  output: string;
-  passed: boolean;
-}
-
-export type TaskVerificationStatus = 'success' | 'failed' | 'needs_review';
-
-export interface TaskVerificationSummary {
-  status: TaskVerificationStatus;
-  summary: string;
-  rules: TaskVerificationRuleResult[];
-  testsExecuted: number;
-  testsPassed: number;
-  testsFailed: number;
-}
-
-export interface TaskExecutionResult {
-  taskId: string;
-  projectId: string;
-  projectName: string;
-  task: string;
-  role: DomainAgentRole;
-  provider: AgentProvider;
-  model?: string;
-  contextTokens: number;
-  contextReductionPercentage: number;
-  changedFiles: string[];
-  verification: TaskVerificationSummary;
-  executionLatencyMs: number;
-  completedAt: number;
-}

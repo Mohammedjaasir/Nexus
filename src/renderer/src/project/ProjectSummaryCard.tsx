@@ -5,10 +5,6 @@ import { getDomainDefinition, type DomainId } from '@shared/domain';
 import { PixelPanel } from '../components/PixelPanel';
 import { PixelButton } from '../components/PixelButton';
 import { Icon } from '../components/Icon';
-import { ProjectPlanCard } from './ProjectPlanCard';
-import { ProjectGapsCard } from './ProjectGapsCard';
-import { ProjectGoalCard } from './ProjectGoalCard';
-import { ProjectCompletionPanel } from './ProjectCompletionPanel';
 
 export interface ProjectSummaryCardProps {
   project: Project;
@@ -502,29 +498,7 @@ export function ProjectSummaryCard({
               <span>• <strong>Tests:</strong> {graphStats?.testCount ?? '…'}</span>
             </div>
           </div>
-          <div>
-            <PixelButton
-              variant="secondary"
-              size="sm"
-              disabled
-              title="Interactive graph visualization coming in Phase 5"
-            >
-              View Graph ↗
-            </PixelButton>
-          </div>
         </div>
-
-        {/* Controlled Project Execution (Phase 9A) */}
-        <ProjectCompletionPanel projectId={project.id} />
-
-        {/* Project Goal & Target Capabilities (Phase 8C) */}
-        <ProjectGoalCard projectId={project.id} />
-
-        {/* Project Gaps & State-Aware Analysis (Phase 8B) */}
-        <ProjectGapsCard projectId={project.id} />
-
-        {/* Project Plan & Task Graph (Phase 8A) */}
-        <ProjectPlanCard projectId={project.id} />
 
         {/* Action Controls */}
         <div

@@ -11,7 +11,7 @@ import { SUGGESTIONS } from '../assistant/prompts';
 import { useAssistant } from '../assistant/useAssistant';
 import { selectionLabel } from './intentContext';
 
-const TOOL_PAGE: Record<ProjectTool, string> = { bench: 'Bench', changes: 'Changes', plan: 'Plan', runs: 'Runs' };
+const TOOL_PAGE: Record<ProjectTool, string> = { bench: 'Bench', changes: 'Changes', completion: 'Completion', runs: 'Runs' };
 
 let requestSeq = 0;
 function newRequestId(): string { requestSeq += 1; return `r-${Date.now()}-${requestSeq}`; }

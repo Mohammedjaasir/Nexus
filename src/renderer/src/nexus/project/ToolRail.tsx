@@ -7,7 +7,7 @@ import { Icon, type NexusIconName } from '../icons';
 const ROUTES: { tool: ProjectTool; label: string; icon: NexusIconName }[] = [
   { tool: 'bench', label: 'Bench', icon: 'bench' },
   { tool: 'changes', label: 'Changes', icon: 'changes' },
-  { tool: 'plan', label: 'Plan', icon: 'plan' },
+  { tool: 'completion', label: 'Completion', icon: 'completion' },
   { tool: 'runs', label: 'Runs', icon: 'runs' }
 ];
 

@@ -40,20 +40,8 @@ export type {
   AgentRoleCandidate,
   PreparedAgentConfig
 };
-import type {
-  TaskExecutionPlan,
-  TaskExecutionResult,
-  TaskVerificationSummary,
-  TaskVerificationRuleResult,
-  TaskVerificationStatus
-} from '../shared/execution';
-export type {
-  TaskExecutionPlan,
-  TaskExecutionResult,
-  TaskVerificationSummary,
-  TaskVerificationRuleResult,
-  TaskVerificationStatus
-};
+import type { TaskExecutionPlan } from '../shared/execution';
+export type { TaskExecutionPlan };
 import type {
   ProjectPlan,
   ProjectMilestone,
@@ -94,18 +82,8 @@ export type {
   GoalCapability,
   GoalAnalysisResult
 };
-import type {
-  ProjectState,
-  ProjectCompletionContract,
-  NextTaskResult,
-  ProjectStepResult
-} from '../shared/completion';
-export type {
-  ProjectState,
-  ProjectCompletionContract,
-  NextTaskResult,
-  ProjectStepResult
-};
+import type { ProjectState, ProjectCompletionContract } from '../shared/completion';
+export type { ProjectState, ProjectCompletionContract };
 import type {
   ProjectGraphNode,
   ProjectGraphEdge,
@@ -1576,7 +1554,7 @@ const api = {
   projectTaskRoute: (projectId: string, task: string): Promise<TaskRoutingResult | null> =>
     ipcRenderer.invoke('project:task:route', projectId, task),
 
-  // ─── Phase 7C: Task Execution & Verification APIs ─────────────────────────
+  // ─── Phase 7C: Task execution plan (read-only; nothing is run) ────────────
   projectTaskPlan: (
     projectId: string,
     task: string,
@@ -1588,37 +1566,16 @@ const api = {
     }
   ): Promise<TaskExecutionPlan | null> =>
     ipcRenderer.invoke('project:task:plan', projectId, task, options),
-  projectTaskVerify: (
-    projectId: string,
-    ruleIds?: string[],
-    customCmd?: string
-  ): Promise<TaskVerificationSummary | null> =>
-    ipcRenderer.invoke('project:task:verify', projectId, ruleIds, customCmd),
-  projectTaskExecute: (
-    plan: TaskExecutionPlan,
-    customCmd?: string
-  ): Promise<TaskExecutionResult | null> =>
-    ipcRenderer.invoke('project:task:execute', plan, customCmd),
 
   // ─── Phase 8A: Project Plan & Task Graph APIs ─────────────────────────────
   projectPlanGet: (projectId: string): Promise<ProjectPlan | null> =>
     ipcRenderer.invoke('project:plan:get', projectId),
   projectPlanGenerate: (projectId: string): Promise<ProjectPlan | null> =>
     ipcRenderer.invoke('project:plan:generate', projectId),
-  projectPlanUpdateTaskStatus: (
-    projectId: string,
-    taskId: string,
-    status: TaskStatus
-  ): Promise<ProjectPlan | null> =>
-    ipcRenderer.invoke('project:plan:updateTaskStatus', projectId, taskId, status),
 
   // ─── Phase 8B: Project Gap Analysis APIs ──────────────────────────────────
   projectGapsAnalyze: (projectId: string): Promise<ProjectGapAnalysisResult | null> =>
     ipcRenderer.invoke('project:gaps:analyze', projectId),
-  projectGapsReconcile: (
-    projectId: string
-  ): Promise<{ plan: ProjectPlan; gaps: ProjectGapAnalysisResult } | null> =>
-    ipcRenderer.invoke('project:gaps:reconcile', projectId),
 
   // ─── Phase 8C: Goal-Aware Project Planning APIs ───────────────────────────
   projectGoalSet: (
@@ -1628,24 +1585,7 @@ const api = {
   ): Promise<GoalAnalysisResult | null> =>
     ipcRenderer.invoke('project:goal:set', projectId, title, description),
   projectGoalGet: (projectId: string): Promise<GoalAnalysisResult | null> =>
-    ipcRenderer.invoke('project:goal:get', projectId),
-  projectGoalReconcile: (
-    projectId: string
-  ): Promise<{ plan: ProjectPlan; goalAnalysis: GoalAnalysisResult } | null> =>
-    ipcRenderer.invoke('project:goal:reconcile', projectId),
-
-  // ─── Phase 9: Complete Project — Verified Execution APIs ──────────────────
-  projectCompleteNext: (projectId: string): Promise<NextTaskResult | null> =>
-    ipcRenderer.invoke('project:complete:next', projectId),
-  projectCompleteStep: (
-    projectId: string,
-    customCmd?: string
-  ): Promise<ProjectStepResult | null> =>
-    ipcRenderer.invoke('project:complete:step', projectId, customCmd),
-  projectCompleteContract: (
-    projectId: string
-  ): Promise<ProjectCompletionContract | null> =>
-    ipcRenderer.invoke('project:complete:contract', projectId)
+    ipcRenderer.invoke('project:goal:get', projectId)
 };
 
 contextBridge.exposeInMainWorld('cth', api);

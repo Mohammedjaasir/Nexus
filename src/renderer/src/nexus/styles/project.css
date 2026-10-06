@@ -41,7 +41,9 @@
 
 .nx-rail__item:hover { color: var(--nx-ink); }
 .nx-rail__sep { height: 1px; margin: var(--nx-s1) 4px; background: var(--nx-line); }
-.nx-surface--legacy { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.nx-completion__facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px var(--nx-s3); margin: 0; font-size: 12.5px; }
+.nx-completion__facts dt { color: var(--nx-text-2); }
+.nx-completion__facts dd { margin: 0; }
 .nx-surface__head { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--nx-s3); }
 .nx-surface__ref { color: var(--nx-text-2); }
 .nx-surface__provline { display: flex; align-items: center; gap: var(--nx-s2); }

@@ -49,7 +49,7 @@ test('routeTitle gives a human page label', () => {
 test('parseHash: project tools', () => {
   assert.deepEqual(parseHash('#/p/proj-1'), { name: 'project', id: 'proj-1', tool: 'bench' });
   assert.deepEqual(parseHash('#/p/proj-1/changes'), { name: 'project', id: 'proj-1', tool: 'changes' });
-  assert.deepEqual(parseHash('#/p/proj-1/plan'), { name: 'project', id: 'proj-1', tool: 'plan' });
+  assert.deepEqual(parseHash('#/p/proj-1/plan'), { name: 'project', id: 'proj-1', tool: 'completion' });
   assert.deepEqual(parseHash('#/p/proj-1/runs'), { name: 'project', id: 'proj-1', tool: 'runs' });
 });
 

@@ -1,11 +1,7 @@
 /**
- * Shared types for Phase 9: Complete Project — Verified Execution.
+ * Legacy completion-contract types (Phase 9A), used only by the unit-tested
+ * heuristics in main/plan/projectCompletionController.ts. No IPC since B0a.
  */
-
-import type { ProjectTask, ProjectPlan } from './plan';
-import type { TaskExecutionPlan, TaskExecutionResult, TaskVerificationSummary } from './execution';
-import type { GoalAnalysisResult, ProjectGoal } from './goal';
-import type { ProjectGapAnalysisResult } from './gap';
 
 export type ProjectState =
   | 'draft'
@@ -27,29 +23,4 @@ export interface ProjectCompletionContract {
   successCriteriaSatisfied: boolean;
   isGoalComplete: boolean;
   reasons: string[];
-}
-
-export interface NextTaskResult {
-  projectId: string;
-  projectState: ProjectState;
-  task: ProjectTask | null;
-  executionPlan: TaskExecutionPlan | null;
-  contract: ProjectCompletionContract;
-  taskIndex: number;
-  totalTasks: number;
-}
-
-export interface ProjectStepResult {
-  projectId: string;
-  taskId: string;
-  taskTitle: string;
-  executionResult: TaskExecutionResult;
-  repairAttempts: number;
-  updatedGraphNodesCount: number;
-  updatedGoalAnalysis: GoalAnalysisResult;
-  updatedGaps: ProjectGapAnalysisResult;
-  updatedPlan: ProjectPlan;
-  contract: ProjectCompletionContract;
-  projectState: ProjectState;
-  nextReadyTask: ProjectTask | null;
 }

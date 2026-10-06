@@ -1,0 +1,41 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const loadTs = require('./load-ts.cjs');
+const { parseHash, formatRoute, PROJECT_TOOLS } = loadTs('src/renderer/src/nexus/router/routes.ts');
+const { completionCopy } = loadTs('src/renderer/src/nexus/project/completionModel.ts');
+const ROOT = path.join(__dirname, '..');
+const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
+
+test('the plan tool is gone; old plan links open Completion', () => {
+  assert.deepEqual([...PROJECT_TOOLS], ['bench', 'changes', 'completion', 'runs']);
+  assert.deepEqual(parseHash('#/p/proj-1/plan'), { name: 'project', id: 'proj-1', tool: 'completion' });
+  assert.equal(formatRoute({ name: 'project', id: 'proj-1', tool: 'completion' }), '#/p/proj-1/completion');
+});
+
+test('completion copy never claims anything is complete or verified', () => {
+  const c = completionCopy({ domainLabel: 'Software engineering' });
+  const all = [c.title, c.badge, c.lead, c.planned, c.detail, ...c.facts.map((f) => `${f.label} ${f.value}`)].join(' ');
+  assert.doesNotMatch(all, /\b(completed?|verified|progress|tests? pass(ed)?|confidence)\b|\d+\s*%/i);
+  assert.equal(c.badge, 'Planned · B1');
+  assert.deepEqual(completionCopy({}).facts, [{ label: 'Domain', value: 'Unassigned' }]);
+});
+
+test('no legacy plan execution path survives (O.9 #5)', () => {
+  for (const f of walk(path.join(ROOT, 'src')).filter((f) => /\.(ts|tsx|cjs)$/.test(f))) {
+    const s = fs.readFileSync(f, 'utf8');
+    assert.doesNotMatch(s, /customCmd|customVerificationCommand/, f);
+    assert.doesNotMatch(s, /project:(task:(verify|execute)|complete:(next|step|contract)|plan:updateTaskStatus|gaps:reconcile|goal:reconcile)/, f);
+  }
+  for (const f of walk(path.join(ROOT, 'src', 'main')).filter((f) => /\.ts$/.test(f)))
+    assert.doesNotMatch(fs.readFileSync(f, 'utf8'), /\bexecSync\b/, f);
+});
+
+test('neither the tool rail nor the project manager mounts plan panels', () => {
+  assert.doesNotMatch(read('src/renderer/src/nexus/project/ToolRail.tsx'), /tool: 'plan'/);
+  assert.doesNotMatch(read('src/renderer/src/project/ProjectSummaryCard.tsx'), /ProjectPlanCard|ProjectGapsCard|ProjectGoalCard|ProjectCompletionPanel|Phase 5/);
+  assert.doesNotMatch(read('src/renderer/src/project/NewProjectWizardModal.tsx'), /projectGoalReconcile/);
+});

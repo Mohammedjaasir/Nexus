@@ -3365,33 +3365,14 @@ ipcMain.handle('project:task:plan', async (_evt, projectId: unknown, task: unkno
   if (typeof projectId !== 'string' || typeof task !== 'string') return null;
   return projectManager.prepareTaskExecutionPlan(projectId, task, options && typeof options === 'object' ? options as any : undefined);
 });
-ipcMain.handle('project:task:verify', async (_evt, projectId: unknown, ruleIds: unknown, customCmd: unknown) => {
-  if (typeof projectId !== 'string') return null;
-  const rIds = Array.isArray(ruleIds) ? ruleIds.filter((r) => typeof r === 'string') : undefined;
-  const cmd = typeof customCmd === 'string' ? customCmd : undefined;
-  return projectManager.runTaskVerification(projectId, rIds, cmd);
-});
-ipcMain.handle('project:task:execute', async (_evt, plan: unknown, customCmd: unknown) => {
-  if (!plan || typeof plan !== 'object') return null;
-  const cmd = typeof customCmd === 'string' ? customCmd : undefined;
-  return projectManager.executeTaskPlan(plan as any, undefined, cmd);
-});
 ipcMain.handle('project:plan:get', (_evt, projectId: unknown) =>
   (typeof projectId === 'string' ? projectManager.getProjectPlan(projectId) : null)
 );
 ipcMain.handle('project:plan:generate', (_evt, projectId: unknown) =>
   (typeof projectId === 'string' ? projectManager.generateProjectPlan(projectId) : null)
 );
-ipcMain.handle('project:plan:updateTaskStatus', (_evt, projectId: unknown, taskId: unknown, status: unknown) =>
-  (typeof projectId === 'string' && typeof taskId === 'string' && typeof status === 'string'
-    ? projectManager.updateTaskStatus(projectId, taskId, status as any)
-    : null)
-);
 ipcMain.handle('project:gaps:analyze', (_evt, projectId: unknown) =>
   (typeof projectId === 'string' ? projectManager.analyzeProjectGaps(projectId) : null)
-);
-ipcMain.handle('project:gaps:reconcile', (_evt, projectId: unknown) =>
-  (typeof projectId === 'string' ? projectManager.reconcileProjectPlan(projectId) : null)
 );
 ipcMain.handle('project:goal:set', (_evt, projectId: unknown, title: unknown, description: unknown) =>
   (typeof projectId === 'string' && typeof title === 'string'
@@ -3400,20 +3381,6 @@ ipcMain.handle('project:goal:set', (_evt, projectId: unknown, title: unknown, de
 );
 ipcMain.handle('project:goal:get', (_evt, projectId: unknown) =>
   (typeof projectId === 'string' ? projectManager.getProjectGoal(projectId) : null)
-);
-ipcMain.handle('project:goal:reconcile', (_evt, projectId: unknown) =>
-  (typeof projectId === 'string' ? projectManager.reconcileGoalPlan(projectId) : null)
-);
-ipcMain.handle('project:complete:next', (_evt, projectId: unknown) =>
-  (typeof projectId === 'string' ? projectManager.getNextProjectTask(projectId) : null)
-);
-ipcMain.handle('project:complete:step', async (_evt, projectId: unknown, customCmd: unknown) => {
-  if (typeof projectId !== 'string') return null;
-  const cmd = typeof customCmd === 'string' ? customCmd : undefined;
-  return projectManager.executeProjectStep(projectId, undefined, cmd);
-});
-ipcMain.handle('project:complete:contract', (_evt, projectId: unknown) =>
-  (typeof projectId === 'string' ? projectManager.evaluateProjectCompletionContract(projectId) : null)
 );
 
 // ─── IPC: skills (installed locally, and the browsable catalog) ─────────────

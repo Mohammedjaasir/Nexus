@@ -22,7 +22,7 @@ export const ICONS: Record<NexusIconName, LucideIcon> = {
   sde: CodeXml, ml: Brain, dl: Atom, data: ChartColumn, research: BookOpen, qa: CircleCheckBig,
   uiux: Palette, devops: Cloud, yourProjects: FolderOpen, dataset: Database, appBox: Package,
   rocket: Rocket, help: LifeBuoy,
-  bench: LayoutPanelLeft, changes: FileDiff, plan: ListChecks, runs: Activity, terminal: Terminal
+  bench: LayoutPanelLeft, changes: FileDiff, completion: ListChecks, runs: Activity, terminal: Terminal
 };
 
 export function Icon({ name, size = 18, className }: { name: NexusIconName; size?: number; className?: string }) {

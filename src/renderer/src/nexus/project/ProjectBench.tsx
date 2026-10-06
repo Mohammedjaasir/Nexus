@@ -142,14 +142,14 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   return (
     <div className="nx-workbench">
       {mobile && <MobileRuns projectId={project.id} />}
-      <Spine groups={groups} selectedId={tool === 'plan' || tool === 'runs' ? '' : node.id} onSelect={onSelect} />
+      <Spine groups={groups} selectedId={tool === 'completion' || tool === 'runs' ? '' : node.id} onSelect={onSelect} />
       <div className="nx-bench">
         <ToolRail projectId={project.id} rootPath={project.rootPath} tool={tool} hasChanges={hasChanges} onOpenTerminal={openTerminal}
           extra={!wide && (
             <button type="button" className="nx-passport-btn" aria-haspopup="dialog" aria-expanded={detailsOpen} onClick={() => setDetailsOpen(true)}>Details</button>
           )} />
         {!wide && notice && <p className="nx-passport__note" role="alert">{notice}</p>}
-        <FocusSurface tool={tool} project={project} node={sourceNode} git={git} onRetryGit={refresh} onRefreshProject={refreshProject} />
+        <FocusSurface tool={tool} project={project} node={sourceNode} git={git} onRetryGit={refresh} />
         {wide && <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} />}
       </div>
       {!wide && (

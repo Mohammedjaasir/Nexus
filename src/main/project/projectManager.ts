@@ -41,21 +41,11 @@ import { TaskExecutionCoordinator } from '../execution/taskExecutionCoordinator'
 import { ProjectPlanner } from '../plan/projectPlanner';
 import { ProjectGapAnalyzer } from '../plan/projectGapAnalyzer';
 import { GoalPlanner } from '../plan/goalPlanner';
-import { ProjectCompletionController } from '../plan/projectCompletionController';
 import type { TaskRoutingResult } from '../../shared/routing';
-import type {
-  TaskExecutionPlan,
-  TaskExecutionResult,
-  TaskVerificationSummary
-} from '../../shared/execution';
+import type { TaskExecutionPlan } from '../../shared/execution';
 import type { ProjectPlan, TaskStatus } from '../../shared/plan';
 import type { ProjectGapAnalysisResult } from '../../shared/gap';
 import type { ProjectGoal, GoalAnalysisResult } from '../../shared/goal';
-import type {
-  NextTaskResult,
-  ProjectStepResult,
-  ProjectCompletionContract
-} from '../../shared/completion';
 import type { AgentProvider } from '../../shared/agentProvider';
 
 export class ProjectManager {
@@ -65,7 +55,6 @@ export class ProjectManager {
   private planner: ProjectPlanner;
   private gapAnalyzer: ProjectGapAnalyzer;
   private goalPlanner: GoalPlanner;
-  private completionController: ProjectCompletionController;
 
   constructor(private store: PersistStore) {
     this.contextEngine = new ContextEngine(store);
@@ -78,12 +67,6 @@ export class ProjectManager {
     this.planner = new ProjectPlanner(this.taskRouter);
     this.gapAnalyzer = new ProjectGapAnalyzer();
     this.goalPlanner = new GoalPlanner();
-    this.completionController = new ProjectCompletionController(
-      store,
-      this.executionCoordinator,
-      this.gapAnalyzer,
-      this.goalPlanner
-    );
   }
 
   /**
@@ -468,7 +451,7 @@ export class ProjectManager {
     return this.taskRouter.routeTask(task, project, graphNodes);
   }
 
-  // ─── Phase 7C: End-to-End Execution & Verification APIs ───────────────────
+  // ─── Phase 7C: Task execution plan (read-only; nothing is run) ────────────
 
   /**
    * Prepare complete task execution plan (Task -> Role -> Context -> Model).
@@ -484,28 +467,6 @@ export class ProjectManager {
     }
   ): Promise<TaskExecutionPlan> {
     return this.executionCoordinator.prepareExecutionPlan(projectId, task, options);
-  }
-
-  /**
-   * Run verification rules on project workspace.
-   */
-  async runTaskVerification(
-    projectId: string,
-    ruleIds?: string[],
-    customVerificationCommand?: string
-  ): Promise<TaskVerificationSummary> {
-    return this.executionCoordinator.runVerification(projectId, ruleIds, customVerificationCommand);
-  }
-
-  /**
-   * Execute task plan end-to-end and run automated verification.
-   */
-  async executeTaskPlan(
-    plan: TaskExecutionPlan,
-    agentActionRunner?: () => Promise<string[]>,
-    customVerificationCommand?: string
-  ): Promise<TaskExecutionResult> {
-    return this.executionCoordinator.executePlan(plan, agentActionRunner, customVerificationCommand);
   }
 
   // ─── Phase 8A: Project Plan & Task Graph APIs ─────────────────────────────
@@ -540,6 +501,7 @@ export class ProjectManager {
 
   /**
    * Update the status of a specific task in the project plan, recomputing DAG dependencies and progress.
+   * Not exposed over IPC since B0a: no UI may mark tasks complete. Kept for unit tests.
    */
   updateTaskStatus(projectId: string, taskId: string, status: TaskStatus): ProjectPlan | null {
     const plan = this.getProjectPlan(projectId);
@@ -580,6 +542,7 @@ export class ProjectManager {
 
   /**
    * Reconcile existing ProjectPlan with real project gap evidence without overwriting completed work.
+   * Not exposed over IPC since B0a: no UI may mark tasks complete. Kept for unit tests.
    */
   reconcileProjectPlan(projectId: string): { plan: ProjectPlan; gaps: ProjectGapAnalysisResult } | null {
     const project = this.store.getProject(projectId);
@@ -640,6 +603,7 @@ export class ProjectManager {
 
   /**
    * Reconcile ProjectPlan against active goal capabilities, creating tasks only for missing work.
+   * Not exposed over IPC since B0a: no UI may mark tasks complete. Kept for unit tests.
    */
   reconcileGoalPlan(projectId: string): { plan: ProjectPlan; goalAnalysis: GoalAnalysisResult } | null {
     const project = this.store.getProject(projectId);
@@ -667,47 +631,5 @@ export class ProjectManager {
       plan: reconciledPlan,
       goalAnalysis
     };
-  }
-
-  // ─── Phase 9: Complete Project — Verified Execution ───────────────────────
-
-  /**
-   * Find and prepare the next ready task in the project pipeline.
-   */
-  async getNextProjectTask(projectId: string): Promise<NextTaskResult | null> {
-    return this.completionController.getNextTask(projectId);
-  }
-
-  /**
-   * Execute one controlled step in the project completion workflow.
-   */
-  async executeProjectStep(
-    projectId: string,
-    agentActionRunner?: () => Promise<string[]>,
-    customVerificationCommand?: string
-  ): Promise<ProjectStepResult | null> {
-    return this.completionController.executeStep(projectId, agentActionRunner, customVerificationCommand);
-  }
-
-  /**
-   * Evaluate whether project goal meets the complete verification contract.
-   */
-  evaluateProjectCompletionContract(projectId: string): ProjectCompletionContract | null {
-    const project = this.store.getProject(projectId);
-    if (!project) return null;
-
-    const plan = this.getProjectPlan(projectId);
-    if (!plan) return null;
-
-    const graphNodes = this.store.getProjectGraphNodes(projectId);
-    const graphEdges = this.store.getProjectGraphEdges(projectId);
-
-    const goal = this.store.getProjectGoal(projectId);
-    const goalAnalysis = goal
-      ? this.goalPlanner.evaluateGoal(goal, project, graphNodes, graphEdges, plan)
-      : null;
-
-    const gapAnalysis = this.gapAnalyzer.analyzeGaps(project, graphNodes, graphEdges, plan);
-    return this.completionController.evaluateCompletionContract(project, goalAnalysis, gapAnalysis, plan, true);
   }
 }

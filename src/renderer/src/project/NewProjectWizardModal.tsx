@@ -78,7 +78,6 @@ export function NewProjectWizardModal({
       // 2. If goal was provided, set the goal and derive capabilities
       if (goal.trim()) {
         await window.cth.projectGoalSet(created.id, goal.trim());
-        await window.cth.projectGoalReconcile(created.id);
       }
 
       // 3. Update store and transition

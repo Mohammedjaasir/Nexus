@@ -137,59 +137,6 @@ test('4. Project root propagation & 5. Agent receives optimized context without 
   }
 });
 
-test('6. Verification execution: Successful verification passes', async () => {
-  const dir = makeTmpDir('verify-pass-');
-  try {
-    fs.mkdirSync(path.join(dir, 'test'), { recursive: true });
-    fs.writeFileSync(
-      path.join(dir, 'test', 'sample.test.cjs'),
-      "const test = require('node:test'); const assert = require('node:assert'); test('pass test', () => { assert.equal(1+1, 2); });"
-    );
-
-    const store = new MockStore();
-    const manager = new ProjectManager(store);
-    const { project } = await manager.importProject(dir, 'software-engineering', 'PassApp');
-
-    const verifyResult = await manager.runTaskVerification(
-      project.id,
-      ['rule-test-suite'],
-      'node --test test/sample.test.cjs'
-    );
-
-    assert.equal(verifyResult.status, 'success');
-    assert.ok(verifyResult.testsPassed >= 1);
-    assert.equal(verifyResult.testsFailed, 0);
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('7. Verification execution: Failed verification reports failed status', async () => {
-  const dir = makeTmpDir('verify-fail-');
-  try {
-    fs.mkdirSync(path.join(dir, 'test'), { recursive: true });
-    fs.writeFileSync(
-      path.join(dir, 'test', 'failing.test.cjs'),
-      "const test = require('node:test'); const assert = require('node:assert'); test('fail test', () => { assert.equal(1, 2); });"
-    );
-
-    const store = new MockStore();
-    const manager = new ProjectManager(store);
-    const { project } = await manager.importProject(dir, 'software-engineering', 'FailApp');
-
-    const verifyResult = await manager.runTaskVerification(
-      project.id,
-      ['rule-test-suite'],
-      'node --test test/failing.test.cjs'
-    );
-
-    assert.equal(verifyResult.status, 'failed');
-    assert.ok(verifyResult.testsFailed >= 1);
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
-
 test('8. Cancellation before execution: Plan remains discarded without state side-effects', async () => {
   const dir = makeTmpDir('cancel-');
   try {
@@ -209,41 +156,4 @@ test('8. Cancellation before execution: Plan remains discarded without state sid
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test('9. Real E2E Flow on Nexus: Task -> Role -> Context -> Execute -> Verify', async () => {
-  const root = process.cwd();
-  const store = new MockStore();
-  const manager = new ProjectManager(store);
-
-  const { project } = await manager.importProject(root, 'software-engineering', 'nexus');
-
-  const taskPrompt = 'Add a small deterministic helper function to an isolated utility file, write a focused test, and make sure the test passes.';
-
-  // 1. Route & Prepare Plan
-  const plan = await manager.prepareTaskExecutionPlan(project.id, taskPrompt, {
-    roleId: 'sde-engineer'
-  });
-
-  assert.equal(plan.routing.recommendedRole.domainId, 'software-engineering');
-  assert.equal(plan.selectedProvider, 'claude');
-  assert.ok(plan.contextPackage.estimatedTokens <= 32000);
-  assert.ok(plan.assembledPrompt.includes('# ROLE SPECIFICATION: SOFTWARE ENGINEER'));
-
-  // 2. Execute plan targeting the focused versionTag utility test
-  const executionResult = await manager.executeTaskPlan(
-    plan,
-    async () => {
-      // Return the files created / verified for this task
-      return ['src/main/utils/versionTag.ts', 'test/version-tag.test.cjs'];
-    },
-    'node --test test/version-tag.test.cjs'
-  );
-
-  assert.ok(executionResult);
-  assert.equal(executionResult.role.roleId, 'sde-engineer');
-  assert.equal(executionResult.verification.status, 'success');
-  assert.ok(executionResult.verification.testsPassed >= 2);
-  assert.equal(executionResult.verification.testsFailed, 0);
-  assert.ok(executionResult.changedFiles.includes('src/main/utils/versionTag.ts'));
 });
