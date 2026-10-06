@@ -107,6 +107,7 @@ import {
   DEFAULT_OLLAMA_OPENAI_URL
 } from './ollama';
 import { ProjectManager } from './project/projectManager';
+import { appendCrashLog, formatCrash, type CrashKind } from './crashLog';
 import {
   listDomainDefinitions,
   getDomainDefinition,
@@ -126,11 +127,22 @@ const isDev = !!process.env.ELECTRON_RENDERER_URL;
 // NOT take the whole app and every running agent down with it. Log and continue
 // rather than letting the default handler exit the process.
 // (Restored during the #71 merge — the PR's rebase dropped these handlers.)
+// O.9 #20: the same events are also appended to a size-capped file under the
+// app's logs directory (secrets redacted, never throws).
+function logCrashToFile(kind: CrashKind, err: unknown): void {
+  try {
+    let dir: string;
+    try { dir = app.getPath('logs'); } catch { dir = join(app.getPath('userData'), 'logs'); }
+    appendCrashLog(dir, formatCrash(kind, err, new Date()));
+  } catch { /* logging must never crash main */ }
+}
 process.on('uncaughtException', (err) => {
   console.error('[main] uncaughtException (kept alive):', err);
+  logCrashToFile('uncaughtException', err);
 });
 process.on('unhandledRejection', (reason) => {
   console.error('[main] unhandledRejection (kept alive):', reason);
+  logCrashToFile('unhandledRejection', reason);
 });
 
 const ptyManager = new PtyManager();

@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { isSafeCommandName } from './commandName';
 
 // These helpers mirror the resolution logic in pty.ts. They exist separately so
 // headless child processes can launch `claude` with the same PATH the user's
@@ -76,10 +77,12 @@ export function resolveCommand(command: string): string {
   // Already an absolute/relative path (Unix `/` or Windows `\`) — pass through.
   if (command.includes('/') || command.includes('\\')) return command;
   if (process.platform === 'win32') {
-    // `where` is the Windows equivalent of `which`; runs via cmd.exe (shell:true).
+    // `where` is the Windows equivalent of `which`; spawned directly (no shell, O.9 #17), only for a bare program name.
     try {
-      const res = spawnSync('where', [command], { encoding: 'utf8', timeout: 3000, shell: true });
-      const path = (res.stdout ?? '').trim().split(/\r?\n/)[0];
+      const res = isSafeCommandName(command)
+        ? spawnSync('where', [command], { encoding: 'utf8', timeout: 3000, windowsHide: true })
+        : null;
+      const path = (res?.stdout ?? '').trim().split(/\r?\n/)[0];
       if (path && existsSync(path)) return path;
     } catch { /* fall through */ }
     const appData = process.env.APPDATA ?? '';

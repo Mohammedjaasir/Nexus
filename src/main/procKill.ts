@@ -17,7 +17,7 @@
  * daemon the agent intentionally left running (a dev server started via a Bash
  * tool) must survive its parent session.
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 
 /** Grace between the polite signal and the SIGKILL escalation. */
 export const KILL_GRACE_MS = 4_000;
@@ -42,6 +42,26 @@ export function hardKillTree(pid: number): void {
   }
 }
 
+/** Same sweep as hardKillTree, but never blocks the main process: Windows
+ *  taskkill runs as an async child (resolves on exit/error, with a 10 s cap like
+ *  the sync version). POSIX signals are already non-blocking. Never rejects. */
+export function hardKillTreeAsync(pid: number): Promise<void> {
+  if (!Number.isInteger(pid) || pid <= 0) return Promise.resolve();
+  if (process.platform !== 'win32') {
+    hardKillTree(pid);
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => {
+    try {
+      const child = spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+      const cap = setTimeout(() => { try { child.kill(); } catch { /* gone */ } resolve(); }, 10_000);
+      cap.unref?.();
+      child.once('error', () => { clearTimeout(cap); resolve(); });
+      child.once('exit', () => { clearTimeout(cap); resolve(); });
+    } catch { resolve(); }
+  });
+}
+
 /** After a graceful kill (node-pty's SIGHUP), make sure the PIDs actually get
  *  released: wait a short grace, then sweep the process tree. Runs even when
  *  the leader died promptly — the sweep is what reaps grandchildren the polite
@@ -49,6 +69,6 @@ export function hardKillTree(pid: number): void {
  *  alive during quit. */
 export function ensureKilled(pid: number | undefined, graceMs = KILL_GRACE_MS): void {
   if (typeof pid !== 'number' || !Number.isInteger(pid) || pid <= 0) return;
-  const t = setTimeout(() => hardKillTree(pid), graceMs);
+  const t = setTimeout(() => { void hardKillTreeAsync(pid); }, graceMs);
   t.unref?.();
 }

@@ -4,6 +4,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { delimiter, join, win32 } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ensureKilled } from './procKill';
+import { isSafeCommandName } from './commandName';
 import { expandTilde } from './fs';
 import { captureFromLoginShell, userShellPath } from './shellEnv';
 
@@ -124,6 +125,11 @@ export function cmdFallbackUnsafeArg(args: readonly string[]): string | null {
 }
 
 export function buildCmdCommandLine(resolved: string, args: string[]): string {
+  // A line break or NUL ends or corrupts the cmd.exe statement; refuse rather
+  // than silently run a truncated command line (O.9 #17).
+  for (const t of [resolved, ...args]) {
+    if (/[\r\n\0]/.test(t)) throw new Error('Refusing to build a cmd.exe command line containing a line break or NUL');
+  }
   const quoteToken = (s: string): string => {
     // Escape any embedded double-quote, then quote the token if it needs it.
     // Quote on whitespace/quote AND on cmd.exe metacharacters (& | ^ < > ( ) % !):
@@ -422,7 +428,7 @@ export class PtyManager {
     // `found` reflects whether that path actually exists on disk.
     if (command.includes('/') || command.includes('\\')) return { path: command, found: existsSync(command) };
     if (process.platform === 'win32') {
-      // `where` is the Windows equivalent of `which`; runs via cmd.exe (shell:true).
+      // `where` is the Windows equivalent of `which`; spawned directly (no shell, O.9 #17), only for a bare program name.
       // It can return MULTIPLE matches in PATH order; the first is often an
       // EXTENSIONLESS shim (bare `claude`). Skip extensionless hits and take
       // the first PATHEXT-eligible one (.CMD/.BAT/.EXE/…). NOTE: even .CMD/.BAT
@@ -430,8 +436,10 @@ export class PtyManager {
       // spawn() either decodes the shim to its real interpreter or, failing that,
       // routes it through `cmd.exe /c` (see resolveWindowsShimSpawn below).
       try {
-        const res = spawnSync('where', [command], { encoding: 'utf8', timeout: 3000, shell: true });
-        const lines = (res.stdout ?? '').trim().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        const res = isSafeCommandName(command)
+          ? spawnSync('where', [command], { encoding: 'utf8', timeout: 3000, windowsHide: true })
+          : null;
+        const lines = (res?.stdout ?? '').trim().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
         const pathExts = (process.env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD')
           .split(';').map((e) => e.trim().toUpperCase()).filter(Boolean);
         const isExecutable = (p: string): boolean => {

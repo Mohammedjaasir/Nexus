@@ -235,35 +235,24 @@ test('ARRAY args: the whole prompt reaches the child intact', () => {
   assert.ok(line.includes('\n'), 'the newlines ride through as literal characters');
 });
 
-test('cmd.exe: the same prompt is destroyed — which is the bug', () => {
-  const line = buildCmdCommandLine(`${NPM_DIR}\\opencode.cmd`, ['--prompt', HOSTILE_PROMPT]);
+test('cmd.exe: a multi-line prompt is refused instead of silently truncated', () => {
+  // cmd.exe ends a statement at CR/LF regardless of quote state, so the old
+  // builder produced a command line whose protocol block never reached the
+  // agent (the original bug). O.9 #17: building it now throws, which surfaces
+  // as a spawn error instead.
+  assert.ok(HOSTILE_PROMPT.includes('\n'), 'the argument really is multi-line');
+  assert.throws(
+    () => buildCmdCommandLine(`${NPM_DIR}\\opencode.cmd`, ['--prompt', HOSTILE_PROMPT]),
+    /line break or NUL/
+  );
+});
 
-  // cmd.exe ends a statement at CR/LF regardless of quote state, so only the text
-  // before the first newline is ever part of the command that runs.
-  const firstStatement = line.split('\n')[0];
-  assert.ok(line.includes('\n'), 'the argument really is multi-line');
-  assert.ok(
-    !firstStatement.includes('HIVE PROTOCOL'),
-    'the protocol block never reaches the agent — this is why Windows agents could not message each other'
-  );
-  assert.ok(
-    !firstStatement.includes('inbox'),
-    'the agent is never told its inbox exists'
-  );
-  // Second, independent defect: cmd.exe has NO backslash escape. `\"` does not
-  // embed a quote — the `\` is literal and the `"` TOGGLES quote state, so text
-  // meant to be inside the quoted argument is actually parsed bare (where `&`,
-  // `|`, `(`, `)` are live metacharacters). Model cmd's toggling directly: `/s`
-  // strips the outer pair, then every `"` flips state.
-  const inner = firstStatement.slice('/d /s /c "'.length);
-  const atName = inner.indexOf('Michael');
-  assert.ok(atName > 0);
-  const quotesBefore = (inner.slice(0, atName).match(/"/g) || []).length;
-  assert.equal(
-    quotesBefore % 2,
-    0,
-    'the \\" produced here left cmd OUTSIDE quote state — it is not an escape, whatever the old comment claimed'
-  );
+test('cmd.exe: metacharacters stay quoted; CR, LF and NUL are refused (O.9 #17)', () => {
+  const line = buildCmdCommandLine('C:\\x\\a.cmd', ['a&b', 'x|y', '(z)', 'p^q']);
+  for (const tok of ['"a&b"', '"x|y"', '"(z)"', '"p^q"']) assert.ok(line.includes(tok), tok);
+  assert.throws(() => buildCmdCommandLine('C:\\x\\a.cmd', ['a\nb']));
+  assert.throws(() => buildCmdCommandLine('C:\\x\\a.cmd', ['a\rb']));
+  assert.throws(() => buildCmdCommandLine('C:\\x\\a.cmd', ['a\0b']));
 });
 
 test('single-line args still go through cmd.exe unchanged (fallback preserved)', () => {
@@ -318,10 +307,8 @@ test('the hive prompt survives a direct-executable shim, where cmd.exe destroys 
   const line = argsToCommandLine('C:\\x\\opencode-ai\\bin\\opencode.exe', ['--prompt', prompt]);
   assert.ok(line.includes('HIVE PROTOCOL'), 'the protocol block reaches the child intact');
   assert.ok(line.includes('outbox'), 'including everything after the first newline');
-  // What the old fallback did: one pre-escaped string handed to cmd.exe, which
-  // treats the first newline as a statement separator.
-  const viaCmd = buildCmdCommandLine('C:\\x\\opencode.cmd', ['--prompt', prompt]);
-  assert.ok(viaCmd.split(/\r?\n/)[0].length < viaCmd.length, 'cmd.exe form is cut at a newline');
+  // The old cmd.exe fallback cut the prompt at its first newline; it now refuses.
+  assert.throws(() => buildCmdCommandLine('C:\\x\\opencode.cmd', ['--prompt', prompt]));
 });
 
 test('an interpreter-less shim pointing at a NON-executable is still refused', () => {
