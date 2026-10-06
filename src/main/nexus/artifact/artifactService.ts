@@ -6,7 +6,16 @@
  *   never taken from the caller. Only that participation appends versions (the
  *   database enforces it in tr_versions_insert). A withdrawn owner freezes its
  *   artifacts: register, edit, discard and promote refuse with
- *   'participation_inactive'. `repository` (project-owned) is refused until B1.
+ *   'participation_inactive'. The engine's finalize may still close a frozen draft
+ *   as 'failed', but finalizing it to 'candidate' is 'participation_inactive' too.
+ *   `repository` (project-owned) is refused until B1.
+ * - Producers. A producing job or session must exist ('not_found'), be in the
+ *   artifact's project and act for the artifact's OWNER participation ('invalid'
+ *   otherwise), and not be terminal ('conflict'). With a job, every input must be
+ *   granted to it as the same (version, role) in job_inputs, else
+ *   'input_not_granted' with one denied activity row (AuthService.auditDenial, so
+ *   it survives a caller's rollback). A repeated (job, clientKey) returns the stored
+ *   version when the content hash matches and is a 'conflict' when it does not.
  * - Authority. Every operation on an existing artifact or version authorizes with
  *   the workspace of the STORED owner participation (artifacts.owner_workspace_id),
  *   never a workspace named by the caller (see ProjectAccess). Authorization runs
@@ -19,7 +28,9 @@
  * - Promotion is compare-and-set on artifacts.current_version_id, in one IMMEDIATE
  *   transaction: activate the version, move the pointer, deprecate the previous
  *   active version(s). Every kind is single-active until the kind registry exists.
- * - Each mutation writes exactly one activity row in its own transaction.
+ * - Each mutation writes exactly one activity row in its own transaction. Every
+ *   transaction runs through immediateTx, so a lock held past busy_timeout surfaces
+ *   as 'platform_unavailable'.
  */
 import type Database from 'better-sqlite3';
 import type {
@@ -29,10 +40,11 @@ import type {
 import type { AuthService } from '../auth/authService';
 import { appendActivityRow } from '../activity/writer';
 import { newId } from '../db/ids';
+import { immediateTx } from '../db/tx';
 import { PlatformError } from '../errors';
 import { isKnownRelation, writeEdges, type EdgeSpec } from '../lineage/edgeWriter';
 import { ProjectAccess } from '../project/projectAccess';
-import { contentHashOf, INLINE_MAX_BYTES, validateStorage } from './versionRules';
+import { assertExactJson, contentHashOf, INLINE_MAX_BYTES, validateStorage } from './versionRules';
 
 export interface CreateArtifactInput {
   projectId: ProjectId; workspaceId: WorkspaceId; kind: string; name: string; description?: string; metadata?: Record<string, unknown>;
@@ -94,11 +106,10 @@ const toVersion = (r: VersionRow): ArtifactVersion => ({
   statusChangedAt: r.status_changed_at, promotedBy: r.promoted_by, promotedAt: r.promoted_at, clientKey: r.client_key
 });
 
-/** JSON text for a caller-supplied value, bounded like inline storage. */
+/** JSON text for a caller-supplied value: exact JSON only (nothing coerced), bounded like inline storage. */
 function jsonText(v: unknown, what: string): string {
-  let text: string | undefined;
-  try { text = JSON.stringify(v); } catch { text = undefined; }
-  if (text === undefined) throw new PlatformError('invalid', `${what} is not serialisable`);
+  assertExactJson(v, what);
+  const text = JSON.stringify(v);
   if (Buffer.byteLength(text, 'utf8') > INLINE_MAX_BYTES) throw new PlatformError('invalid', `${what} exceeds ${INLINE_MAX_BYTES} bytes`);
   return text;
 }
@@ -133,7 +144,7 @@ export class ArtifactService {
     }
     this.access.require(p, pw.project_id, 'artifact.create', { workspaceId: pw.workspace_id });
     const now = this.deps.now();
-    return this.db.transaction(() => {
+    return immediateTx(this.db, () => {
       const live = this.activeParticipation(i.projectId, i.workspaceId);
       if (!live || live.id !== pw.id) throw new PlatformError('not_participating', 'the participation is no longer active');
       const id = newId(now);
@@ -145,7 +156,7 @@ export class ArtifactService {
         artifactId: id, entityType: 'artifact', entityId: id, action: 'artifact.create', status: 'succeeded',
         details: { kind: i.kind } }, now);
       return toArtifact(this.artifactRow(id)!);
-    }).immediate();
+    });
   }
 
   get(p: Principal, id: ArtifactId): Artifact {
@@ -167,14 +178,14 @@ export class ArtifactService {
   archive(p: Principal, id: ArtifactId): Artifact {
     const stored = this.loadArtifact(p, id, 'artifact.archive');
     const now = this.deps.now();
-    return this.db.transaction(() => {
+    return immediateTx(this.db, () => {
       const a = this.artifactRow(stored.id)!;
       if (a.status === 'archived') return toArtifact(a);
       this.db.prepare("UPDATE artifacts SET status = 'archived', updated_at = ? WHERE id = ?").run(now, a.id);
       appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, projectId: a.project_id, workspaceId: a.owner_workspace_id,
         artifactId: a.id, entityType: 'artifact', entityId: a.id, action: 'artifact.archive', status: 'succeeded', details: {} }, now);
       return toArtifact(this.artifactRow(a.id)!);
-    }).immediate();
+    });
   }
 
   // ---------- versions: reads ----------
@@ -211,22 +222,29 @@ export class ArtifactService {
     const inputs = this.validateInputs(i.inputs);
 
     const a = this.loadArtifact(p, i.artifactId, 'version.register');
+    // Producers first (read-only): an unknown or foreign job/session is refused before any grant check, so it never
+    // produces a denied row. Project and participation are immutable on jobs and sessions, so this check holds.
+    if (jobId !== null) this.checkProducer('job', jobId, a);
+    if (sessionId !== null) this.checkProducer('session', sessionId, a);
     // Inputs are checked before the transaction: versions are never deleted, never change project, never return to
     // draft, and job_inputs are append-only, so a check that passes here still holds when the insert runs.
     this.checkInputs(p, a, inputs, jobId);
     const now = this.deps.now();
-    return this.db.transaction(() => {
+    return immediateTx(this.db, () => {
       if (jobId !== null && clientKey !== null) {
         const prior = this.db.prepare('SELECT * FROM artifact_versions WHERE produced_by_job_id = ? AND client_key = ?')
           .get(jobId, clientKey) as VersionRow | undefined;
         if (prior) {
           if (prior.artifact_id !== a.id) throw new PlatformError('conflict', 'that (job, clientKey) already registered a version of another artifact');
+          if (prior.content_hash !== contentHash) {
+            throw new PlatformError('conflict', 'that (job, clientKey) already registered different content', { versionId: prior.id });
+          }
           return { version: toVersion(prior), created: false };
         }
       }
       const art = this.requireWritableArtifact(a.id);
-      if (jobId !== null) this.requireLiveJob(jobId, art.project_id);
-      if (sessionId !== null) this.requireLiveSession(sessionId, art.project_id);
+      if (jobId !== null) this.requireLiveJob(jobId);
+      if (sessionId !== null) this.requireLiveSession(sessionId);
       const versionNo = (this.db.prepare('SELECT COALESCE(MAX(version_no), 0) + 1 AS n FROM artifact_versions WHERE artifact_id = ?')
         .get(art.id) as { n: number }).n;
       const id = newId(now);
@@ -249,7 +267,7 @@ export class ArtifactService {
         action: 'version.register', status: 'succeeded',
         details: { versionNo, storageKind: storage.kind, inputs: inputs.length, edges: edgeCount } }, now);
       return { version: toVersion(this.versionRow(id)!), created: true };
-    }).immediate();
+    });
   }
 
   updateDraft(p: Principal, versionId: VersionId, patch: { storage?: StorageRef; metadata?: unknown; ioContract?: unknown }): ArtifactVersion {
@@ -265,7 +283,7 @@ export class ArtifactService {
     if (sets.length === 0) throw new PlatformError('invalid', 'nothing to update');
     const { v: stored } = this.loadVersion(p, versionId, 'version.update_draft');
     const now = this.deps.now();
-    return this.db.transaction(() => {
+    return immediateTx(this.db, () => {
       const v = this.versionRow(stored.id)!;
       if (v.status !== 'draft') throw new PlatformError('immutable', 'version content is immutable after draft');
       const art = this.requireWritableArtifact(v.artifact_id);
@@ -274,35 +292,39 @@ export class ArtifactService {
         artifactId: v.artifact_id, versionId: v.id, entityType: 'artifact_version', entityId: v.id, action: 'version.update_draft',
         status: 'succeeded', details: { changed } }, now);
       return toVersion(this.versionRow(v.id)!);
-    }).immediate();
+    });
   }
 
   /**
-   * Engine role (F.7): draft -> candidate | failed. System principals only. Allowed on
-   * a frozen (withdrawn) owner, so the engine can close out a draft it was writing.
+   * Engine role (F.7): draft -> candidate | failed. System principals only. On a
+   * frozen (withdrawn) owner only 'failed' is allowed, so the engine can close out a
+   * draft it was writing; 'candidate' is 'participation_inactive'.
    */
   finalize(system: Principal, versionId: VersionId, to: 'candidate' | 'failed'): ArtifactVersion {
     if (to !== 'candidate' && to !== 'failed') throw new PlatformError('invalid', "finalize moves a draft to 'candidate' or 'failed'");
     const { v: stored } = this.loadVersion(system, versionId, 'version.finalize');
     const now = this.deps.now();
-    return this.db.transaction(() => {
+    return immediateTx(this.db, () => {
       const v = this.versionRow(stored.id)!;
       if (v.status === to) return toVersion(v);
       if (v.status !== 'draft') throw new PlatformError('illegal_transition', `cannot finalize a ${v.status} version`);
+      if (to === 'candidate' && !this.ownerActive(v.artifact_id)) {
+        throw new PlatformError('participation_inactive', 'the owning participation is not active; a frozen draft can only fail');
+      }
       this.db.prepare('UPDATE artifact_versions SET status = ?, status_changed_at = ? WHERE id = ?').run(to, now, v.id);
       appendActivityRow(this.db, { actorKind: system.kind, actorId: system.id, projectId: v.project_id,
         workspaceId: this.ownerWorkspace(v.artifact_id), artifactId: v.artifact_id, versionId: v.id, jobId: v.produced_by_job_id,
         sessionId: v.produced_by_session_id, entityType: 'artifact_version', entityId: v.id, action: 'version.finalize',
         status: 'succeeded', details: { from: 'draft', to } }, now);
       return toVersion(this.versionRow(v.id)!);
-    }).immediate();
+    });
   }
 
   /** draft | candidate -> deprecated. Idempotent on a deprecated version. */
   discard(p: Principal, versionId: VersionId): ArtifactVersion {
     const { v: stored } = this.loadVersion(p, versionId, 'version.discard');
     const now = this.deps.now();
-    return this.db.transaction(() => {
+    return immediateTx(this.db, () => {
       const v = this.versionRow(stored.id)!;
       if (v.status === 'deprecated') return toVersion(v);
       if (v.status !== 'draft' && v.status !== 'candidate') throw new PlatformError('illegal_transition', `cannot discard a ${v.status} version`);
@@ -312,7 +334,7 @@ export class ArtifactService {
         artifactId: v.artifact_id, versionId: v.id, entityType: 'artifact_version', entityId: v.id, action: 'version.discard',
         status: 'succeeded', details: { from: v.status } }, now);
       return toVersion(this.versionRow(v.id)!);
-    }).immediate();
+    });
   }
 
   /**
@@ -324,7 +346,7 @@ export class ArtifactService {
     if (expectedCurrentVersionId !== null && !isStr(expectedCurrentVersionId)) throw new PlatformError('invalid', 'expectedCurrentVersionId must be an id or null');
     const { v: stored } = this.loadVersion(p, versionId, 'version.promote');
     const now = this.deps.now();
-    return this.db.transaction((): PromoteResult => {
+    return immediateTx(this.db, (): PromoteResult => {
       const v = this.versionRow(stored.id)!;
       const art = this.requireWritableArtifact(v.artifact_id);
       const previous = art.current_version_id;
@@ -347,7 +369,7 @@ export class ArtifactService {
         artifactId: art.id, versionId: v.id, entityType: 'artifact_version', entityId: v.id, action: 'version.promote',
         status: 'succeeded', details: { from: v.status, previous, rollback } }, now);
       return { ok: true, version: toVersion(this.versionRow(v.id)!), previous };
-    }).immediate();
+    });
   }
 
   // ---------- helpers ----------
@@ -404,19 +426,43 @@ export class ArtifactService {
     return art;
   }
 
-  private requireLiveJob(jobId: string, projectId: string): void {
-    const j = this.db.prepare(`SELECT j.project_id, s.terminal FROM jobs j JOIN job_states s ON s.state = j.state WHERE j.id = ?`)
-      .get(jobId) as { project_id: string; terminal: number } | undefined;
+  /** True when the artifact's owner participation exists and is active. */
+  private ownerActive(artifactId: string): boolean {
+    return this.db.prepare(`SELECT 1 FROM artifacts a JOIN project_workspaces pw ON pw.id = a.owner_participation_id
+      WHERE a.id = ? AND pw.status = 'active'`).get(artifactId) !== undefined;
+  }
+
+  /**
+   * Read-only, before the transaction: the producing job or session exists
+   * ('not_found'), is in the artifact's project and acts for the artifact's owner
+   * participation ('invalid'). A job without a participation never matches. These
+   * columns are immutable (identity triggers), so the result holds in the transaction.
+   */
+  private checkProducer(kind: 'job' | 'session', id: string, a: ArtifactRow): void {
+    const row = (kind === 'job'
+      ? this.db.prepare('SELECT project_id, participation_id FROM jobs WHERE id = ?').get(id)
+      : this.db.prepare('SELECT project_id, participation_id FROM agent_sessions WHERE id = ?').get(id)
+    ) as { project_id: string; participation_id: string | null } | undefined;
+    if (!row) throw new PlatformError('not_found', `producing ${kind} not found`);
+    if (row.project_id !== a.project_id) throw new PlatformError('invalid', `the producing ${kind} belongs to another project`);
+    if (row.participation_id === null || row.participation_id !== a.owner_participation_id) {
+      throw new PlatformError('invalid', `the producing ${kind} does not act for the artifact's owning participation`);
+    }
+  }
+
+  /** Inside the transaction: the producing job has not finished (its state can move). */
+  private requireLiveJob(jobId: string): void {
+    const j = this.db.prepare('SELECT s.terminal FROM jobs j JOIN job_states s ON s.state = j.state WHERE j.id = ?')
+      .get(jobId) as { terminal: number } | undefined;
     if (!j) throw new PlatformError('not_found', 'producing job not found');
-    if (j.project_id !== projectId) throw new PlatformError('invalid', 'the producing job belongs to another project');
     if (j.terminal === 1) throw new PlatformError('conflict', 'the producing job has finished');
   }
 
-  private requireLiveSession(sessionId: string, projectId: string): void {
-    const s = this.db.prepare(`SELECT a.project_id, st.terminal FROM agent_sessions a JOIN agent_session_states st ON st.state = a.status WHERE a.id = ?`)
-      .get(sessionId) as { project_id: string; terminal: number } | undefined;
+  /** Inside the transaction: the producing session has not ended. */
+  private requireLiveSession(sessionId: string): void {
+    const s = this.db.prepare('SELECT st.terminal FROM agent_sessions a JOIN agent_session_states st ON st.state = a.status WHERE a.id = ?')
+      .get(sessionId) as { terminal: number } | undefined;
     if (!s) throw new PlatformError('not_found', 'producing session not found');
-    if (s.project_id !== projectId) throw new PlatformError('invalid', 'the producing session belongs to another project');
     if (s.terminal === 1) throw new PlatformError('conflict', 'the producing session has ended');
   }
 
@@ -440,9 +486,10 @@ export class ArtifactService {
 
   /**
    * Inputs must exist, be in the artifact's project and be out of draft. With a job,
-   * every input must be one of the job's granted inputs (job_inputs); otherwise the
-   * registration is refused with 'input_not_granted' and one denied activity row.
-   * Runs outside any transaction, so the denied row is written at once.
+   * every input must be granted to the job as the same (version, role) in job_inputs;
+   * otherwise the registration is refused with 'input_not_granted' and one denied
+   * activity row. The row goes through AuthService.auditDenial: written at once, or,
+   * inside a caller's transaction, after it ends, so a rollback cannot lose it.
    */
   private checkInputs(p: Principal, a: ArtifactRow, inputs: VersionInput[], jobId: string | null): void {
     for (const x of inputs) {
@@ -452,14 +499,12 @@ export class ArtifactService {
       if (v.status === 'draft') throw new PlatformError('invalid', 'a draft cannot be an input');
     }
     if (jobId === null || inputs.length === 0) return;
-    const granted = this.db.prepare('SELECT 1 FROM job_inputs WHERE job_id = ? AND version_id = ? LIMIT 1');
-    const missing = inputs.filter((x) => granted.get(jobId, x.versionId) === undefined).length;
+    const granted = this.db.prepare('SELECT 1 FROM job_inputs WHERE job_id = ? AND version_id = ? AND role = ?');
+    const missing = inputs.filter((x) => granted.get(jobId, x.versionId, x.role) === undefined).length;
     if (missing === 0) return;
-    try {
-      appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, jobId, projectId: a.project_id, workspaceId: a.owner_workspace_id,
-        artifactId: a.id, entityType: 'artifact_version', action: 'version.register', status: 'denied',
-        details: { reason: 'input_not_granted', notGranted: missing } }, this.deps.now());
-    } catch { /* the refusal stands either way */ }
-    throw new PlatformError('input_not_granted', 'an input is not among the job inputs');
+    const audited = this.deps.auth.auditDenial({ actorKind: p.kind, actorId: p.id, jobId, projectId: a.project_id,
+      workspaceId: a.owner_workspace_id, artifactId: a.id, entityType: 'artifact_version', action: 'version.register',
+      status: 'denied', details: { reason: 'input_not_granted', notGranted: missing } }, 'input_not_granted');
+    throw new PlatformError('input_not_granted', 'an input is not granted to the job as that version and role', { audited });
   }
 }

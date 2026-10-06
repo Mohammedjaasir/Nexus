@@ -240,3 +240,117 @@ test('artifacts-by-project reads use ix_artifacts_project_kind', () => {
   assert.match(plan, /ix_artifacts_project_kind/);
   s.close();
 });
+
+// ---------- fix round 1 ----------
+function insertJob(db, id, projectId, workspaceId, participationId) {
+  db.prepare(`INSERT INTO jobs (id,kind,project_id,workspace_id,participation_id,idempotency_key,requested_by,on_behalf_of,created_at,updated_at,state_changed_at)
+    VALUES (?,'tool.run',?,?,?,?,'user:local','user:local',1,1,1)`).run(id, projectId, workspaceId, participationId, `key-${id}`);
+}
+function candidates(nx, me, sys, artifactId, n) {
+  return Array.from({ length: n }, (_, i) => {
+    const v = nx.artifacts.registerVersion(me, { artifactId, storage: inline({ c: i }) }).version;
+    return nx.artifacts.finalize(sys, v.id, 'candidate');
+  });
+}
+const deniedRegister = (db) => db.prepare("SELECT COUNT(*) AS n FROM activity WHERE status='denied' AND action='version.register'").get().n;
+const tick = () => new Promise((r) => setTimeout(r, 50));
+
+test('fix 1: an input_not_granted refusal inside a caller transaction that rolls back still leaves one denied row', async () => {
+  const { s, db, nx, me, sys } = setup();
+  insertJob(db, 'j-tx', 'p-ledger', 'sde', nx.workspaces.primaryOf(me, 'p-ledger').id);
+  const src = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'dataset', name: 'src' });
+  const out = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report', name: 'out' });
+  const [ungranted] = candidates(nx, me, sys, src.id, 1);
+  const versionsBefore = h.count(db, 'artifact_versions');
+  assert.throws(() => db.transaction(() => {
+    nx.artifacts.registerVersion(me, { artifactId: out.id, storage: inline({}), producedByJobId: 'j-tx', inputs: [{ versionId: ungranted.id, role: 'source' }] });
+  }).immediate(), (e) => e.code === 'input_not_granted' && e.detail.audited === 'deferred');
+  assert.equal(deniedRegister(db), 0);                    // not written into the transaction that rolled back
+  await tick();
+  assert.equal(deniedRegister(db), 1);
+  assert.equal(h.count(db, 'artifact_versions'), versionsBefore);
+  s.close();
+});
+test('fix 2: a job input grant is per (version, role)', () => {
+  const { s, db, nx, me, sys } = setup();
+  insertJob(db, 'j-role', 'p-ledger', 'sde', nx.workspaces.primaryOf(me, 'p-ledger').id);
+  const src = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'dataset', name: 'src' });
+  const out = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report', name: 'out' });
+  const [v] = candidates(nx, me, sys, src.id, 1);
+  db.prepare("INSERT INTO job_inputs (job_id,version_id,role,content_hash) VALUES ('j-role',?,'context',?)").run(v.id, v.contentHash);
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: out.id, storage: inline({}), producedByJobId: 'j-role',
+    inputs: [{ versionId: v.id, role: 'source' }] }), (e) => e.code === 'input_not_granted');
+  assert.equal(deniedRegister(db), 1);
+  assert.equal(nx.artifacts.registerVersion(me, { artifactId: out.id, storage: inline({}), producedByJobId: 'j-role',
+    inputs: [{ versionId: v.id, role: 'context' }] }).created, true);
+  s.close();
+});
+test('fix 3: an unknown or foreign producer is refused before the grant check, with no denied row', () => {
+  const { s, db, nx, me, sys } = setup();
+  insertJob(db, 'j-other', 'p-invoice', 'dl', nx.workspaces.primaryOf(me, 'p-invoice').id);
+  const src = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'dataset', name: 'src' });
+  const out = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report', name: 'out' });
+  const [v] = candidates(nx, me, sys, src.id, 1);
+  const inputs = [{ versionId: v.id, role: 'source' }];   // not granted to any job
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: out.id, storage: inline({}), producedByJobId: 'j-missing', inputs }), (e) => e.code === 'not_found');
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: out.id, storage: inline({}), producedByJobId: 'j-other', inputs }), (e) => e.code === 'invalid');
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: out.id, storage: inline({}), producedBySessionId: 's-missing' }), (e) => e.code === 'not_found');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM activity WHERE status='denied'").get().n, 0);
+  s.close();
+});
+test('fix 4: the producing job or session must act for the artifact owner participation', () => {
+  const { s, db, nx, me } = setup();
+  const sdePw = nx.workspaces.primaryOf(me, 'p-ledger').id;
+  const qaPw = nx.workspaces.attach(me, 'p-ledger', 'qa').id;
+  const qaArt = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'qa', kind: 'test_plan', name: 'plan' });
+  insertJob(db, 'j-sde', 'p-ledger', 'sde', sdePw);
+  insertJob(db, 'j-none', 'p-ledger', 'sde', null);
+  insertJob(db, 'j-qa', 'p-ledger', 'qa', qaPw);
+  const session = db.prepare(`INSERT INTO agent_sessions (id,project_id,workspace_id,participation_id,principal_id,idempotency_key,created_at,updated_at,status_changed_at)
+    VALUES (?,'p-ledger',?,?,'user:local',?,1,1,1)`);
+  session.run('s-sde', 'sde', sdePw, 'sk-sde'); session.run('s-qa', 'qa', qaPw, 'sk-qa');
+  for (const producedByJobId of ['j-sde', 'j-none']) {
+    assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: qaArt.id, storage: inline({}), producedByJobId }), (e) => e.code === 'invalid', producedByJobId);
+  }
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: qaArt.id, storage: inline({}), producedBySessionId: 's-sde' }), (e) => e.code === 'invalid');
+  const v = nx.artifacts.registerVersion(me, { artifactId: qaArt.id, storage: inline({}), producedByJobId: 'j-qa', producedBySessionId: 's-qa' }).version;
+  assert.deepEqual([v.producedByJobId, v.producedBySessionId], ['j-qa', 's-qa']);
+  s.close();
+});
+test('fix 6: a frozen draft can be finalized only as failed', () => {
+  const { s, nx, me, sys } = setup();
+  nx.workspaces.attach(me, 'p-ledger', 'qa');
+  const qaArt = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'qa', kind: 'test_plan', name: 'plan' });
+  const v = nx.artifacts.registerVersion(me, { artifactId: qaArt.id, storage: inline({}) }).version;
+  nx.workspaces.withdraw(me, qaArt.ownerParticipationId);
+  assert.throws(() => nx.artifacts.finalize(sys, v.id, 'candidate'), (e) => e.code === 'participation_inactive');
+  assert.equal(nx.artifacts.getVersion(me, v.id).status, 'draft');
+  assert.equal(nx.artifacts.finalize(sys, v.id, 'failed').status, 'failed');
+  s.close();
+});
+test('fix 7: a repeated (job, clientKey) with different content is a conflict', () => {
+  const { s, db, nx, me } = setup();
+  insertJob(db, 'j-idem', 'p-ledger', 'sde', nx.workspaces.primaryOf(me, 'p-ledger').id);
+  const a = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report', name: 'r' });
+  const first = nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({ n: 1 }), producedByJobId: 'j-idem', clientKey: 'call-1' });
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({ n: 2 }), producedByJobId: 'j-idem', clientKey: 'call-1' }),
+    (e) => e.code === 'conflict');
+  const again = nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({ n: 1 }), producedByJobId: 'j-idem', clientKey: 'call-1' });
+  assert.deepEqual([again.created, again.version.id], [false, first.version.id]);
+  assert.equal(h.count(db, 'artifact_versions'), 1);
+  s.close();
+});
+test('fix 8: a write lock held past busy_timeout surfaces as platform_unavailable', () => {
+  const { s, db, nx, me, file } = setup();
+  const a = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report', name: 'r' });
+  const other = h.openRaw(file);
+  other.prepare('BEGIN IMMEDIATE').run();
+  db.pragma('busy_timeout = 50');
+  try {
+    assert.throws(() => nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report', name: 'x' }),
+      (e) => e.code === 'platform_unavailable' && /^SQLITE_BUSY/.test(e.detail.sqliteCode));
+    assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({}) }), (e) => e.code === 'platform_unavailable');
+  } finally { other.prepare('ROLLBACK').run(); other.close(); }
+  assert.equal(nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({}) }).created, true);
+  s.close();
+});

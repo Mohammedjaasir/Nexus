@@ -35,6 +35,49 @@ const MAX_GIT_PATH_CHARS = 1024;
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
+/** Deepest nesting accepted in caller JSON (bounds the walk below). */
+export const MAX_JSON_DEPTH = 64;
+
+/**
+ * Throws PlatformError 'invalid' unless `v` survives JSON.stringify -> JSON.parse
+ * EXACTLY: only null, booleans, finite numbers (not -0), strings, arrays without
+ * holes or undefined, and plain objects (prototype Object or null) whose members
+ * are all exact JSON. Functions, symbols, bigint, undefined, NaN/Infinity, class
+ * instances (Date, Map, anything with toJSON), symbol keys and cycles are refused,
+ * never coerced.
+ */
+export function assertExactJson(v: unknown, what = 'value'): void {
+  const stack = new Set<object>();
+  const walk = (x: unknown, depth: number): void => {
+    if (depth > MAX_JSON_DEPTH) throw new PlatformError('invalid', `${what} is nested too deeply`);
+    if (x === null || typeof x === 'string' || typeof x === 'boolean') return;
+    if (typeof x === 'number') {
+      if (!Number.isFinite(x) || Object.is(x, -0)) throw new PlatformError('invalid', `${what} holds a number JSON cannot keep exactly`);
+      return;
+    }
+    if (typeof x !== 'object') throw new PlatformError('invalid', `${what} holds a ${typeof x}, which is not JSON`);
+    if (stack.has(x)) throw new PlatformError('invalid', `${what} is cyclic`);
+    if (Object.getOwnPropertySymbols(x).length > 0) throw new PlatformError('invalid', `${what} has symbol keys`);
+    stack.add(x);
+    if (Array.isArray(x)) {
+      for (let i = 0; i < x.length; i++) {
+        if (!(i in x) || x[i] === undefined) throw new PlatformError('invalid', `${what} has a hole or undefined in an array`);
+        walk(x[i], depth + 1);
+      }
+    } else {
+      const proto = Object.getPrototypeOf(x);
+      if (proto !== Object.prototype && proto !== null) throw new PlatformError('invalid', `${what} holds a non-plain object`);
+      for (const key of Object.keys(x)) {
+        const member = (x as Record<string, unknown>)[key];
+        if (member === undefined) throw new PlatformError('invalid', `${what} has an undefined member`);
+        walk(member, depth + 1);
+      }
+    }
+    stack.delete(x);
+  };
+  walk(v, 0);
+}
+
 /**
  * Returns a normalised copy of a B0b storage reference.
  * Throws PlatformError 'invalid' for a malformed reference or an unknown kind, and
@@ -48,8 +91,8 @@ export function validateStorage(s: unknown): StorageRef {
   }
   if (s.kind === 'inline') {
     if (!('json' in s) || s.json === undefined) throw new PlatformError('invalid', 'inline storage needs json');
-    let text: string;
-    try { text = canonicalJson(s.json); } catch { throw new PlatformError('invalid', 'inline json is not serialisable'); }
+    assertExactJson(s.json, 'inline json');
+    const text = canonicalJson(s.json);
     if (Buffer.byteLength(text, 'utf8') > INLINE_MAX_BYTES) {
       throw new PlatformError('invalid', `inline json exceeds ${INLINE_MAX_BYTES} bytes`);
     }

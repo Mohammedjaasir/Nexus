@@ -112,18 +112,27 @@ export class AuthService {
       actorId: forged ? stored.id : cap(p?.id) ?? String(p?.id ?? '').slice(0, MAX_AUDIT_ID_CHARS),
       action: String(action).slice(0, MAX_AUDIT_ID_CHARS), status: 'denied', details
     };
-    let audited: boolean | 'deferred';
+    const audited = this.auditDenial(row, d.reason);
+    throw new PlatformError('denied', `${String(action)} denied: ${d.reason}`, { reason: d.reason, needed: d.needed, audited });
+  }
+
+  /**
+   * Records one denied activity row for a refusal decided outside authorize() (for
+   * example a job input that was not granted). Same rule as require(): written now
+   * in its own IMMEDIATE transaction, or, when a transaction is open, queued and
+   * written once it has ended, so a rollback cannot lose it. Never throws.
+   * `row.status` is forced to 'denied'.
+   */
+  auditDenial(row: NewActivity, reason?: string): boolean | 'deferred' {
+    const denied: NewActivity = { ...row, status: 'denied' };
     if (this.db.inTransaction) {
       // Writing now would put the row in the caller's transaction, which may roll back. Write it after.
-      audited = 'deferred';
-      this.log(`[nexus] denial audit deferred until the open transaction ends: ${row.action} (${d.reason})`);
+      this.log(`[nexus] denial audit deferred until the open transaction ends: ${denied.action}${reason ? ` (${reason})` : ''}`);
       const ts = this.deps.now();
-      queueMicrotask(() => this.writeDeferred(row, ts, 1));
-    } else {
-      audited = true;
-      try { appendActivityRow(this.db, row, this.deps.now()); } catch { audited = false; }   // the denial stands either way
+      queueMicrotask(() => this.writeDeferred(denied, ts, 1));
+      return 'deferred';
     }
-    throw new PlatformError('denied', `${String(action)} denied: ${d.reason}`, { reason: d.reason, needed: d.needed, audited });
+    try { appendActivityRow(this.db, denied, this.deps.now()); return true; } catch { return false; }   // the denial stands either way
   }
 
   private writeDeferred(row: NewActivity, ts: number, attempt: number): void {
