@@ -13,7 +13,10 @@
  *
  * Order: authorization first, then existence. A principal without access gets
  * 'denied' whether or not the project exists, so a denial reveals nothing; an
- * authorized principal gets 'not_found' for a missing project.
+ * authorized principal gets 'not_found' for a missing project. Services that look
+ * up a child record by id (a participation, later an artifact, job or session)
+ * follow the same rule: an unknown id is 'not_found' only for a principal that is
+ * authorized for the action at PLATFORM scope; anyone else gets 'denied'.
  *
  * require() calls AuthService.require, which audits a denial. Call it BEFORE
  * opening a transaction (a denial raised inside one is audited after it ends).

@@ -40,6 +40,8 @@ import { syncPrimaryFromLegacyDomain } from './nexus/workspace/legacyPrimary';
 import { backupAndVerify, BackupError, freeBytes, integrityOk, tableRowCounts, type BackupRecord } from './nexus/db/backup';
 
 export const V7 = 7;
+/** Platform tables that reference projects ON DELETE RESTRICT (fixed names, safe to interpolate). */
+const PLATFORM_RECORD_TABLES: readonly string[] = ['artifacts', 'jobs', 'agent_sessions'];
 /** Migrations before the platform core; they run exactly as they always have. */
 const LEGACY_VERSION = 6;
 
@@ -619,8 +621,26 @@ export class PersistStore {
     ); };
     if (!this.platformAvailable) { upsert(); return; }
     // v7: the upsert and the primary participation change in one IMMEDIATE transaction.
-    const run = (): void => { upsert(); this.syncPrimaryCaught(db, project.id, project.domainId ?? null); };
-    if (db.inTransaction) run(); else db.transaction(run).immediate();
+    const callerTx = db.inTransaction;
+    let aborted = false;
+    const run = (): void => {
+      upsert();
+      if (this.syncPrimaryCaught(db, project.id, project.domainId ?? null) === 'aborted') {
+        aborted = true;
+        throw new Error('primary sync aborted the transaction');
+      }
+    };
+    try {
+      if (callerTx) run(); else db.transaction(run).immediate();
+    } catch (err) {
+      if (!aborted) throw err;
+      // The whole transaction (with the upsert) is gone. Inside a caller's transaction
+      // there is nothing safe to redo: the caller's work was rolled back too, so the
+      // error goes up the legacy path. Otherwise save once more, without the platform.
+      if (callerTx) throw err;
+      this.nexusLogLine('[nexus] primary sync aborted the transaction; saved without sync');
+      upsert();
+    }
   }
 
   /**
@@ -629,11 +649,14 @@ export class PersistStore {
    * logged, the project row still commits, and nothing is queued for retry. The
    * platform's startup reconcile repairs the primary later.
    */
-  private syncPrimaryCaught(db: Database.Database, projectId: string, domainId: string | null): void {
+  private syncPrimaryCaught(db: Database.Database, projectId: string, domainId: string | null): 'ok' | 'failed' | 'aborted' {
     try {
-      db.transaction(() => syncPrimaryFromLegacyDomain(db, projectId, domainId, this.nexusNow()))();
+      db.transaction(() => syncPrimaryFromLegacyDomain(db, projectId, domainId, this.nexusNow(), (l) => this.nexusLogLine(l)))();
+      return 'ok';
     } catch (err) {
       this.nexusLogLine(`[nexus] primary sync failed project=${this.nexusScrub(String(projectId))} error=${this.nexusScrub(errorMessage(err))}`);
+      // RAISE(ROLLBACK) and some FULL/IOERR/NOMEM errors end the whole transaction, not just the savepoint.
+      return db.inTransaction ? 'failed' : 'aborted';
     }
   }
 
@@ -649,10 +672,13 @@ export class PersistStore {
   hasPlatformRecords(projectId: string): boolean {
     if (!this.db || this.version !== V7 || !projectId) return false;
     try {
-      return this.db.prepare(`SELECT EXISTS (SELECT 1 FROM artifacts WHERE project_id = ?)
-          OR EXISTS (SELECT 1 FROM jobs WHERE project_id = ?)
-          OR EXISTS (SELECT 1 FROM agent_sessions WHERE project_id = ?) AS has`)
-        .pluck().get(projectId, projectId, projectId) === 1;
+      // A missing table holds no records; the query covers only the tables that exist.
+      const present = (this.db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'
+          AND name IN ('artifacts', 'jobs', 'agent_sessions')`).pluck().all() as string[])
+        .filter((t) => PLATFORM_RECORD_TABLES.includes(t));
+      if (present.length === 0) return false;
+      const sql = `SELECT ${present.map((t) => `EXISTS (SELECT 1 FROM ${t} WHERE project_id = ?)`).join(' OR ')} AS has`;
+      return this.db.prepare(sql).pluck().get(...present.map(() => projectId)) === 1;
     } catch (err) {
       this.nexusLogLine(`[nexus] platform record check failed project=${this.nexusScrub(projectId)} error=${this.nexusScrub(errorMessage(err))}; treating as present`);
       return true;
@@ -715,6 +741,13 @@ export class PersistStore {
     const outcome = this.queue.submit(`deleteProject:${id}`, () => {
       const db = this.db;
       if (!db) throw new Error('database is not open');
+      // A queued delete runs later: platform records may have appeared since. Refuse
+      // without throwing, so the queue does not retry it forever.
+      if (this.hasPlatformRecords(id)) {
+        this.nexusLogLine(`[nexus] queued deleteProject refused project=${this.nexusScrub(id)}: it has platform records`);
+        removed = false;
+        return;
+      }
       // One transaction: the row and the active-project pointer change together or not at all.
       db.transaction(() => {
         const res = db.prepare('DELETE FROM projects WHERE id = ?').run(id);

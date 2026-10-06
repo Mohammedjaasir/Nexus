@@ -129,8 +129,12 @@ export class WorkspaceService {
 
   /** Marks a non-primary participation withdrawn (the row is kept). Refuses the primary ('invalid'). */
   withdraw(p: Principal, participationId: ParticipationId): ProjectWorkspace {
-    const stored = typeof participationId === 'string' ? this.rowById(participationId) : null;
-    if (!stored) throw new PlatformError('not_found', 'participation not found');
+    const stored = typeof participationId === 'string' && participationId.length > 0 ? this.rowById(participationId) : null;
+    if (!stored) {
+      // No existence oracle: only a principal allowed to withdraw platform-wide learns that the id is unknown.
+      this.deps.auth.require(p, 'participation.withdraw', PLATFORM);
+      throw new PlatformError('not_found', 'participation not found');
+    }
     // The stored row names the workspace; the caller never does.
     this.access.require(p, stored.project_id, 'participation.withdraw', { workspaceId: stored.workspace_id });
     const now = this.deps.now();
@@ -161,7 +165,7 @@ export class WorkspaceService {
       const projects = this.db.prepare('SELECT id, domain_id FROM projects ORDER BY rowid').all() as { id: string; domain_id: string | null }[];
       for (const pr of projects) {
         try {
-          const r = this.db.transaction(() => syncPrimaryFromLegacyDomain(this.db, pr.id, pr.domain_id, now))();
+          const r = this.db.transaction(() => syncPrimaryFromLegacyDomain(this.db, pr.id, pr.domain_id, now, this.deps.log))();
           if (r === 'set') out.set++; else if (r === 'cleared') out.cleared++;
         } catch (e) {
           this.deps.log?.(`[nexus] reconcile primary failed project=${String(pr.id).slice(0, 128)} error=${(e as { code?: string })?.code ?? 'error'}`);

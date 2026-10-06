@@ -147,3 +147,117 @@ test('reconcile and the catalogue are system-only; the catalogue is idempotent; 
   assert.deepEqual(nx.workspaces.reconcileLegacyPrimaries(sys), { set: 0, cleared: 0 });
   s.close();
 });
+
+// Fix round 1
+test('a sync that aborts the whole transaction still saves the project once, unqueued; reconcile repairs it', () => {
+  const { s, db, nx, me, sys, logs } = setup();
+  db.exec("CREATE TEMP TRIGGER t_rb BEFORE INSERT ON main.project_workspaces BEGIN SELECT RAISE(ROLLBACK, 'forced'); END");
+  const base = s.getProject('p-ledger');
+  s.saveProject({ ...base, id: 'p-rb', domainId: 'ai-ml' });
+  assert.equal(db.inTransaction, false);
+  assert.equal(s.getProject('p-rb').domainId, 'ai-ml');
+  assert.equal(s.pendingWrites, 0);
+  assert.ok(logs.some((l) => /\[nexus\] primary sync aborted the transaction; saved without sync/.test(l)));
+  assert.equal(nx.workspaces.primaryOf(me, 'p-rb'), null);
+  db.exec('DROP TRIGGER temp.t_rb');
+  assert.deepEqual(nx.workspaces.reconcileLegacyPrimaries(sys), { set: 1, cleared: 0 });
+  assert.equal(nx.workspaces.primaryOf(me, 'p-rb').workspaceId, 'ml');
+  s.close();
+});
+test('the sync never changes a complete participation; the project is left without a primary', () => {
+  const { s, db, nx, me, sys, logs } = setup();
+  const ml = nx.workspaces.attach(me, 'p-ledger', 'ml');
+  db.prepare("UPDATE project_workspaces SET status='complete', completion_json='{\"ok\":true}', completion_hash='h1', completion_at=5 WHERE id=?").run(ml.id);
+  const before = db.prepare('SELECT * FROM project_workspaces WHERE id=?').get(ml.id);
+  s.updateProject('p-ledger', { domainId: 'ai-ml' });
+  assert.deepEqual(db.prepare('SELECT * FROM project_workspaces WHERE id=?').get(ml.id), before);
+  assert.equal(nx.workspaces.primaryOf(me, 'p-ledger'), null);                       // sde was cleared, ml stays complete
+  assert.ok(logs.some((l) => /participation is complete; left without a primary/.test(l)));
+  const { syncPrimaryFromLegacyDomain } = loadTs('src/main/nexus/workspace/legacyPrimary.ts');
+  assert.equal(db.transaction(() => syncPrimaryFromLegacyDomain(db, 'p-ledger', 'ai-ml', h.NOW))(), 'complete_target');
+  assert.deepEqual(nx.workspaces.reconcileLegacyPrimaries(sys), { set: 0, cleared: 0 });
+  assert.deepEqual(db.prepare('SELECT * FROM project_workspaces WHERE id=?').get(ml.id), before);
+  s.close();
+});
+test('a queued delete re-checks platform records when it runs, and refuses without a retry loop', () => {
+  const { s, db } = setup();
+  s.pauseWrites();
+  s.deleteProject('p-ledger');                                                        // queued: no records yet
+  assert.equal(s.pendingWrites, 1);
+  const pw = db.prepare("SELECT id FROM project_workspaces WHERE project_id='p-ledger'").get().id;
+  db.prepare(`INSERT INTO artifacts (id,project_id,kind,name,owner_participation_id,owner_workspace_id,created_by,created_at,updated_at)
+    VALUES ('a-q','p-ledger','report','notes',?,'sde','user:local',?,?)`).run(pw, h.NOW, h.NOW);
+  s.resumeWrites();
+  assert.ok(s.getProject('p-ledger'));
+  assert.equal(s.pendingWrites, 0);
+  s.close();
+});
+test('a missing platform table counts as no records; any other error fails closed', () => {
+  const { s, db } = setup();
+  db.exec('DROP TABLE agent_sessions');
+  assert.equal(s.hasPlatformRecords('p-sales'), false);
+  assert.equal(s.deleteProject('p-sales'), true);
+  const prepare = db.prepare;
+  db.prepare = function (sql) { if (/FROM artifacts WHERE project_id/.test(sql)) throw new Error('disk I/O error'); return prepare.call(this, sql); };
+  try {
+    assert.equal(s.hasPlatformRecords('p-invoice'), true);
+    assert.equal(s.deleteProject('p-invoice'), false);
+  } finally { db.prepare = prepare; }
+  assert.ok(s.getProject('p-invoice'));
+  s.close();
+});
+test('withdraw does not reveal whether a participation id exists', () => {
+  const { s, db, nx, me } = setup();
+  db.prepare("INSERT INTO principals VALUES ('user:guest','user','guest',NULL,?)").run(h.NOW);
+  db.prepare("INSERT INTO memberships VALUES ('user:guest','project','p-ledger','member',?)").run(h.NOW);
+  const guest = nx.principals.get('user:guest');
+  const other = nx.workspaces.attach(me, 'p-invoice', 'qa');
+  assert.throws(() => nx.workspaces.withdraw(guest, 'missing'), (e) => e.code === 'denied');
+  assert.throws(() => nx.workspaces.withdraw(guest, other.id), (e) => e.code === 'denied');
+  assert.throws(() => nx.workspaces.withdraw(me, 'missing'), (e) => e.code === 'not_found');
+  const mine = nx.workspaces.attach(me, 'p-ledger', 'qa');
+  assert.equal(nx.workspaces.withdraw(guest, mine.id).status, 'withdrawn');
+  s.close();
+});
+test('a failed activity write rolls back the participation change; the project save commits', () => {
+  const { s, db, nx, me, logs } = setup();
+  db.exec("CREATE TEMP TRIGGER t_act BEFORE INSERT ON main.activity BEGIN SELECT RAISE(ABORT, 'forced'); END");
+  s.updateProject('p-ledger', { domainId: 'ai-ml' });
+  db.exec('DROP TRIGGER temp.t_act');
+  assert.equal(s.getProject('p-ledger').domainId, 'ai-ml');
+  assert.equal(s.pendingWrites, 0);
+  assert.equal(nx.workspaces.primaryOf(me, 'p-ledger').workspaceId, 'sde');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM project_workspaces WHERE project_id='p-ledger' AND workspace_id='ml'").get().n, 0);
+  assert.ok(logs.some((l) => /primary sync failed project=p-ledger/.test(l)));
+  s.close();
+});
+test('on a held v6 database, save and delete behave exactly as before', () => {
+  const { file } = h.v6Fixture(); const logs = []; const s = new PersistStore(file);
+  s.open({ log: (l) => logs.push(l), backupDir: path.join(path.dirname(file), 'b'), now: () => h.NOW, holdV7: true });
+  assert.equal(s.schemaVersion, 6); assert.equal(s.platformAvailable, false); assert.equal(s.platformDatabase(), null);
+  const base = s.getProject('p-ledger');
+  s.saveProject({ ...base, id: 'p-v6', domainId: 'ai-ml' });
+  assert.equal(s.getProject('p-v6').domainId, 'ai-ml');
+  assert.equal(s.hasPlatformRecords('p-v6'), false);
+  assert.equal(s.deleteProject('p-v6'), true);
+  assert.equal(s.getProject('p-v6'), null);
+  assert.equal(s.pendingWrites, 0);
+  assert.ok(!logs.some((l) => /\[nexus\]/.test(l)));
+  s.close();
+});
+test('saveProject inside an open caller transaction survives a forced sync failure', () => {
+  const { s, db, nx, me, logs } = setup();
+  db.exec("CREATE TEMP TRIGGER t_fail2 BEFORE INSERT ON main.project_workspaces BEGIN SELECT RAISE(ABORT, 'forced'); END");
+  const base = s.getProject('p-ledger');
+  db.transaction(() => {
+    s.saveProject({ ...base, id: 'p-tx', domainId: 'ai-ml' });
+    db.prepare("INSERT INTO kv (key,value,updated_at) VALUES ('tx.marker','1',1)").run();
+  }).immediate();
+  db.exec('DROP TRIGGER temp.t_fail2');
+  assert.equal(s.getProject('p-tx').domainId, 'ai-ml');
+  assert.equal(s.getKv('tx.marker'), 1);
+  assert.equal(s.pendingWrites, 0);
+  assert.equal(nx.workspaces.primaryOf(me, 'p-tx'), null);
+  assert.ok(logs.some((l) => /primary sync failed project=p-tx/.test(l)));
+  s.close();
+});
