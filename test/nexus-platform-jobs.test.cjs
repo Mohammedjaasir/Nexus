@@ -159,14 +159,22 @@ test('a re-sent key naming different work is a conflict; inputs copy the content
   assert.deepEqual(j.inputs, [{ versionId: v.id, role: 'source', contentHash: v.contentHash }]);
   s.close();
 });
-test('params are exact JSON, stored redacted; the activity row carries no params', () => {
+test('params are exact JSON and stored exactly; secret-shaped params are refused; the activity row carries no params', () => {
   const { s, db, nx, me } = setup();
   assert.throws(() => job(nx, me, { params: { n: NaN } }), (e) => e.code === 'invalid');
   assert.throws(() => job(nx, me, { params: [1] }), (e) => e.code === 'invalid');
-  const j = job(nx, me, { params: { apiKey: 'sk-ant-abcdefghijklmnopqrstuv', path: 'src/a.ts' } });
-  assert.deepEqual(j.params, { apiKey: '[redacted]', path: 'src/a.ts' });
-  assert.doesNotMatch(db.prepare('SELECT params_json FROM jobs WHERE id=?').get(j.id).params_json, /sk-ant/);
-  assert.doesNotMatch(JSON.stringify(nx.activity.list(me, { jobId: j.id })), /src\/a\.ts|sk-ant/);
+  const n = h.count(db, 'jobs');
+  for (const params of [{ apiKey: 'x' }, { nested: { deep: { deeper: { deepest: { v: 'sk-ant-abcdefghijklmnopqrstuv' } } } } },
+    { url: 'https://user:pw@example.com/x' }, { tokenizer: 'bpe' }, { list: Array.from({ length: 80 }, (_, i) => (i === 79 ? 'Bearer abcdefghijklmnopqrstuvwxyz0123' : 'ok')) }]) {
+    assert.throws(() => job(nx, me, { params }), (e) => e.code === 'invalid' && e.detail.reason === 'secret_in_params', JSON.stringify(params).slice(0, 60));
+  }
+  assert.equal(h.count(db, 'jobs'), n);
+  const long = 'x'.repeat(2000);
+  const exact = { path: 'src/a.ts', long, deep: { a: { b: { c: { d: { e: 1 } } } } }, many: Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`k${i}`, i])), tokensUsed: 5 };
+  const j = job(nx, me, { params: exact });
+  assert.deepEqual(j.params, exact);
+  assert.deepEqual(JSON.parse(db.prepare('SELECT params_json FROM jobs WHERE id=?').get(j.id).params_json), exact);
+  assert.doesNotMatch(JSON.stringify(nx.activity.list(me, { jobId: j.id })), /src\/a\.ts/);
   s.close();
 });
 test('session cancel: children before parents, one row per change, all with the session id; a stranger is denied', () => {
@@ -197,5 +205,217 @@ test('recovery and transition are system-only; startup runs both recoveries', ()
   nx.startup();
   assert.equal(nx.jobs.get(me, j.id).state, 'interrupted');
   assert.equal(nx.sessions.get(me, x.id).status, 'interrupted');
+  s.close();
+});
+
+// ---------- fix round 1 ----------
+function addUser(db, id, scopeType, scopeId, role = 'member') {
+  db.prepare('INSERT INTO principals VALUES (?,?,?,NULL,?)').run(id, 'user', id, h.NOW);
+  db.prepare('INSERT INTO memberships VALUES (?,?,?,?,?)').run(id, scopeType, scopeId, role, h.NOW);
+  return { id, kind: 'user', displayName: id };
+}
+const denied = (db) => db.prepare("SELECT COUNT(*) AS n FROM activity WHERE status='denied'").get().n;
+function sdeCandidate(nx, me, sys) {
+  const a = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report', name: `sde-${Math.random()}` });
+  const v = nx.artifacts.registerVersion(me, { artifactId: a.id, storage: { kind: 'inline', json: { a: a.id } } }).version;
+  return nx.artifacts.finalize(sys, v.id, 'candidate');
+}
+
+test('fix 1: a qa-only member cannot consume an sde version: job input, session context and version input are denied (one row each)', () => {
+  const { s, db, nx, me, sys } = setup();
+  nx.workspaces.attach(me, 'p-ledger', 'qa');
+  const qa = addUser(db, 'user:qa', 'workspace', 'qa');
+  const sdeV = sdeCandidate(nx, me, sys);
+  const jobs = h.count(db, 'jobs');
+  let d = denied(db);
+  assert.throws(() => nx.jobs.create(qa, { kind: 'tool.run', projectId: 'p-ledger', workspaceId: 'qa', idempotencyKey: key(),
+    inputs: [{ versionId: sdeV.id, role: 'source' }] }), (e) => e.code === 'denied');
+  assert.equal(denied(db), d + 1); assert.equal(h.count(db, 'jobs'), jobs);
+  d = denied(db);
+  assert.throws(() => nx.sessions.open(qa, { projectId: 'p-ledger', workspaceId: 'qa', idempotencyKey: key(), contextVersionId: sdeV.id }),
+    (e) => e.code === 'denied');
+  assert.equal(denied(db), d + 1); assert.equal(h.count(db, 'agent_sessions'), 0);
+  const qaArt = nx.artifacts.create(qa, { projectId: 'p-ledger', workspaceId: 'qa', kind: 'report', name: 'qa-out' });
+  d = denied(db);
+  assert.throws(() => nx.artifacts.registerVersion(qa, { artifactId: qaArt.id, storage: { kind: 'inline', json: {} },
+    inputs: [{ versionId: sdeV.id, role: 'source' }] }), (e) => e.code === 'denied');
+  assert.equal(denied(db), d + 1);
+  // The same member may use a qa version it can read.
+  const qv = nx.artifacts.registerVersion(qa, { artifactId: qaArt.id, storage: { kind: 'inline', json: { q: 1 } } }).version;
+  nx.artifacts.finalize(sys, qv.id, 'candidate');
+  assert.equal(nx.jobs.create(qa, { kind: 'tool.run', projectId: 'p-ledger', workspaceId: 'qa', idempotencyKey: key(),
+    inputs: [{ versionId: qv.id, role: 'source' }] }).job.inputs.length, 1);
+  assert.equal(nx.sessions.open(qa, { projectId: 'p-ledger', workspaceId: 'qa', idempotencyKey: key(), contextVersionId: qv.id }).session.contextVersionId, qv.id);
+  s.close();
+});
+test('fix 2: a secret-shaped runtime ref is refused on job create, session open and both transitions', () => {
+  const { s, nx, me, sys } = setup();
+  const secret = 'sk-ant-abcdefghijklmnopqrstuv';
+  const isSecretRef = (e) => e.code === 'invalid' && e.detail?.reason === 'secret_in_ref';
+  assert.throws(() => job(nx, me, { runtime: { kind: 'claude-cli', ref: secret } }), isSecretRef);
+  assert.throws(() => nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key(), runtime: { kind: 'claude-cli', ref: secret } }), isSecretRef);
+  const j = job(nx, me);
+  assert.throws(() => nx.jobs.transition(sys, j.id, 'leased', { runtimeRef: secret }), isSecretRef);
+  assert.equal(nx.jobs.get(me, j.id).state, 'queued');
+  const x = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key(), runtime: { kind: 'claude-cli', ref: 'run-42' } }).session;
+  assert.equal(x.runtimeRef, 'run-42');
+  assert.throws(() => nx.sessions.transition(sys, x.id, 'running', { runtimeRef: secret }), isSecretRef);
+  assert.equal(nx.sessions.transition(sys, x.id, 'running', { runtimeRef: 'run-43' }).runtimeRef, 'run-43');
+  s.close();
+});
+test('fix 3: no resurrection: a retry after the session ended or the participation was withdrawn is refused', () => {
+  const { s, nx, me, sys } = setup();
+  const x = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key() }).session;
+  const inSession = job(nx, me, { sessionId: x.id }); drive(nx, sys, inSession.id, PATH_TO.failed);
+  nx.sessions.cancel(me, x.id);
+  assert.equal(nx.jobs.get(me, inSession.id).state, 'failed');                    // terminal jobs are left alone by cancel
+  assert.throws(() => nx.jobs.transition(sys, inSession.id, 'retry_scheduled'),
+    (e) => e.code === 'illegal_transition' && e.detail.reason === 'session_ended');
+  const qa = nx.workspaces.attach(me, 'p-ledger', 'qa');
+  const inQa = job(nx, me, { workspaceId: 'qa' }); drive(nx, sys, inQa.id, PATH_TO.failed);
+  assert.equal(nx.workspaces.withdraw(me, qa.id).status, 'withdrawn');             // the failed job is terminal
+  assert.throws(() => nx.jobs.transition(sys, inQa.id, 'retry_scheduled'),
+    (e) => e.code === 'illegal_transition' && e.detail.reason === 'participation_inactive');
+  s.close();
+});
+test('fix 3: startup interrupts a leased agent.run job whose session recovery interrupted, instead of requeueing it', () => {
+  const { s, nx, me, sys, file } = setup();
+  const x = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key() }).session;
+  nx.sessions.transition(sys, x.id, 'running');
+  const run = job(nx, me, { kind: 'agent.run', sessionId: x.id, retry: undefined }); drive(nx, sys, run.id, PATH_TO.leased);
+  const plain = job(nx, me); drive(nx, sys, plain.id, PATH_TO.leased);
+  s.close();
+  const again = setup(file);
+  assert.deepEqual(again.nx.sessions.recoverAfterRestart(again.sys), { interrupted: 1 });
+  assert.deepEqual(again.nx.jobs.recoverAfterRestart(again.sys), { interrupted: 1, requeued: 1 });
+  assert.equal(again.nx.jobs.get(again.me, run.id).state, 'interrupted');
+  assert.equal(again.nx.jobs.get(again.me, plain.id).state, 'queued');
+  assert.deepEqual(again.nx.jobs.recoverAfterRestart(again.sys), { interrupted: 0, requeued: 0 });
+  again.s.close();
+});
+test('fix 4: a parent job shares the participation and the session of its children', () => {
+  const { s, nx, me } = setup();
+  const x = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key() }).session;
+  const y = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key() }).session;
+  const noSession = job(nx, me);
+  const inX = job(nx, me, { sessionId: x.id });
+  assert.throws(() => job(nx, me, { sessionId: x.id, parentJobId: noSession.id }), (e) => e.code === 'invalid');
+  assert.throws(() => job(nx, me, { parentJobId: inX.id }), (e) => e.code === 'invalid');
+  assert.throws(() => job(nx, me, { sessionId: y.id, parentJobId: inX.id }), (e) => e.code === 'invalid');
+  nx.workspaces.attach(me, 'p-ledger', 'qa');
+  assert.throws(() => job(nx, me, { workspaceId: 'qa', parentJobId: noSession.id }), (e) => e.code === 'invalid');
+  assert.equal(job(nx, me, { sessionId: x.id, parentJobId: inX.id }).parentJobId, inX.id);
+  assert.equal(job(nx, me, { parentJobId: noSession.id }).parentJobId, noSession.id);
+  s.close();
+});
+test('fix 5: only the session principal (or the system) adds jobs to a session; the refusal is one denied row', () => {
+  const { s, db, nx, me, sys } = setup();
+  const other = addUser(db, 'user:other', 'platform', '*');
+  const x = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key() }).session;
+  const d = denied(db); const n = h.count(db, 'jobs');
+  assert.throws(() => nx.jobs.create(other, { kind: 'agent.run', projectId: 'p-ledger', workspaceId: 'sde', sessionId: x.id, idempotencyKey: key() }),
+    (e) => e.code === 'denied' && e.detail.reason === 'not_session_principal');
+  assert.equal(denied(db), d + 1); assert.equal(h.count(db, 'jobs'), n);
+  assert.equal(db.prepare("SELECT session_id FROM activity WHERE status='denied' ORDER BY seq DESC LIMIT 1").get().session_id, x.id);
+  assert.equal(nx.jobs.create(sys, { kind: 'agent.run', projectId: 'p-ledger', workspaceId: 'sde', sessionId: x.id, idempotencyKey: key() }).job.requestedBy, 'system');
+  s.close();
+});
+test('fix 6: a re-sent job or session key must match every supplied field', () => {
+  const { s, nx, me, sys } = setup();
+  const v = sdeCandidate(nx, me, sys); const w = sdeCandidate(nx, me, sys);
+  const base = { kind: 'tool.run', projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: 'same-job', priority: 2, recipeId: 'lint',
+    params: { a: 1 }, inputs: [{ versionId: v.id, role: 'source' }], retry: RETRY, runtime: { kind: 'claude-cli', ref: 'r1' } };
+  const first = nx.jobs.create(me, base).job;
+  assert.equal(nx.jobs.create(me, base).job.id, first.id);
+  assert.equal(nx.jobs.create(me, { kind: 'tool.run', projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: 'same-job' }).created, false);
+  for (const change of [{ priority: 0 }, { recipeId: 'build' }, { validatorId: 'schema' }, { params: { a: 2 } }, { inputs: [{ versionId: w.id, role: 'source' }] },
+    { inputs: [] }, { retry: { ...RETRY, maxAttempts: 2 } }, { runtime: { kind: 'other-cli' } }, { runtime: { kind: 'claude-cli', ref: 'r2' } }]) {
+    assert.throws(() => nx.jobs.create(me, { ...base, ...change }), (e) => e.code === 'conflict', JSON.stringify(change));
+  }
+  const ctx = sdeCandidate(nx, me, sys);
+  const o = { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: 'same-session', contextVersionId: ctx.id, runtime: { kind: 'claude-cli', ref: 'r1' } };
+  const sess = nx.sessions.open(me, o).session;
+  assert.equal(nx.sessions.open(me, o).session.id, sess.id);
+  for (const change of [{ contextVersionId: v.id }, { runtime: { kind: 'other-cli' } }, { runtime: { kind: 'claude-cli', ref: 'r2' } }]) {
+    assert.throws(() => nx.sessions.open(me, { ...o, ...change }), (e) => e.code === 'conflict', JSON.stringify(change));
+  }
+  s.close();
+});
+test('fix 8: error messages keep their length (up to 4096 chars) and lose only their secrets', () => {
+  const { s, nx, me, sys } = setup(); const j = job(nx, me); drive(nx, sys, j.id, PATH_TO.running);
+  const message = `${'context '.repeat(100)} key sk-ant-abcdefghijklmnopqrstuv ${'tail '.repeat(1000)}`;
+  const f = nx.jobs.transition(sys, j.id, 'failed', { error: { code: 'runtime_error', message } });
+  assert.doesNotMatch(f.error.message, /sk-ant-abc|omitted/);
+  assert.equal(f.error.message.length > 3000, true); assert.ok(f.error.message.length <= 4096);
+  assert.match(f.error.message, /^context context/);
+  s.close();
+});
+test('gap: session cancel reaches leased and retry_scheduled jobs; job recovery leaves retry_scheduled alone', () => {
+  const { s, nx, me, sys } = setup();
+  const x = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key() }).session;
+  const leased = job(nx, me, { sessionId: x.id }); drive(nx, sys, leased.id, PATH_TO.leased);
+  const retry = job(nx, me, { sessionId: x.id }); drive(nx, sys, retry.id, PATH_TO.retry_scheduled);
+  const outside = job(nx, me); drive(nx, sys, outside.id, PATH_TO.retry_scheduled);
+  assert.deepEqual(nx.jobs.recoverAfterRestart(sys), { interrupted: 0, requeued: 1 });
+  assert.equal(nx.jobs.get(me, retry.id).state, 'retry_scheduled');
+  assert.equal(nx.jobs.get(me, outside.id).state, 'retry_scheduled');
+  drive(nx, sys, leased.id, PATH_TO.leased);                                        // requeued by recovery; lease it again
+  nx.sessions.cancel(me, x.id);
+  assert.equal(nx.jobs.get(me, leased.id).state, 'cancelled');
+  assert.equal(nx.jobs.get(me, retry.id).state, 'cancelled');
+  assert.equal(nx.jobs.get(me, outside.id).state, 'retry_scheduled');
+  s.close();
+});
+test('gap: session cancel is atomic: a lock held past busy_timeout, or a failure at the last step, changes nothing', () => {
+  const { s, db, nx, me, sys, file } = setup();
+  const x = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key() }).session;
+  const a = job(nx, me, { sessionId: x.id }); const b = job(nx, me, { sessionId: x.id }); drive(nx, sys, b.id, PATH_TO.running);
+  const snapshot = () => ({ jobs: db.prepare('SELECT id, state, cancel_requested_at FROM jobs ORDER BY id').all(),
+    session: db.prepare('SELECT status, cancel_requested_at FROM agent_sessions WHERE id=?').get(x.id), activity: h.count(db, 'activity') });
+  const before = snapshot();
+  const other = h.openRaw(file); other.prepare('BEGIN IMMEDIATE').run(); db.pragma('busy_timeout = 50');
+  try {
+    assert.throws(() => nx.sessions.cancel(me, x.id), (e) => e.code === 'platform_unavailable');
+  } finally { other.prepare('ROLLBACK').run(); other.close(); }
+  assert.deepEqual(snapshot(), before);
+  db.prepare(`CREATE TEMP TRIGGER fail_session_cancel BEFORE UPDATE OF status ON main.agent_sessions WHEN NEW.status = 'cancelled'
+    BEGIN SELECT RAISE(ABORT, 'injected failure'); END`).run();
+  assert.throws(() => nx.sessions.cancel(me, x.id), /injected failure/);
+  assert.deepEqual(snapshot(), before);
+  db.prepare('DROP TRIGGER temp.fail_session_cancel').run();
+  assert.equal(nx.sessions.cancel(me, x.id).status, 'cancelled');
+  assert.deepEqual([a, b].map((j) => nx.jobs.get(me, j.id).state), ['cancelled', 'cancelled']);
+  s.close();
+});
+test('gap: session recovery is idempotent', () => {
+  const { s, nx, me, sys } = setup();
+  const x = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key() }).session;
+  nx.sessions.transition(sys, x.id, 'running');
+  assert.deepEqual(nx.sessions.recoverAfterRestart(sys), { interrupted: 1 });
+  assert.deepEqual(nx.sessions.recoverAfterRestart(sys), { interrupted: 0 });
+  assert.equal(nx.sessions.get(me, x.id).status, 'interrupted');
+  s.close();
+});
+test('gap: workspace grants are isolated for get, listBySession and jobsOf', () => {
+  const { s, db, nx, me } = setup();
+  nx.workspaces.attach(me, 'p-ledger', 'qa');
+  const qa = addUser(db, 'user:qa', 'workspace', 'qa');
+  const sdeSession = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key() }).session;
+  const sdeJob = job(nx, me, { sessionId: sdeSession.id });
+  const qaSession = nx.sessions.open(qa, { projectId: 'p-ledger', workspaceId: 'qa', idempotencyKey: key() }).session;
+  const qaJob = nx.jobs.create(qa, { kind: 'tool.run', projectId: 'p-ledger', workspaceId: 'qa', sessionId: qaSession.id, idempotencyKey: key() }).job;
+  const d = denied(db);
+  assert.throws(() => nx.jobs.get(qa, sdeJob.id), (e) => e.code === 'denied');
+  assert.throws(() => nx.jobs.listBySession(qa, sdeSession.id), (e) => e.code === 'denied');
+  assert.throws(() => nx.sessions.jobsOf(qa, sdeSession.id), (e) => e.code === 'denied');
+  assert.throws(() => nx.sessions.get(qa, sdeSession.id), (e) => e.code === 'denied');
+  assert.equal(denied(db), d + 4);
+  assert.equal(nx.jobs.get(qa, qaJob.id).id, qaJob.id);
+  assert.deepEqual(nx.jobs.listBySession(qa, qaSession.id).map((j) => j.id), [qaJob.id]);
+  assert.deepEqual(nx.sessions.jobsOf(qa, qaSession.id).map((j) => j.id), [qaJob.id]);
+  // A withdrawn participation no longer lends its workspace grant.
+  nx.jobs.requestCancel(qa, qaJob.id); nx.sessions.cancel(qa, qaSession.id);
+  nx.workspaces.withdraw(me, nx.workspaces.participations(me, 'p-ledger').find((p) => p.workspaceId === 'qa').id);
+  assert.throws(() => nx.jobs.get(qa, qaJob.id), (e) => e.code === 'denied');
   s.close();
 });

@@ -171,3 +171,15 @@ test('token usage counts survive as numbers; token-named strings stay redacted',
   assert.equal(out.tokenCount, REDACTED);
   assert.equal(redactDetails({ token: 5 }).token, REDACTED);
 });
+test('T10 fix 1: redactText and containsSecret ignore every size cap; redactDetails keeps its caps', () => {
+  const { redactText, containsSecret, redactDetails: rd } = loadTs('src/main/nexus/activity/redact.ts');
+  const long = `${'a '.repeat(600)}sk-ant-abcdefghijklmnopqrstuv`;
+  assert.match(redactText(long), /^a a .*\[redacted\]$/);
+  assert.equal(redactText('plain text'), 'plain text');
+  assert.match(String(rd({ m: long }).m), /^\[omitted: \d+ chars\]$/);
+  const deep = { a: { b: { c: { d: { e: { f: 'Bearer abcdefghijklmnopqrstuvwxyz0123' } } } } } };
+  assert.equal(containsSecret(deep), true);
+  assert.equal(containsSecret({ list: Array.from({ length: 200 }, (_, i) => (i === 199 ? 'https://u:p@h.example/x' : 'ok')) }), true);
+  assert.equal(containsSecret({ password: '' }), true);
+  assert.equal(containsSecret({ tokensUsed: 5, contentHash: 'a'.repeat(64), path: 'src/a.ts', n: [1, null, true] }), false);
+});

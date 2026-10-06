@@ -43,11 +43,46 @@ type Out = unknown | typeof DROP;
 /** Remaining output budget, in (approximate) bytes, for one redactDetails call. */
 interface Budget { left: number }
 
-function redactString(s: string): string {
-  if (s.length > MAX_STRING) return `[omitted: ${s.length} chars]`;
+/**
+ * The secret passes of redactDetails for one string, with NO length cap: the
+ * crash-log redactor plus URL user names and sig/signature values. Used where a
+ * value must be kept whole (job errors) or checked for secrets (job params).
+ */
+export function redactText(s: string): string {
   return redactForLog(s)
     .replace(URL_USER, '$1[redacted]@')
     .replace(SIGNATURE_PAIR, (_m, k, q, sep, vq) => `${k}${q}${sep}${vq ? `${vq}${REDACTED}${vq}` : REDACTED}`);
+}
+
+function redactString(s: string): string {
+  if (s.length > MAX_STRING) return `[omitted: ${s.length} chars]`;
+  return redactText(s);
+}
+
+/**
+ * True when redaction would change `v` because of a SECRET, ignoring every size,
+ * depth and key-count cap: a key that names a secret (numeric token counts and hex
+ * digests under hash keys excepted, as in redactDetails), or a key or string value
+ * that redactText would alter. Meant for exact JSON (cycles are not followed twice).
+ */
+export function containsSecret(v: unknown): boolean {
+  const seen = new Set<object>();
+  const stack: unknown[] = [v];
+  while (stack.length) {
+    const x = stack.pop();
+    if (typeof x === 'string') { if (redactText(x) !== x) return true; continue; }
+    if (typeof x !== 'object' || x === null || seen.has(x)) continue;
+    seen.add(x);
+    if (Array.isArray(x)) { for (const item of x) stack.push(item); continue; }
+    for (const key of Object.keys(x)) {
+      const raw = (x as Record<string, unknown>)[key];
+      if (TOKEN_COUNT_KEYS.has(key) && typeof raw === 'number') continue;
+      if (HASH_KEYS.has(key) && typeof raw === 'string' && HEX_DIGEST.test(raw)) continue;
+      if (SECRET_KEY.test(key) || redactText(key) !== key) return true;
+      stack.push(raw);
+    }
+  }
+  return false;
 }
 
 function isBinary(v: object): number | null {

@@ -26,8 +26,13 @@
  *   refuses anything else. -> leased counts an attempt; the first -> running sets
  *   started_at; a terminal state sets finished_at; retry_scheduled -> queued clears
  *   it. -> retry_scheduled needs canRetry (J.7).
- * - Redaction. Params are stored as their redactDetails() form, so a secret in a
- *   parameter never reaches the database; errors are stored redacted.
+ * - Redaction. Params are stored exactly; params holding anything secret-shaped
+ *   are refused ('invalid', reason 'secret_in_params'). Runtime refs that look like
+ *   secrets are refused. Errors are stored redacted (cap-free redactText).
+ * - Reads. Every input version must be readable by the caller in its owner's
+ *   workspace (ProjectAccess.requireVersionReadable, before the transaction).
+ * - No resurrection. -> retry_scheduled and -> queued are refused while the
+ *   participation is not active or the session has ended.
  * - Every mutation writes its activity row(s) in the same IMMEDIATE transaction
  *   (immediateTx), each carrying the job id and the session id when there is one.
  */
@@ -38,7 +43,7 @@ import type {
 } from '../../../shared/nexus/platform';
 import type { AuthService } from '../auth/authService';
 import { appendActivityRow } from '../activity/writer';
-import { redactDetails } from '../activity/redact';
+import { containsSecret, redactText } from '../activity/redact';
 import { canonicalJson } from '../db/canonical';
 import { newId } from '../db/ids';
 import { immediateTx } from '../db/tx';
@@ -66,6 +71,13 @@ const LABEL_RE = /^[a-z][a-z0-9_.-]{0,63}$/;
 const REF_RE = /^[A-Za-z0-9._:/@+=-]{1,256}$/;
 const MAX_ROLE_CHARS = 64;
 const PLATFORM = { type: 'platform' } as const;
+
+/** A validated create request, as compared on an idempotent re-send. undefined / null: not supplied. */
+interface Intent {
+  kind: JobKind; projectId: string; workspaceId: string; sessionId: string | null; parentJobId: string | null; retryOf: string | null;
+  recipeId: string | null; validatorId: string | null; priority: number | undefined; params: string | undefined;
+  inputs: VersionInput[] | undefined; retry: JobRetryPolicy | undefined; runtime: { kind: string; ref: string | null } | null;
+}
 
 export interface JobRow {
   id: string; kind: JobKind; recipe_id: string | null; validator_id: string | null; project_id: string; workspace_id: string;
@@ -135,20 +147,25 @@ export function validateRuntime(r: unknown): { kind: string; ref: string | null 
   return { kind: r.kind, ref: r.ref === undefined ? null : validateRef(r.ref, 'runtime.ref') };
 }
 
-/** A runtime's own reference (session id, process ref): a short id-like string. */
+/** A runtime's own reference (session id, process ref): a short id-like string that is not secret-shaped. */
 export function validateRef(v: unknown, what = 'runtimeRef'): string {
   if (typeof v !== 'string' || !REF_RE.test(v)) throw new PlatformError('invalid', `${what} must be an id-like string of at most 256 characters`);
+  // A ref is stored as is, so one the redactor would touch (a key, a token, long hex) is refused.
+  if (redactText(v) !== v) throw new PlatformError('invalid', `${what} looks like a secret`, { reason: 'secret_in_ref' });
   return v;
 }
 
-/** { code, message } stored redacted: the code is a label; the message goes through redactDetails. */
+/**
+ * { code, message } stored redacted: the code is a label; the message is cut to
+ * MAX_ERROR_MESSAGE_CHARS and passed through the cap-free redactText, so it is
+ * never replaced by a size marker.
+ */
 export function redactedErrorJson(e: unknown): string {
   if (!isPlainObject(e) || typeof e.code !== 'string' || typeof e.message !== 'string') {
     throw new PlatformError('invalid', 'error must be { code, message }');
   }
   if (!LABEL_RE.test(e.code)) throw new PlatformError('invalid', 'error.code must be a short lowercase label');
-  const r = redactDetails({ code: e.code, message: e.message.slice(0, MAX_ERROR_MESSAGE_CHARS) });
-  return JSON.stringify({ code: e.code, message: typeof r.message === 'string' ? r.message : '[redacted]' });
+  return JSON.stringify({ code: e.code, message: redactText(e.message.slice(0, MAX_ERROR_MESSAGE_CHARS)) });
 }
 
 export function parseError(text: string | null): JobError | null {
@@ -193,13 +210,22 @@ function parseRetry(text: string): JobRetryPolicy {
   return { ...DEFAULT_RETRY, backoffMs: [] };
 }
 
-/** Params: exact JSON object (nothing coerced), bounded, then stored in redacted form. */
+/**
+ * Params: an exact JSON object (nothing coerced), at most INLINE_MAX_BYTES, stored
+ * EXACTLY. A params object that holds anything secret-shaped (a secret-named key,
+ * or a key or string the redactor would change) is refused with
+ * detail.reason 'secret_in_params': secrets never reach params_json. Harmless keys
+ * that match the secret-key pattern (for example `tokenizer`) are refused too;
+ * callers rename them.
+ */
 function paramsJson(v: unknown): string {
   if (v === undefined) return '{}';
   if (!isPlainObject(v)) throw new PlatformError('invalid', 'params must be an object');
   assertExactJson(v, 'params');
-  if (Buffer.byteLength(JSON.stringify(v), 'utf8') > INLINE_MAX_BYTES) throw new PlatformError('invalid', `params exceed ${INLINE_MAX_BYTES} bytes`);
-  return JSON.stringify(redactDetails(v));
+  const text = JSON.stringify(v);
+  if (Buffer.byteLength(text, 'utf8') > INLINE_MAX_BYTES) throw new PlatformError('invalid', `params exceed ${INLINE_MAX_BYTES} bytes`);
+  if (containsSecret(v)) throw new PlatformError('invalid', 'params hold a secret-shaped key or value', { reason: 'secret_in_params' });
+  return text;
 }
 
 function optionalLabel(v: unknown, what: string): string | null {
@@ -262,26 +288,36 @@ export class JobService {
     const runtime = validateRuntime(i.runtime);
     const inputs = this.validateInputs(i.inputs);
 
+    const intent: Intent = { kind: i.kind, projectId: i.projectId, workspaceId: i.workspaceId, sessionId, parentJobId, retryOf,
+      recipeId, validatorId, priority: i.priority, params: i.params === undefined ? undefined : params,
+      inputs: i.inputs === undefined ? undefined : inputs, retry: i.retry === undefined ? undefined : retry, runtime };
+
     // A re-sent intent: authorize against the stored job's participation, then compare.
     const prior = this.rowByKey(key);
     if (prior) {
       this.authorizeRow(p, prior, 'job.create');
-      this.requireSameIntent(prior, p, i, sessionId, parentJobId, retryOf);
+      this.requireSameIntent(prior, p, intent);
       return { job: this.toJob(prior), created: false };
     }
 
     const pw = requireActiveParticipation(this.access, this.db, p, i.projectId, i.workspaceId, 'job.create');
     // Read-only references, checked after authorization so a stranger learns nothing about them.
-    if (parentJobId !== null) this.requireRelatedJob(parentJobId, pw.project_id, 'parent job');
+    if (sessionId !== null) {
+      this.requireLiveSessionFor(sessionId, pw);
+      this.requireSessionPrincipal(p, sessionId, pw);
+    }
+    if (parentJobId !== null) this.requireParentJob(parentJobId, pw, sessionId);
     if (retryOf !== null) {
       const r = this.requireRelatedJob(retryOf, pw.project_id, 'retried job');
       if (r.kind !== i.kind) throw new PlatformError('invalid', 'a retry has the kind of the job it retries');
     }
+    // Every input must be readable by the caller in its owner's workspace ('denied', audited).
+    for (const x of inputs) this.access.requireVersionReadable(p, x.versionId, pw.project_id);
     const now = this.deps.now();
     return immediateTx(this.db, () => {
       const again = this.rowByKey(key);
       if (again) {
-        this.requireSameIntent(again, p, i, sessionId, parentJobId, retryOf);
+        this.requireSameIntent(again, p, intent);
         return { job: this.toJob(again), created: false };
       }
       const live = this.db.prepare('SELECT status FROM project_workspaces WHERE id = ?').get(pw.id) as { status: string } | undefined;
@@ -359,7 +395,9 @@ export class JobService {
   /**
    * A user's cancel. cancel_requested_at and the activity row are written first,
    * then the job moves to cancelled, all in one transaction. A terminal job is
-   * returned unchanged.
+   * returned unchanged. It does NOT cascade to the job's children
+   * (parent_job_id): child cancellation is the J.5 executor follow-up. A session
+   * cancel covers a whole tree, because parent and children share the session.
    */
   requestCancel(p: Principal, id: JobId): Job {
     const stored = this.load(p, id, 'job.cancel');
@@ -387,7 +425,9 @@ export class JobService {
       const rows = this.db.prepare("SELECT * FROM jobs WHERE state IN ('leased', 'running', 'awaiting_approval') ORDER BY created_at, id")
         .all() as JobRow[];
       for (const j of rows) {
-        if (j.state === 'leased') {
+        // A leased job goes back to queued unless it could never run again (its session
+        // ended or its participation is gone): then it is interrupted like a running one.
+        if (j.state === 'leased' && this.resurrectionBlock(j) === null) {
           this.applyTransition(system, j, 'queued', now, { outcome: null, errorJson: null, runtimeRef: null, action: 'job.recover' });
           out.requeued++;
         } else {
@@ -408,6 +448,11 @@ export class JobService {
     }
     if (to === 'retry_scheduled' && !canRetry({ kind: j.kind, attempts: j.attempts, retry: parseRetry(j.retry_json) })) {
       throw new PlatformError('illegal_transition', 'the job is not retryable', { from: j.state, to, reason: 'not_retryable' });
+    }
+    if (to === 'retry_scheduled' || to === 'queued') {
+      // No resurrection: a job whose participation is gone or whose session ended never becomes runnable again.
+      const reason = this.resurrectionBlock(j);
+      if (reason !== null) throw new PlatformError('illegal_transition', `the job cannot run again: ${reason}`, { from: j.state, to, reason });
     }
     const sets = ['state = ?', 'state_changed_at = ?', 'updated_at = ?']; const args: unknown[] = [to, now, now];
     let attempts = j.attempts;
@@ -434,6 +479,19 @@ export class JobService {
         error: o.errorJson !== null ? parseError(o.errorJson)?.code : undefined } }, now);
   }
 
+  /** Why a job may not become runnable again, or null: 'participation_inactive' or 'session_ended'. */
+  private resurrectionBlock(j: JobRow): 'participation_inactive' | 'session_ended' | null {
+    const pw = j.participation_id === null ? undefined
+      : this.db.prepare('SELECT status FROM project_workspaces WHERE id = ?').get(j.participation_id) as { status: string } | undefined;
+    if (!pw || pw.status !== 'active') return 'participation_inactive';
+    if (j.session_id !== null) {
+      const s = this.db.prepare(`SELECT st.terminal FROM agent_sessions a JOIN agent_session_states st ON st.state = a.status
+        WHERE a.id = ?`).get(j.session_id) as { terminal: number } | undefined;
+      if (!s || s.terminal === 1) return 'session_ended';
+    }
+    return null;
+  }
+
   row(id: string): JobRow | null {
     return (this.db.prepare('SELECT * FROM jobs WHERE id = ?').get(id) as JobRow | undefined) ?? null;
   }
@@ -458,12 +516,45 @@ export class JobService {
     this.access.require(p, j.project_id, action, ws ? { workspaceId: ws } : undefined);
   }
 
-  /** A re-sent create must name the same work; the requester, kind, place and links must match. */
-  private requireSameIntent(j: JobRow, p: Principal, i: CreateJobInput, sessionId: string | null, parentJobId: string | null, retryOf: string | null): void {
-    const same = j.kind === i.kind && j.project_id === i.projectId && j.workspace_id === i.workspaceId && j.requested_by === p.id
-      && j.session_id === sessionId && j.parent_job_id === parentJobId && j.retry_of === retryOf
-      && (i.params === undefined || canonicalJson(parse(j.params_json)) === canonicalJson(JSON.parse(paramsJson(i.params))));
+  /**
+   * A re-sent create must name the same work. Always compared: requester, kind,
+   * project, workspace, session, parent and retryOf. Compared when supplied:
+   * recipe, validator, priority, inputs (as a set), retry, runtime and the RAW params.
+   */
+  private requireSameIntent(j: JobRow, p: Principal, x: Intent): void {
+    const inputsKey = (list: { versionId: string; role: string }[]): string =>
+      JSON.stringify(list.map((v) => [v.versionId, v.role]).sort((a, b) => (a.join('\u0000') < b.join('\u0000') ? -1 : 1)));
+    const stored = (): { versionId: string; role: string }[] =>
+      this.db.prepare('SELECT version_id AS versionId, role FROM job_inputs WHERE job_id = ?').all(j.id) as { versionId: string; role: string }[];
+    const same = j.kind === x.kind && j.project_id === x.projectId && j.workspace_id === x.workspaceId && j.requested_by === p.id
+      && j.session_id === x.sessionId && j.parent_job_id === x.parentJobId && j.retry_of === x.retryOf
+      && (x.recipeId === null || j.recipe_id === x.recipeId)
+      && (x.validatorId === null || j.validator_id === x.validatorId)
+      && (x.priority === undefined || j.priority === x.priority)
+      && (x.params === undefined || canonicalJson(parse(j.params_json)) === canonicalJson(parse(x.params)))
+      && (x.retry === undefined || canonicalJson(parseRetry(j.retry_json)) === canonicalJson(x.retry))
+      && (x.runtime === null || (j.runtime_kind === x.runtime.kind && (x.runtime.ref === null || j.runtime_ref === x.runtime.ref)))
+      && (x.inputs === undefined || inputsKey(stored()) === inputsKey(x.inputs));
     if (!same) throw new PlatformError('conflict', 'that idempotency key already names different work', { jobId: j.id });
+  }
+
+  /**
+   * Only the session's own principal (or the system) adds jobs to it. Refused with
+   * 'denied' and one audited row (reason 'not_session_principal'). Before the transaction.
+   */
+  private requireSessionPrincipal(p: Principal, sessionId: string, pw: PwRow): void {
+    const s = this.db.prepare('SELECT principal_id FROM agent_sessions WHERE id = ?').get(sessionId) as { principal_id: string } | undefined;
+    if (!s || s.principal_id === p.id || p.kind === 'system') return;
+    const audited = this.deps.auth.auditDenial(p, { action: 'job.create', reason: 'not_session_principal', sessionId,
+      projectId: pw.project_id, workspaceId: pw.workspace_id, entityType: 'job' });
+    throw new PlatformError('denied', 'only the session principal adds jobs to a session', { reason: 'not_session_principal', audited });
+  }
+
+  /** A parent job is in the same project, the same participation and the same session (both null or equal). */
+  private requireParentJob(parentJobId: string, pw: PwRow, sessionId: string | null): void {
+    const parent = this.requireRelatedJob(parentJobId, pw.project_id, 'parent job');
+    if (parent.participation_id !== pw.id) throw new PlatformError('invalid', 'a parent job acts for the same participation');
+    if (parent.session_id !== sessionId) throw new PlatformError('invalid', 'a parent job belongs to the same session');
   }
 
   private requireRelatedJob(id: string, projectId: string, what: string): JobRow {

@@ -12,7 +12,8 @@
  *   (project, workspace) row: no row is 'not_participating', a withdrawn or
  *   complete row is 'participation_inactive'.
  * - Context. contextVersionId is optional and must be a candidate or active
- *   version of the session's project (drafts are mutable).
+ *   version of the session's project (drafts are mutable) that the caller can read
+ *   in its owner's workspace.
  * - Authority. Every operation authorizes BEFORE any transaction, with the
  *   workspace of the STORED participation row (agent_sessions.participation_id),
  *   never a workspace the caller names. An unknown session id is 'not_found' only
@@ -21,7 +22,9 @@
  * - Idempotency. open is idempotent by `idempotencyKey`; a re-sent intent for a
  *   different project, workspace, principal or context is a 'conflict'.
  * - A session's status is not derived from its jobs; the runtime phase decides how
- *   job outcomes drive it. B0b enforces linkage, place, and the cancel cascade.
+ *   job outcomes drive it. B0b enforces linkage, place, and the cancel cascade. A
+ *   terminal transition does NOT cascade to the session's jobs (accepted for B0b);
+ *   a job of an ended session can still finish but can never be queued again.
  * - Every mutation writes its activity row(s) in the same IMMEDIATE transaction,
  *   each carrying the session id.
  */
@@ -83,24 +86,28 @@ export class SessionService {
     }
     const runtime = validateRuntime(i.runtime);
 
+    // A re-sent open must name the same session: project, workspace and principal always; context and runtime when supplied.
+    const requireSame = (r: SessionRow): void => {
+      const same = r.project_id === i.projectId && r.workspace_id === i.workspaceId && r.principal_id === p.id
+        && (contextVersionId === null || r.context_version_id === contextVersionId)
+        && (runtime === null || (r.runtime_kind === runtime.kind && (runtime.ref === null || r.runtime_ref === runtime.ref)));
+      if (!same) throw new PlatformError('conflict', 'that idempotency key already opened a different session', { sessionId: r.id });
+    };
     const prior = this.rowByKey(key);
     if (prior) {
       this.authorizeRow(p, prior, 'session.open');
-      const same = prior.project_id === i.projectId && prior.workspace_id === i.workspaceId && prior.principal_id === p.id
-        && (contextVersionId === null || prior.context_version_id === contextVersionId)
-        && (runtime === null || prior.runtime_kind === runtime.kind);
-      if (!same) throw new PlatformError('conflict', 'that idempotency key already opened a different session', { sessionId: prior.id });
+      requireSame(prior);
       return { session: toSession(prior), created: false };
     }
 
     const pw = requireActiveParticipation(this.access, this.db, p, i.projectId, i.workspaceId, 'session.open');
+    // The context must be readable by the caller in its owner's workspace ('denied', audited).
+    if (contextVersionId !== null) this.access.requireVersionReadable(p, contextVersionId, pw.project_id, 'context');
     const now = this.deps.now();
     return immediateTx(this.db, () => {
       const again = this.rowByKey(key);
       if (again) {
-        if (again.project_id !== pw.project_id || again.workspace_id !== pw.workspace_id || again.principal_id !== p.id) {
-          throw new PlatformError('conflict', 'that idempotency key already opened a different session', { sessionId: again.id });
-        }
+        requireSame(again);
         return { session: toSession(again), created: false };
       }
       const live = this.db.prepare('SELECT status FROM project_workspaces WHERE id = ?').get(pw.id) as { status: string } | undefined;

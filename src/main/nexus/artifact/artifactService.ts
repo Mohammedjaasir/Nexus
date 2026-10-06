@@ -485,7 +485,8 @@ export class ArtifactService {
   }
 
   /**
-   * Inputs must exist, be in the artifact's project and be out of draft. With a job,
+   * Inputs must exist, be in the artifact's project, be out of draft and be readable by
+   * the caller in their owner's workspace ('denied', audited). With a job,
    * every input must be granted to the job as the same (version, role) in job_inputs;
    * otherwise the registration is refused with 'input_not_granted' and one denied
    * activity row. The row goes through AuthService.auditDenial: written at once, or,
@@ -497,6 +498,8 @@ export class ArtifactService {
       if (!v) throw new PlatformError('not_found', 'input version not found');
       if (v.project_id !== a.project_id) throw new PlatformError('invalid', 'inputs come from the same project');
       if (v.status === 'draft') throw new PlatformError('invalid', 'a draft cannot be an input');
+      // The caller must be able to read every input, in its owner's workspace ('denied', audited).
+      this.access.requireVersionReadable(p, x.versionId, a.project_id);
     }
     if (jobId === null || inputs.length === 0) return;
     const granted = this.db.prepare('SELECT 1 FROM job_inputs WHERE job_id = ? AND version_id = ? AND role = ?');

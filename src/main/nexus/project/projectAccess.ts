@@ -42,4 +42,25 @@ export class ProjectAccess {
     this.deps.auth.require(p, action, scope);
     if (!this.exists(projectId)) throw new PlatformError('not_found', 'project not found', { projectId: String(projectId).slice(0, 128) });
   }
+
+  /**
+   * A version another record will consume (a job input, a session context, a
+   * version input) must be readable by the caller: 'artifact.read' with the
+   * workspace of the version's artifact's STORED owner (artifacts.owner_workspace_id).
+   * Order: unknown version 'not_found'; another project than `projectId` 'invalid';
+   * then authorization ('denied', audited). Call it BEFORE opening a transaction.
+   * Returns the version's status and content hash; callers re-check the status
+   * inside their transaction.
+   */
+  requireVersionReadable(p: Principal, versionId: string, projectId: ProjectId, what = 'input'): { status: string; contentHash: string } {
+    const v = typeof versionId === 'string' && versionId.length > 0
+      ? this.db.prepare(`SELECT v.project_id, v.status, v.content_hash, a.owner_workspace_id FROM artifact_versions v
+          JOIN artifacts a ON a.id = v.artifact_id WHERE v.id = ?`).get(versionId) as
+        { project_id: string; status: string; content_hash: string; owner_workspace_id: string | null } | undefined
+      : undefined;
+    if (!v) throw new PlatformError('not_found', `${what} version not found`);
+    if (v.project_id !== projectId) throw new PlatformError('invalid', `the ${what} version belongs to another project`);
+    this.require(p, v.project_id, 'artifact.read', v.owner_workspace_id ? { workspaceId: v.owner_workspace_id } : undefined);
+    return { status: v.status, contentHash: v.content_hash };
+  }
 }
