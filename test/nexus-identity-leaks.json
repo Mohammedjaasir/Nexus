@@ -132,12 +132,6 @@
     }
   ],
   "knownLeaks": {
-    "components/AgentControlStrip.tsx": [
-      {
-        "rule": "office",
-        "text": "delivery paused (floor)"
-      }
-    ],
     "components/AskMeTab.tsx": [
       {
         "rule": "office",
@@ -163,14 +157,6 @@
       },
       {
         "rule": "office",
-        "text": "Automatic queue delivery is ON for every agent — click to pause the whole floor"
-      },
-      {
-        "rule": "office",
-        "text": "COMMAND CENTER"
-      },
-      {
-        "rule": "office",
         "text": "Find exact text across hive files…"
       },
       {
@@ -186,16 +172,6 @@
       {
         "rule": "office",
         "text": "No messages logged yet — the hive is quiet. Agents shown as roster."
-      }
-    ],
-    "components/MessageQueueComposer.tsx": [
-      {
-        "rule": "office",
-        "text": "Auto-delivery is paused for the whole floor. Resume it in the Command Center, or use \"send now\" on a message below."
-      },
-      {
-        "rule": "office",
-        "text": "held — delivery paused floor-wide"
       }
     ],
     "hooks/useHive.ts": [

@@ -155,7 +155,7 @@ export function MessageQueueComposer({ agent }: MessageQueueComposerProps) {
   // the hint claimed it was sending while nothing moved — so poll it and say so.
   const block = useTerminalBlock(agent.ptyId, queue.length > 0 && idle);
 
-  // Floor-wide auto-delivery pause (Command Center switch) also holds the queue.
+  // The all-agents auto-delivery pause (lead agent workbench switch) also holds the queue.
   // Without saying so — and without the per-row "send now" override — messages
   // look permanently stuck with no explanation and no escape hatch.
   const deliveryPaused = useDeliveryPaused(agent.id, queue.length > 0);
@@ -165,7 +165,7 @@ export function MessageQueueComposer({ agent }: MessageQueueComposerProps) {
     : !idle
     ? `${agentLabel} is busy — ${queue.length} queued`
     : deliveryPaused && !queue[0]?.manual
-    ? 'held — delivery paused floor-wide'
+    ? 'held — delivery paused for all agents'
     : block === 'draft'
     ? `held — ${agentLabel}'s terminal has unsent text on its prompt`
     : block === 'picker'
@@ -217,7 +217,7 @@ export function MessageQueueComposer({ agent }: MessageQueueComposerProps) {
         {statusHint && (
           <span
             title={deliveryPaused && !queue[0]?.manual
-              ? 'Auto-delivery is paused for the whole floor. Resume it in the Command Center, or use "send now" on a message below.'
+              ? 'Auto-delivery is paused for all agents. Resume it from the lead agent’s workbench (Resume delivery), or use "send now" on a message below.'
               : statusHint}
             style={{
               fontSize: 12,

@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useStore } from '@/store/store';
 import type { HarnessConfig } from '@/store/config';
-import { AgentDetailPanel } from '@/components/AgentDetailPanel';
+import { AgentWorkbench } from './workbench/AgentWorkbench';
 import { MemoryPanel } from '@/components/MemoryPanel';
 import { Icon } from '../icons';
 import { agentRows } from './agentList';
@@ -114,7 +114,7 @@ export function AgentsPage({ config }: { config: HarnessConfig }) {
           </details>
           </div>
           <section className="nxa__term" role="region" aria-label={`${current?.title ?? 'Agent'} panel`}>
-            {agent ? <AgentDetailPanel agent={agent} /> : null}
+            {agent ? <AgentWorkbench agent={agent} /> : null}
           </section>
         </div>
       )}

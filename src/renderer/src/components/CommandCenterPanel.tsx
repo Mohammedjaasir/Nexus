@@ -1,23 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { PixelPanel } from './PixelPanel';
 import { PixelBadge } from './PixelBadge';
 import { PixelButton } from './PixelButton';
-import { PtyTerminalView } from './PtyTerminalView';
-import { MessageQueueComposer } from './MessageQueueComposer';
-import { TasksKanban } from './TasksKanban';
-import { AskMeTab } from './AskMeTab';
-import { TriggersTab } from './triggers/TriggersTab';
-import { TriggerHistoryTab } from './triggers/TriggerHistoryTab';
-import { WorkersTab } from './WorkersTab';
-import { SkillsTab } from './SkillsTab';
 import { acquireTerminal, disposeTerminal, resetTerminal } from './terminalPool';
-import { terminalInstanceKey } from './terminalRecovery';
 import { Icon } from './Icon';
-import { MemoryGraphPanel } from './MemoryGraphPanel';
 import { useFleetTelemetry } from '@/hooks/useTelemetry';
-import { COMMAND_GROUPS } from '@shared/claudeCommands';
-import { useStore, triggerHistoryVisible, type Agent } from '@/store/store';
-import { usePtyParser } from '@/hooks/usePtyParser';
+import { useStore, type Agent } from '@/store/store';
 import { useCanonicalAgents, useRegistryIds } from '@/nexus/agents/agentIdentity';
 import { LEAD_HIVE_NAME, displayAgents, displayNameForId, visibleAgents } from '@shared/agentDisplay';
 import {
@@ -35,16 +22,10 @@ import {
 } from '@/store/config';
 import { canReceiveInbox } from '@shared/agentProvider';
 
-/** Michael's control surface. Shown instead of the plain terminal/files panel
- *  when the god agent is selected: terminal + queue, the floor roster (with
- *  per-agent model + dispatch + assistant access), a memory view, and a live
- *  activity feed / board / usage meter. */
-
-// Both the AskMe (#human) tab and the Triggers tab live here. Triggers replaced
-// the old Schedules tab: schedules are now one of four trigger types, and the
-// whole surface lives in ./triggers (see src/shared/triggers.ts for the contract).
-type CCTab = 'terminal' | 'floor' | 'tasks' | 'human' | 'triggers' | 'trigger-history'
-  | 'memory' | 'graph' | 'activity' | 'skills' | 'workers';
+/** The lead agent's legacy section bodies (team roster with requests and model
+ *  restart, memory, activity, archive). The panel that used to mount them is gone:
+ *  nexus/agents/workbench hosts these temporarily (LegacyLeadSections) until each
+ *  is rebuilt as a native workbench section in task 9. */
 
 /** Fallback denominator for the per-agent token meter when no floor token budget
  *  is configured — so the bar reads as a budget estimate (filled + remaining)
@@ -61,269 +42,9 @@ interface GHIssue {
   assignees: string[];
 }
 
-/** Canonical tab order. Not every entry is always shown — see `visibleTabs`. */
-const TABS: { key: CCTab; label: string; icon: Parameters<typeof Icon>[0]['name'] }[] = [
-  { key: 'terminal', label: 'terminal', icon: 'terminal' },
-  { key: 'floor', label: 'monitor', icon: 'mcp' },
-  { key: 'tasks', label: 'tasks', icon: 'check' },
-  { key: 'human', label: 'ask me', icon: 'bell' },
-  { key: 'triggers', label: 'triggers', icon: 'clock' },
-  { key: 'trigger-history', label: 'history', icon: 'ledger' },
-  { key: 'memory', label: 'memory', icon: 'sparkle' },
-  { key: 'graph', label: 'graph', icon: 'web' },
-  { key: 'activity', label: 'activity', icon: 'bell' },
-  { key: 'skills', label: 'skills', icon: 'sparkle' },
-  { key: 'workers', label: 'workers', icon: 'gear' }
-];
-
-/** @param fullscreen this instance IS the fullscreen overlay, so it owns the pty
- *  and renders the real terminal. The docked instance renders the "open in
- *  fullscreen" placeholder instead — two live xterms on one pty fight over its
- *  cols/rows and corrupt the display. */
-export function CommandCenterPanel({ agent, fullscreen = false }: { agent: Agent; fullscreen?: boolean }) {
-  const [tab, setTab] = useState<CCTab>('terminal');
-  // The trigger-history ledger has nothing to say until an outside party can
-  // reach us, so its tab appears only once an org key or a webhook exists. This
-  // is the first config-gated tab in the panel: TABS stays the canonical order
-  // and the gate is applied at render, so nothing else has to know about it.
-  // The rule itself lives in the store (`triggerHistoryVisible`) beside the two
-  // mirrors it reads — a second copy here would drift from Settings.
-  const showHistory = useStore(triggerHistoryVisible);
-  // Never leave the panel parked on a tab that has just been hidden.
-  useEffect(() => {
-    if (!showHistory && tab === 'trigger-history') setTab('terminal');
-  }, [showHistory, tab]);
-  const visibleTabs = TABS.filter((t) => t.key !== 'trigger-history' || showHistory);
-
-  // External tab requests (the office task board → 'tasks', the boss-room
-  // calendar → 'triggers'). seq-keyed so clicking again re-opens the tab even
-  // if it was already requested.
-  const ccTabRequest = useStore((s) => s.ccTabRequest);
-  useEffect(() => {
-    if (!ccTabRequest) return;
-    const key = ccTabRequest.tab as CCTab;
-    if (!TABS.some((t) => t.key === key)) return;
-    // Read the gate live rather than depending on it — as a dependency it would
-    // re-fire a stale request the moment the tab appeared.
-    if (key === 'trigger-history' && !triggerHistoryVisible(useStore.getState())) return;
-    setTab(key);
-  }, [ccTabRequest]);
-  // A task-detail "assign" pre-fills the Floor dispatch box and jumps to it.
-  // Seeded via the store one-shot (the detail overlay lives app-wide now);
-  // { seq } makes every assign distinct so identical text re-seeds.
-  const [dispatchSeed, setDispatchSeed] = useState<{ text: string; seq: number }>({ text: '', seq: 0 });
-  const dispatchSeedRequest = useStore((s) => s.dispatchSeedRequest);
-  useEffect(() => {
-    if (!dispatchSeedRequest) return;
-    setDispatchSeed({ text: dispatchSeedRequest.text, seq: dispatchSeedRequest.seq });
-  }, [dispatchSeedRequest]);
-  // Lifted so the memory-graph tab can jump to a specific agent's memory file.
-  const [selectedMemoryAgent, setSelectedMemoryAgent] = useState<string | null>(null);
-  const updateAgent = useStore((s) => s.updateAgent);
-  const setFullscreen = useStore((s) => s.setFullscreen);
-  const fullscreenAgentId = useStore((s) => s.fullscreenAgentId);
-  const onPtyStream = usePtyParser(agent.id);
-  // True only for the DOCKED panel while the overlay holds this agent.
-  const isFullscreenedHere = fullscreenAgentId === agent.id && !fullscreen;
-  // v0.3.4: ONE floor-wide auto-delivery switch, moved off the per-agent
-  // control strips — toggling applies to every live agent, god included.
-  // Seeded from the god's own control state (the floor is kept in sync by
-  // this single control, so any agent's state reflects the floor's).
-  const [floorDeliveryPaused, setFloorDeliveryPaused] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    window.cth.controlSnapshot(agent.id)
-      .then((s) => { if (alive && s) setFloorDeliveryPaused(s.autoDeliveryPaused); })
-      .catch(() => { /* none */ });
-    return () => { alive = false; };
-  }, [agent.id]);
-  const toggleFloorDelivery = async () => {
-    const next = !floorDeliveryPaused;
-    setFloorDeliveryPaused(next);
-    const all = useStore.getState().agents;
-    await Promise.all(all.map((a) => window.cth.controlAutoDelivery(a.id, next).catch(() => null)));
-  };
-
-  return (
-    <PixelPanel
-      variant="default"
-      noPadding
-      style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 0, overflow: 'hidden' }}
-    >
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '6px 8px', background: 'var(--cth-cream-100)',
-        borderBottom: '1px solid var(--cth-ink-700)', flexShrink: 0
-      }}>
-        {/* Title + subtitle truncate; the control cluster never shrinks. At
-            sidebar width the old header wrapped its 24-char display-font title
-            onto three lines and "runs the floor" word-per-line under the two
-            wide buttons — everything here is single-line by construction. */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontFamily: 'var(--cth-font-display)', fontSize: 10, lineHeight: '14px', color: 'var(--cth-ink-900)',
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-          }}>COMMAND CENTER</div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 1, minWidth: 0 }}>
-            <PixelBadge status={agent.status} />
-            <span style={{
-              fontSize: 12, color: 'var(--cth-ink-500)',
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-            }}>Lead agent · coordinates the team</span>
-          </div>
-        </div>
-        {/* v0.3.4: floor-wide auto-delivery lives HERE (one switch for every
-            agent's queue), and the IDE opens from agent level, not the toolbar.
-            Short labels — the tooltips carry the full explanation. */}
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-          <PixelButton
-            variant={floorDeliveryPaused ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => { void toggleFloorDelivery(); }}
-          >
-            <span
-              title={floorDeliveryPaused
-                ? 'Automatic queue delivery is PAUSED for every agent — messages stay queued until resumed'
-                : 'Automatic queue delivery is ON for every agent — click to pause the whole floor'}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-            >
-              <Icon name={floorDeliveryPaused ? 'pause' : 'play'} />
-              {floorDeliveryPaused ? 'paused' : 'auto'}
-            </span>
-          </PixelButton>
-          {/* Floor-level surface with no agent of its own: the honest target is
-              whoever is selected, stated explicitly rather than left to the
-              IDE's fallback so the intent is visible at the call site. */}
-          <PixelButton variant="secondary" size="sm" onClick={() => {
-            const s = useStore.getState();
-            s.setIdeOpen(true, s.selectedId);
-          }}>
-            <span title="Open the IDE — file editor + git diff" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <Icon name="code" /> IDE
-            </span>
-          </PixelButton>
-        </div>
-      </div>
-
-      {/* Tab bar — ONE row, tabs at their natural width, scrolling only if the
-          panel is genuinely too narrow for all of them.
-
-          This was an auto-fit grid of equal-width cells, which had a failure mode
-          the equal widths caused: every column is sized to the WIDEST tab, so the
-          track count is set by the longest label rather than by the total width
-          the labels actually need. Adding a 12th tab tipped it over at fullscreen
-          width and dropped `setup` onto a second row with most of the first row's
-          space still unused — the tabs need ~1320px of content and had ~1610px.
-
-          Content-sized tabs fit all twelve on one line with room to spare, and the
-          `.cth-tabbar` rules in global.css (scrollbar-width: none, ::-webkit-
-          scrollbar { height: 0 }) already exist for exactly this: a single row that
-          scrolls with the scrollbar hidden. The grid never scrolled, so those rules
-          have been dead code since it landed.
-
-          Trade-off, deliberate: in the NARROW docked panel the far-right tabs now
-          scroll out of view instead of wrapping to a visible second row. One row
-          that sometimes needs a scroll beats two rows where one is nearly empty —
-          and the grid's own reason for existing (keeping wrapped rows aligned)
-          stops applying the moment there is only ever one row. */}
-      <div className="cth-tabbar" style={{
-        display: 'flex', gap: 4,
-        // Docked in the sidebar the panel is narrow, so tabs WRAP: a second row
-        // costs a few pixels of a tall column, while a horizontal scroll there
-        // would hide half the tabs behind a gesture with no affordance.
-        // In focus mode the panel is wide and vertical space is the scarce
-        // resource, so it stays ONE row and scrolls instead. `.cth-tabbar` in
-        // global.css already hides that scrollbar.
-        flexWrap: fullscreen ? 'nowrap' : 'wrap',
-        overflowX: fullscreen ? 'auto' : 'visible',
-        padding: '6px 8px', background: 'var(--cth-cream-100)',
-        borderBottom: '1px solid var(--cth-ink-700)', flexShrink: 0
-      }}>
-        {visibleTabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              whiteSpace: 'nowrap',
-              // grow to share any spare width (so the strip still spans the panel
-              // exactly as the old grid did), never shrink below the label (a
-              // squashed tab is unreadable — overflow into the scroll instead).
-              flex: '1 0 auto',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-              padding: '4px 8px 3px', border: 'none', cursor: 'pointer',
-              background: tab === t.key ? `var(--cth-${agent.accent})` : 'var(--cth-cream-200)',
-              // The selected tab is filled with the agent's accent, which is a
-              // LIGHT colour in both themes. ink-900 flips to near-white in dark
-              // mode, so the active tab's label was pale-on-pale — the one tab
-              // you most need to read. On-accent text is dark in both themes.
-              color: tab === t.key ? 'var(--cth-on-accent)' : 'var(--cth-ink-900)',
-              boxShadow: tab === t.key
-                ? 'inset 0 0 0 1px var(--cth-ink-300)'
-                : 'inset 0 0 0 1px var(--cth-ink-100)',
-              fontFamily: 'var(--cth-font-ui)', fontSize: 13
-            }}
-          >
-            <Icon name={t.icon} /> {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Body */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        {tab === 'terminal' && (
-          isFullscreenedHere ? (
-            <Centered>Terminal is open in fullscreen. Press Esc to bring it back.</Centered>
-          ) : agent.ptyId ? (
-            <>
-              <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-                <PtyTerminalView
-                  key={terminalInstanceKey(agent.ptyId, agent.terminalGeneration)}
-                  ptyId={agent.ptyId}
-                  onStreamData={onPtyStream}
-                  onUserPrompt={(t) => {
-                    updateAgent(agent.id, { lastPrompt: t });
-                    if (t.trim().toLowerCase() === '/clear') {
-                      updateAgent(agent.id, { contextTokens: 0, contextLimit: undefined, progress: 0 });
-                    }
-                    void window.cth.historyAdd({ agentId: agent.id, cwd: agent.cwd, text: t });
-                  }}
-                  onToggleFullscreen={() => setFullscreen(fullscreen ? null : agent.id)}
-                  fullscreen={fullscreen}
-                  embedded={!fullscreen}
-                />
-              </div>
-              <MessageQueueComposer agent={agent} />
-            </>
-          ) : (
-            <Centered>The lead agent has no live terminal.</Centered>
-          )
-        )}
-        {tab === 'floor' && <FloorTab seed={dispatchSeed} />}
-        {tab === 'tasks' && <TasksKanban />}
-        {tab === 'human' && <AskMeTab />}
-        {tab === 'triggers' && <TriggersTab />}
-        {tab === 'trigger-history' && <TriggerHistoryTab />}
-        {tab === 'memory' && (
-          <MemoryTab godId={agent.id} who={selectedMemoryAgent ?? undefined} onWho={setSelectedMemoryAgent} />
-        )}
-        {tab === 'graph' && (
-          <MemoryGraphPanel
-            godId={agent.id}
-            onJumpToMemory={(id) => { setSelectedMemoryAgent(id); setTab('memory'); }}
-          />
-        )}
-        {tab === 'activity' && <ActivityTab />}
-        {tab === 'skills' && <SkillsTab agentCwd={agent.cwd} />}
-        {tab === 'workers' && <WorkersTab />}
-      </div>
-    </PixelPanel>
-  );
-}
-
 // ─── Floor tab — roster, model, dispatch, dirs, assistant ────────────────────
 
-function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
+export function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
   const allAgents = useStore((s) => s.agents);
   const hint = useRegistryIds();
   // Display-time only: the two dead legacy seed records are hidden, never deleted.
@@ -963,7 +684,7 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
 
 // ─── Archived agents — retained + flagged, kept off the floor ────────────────
 
-function ArchivedSection() {
+export function ArchivedSection() {
   const canon = useCanonicalAgents();
   const hint = useRegistryIds();
   const archivedAgents = useStore((s) => s.archivedAgents);
@@ -1004,7 +725,7 @@ function ArchivedSection() {
 
 // ─── Memory tab ──────────────────────────────────────────────────────────────
 
-function MemoryTab({ godId, who: controlledWho, onWho }: { godId: string; who?: string; onWho?: (id: string) => void }) {
+export function MemoryTab({ godId, who: controlledWho, onWho }: { godId: string; who?: string; onWho?: (id: string) => void }) {
   const allAgents = useStore((s) => s.agents);
   const hint = useRegistryIds();
   const agents = visibleAgents(allAgents, hint);
@@ -1183,7 +904,7 @@ function TokenLimitEditor({ value, onSet }: { value?: number; onSet: (tokens: nu
 
 interface LogEntry { ts?: number; kind?: string; [k: string]: unknown }
 
-function ActivityTab() {
+export function ActivityTab() {
   const agents = useCanonicalAgents();
   const hint = useRegistryIds();
   const nameOf = (id: unknown): string => displayNameForId(typeof id === 'string' ? id : id == null ? '' : String(id), agents, hint);
@@ -1245,14 +966,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ fontFamily: 'var(--cth-font-display)', fontSize: 9, lineHeight: '12px', color: 'var(--cth-ink-500)', marginBottom: 6 }}>{title}</div>
-      {children}
-    </div>
-  );
-}
-
-function Centered({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, textAlign: 'center', color: 'var(--cth-ink-700)', fontSize: 13, background: 'var(--cth-paper-200)' }}>
       {children}
     </div>
   );

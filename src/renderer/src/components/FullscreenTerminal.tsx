@@ -6,7 +6,7 @@ import { PtyTerminalView } from './PtyTerminalView';
 import { terminalInstanceKey } from './terminalRecovery';
 import { MessageQueueComposer } from './MessageQueueComposer';
 import { AgentControlStrip } from './AgentControlStrip';
-import { CommandCenterPanel } from './CommandCenterPanel';
+import { AgentWorkbench } from '@/nexus/agents/workbench/AgentWorkbench';
 import { Icon } from './Icon';
 import { RealtimeVoiceToggle } from './RealtimeVoiceToggle';
 import { CostHud } from '@/realtime/CostHud';
@@ -527,13 +527,13 @@ export function FullscreenTerminal({ config }: FullscreenTerminalProps) {
           padding: 12, gap: 10
         }}>
           {agent.isGod ? (
-            // Michael runs the floor from the command center — its tabs (tasks,
-            // ask me, triggers, memory, graph…) are the whole point of selecting
-            // him, and fullscreen used to drop them for a bare terminal.
+            // The lead agent opens its full workbench here: its coordination
+            // sections (tasks, needs you, triggers, memory, graph…) are the point
+            // of selecting it, so fullscreen must not drop them for a bare terminal.
             // Column so the panel's `height: 100%` resolves against a definite
             // height and `align-items: stretch` gives it the full width.
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-              <CommandCenterPanel agent={agent} fullscreen />
+              <AgentWorkbench agent={agent} fullscreen />
             </div>
           ) : (
             <>
@@ -878,7 +878,7 @@ function Header({ agent, info }: { agent: Agent; info: AgentDisplay }) {
     setTimeout(() => setOpenState('idle'), 1500);
   };
 
-  /** Kill + archive, mirroring AgentDetailPanel. Confirmed, because it ends a
+  /** Kill + archive, mirroring the workbench header (WorkbenchHeader). Confirmed, because it ends a
    *  running process. God is exempt: the floor respawns it immediately, so the
    *  button would read as "restart the lead agent" while looking like "close". */
   const onKill = async () => {
