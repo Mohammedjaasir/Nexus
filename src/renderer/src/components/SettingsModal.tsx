@@ -136,8 +136,8 @@ A 202 means the message is parked in Trigger History until you approve it; the
 token you were handed still reads that task once it is routed. The secret
 authorizes new work, the token only reads one task's status. Keep both private.
 
-Each webhook checks bodies against its own JSON schema — edit that in the
-Triggers section of the lead agent's workbench (Agents page).`;
+Each webhook checks bodies against its own JSON schema — edit that in
+the Triggers section on the Agents page (lead agent).`;
 
 /** Clear every renderer-side persisted key so a relaunch starts truly empty. */
 function clearLocalState(): void {
@@ -974,7 +974,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                             </span>
                             <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
                               Queue /compact for every agent on a schedule (hourly by default; interval
-                              in the Triggers tab). Off by default — long-running agents may overflow
+                              in the Triggers section on the Agents page (lead agent)). Off by default — long-running agents may overflow
                               their context without it.
                             </span>
                           </div>
@@ -1658,7 +1658,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                         <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
                           Callers POST to a webhook's URL with its secret in the{' '}
                           <code>x-md-webhook-secret</code> header. Each one checks bodies against its own JSON
-                          schema — edit that in the Triggers section of the lead agent's workbench (Agents page), where the history
+                          schema — edit that in the Triggers section on the Agents page (lead agent), where the history
                           of everything that arrived lives too.
                         </span>
 
@@ -1750,7 +1750,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
 
                         <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
                           Configuration only for now. The organisation messaging service does not exist yet, so a
-                          key here starts no transport — it is saved, shown in the Triggers tab, and waits.
+                          key here starts no transport — it is saved, shown in the Triggers section on the Agents page (lead agent), and waits.
                         </span>
                       </div>
 

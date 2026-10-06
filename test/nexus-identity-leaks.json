@@ -575,12 +575,6 @@
         "rule": "office",
         "text": "Worktrees let agents work in parallel without fighting over one checkout, and the hive keeps its own history in git."
       }
-    ],
-    "shared/triggers.ts": [
-      {
-        "rule": "office",
-        "text": "directive = asks the hive to act; communication = informational."
-      }
     ]
   }
 }

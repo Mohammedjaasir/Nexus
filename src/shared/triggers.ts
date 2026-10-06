@@ -177,12 +177,12 @@ export const DEFAULT_WEBHOOK_SCHEMA_OBJECT = {
   type: 'object',
   required: ['message'],
   properties: {
-    message: { type: 'string', description: 'What you want the orchestrator to know or do.' },
+    message: { type: 'string', description: 'What you want the lead agent to know or do.' },
     title: { type: 'string', description: 'Short label for the kanban card.' },
     kind: {
       type: 'string',
       enum: ['directive', 'communication'],
-      description: 'directive = asks the hive to act; communication = informational.'
+      description: 'directive = asks an agent to act; communication = informational.'
     },
     from: { type: 'string', description: 'Who is sending, for the trigger history.' }
   }
