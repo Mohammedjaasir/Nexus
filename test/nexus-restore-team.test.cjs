@@ -35,3 +35,19 @@ test('restore status lines are plain', () => {
   assert.equal(restoreStatusLine({ kind: 'done', note: 'nothing to restore' }), null);
   assert.equal(restoreStatusLine({ kind: 'idle' }), null);
 });
+
+test('restore failures name agents by their on-screen label, not the stored name', () => {
+  const { restoreLabeler } = loadTs('src/renderer/src/hooks/restoreTeamPolicy.ts');
+  const live = [{ id: 'god', name: 'Michael', isGod: true, cwd: 'C:\\h', ptyId: 'pty-god' }];
+  const restorable = [
+    { id: 'w1', name: 'Dwight', cwd: 'C:\\repos\\api' },
+    { id: 'w2', name: 'Builder', cwd: 'C:\\repos\\web' }
+  ];
+  const labelOf = restoreLabeler(live, restorable, [], { godId: 'god', registryIds: new Set(['god', 'w1', 'w2']) });
+  assert.equal(labelOf('w1'), 'Agent · api');
+  assert.equal(labelOf('w2'), 'Builder');
+  assert.equal(labelOf('missing'), 'Agent');
+  const src = read('src/renderer/src/hooks/useRestoreTeam.ts');
+  assert.doesNotMatch(src, /failures\.push\(`\$\{a\.name\}/);
+  assert.equal((src.match(/failures\.push\(`\$\{labelOf\(a\.id\)\}/g) || []).length, 3);
+});

@@ -1,4 +1,5 @@
 /** Pure decisions for the team restore, kept free of React and the store so they can be tested. */
+import { canonicalAgents, displayAgents, type DisplayHint, type DisplayInput } from '@shared/agentDisplay';
 
 export interface AutoRestoreInput {
   autoRestoreEnabled: boolean;
@@ -30,4 +31,17 @@ export function restoreStatusLine(s: RestoreStatus): string | null {
     default:
       return null;
   }
+}
+
+/** The label a restorable agent has on screen, for the restore status line
+ *  (B0a final review, finding 4). Built from the same canonical list every
+ *  surface uses (live, then restorable, then archived), never the stored name. */
+export function restoreLabeler(
+  live: readonly DisplayInput[],
+  restorable: readonly DisplayInput[],
+  archived: readonly DisplayInput[],
+  hint?: DisplayHint
+): (id: string) => string {
+  const display = displayAgents(canonicalAgents<DisplayInput>(live, restorable, archived), hint);
+  return (id) => display.get(id)?.label ?? 'Agent';
 }

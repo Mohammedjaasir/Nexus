@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { useStore, type Agent } from '@/store/store';
-import { shouldScheduleAutoRestore } from './restoreTeamPolicy';
+import { restoreLabeler, shouldScheduleAutoRestore } from './restoreTeamPolicy';
 import { buildSpawnCommand, inferAgentProvider, tokenizeCommand, type HarnessConfig } from '@/store/config';
 import { normalizeAutoFlagCommand } from '@shared/autoModeFlag';
 
@@ -105,6 +105,12 @@ export function useRestoreTeam(config?: HarnessConfig | null, opts?: UseRestoreT
       // of the session that saved them, so each one is normalised to it (finding 1).
       const liveCfg = await window.cth.getConfig().catch(() => null);
       const autoMode = (liveCfg ?? config)?.autoMode === true;
+      // The status line names agents by their on-screen label, never the
+      // stored name (finding 4).
+      const reg = await window.cth.hiveRegistry().catch(() => null);
+      const st = useStore.getState();
+      const labelOf = restoreLabeler(st.agents, st.restorableAgents, st.archivedAgents,
+        reg ? { godId: reg.godId ?? null, registryIds: new Set(Object.keys(reg.agents ?? {})) } : undefined);
       // Restore every agent CONCURRENTLY. Each spawn is keyed by its own ptyId and
       // touches no cross-agent state in the renderer, and in the main process the
       // whole `pty:spawn` handler (hive registry read-modify-write included) runs
@@ -128,7 +134,7 @@ export function useRestoreTeam(config?: HarnessConfig | null, opts?: UseRestoreT
             // No spawn recipe (an old entry persisted before `command`, with no
             // config to rebuild one). Keep it restorable and SAY why rather than
             // silently dropping it — silent removal read as "nothing happened".
-            failures.push(`${a.name}: no saved command`);
+            failures.push(`${labelOf(a.id)}: no saved command`);
             return null;
           }
           const [exe, ...args] = tokenizeCommand(command);
@@ -204,11 +210,11 @@ export function useRestoreTeam(config?: HarnessConfig | null, opts?: UseRestoreT
           } else {
             // Leave it restorable so the user can retry — but record WHY so the
             // outcome is shown on the floor, not buried in the devtools console.
-            failures.push(`${a.name}: ${res.error ?? 'spawn failed'}`);
+            failures.push(`${labelOf(a.id)}: ${res.error ?? 'spawn failed'}`);
             console.error('[restore] spawn failed for', a.id, res.error);
           }
         } catch (e) {
-          failures.push(`${a.name}: ${e instanceof Error ? e.message : String(e)}`);
+          failures.push(`${labelOf(a.id)}: ${e instanceof Error ? e.message : String(e)}`);
           console.error('[restore] error for', a.id, e);
         }
         return null;
