@@ -80,7 +80,7 @@ test('U2 65,537 bytes is too_large; 40,000 double quotes (escaping overflow) is 
   fs.writeFileSync(path.join(root, 'big.txt'), 'x'.repeat(TEXT_FILE_MAX_BYTES + 1));
   const e1 = await saves.saveTextFile(me, fileSave('big.txt')).catch((x) => x);
   assert.deepEqual([e1.code, e1.detail.reason, e1.detail.limit], ['invalid', 'too_large', 65536]);
-  fs.writeFileSync(path.join(root, 'exact.txt'), 'x'.repeat(TEXT_FILE_MAX_BYTES - 100));
+  fs.writeFileSync(path.join(root, 'exact.txt'), 'word '.repeat((TEXT_FILE_MAX_BYTES - 100) / 5));
   assert.equal((await saves.saveTextFile(me, fileSave('exact.txt', { name: 'exact' }))).created, true, 'a file under the cap saves');
   fs.writeFileSync(path.join(root, 'quotes.txt'), '"'.repeat(40000));
   const e2 = await saves.saveTextFile(me, fileSave('quotes.txt', { name: 'q' })).catch((x) => x);
@@ -119,9 +119,9 @@ test('U3 a path that leaves the project through a junction is refused; nothing i
 test('U4 invalid UTF-8, or a NUL, is not_text', async () => {
   const { s, db, me, saves, root } = await setupRepo();
   fs.writeFileSync(path.join(root, 'bin.txt'), Buffer.from([0x41, 0xff, 0xfe, 0x42]));
-  fs.writeFileSync(path.join(root, 'nul.txt'), 'a\0b');
+  fs.writeFileSync(path.join(root, 'zero.txt'), 'a\0b');
   fs.writeFileSync(path.join(root, 'half.txt'), Buffer.from([0x41, 0xe2, 0x82]));   // a truncated 3-byte sequence
-  for (const f of ['bin.txt', 'nul.txt', 'half.txt']) assert.deepEqual(await reasonOf(saves.saveTextFile(me, fileSave(f))), ['invalid', 'not_text'], f);
+  for (const f of ['bin.txt', 'zero.txt', 'half.txt']) assert.deepEqual(await reasonOf(saves.saveTextFile(me, fileSave(f))), ['invalid', 'not_text'], f);
   assert.equal(count(db, 'artifacts'), 0);
   done(s, db);
 });
@@ -283,4 +283,202 @@ test('U12 git.ts and sources.ts make no synchronous call; userSaves.ts imports n
   const core = read('src/main/nexus/commands/userSaves.ts');
   assert.doesNotMatch(core, /from ['"](node:)?(fs|fs\/promises|child_process|path)['"]|\brequire\(['"]|from ['"]electron['"]/);
   assert.doesNotMatch(core, /ipcMain|webContents/);
+});
+
+// ---------- Fix round 1 ----------
+const { containsSecret, redactSecretText, hasLongToken } = loadTs('src/main/nexus/activity/redact.ts');
+const { resolveCommit } = loadTs('src/main/git.ts');
+/** 64 KiB of 'x-' (one run with 32,768 separators) and of runs with 127 separators each (just under the bound of 128). */
+const XDASH = 'x-'.repeat(32768);
+const runsOf = (unit, runLen, total) => { let s = ''; while (s.length < total) s += unit.repeat(runLen / unit.length) + ' '; return s.slice(0, total); };
+const RUNS = runsOf('a-', 254, 65536);
+const timed = (f) => { const t = process.hrtime.bigint(); const r = f(); return [r, Number(process.hrtime.bigint() - t) / 1e6]; };
+const timedAsync = async (f) => { const t = process.hrtime.bigint(); const r = await f(); return [r, Number(process.hrtime.bigint() - t) / 1e6]; };
+
+test('U13 ReDoS: a 64 KiB token-shaped input is answered in under 1 s by containsSecret, the user save, a job failure and a job create', async () => {
+  // (b) containsSecret: a run with 128+ separators is secret-shaped at once; runs just under the bound are scanned, still fast.
+  for (const [s, want] of [[XDASH, true], ['x-'.repeat(32760) + 'tok', true], ['a.'.repeat(32768), true], ['A+'.repeat(32768), true], [RUNS, false]]) {
+    const [r, ms] = timed(() => containsSecret(s));
+    assert.equal(r, want); assert.ok(ms < 1000, `containsSecret took ${ms} ms on ${JSON.stringify(s.slice(0, 12))} len ${s.length}`);
+  }
+  const [k, kms] = timed(() => containsSecret({ [XDASH.slice(0, 4096)]: 1 }));
+  assert.equal(k, true, 'a long key is secret-shaped too'); assert.ok(kms < 1000);
+  assert.equal(hasLongToken('-'.repeat(5000)), false, 'punctuation alone is not a token');
+  assert.equal(hasLongToken(`b ${'a.'.repeat(127)}`), false); assert.equal(hasLongToken(`b ${'a.'.repeat(128)}`), true);
+  assert.equal(hasLongToken('y'.repeat(65536)), false, 'a long run without separators is linear and stays allowed (B0b pins it)');
+  const [yr, yms] = timed(() => containsSecret('y'.repeat(65536))); assert.equal(yr, false); assert.ok(yms < 1000);
+  // redactSecretText redacts the long token before its regex passes.
+  const [red, rms] = timed(() => redactSecretText(`failed: ${XDASH} end`));
+  assert.equal(red, 'failed: [redacted] end'); assert.ok(rms < 1000);
+
+  const { s, db, nx, me, saves, root } = await setupRepo();
+  // (a) the user save: a 65,400-byte 'x-' file fits the record and is refused as secret-shaped, quickly.
+  fs.writeFileSync(path.join(root, 'x.txt'), 'x-'.repeat(32700));
+  const [e1, ms1] = await timedAsync(() => reasonOf(saves.saveTextFile(me, fileSave('x.txt'))));
+  assert.deepEqual(e1, ['invalid', 'secret_in_content']); assert.ok(ms1 < 1000, `saveTextFile took ${ms1} ms`);
+  fs.writeFileSync(path.join(root, 'runs.txt'), RUNS.slice(0, 65000));
+  const [ok, ms2] = await timedAsync(() => saves.saveTextFile(me, fileSave('runs.txt', { name: 'runs' })));
+  assert.equal(ok.created, true); assert.ok(ms2 < 1000, `saveTextFile took ${ms2} ms`);
+  // (c) a job failure with a 64 KiB message: stored redacted, quickly.
+  const sys = nx.principals.system();
+  const j = nx.jobs.create(me, { kind: 'tool.run', projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: 'redos-1' }).job;
+  nx.jobs.transition(sys, j.id, 'leased'); nx.jobs.transition(sys, j.id, 'running');
+  const [failed, ms3] = timed(() => nx.jobs.transition(sys, j.id, 'failed', { error: { code: 'tool_error', message: XDASH } }));
+  assert.equal(failed.state, 'failed'); assert.ok(ms3 < 1000, `transition took ${ms3} ms`);
+  assert.equal(JSON.parse(db.prepare('SELECT error_json FROM jobs WHERE id = ?').get(j.id).error_json).message, '[redacted]');
+  // (d) a job create with a 64 KiB-class params string: refused as secret-shaped, quickly; long runs pass.
+  const createWith = (key, note) => () => {
+    try { return nx.jobs.create(me, { kind: 'tool.run', projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key, params: { note } }); } catch (x) { return x; }
+  };
+  const [pe, ms4] = timed(createWith('redos-2', 'x-'.repeat(32700)));
+  assert.equal(pe?.detail?.reason, 'secret_in_params'); assert.ok(ms4 < 1000, `create took ${ms4} ms`);
+  const [pc, ms5] = timed(createWith('redos-3', RUNS.slice(0, 65000)));
+  assert.equal(pc.created, true); assert.ok(ms5 < 1000, `create took ${ms5} ms`);
+  done(s, db);
+});
+
+test('U14 a hard link is refused as path_refused', async () => {
+  const { s, db, me, saves, root } = await setupRepo();
+  const outside = h.tmpDir('nx-hl-'); fs.writeFileSync(path.join(outside, 'secret.txt'), 'outside\n');
+  fs.linkSync(path.join(outside, 'secret.txt'), path.join(root, 'linked.txt'));
+  assert.deepEqual(await reasonOf(saves.saveTextFile(me, fileSave('linked.txt'))), ['invalid', 'path_refused']);
+  // Two names inside the project are refused too: either may carry a sensitive name.
+  fs.writeFileSync(path.join(root, 'a.txt'), 'a\n'); fs.linkSync(path.join(root, 'a.txt'), path.join(root, 'b.txt'));
+  assert.deepEqual(await reasonOf(saves.saveTextFile(me, fileSave('b.txt'))), ['invalid', 'path_refused']);
+  assert.equal(count(db, 'artifacts'), 0);
+  done(s, db);
+});
+
+test('U15 C7: more key and credential names, any .git segment, and private-key or PuTTY content are refused', async () => {
+  const calls = [];
+  const { s, db, me, saves, root } = await setupRepo({ wrap: spy(calls) });
+  for (const f of ['id_ecdsa', 'id_dsa.pub', 'ID_RSA', 'me.ppk', '.git-credentials', 'store.jks', 'app.keystore', 'c.P12', 'c.pfx', '.htpasswd',
+    '.git/config', '.git/HEAD', 'sub/.git/config', '.GIT/config', '.git', 'a/.Git./x']) {
+    assert.deepEqual(await reasonOf(saves.saveTextFile(me, fileSave(f))), ['invalid', 'sensitive_name'], f);
+  }
+  assert.deepEqual(calls.filter((c) => c === 'readFile'), []);
+  const bodies = {
+    'pgp.txt': '-----BEGIN PGP PRIVATE KEY BLOCK-----\nlQ\n',
+    'ossh.txt': 'x\n-----BEGIN OPENSSH PRIVATE KEY-----\nb3Bl\n',
+    'plain.txt': '-----BEGIN PRIVATE KEY-----\n',
+    'putty.txt': 'PuTTY-User-Key-File-3: ssh-ed25519\nEncryption: none\n'
+  };
+  for (const [f, body] of Object.entries(bodies)) {
+    fs.writeFileSync(path.join(root, f), body);
+    assert.deepEqual(await reasonOf(saves.saveTextFile(me, fileSave(f))), ['invalid', 'secret_in_content'], f);
+  }
+  // A public key, and names that only mention git, are fine.
+  fs.writeFileSync(path.join(root, 'pub.txt'), '-----BEGIN PUBLIC KEY-----\nMFkw\n-----END PUBLIC KEY-----\n');
+  fs.writeFileSync(path.join(root, 'my.gitignore.md'), 'notes\n');
+  fs.writeFileSync(path.join(root, '.gitignore'), 'node_modules\n');
+  for (const f of ['pub.txt', 'my.gitignore.md', '.gitignore']) {
+    assert.equal((await saves.saveTextFile(me, fileSave(f, { name: f }))).created, true, f);
+  }
+  assert.equal(count(db, "artifacts WHERE name = 'x'"), 0);
+  done(s, db);
+});
+
+test('U16 a byte-order mark is stored faithfully; C0 controls other than tab, LF, FF and CR, and DEL, are not_text', async () => {
+  const { s, db, me, saves, root } = await setupRepo();
+  const bom = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('hello\n')]);
+  fs.writeFileSync(path.join(root, 'bom.txt'), bom);
+  const r = await saves.saveTextFile(me, fileSave('bom.txt', { name: 'bom' }));
+  assert.equal(r.version.storage.json.text.charCodeAt(0), 0xfeff);
+  assert.ok(Buffer.from(r.version.storage.json.text, 'utf8').equals(bom), 'the stored text re-encodes to the file bytes');
+  fs.writeFileSync(path.join(root, 'ws.txt'), 'a\tb\nc\r\nd\fe\n');
+  assert.equal((await saves.saveTextFile(me, fileSave('ws.txt', { name: 'ws' }))).created, true);
+  const controls = [0x01, 0x07, 0x08, 0x0b, 0x0e, 0x1b, 0x1f, 0x7f];
+  for (const c of controls) {
+    const f = `ctl${c}.txt`; fs.writeFileSync(path.join(root, f), Buffer.from([0x6f, 0x6b, c, 0x6f, 0x6b]));
+    assert.deepEqual(await reasonOf(saves.saveTextFile(me, fileSave(f))), ['invalid', 'not_text'], String(c));
+  }
+  assert.equal(count(db, "artifacts WHERE name = 'x'"), 0);
+  done(s, db);
+});
+
+test('U17 an annotated tag sha is peeled to its commit; same-name dedup; resolveCommit refuses option-shaped input directly', async () => {
+  const { s, db, me, saves, root, head } = await setupRepo();
+  git(root, 'tag', '-a', 'v1', '-m', 'release one');
+  const tagSha = git(root, 'rev-parse', 'v1');
+  assert.notEqual(tagSha, head);
+  const r = await saves.saveCommit(me, { projectId: 'p-ledger', workspaceId: 'sde', commit: tagSha, target: { name: 'tagged' } });
+  assert.deepEqual(r.version.storage, { kind: 'git', commit: head });
+  assert.equal(r.version.contentHash, `git:${head}`);
+  // Dedup: the same commit saved again under the same name returns the stored version.
+  const again = await saves.saveCommit(me, { projectId: 'p-ledger', workspaceId: 'sde', commit: head, target: { name: 'tagged' } });
+  assert.deepEqual([again.created, again.version.id, again.artifact.id], [false, r.version.id, r.artifact.id]);
+  assert.equal(count(db, "artifacts WHERE name = 'tagged'"), 1);
+  // Direct: option-, ref- and range-shaped input never reaches git as an option and is not a commit.
+  const before = fs.readdirSync(root).sort();
+  for (const bad of ['--output=pwned.txt', '-h', '--all', 'HEAD', 'v1', `${head}..HEAD`, `${head}^`, '', 'abc', `${head} --all`, '-'.repeat(8), 'g'.repeat(40)]) {
+    assert.deepEqual(await resolveCommit(root, bad), { error: 'not_a_commit' }, JSON.stringify(bad));
+  }
+  assert.deepEqual(fs.readdirSync(root).sort(), before, 'nothing was written in the repository');
+  const full = await resolveCommit(root, head);
+  assert.deepEqual(await resolveCommit(root, head.slice(0, 12)), full);
+  assert.equal(full.commit, head);
+  done(s, db);
+});
+
+test('U18 a file symlink to a sensitive name inside the project is sensitive_name (by its real name)', async () => {
+  const { s, db, me, saves, root, nx } = await setupRepo();
+  fs.writeFileSync(path.join(root, '.env.local'), 'A=1\n');
+  let linked = true;
+  try { fs.symlinkSync(path.join(root, '.env.local'), path.join(root, 'innocent.txt'), 'file'); } catch (e) {
+    if (process.platform !== 'win32' || e.code !== 'EPERM') throw e;
+    linked = false;   // Windows without the symlink privilege: the port-level check below still runs.
+  }
+  if (linked) assert.deepEqual(await reasonOf(saves.saveTextFile(me, fileSave('innocent.txt'))), ['invalid', 'sensitive_name']);
+  // The command checks the REAL name the port reports, whatever the requested name was.
+  const fake = { projectRoot: async () => root, resolveCommit: async () => ({ error: 'not_a_commit' }),
+    readFile: async () => ({ bytes: Buffer.from('A=1\n'), normalisedRel: 'cfg/.env.local' }) };
+  assert.deepEqual(await reasonOf(new UserSaves(nx, fake).saveTextFile(me, fileSave('innocent.txt'))), ['invalid', 'sensitive_name']);
+  const viaGit = { ...fake, readFile: async () => ({ bytes: Buffer.from('x\n'), normalisedRel: '.git/config' }) };
+  assert.deepEqual(await reasonOf(new UserSaves(nx, viaGit).saveTextFile(me, fileSave('innocent.txt'))), ['invalid', 'sensitive_name']);
+  assert.equal(count(db, 'artifacts'), 0);
+  done(s, db);
+});
+
+test('U19 Windows aliases: trailing dots and spaces, long-path and device-namespace prefixes, and device names are refused', async () => {
+  const { s, db, me, saves, root } = await setupRepo();
+  fs.writeFileSync(path.join(root, 'notes.txt'), 'hello\n');
+  // On every platform: device-namespace and long-path prefixes are absolute.
+  const BS = '\\';
+  for (const bad of [`${BS}${BS}?${BS}C:${BS}Windows${BS}win.ini`, `${BS}${BS}.${BS}C:${BS}Windows${BS}win.ini`, `${BS}${BS}.${BS}PhysicalDrive0`,
+    '//?/C:/x', `${BS}${BS}?${BS}UNC${BS}server${BS}share${BS}x`]) {
+    assert.deepEqual(await reasonOf(saves.saveTextFile(me, fileSave(bad))), ['invalid', 'path_refused'], bad);
+  }
+  // The win32 rules, checked on the pure segment function on any platform.
+  for (const bad of ['notes.txt.', 'notes.txt ', 'notes.txt. .', 'sub./x', 'CON', 'nul', 'NUL.txt', 'aux.md', 'com1', 'LPT9.log', 'a/CON/b', 'conin$', 'COM\u00b9']) {
+    assert.equal(relSegments(bad, 'win32'), null, JSON.stringify(bad));
+  }
+  assert.deepEqual(relSegments('console.txt', 'win32'), ['console.txt']);
+  assert.deepEqual(relSegments('notes.txt.', 'linux'), ['notes.txt.']);
+  // Through the real port on this platform: on win32 each alias is refused before the disk is touched.
+  if (process.platform === 'win32') {
+    for (const bad of ['notes.txt.', 'notes.txt ', 'NUL', 'con.txt']) {
+      assert.deepEqual(await reasonOf(saves.saveTextFile(me, fileSave(bad))), ['invalid', 'path_refused'], JSON.stringify(bad));
+    }
+    fs.writeFileSync(path.join(root, '.env'), 'A=1\n');
+    for (const bad of ['.env.', '.env ', '.ENV. ']) {
+      assert.deepEqual(await reasonOf(saves.saveTextFile(me, fileSave(bad))), ['invalid', 'sensitive_name'], JSON.stringify(bad));
+    }
+  }
+  assert.equal(count(db, 'artifacts'), 0);
+  done(s, db);
+});
+
+test('U20 a huge sparse file is refused as too_large without being read', async () => {
+  const { s, db, me, saves, root, ports } = await setupRepo();
+  const big = path.join(root, 'huge.log');
+  const fd = fs.openSync(big, 'w'); fs.ftruncateSync(fd, 4 * 1024 ** 3); fs.closeSync(fd);
+  const mem0 = process.memoryUsage().arrayBuffers;
+  const [r, ms] = await timedAsync(() => reasonOf(saves.saveTextFile(me, fileSave('huge.log'))));
+  assert.deepEqual(r, ['invalid', 'too_large']); assert.ok(ms < 1000, `took ${ms} ms`);
+  const [p, pms] = await timedAsync(() => ports.readFile(root, 'huge.log', TEXT_FILE_MAX_BYTES));
+  assert.deepEqual(p, { error: 'too_large' }); assert.ok(pms < 1000);
+  assert.ok(process.memoryUsage().arrayBuffers - mem0 < 16 * 1024 * 1024, 'no large buffer was allocated');
+  fs.rmSync(big, { force: true });
+  assert.equal(count(db, 'artifacts'), 0);
+  done(s, db);
 });

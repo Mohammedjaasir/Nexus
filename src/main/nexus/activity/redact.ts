@@ -71,7 +71,71 @@ const UNTERMINATED_PRIVATE_KEY = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*$/
  * or redactDetails: activity hashes depend on redactDetails' exact output.
  */
 export function redactSecretText(s: string): string {
-  return redactText(s).replace(UNTERMINATED_PRIVATE_KEY, REDACTED);
+  return redactText(redactLongTokens(s)).replace(UNTERMINATED_PRIVATE_KEY, REDACTED);
+}
+
+/**
+ * ReDoS bound. Several redactor patterns (the key=value pass and the URL credential pass in redactForLog, and
+ * URL_USER and SIGNATURE_PAIR here) are anchored on a word boundary and then scan the rest of a run of token
+ * characters (letters, digits, `+ . _ -`). Their cost is (word boundaries in a run) x (run length), so a
+ * 64 KiB run like `x-x-x-...` takes seconds, and the main process with it. Word boundaries inside a run come
+ * only from `+ . -` (`_` is a word character). So a run holding LONG_TOKEN_SEPARATORS or more of `+ . -`,
+ * and a letter or digit, is treated as secret-shaped: containsSecret answers true before any regex runs, and
+ * redactSecretText redacts the run before its regex passes. Every other run has fewer than about
+ * 2 x LONG_TOKEN_SEPARATORS boundaries, which bounds the regex cost linearly in the string length.
+ *
+ * Measured on 64 KiB (V8's regex interpreter, which V8 falls back to after it flushes compiled regex code):
+ * one `x-x-...` run took 5 s compiled; runs of 2,047 characters took 4 to 10 s per pattern; runs just under
+ * this bound take under 0.5 s for the whole check (about 30 ms compiled). A long run WITHOUT separators
+ * (`yyyy...`, `xxxx...`) has no inner boundary, is linear, and is not affected: the B0b tests pin such
+ * params and error messages as stored exactly. redactText and redactDetails are deliberately unchanged:
+ * activity hashes depend on their exact output, and redactDetails already caps every string at MAX_STRING.
+ */
+export const LONG_TOKEN_SEPARATORS = 128;
+
+/** 0: not a token character; 1: `_`; 2: a letter or digit; 3: `+ . -` (each makes word boundaries). */
+function tokenClass(c: number): 0 | 1 | 2 | 3 {
+  if ((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122)) return 2;
+  if (c === 95) return 1;
+  return c === 43 || c === 46 || c === 45 ? 3 : 0;
+}
+
+/**
+ * The [start, end) spans of every such run in `s`, by one forward scan. (A regex for the same runs would
+ * itself rescan each run from every position, which is quadratic again.)
+ */
+function longTokenSpans(s: string, firstOnly: boolean): [number, number][] {
+  const spans: [number, number][] = [];
+  if (s.length < LONG_TOKEN_SEPARATORS) return spans;
+  let start = -1; let alnum = false; let seps = 0;
+  for (let i = 0; i <= s.length; i++) {
+    const k = i < s.length ? tokenClass(s.charCodeAt(i)) : 0;
+    if (k !== 0) {
+      if (start < 0) { start = i; alnum = false; seps = 0; }
+      if (k === 2) alnum = true; else if (k === 3) seps++;
+      continue;
+    }
+    if (start >= 0 && alnum && seps >= LONG_TOKEN_SEPARATORS) {
+      spans.push([start, i]);
+      if (firstOnly) return spans;
+    }
+    start = -1;
+  }
+  return spans;
+}
+
+/** True when `s` holds a run of token characters with LONG_TOKEN_SEPARATORS or more `+ . -` and a letter or digit. Linear time. */
+export function hasLongToken(s: string): boolean {
+  return longTokenSpans(s, true).length > 0;
+}
+
+/** Replaces every such run with REDACTED. Linear time. */
+function redactLongTokens(s: string): string {
+  const spans = longTokenSpans(s, false);
+  if (spans.length === 0) return s;
+  let out = ''; let at = 0;
+  for (const [a, b] of spans) { out += s.slice(at, a) + REDACTED; at = b; }
+  return out + s.slice(at);
 }
 
 /**
@@ -79,14 +143,16 @@ export function redactSecretText(s: string): string {
  * depth and key-count cap: a key that names a secret (numeric token counts and hex
  * digests under hash keys excepted, as in redactDetails), or a key or string value
  * that redactText would alter, or any string holding a private-key header
- * (terminated or not). Meant for exact JSON (cycles are not followed twice).
+ * (terminated or not), or a key or string holding a run of token characters with
+ * LONG_TOKEN_SEPARATORS or more `+ . -` (checked first, so the regex passes never
+ * see one). Meant for exact JSON (cycles are not followed twice).
  */
 export function containsSecret(v: unknown): boolean {
   const seen = new Set<object>();
   const stack: unknown[] = [v];
   while (stack.length) {
     const x = stack.pop();
-    if (typeof x === 'string') { if (PRIVATE_KEY_HEADER.test(x) || redactText(x) !== x) return true; continue; }
+    if (typeof x === 'string') { if (hasLongToken(x) || PRIVATE_KEY_HEADER.test(x) || redactText(x) !== x) return true; continue; }
     if (typeof x !== 'object' || x === null || seen.has(x)) continue;
     seen.add(x);
     if (Array.isArray(x)) { for (const item of x) stack.push(item); continue; }
@@ -94,7 +160,7 @@ export function containsSecret(v: unknown): boolean {
       const raw = (x as Record<string, unknown>)[key];
       if (TOKEN_COUNT_KEYS.has(key) && typeof raw === 'number') continue;
       if (HASH_KEYS.has(key) && typeof raw === 'string' && HEX_DIGEST.test(raw)) continue;
-      if (SECRET_KEY.test(key) || redactText(key) !== key) return true;
+      if (hasLongToken(key) || SECRET_KEY.test(key) || redactText(key) !== key) return true;
       stack.push(raw);
     }
   }

@@ -509,6 +509,11 @@ const FULL_SHA = /^[0-9a-f]{40}$/;
  * `cwd` must already be a folder main accepted (acceptFsRoot); renderer
  * strings are untrusted. Errors: 'not_a_repository' when git finds no
  * repository at `cwd`, 'not_a_commit' for anything else.
+ *
+ * Ruling (B1 Task 5 review): git discovers the repository from `cwd` upwards, so a
+ * project registered at a sub-folder of a repository (a monorepo package) resolves
+ * commits of that PARENT repository. This is allowed on purpose. An annotated tag's
+ * sha is peeled to its commit by `^{commit}`; a tree or blob sha is 'not_a_commit'.
  */
 export async function resolveCommit(cwd: string, sha: string): Promise<ResolvedCommit | { error: 'not_a_repository' | 'not_a_commit' }> {
   if (typeof cwd !== 'string' || !cwd || cwd.includes('\0')) return { error: 'not_a_repository' };

@@ -11,7 +11,10 @@
  *   NUL, or when any segment is `..`. Backslashes become '/'. Every existing step is then
  *   resolved by realpath (symlinks and junctions followed) and must stay inside the real
  *   root, before and after the read.
- * - Only a regular file is read. Its size is checked before reading, and at most
+ * - Only a regular file with ONE link is read (a hard link is refused). After the read, the
+ *   confined name must still resolve to itself and name the same file (dev and inode) as the
+ *   open handle, so a swap during the read is refused.
+ * - Its size is checked before reading, and at most
  *   `maxBytes + 1` bytes are ever read, so a file that grows cannot slip past the cap.
  * - A commit is resolved by git in that folder (git.ts, async spawn; never a shell).
  * Async only: no synchronous file system or process call here.
@@ -30,11 +33,14 @@ export interface SourcePortDeps {
 }
 
 const MAX_REL_PATH_CHARS = 1024;
+const WIN_DEVICE = /^(con|prn|aux|nul|conin\$|conout\$|clock\$|com[0-9¹²³]|lpt[0-9¹²³])(\..*)?$/i;
 
 /**
  * The segments of a renderer-supplied relative path, or null when it is refused:
  * empty, too long, NUL, absolute (POSIX, drive letter, UNC) or any '..' segment.
- * '.' and empty segments are dropped. On Windows a segment holding ':' is refused too.
+ * '.' and empty segments are dropped. On Windows a segment holding ':', ending in a dot
+ * or a space, or naming a reserved device is refused too. `\\?\` and `\\.\` paths start
+ * with a separator and are refused as absolute.
  */
 export function relSegments(rel: unknown, platform: NodeJS.Platform = process.platform): string[] | null {
   if (typeof rel !== 'string' || rel.length === 0 || rel.length > MAX_REL_PATH_CHARS || rel.includes('\0')) return null;
@@ -44,6 +50,9 @@ export function relSegments(rel: unknown, platform: NodeJS.Platform = process.pl
   if (parts.length === 0 || parts.some((x) => x === '..')) return null;
   // Windows: a colon in a segment names an alternate data stream (or a drive); never part of a project file name.
   if (platform === 'win32' && parts.some((x) => x.includes(':'))) return null;
+  // Windows drops trailing dots and spaces (`.env.` opens `.env`) and maps reserved device names (CON, NUL,
+  // COM1, `nul.txt`, ...) to devices in any folder: both are aliases, never project files.
+  if (platform === 'win32' && parts.some((x) => /[. ]$/.test(x) || WIN_DEVICE.test(x.replace(/[. ]+$/, '')))) return null;
   return parts;
 }
 
@@ -88,13 +97,16 @@ export function createSourcePorts(deps: SourcePortDeps): SourcePorts {
       let st;
       try { st = await stat(cur); } catch { return { error: 'not_found' as const }; }
       if (!st.isFile()) return { error: 'not_a_file' as const };
+      // A hard link is a second name for a file that may live outside the project (or hold another name's secret).
+      if (st.nlink > 1) return { error: 'path_refused' as const };
       if (st.size > maxBytes) return { error: 'too_large' as const };
       let fh;
       try { fh = await open(cur, 'r'); } catch { return { error: 'not_found' as const }; }
       try {
-        const fst = await fh.stat();
+        const fst = await fh.stat({ bigint: true });
         if (!fst.isFile()) return { error: 'not_a_file' as const };
-        if (fst.size > maxBytes) return { error: 'too_large' as const };
+        if (fst.nlink > 1n) return { error: 'path_refused' as const };
+        if (fst.size > BigInt(maxBytes)) return { error: 'too_large' as const };
         const buf = Buffer.alloc(maxBytes + 1);
         let n = 0;
         while (n < buf.length) {
@@ -107,6 +119,11 @@ export function createSourcePorts(deps: SourcePortDeps): SourcePorts {
         let after: string;
         try { after = await realpath(cur); } catch { return { error: 'path_refused' as const }; }
         if (after !== cur || !isUnderRoot(realRoot, after)) return { error: 'path_refused' as const };
+        // ... and still be the SAME file that was read: a swap away and back between the realpath checks and the
+        // open would pass the name checks, so the opened handle and the confined name must share dev and inode.
+        let named;
+        try { named = await stat(after, { bigint: true }); } catch { return { error: 'path_refused' as const }; }
+        if (named.dev !== fst.dev || named.ino !== fst.ino || named.nlink > 1n) return { error: 'path_refused' as const };
         const normalisedRel = path.relative(realRoot, cur).split(path.sep).join('/');
         if (!normalisedRel || normalisedRel.startsWith('..') || path.isAbsolute(normalisedRel)) return { error: 'path_refused' as const };
         return { bytes: Buffer.from(buf.subarray(0, n)), normalisedRel };
