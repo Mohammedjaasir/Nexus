@@ -1,6 +1,7 @@
 'use strict';
-// B1 Task 6: the nexus:* IPC module. A fake registrar stands in for ipcMain; every handler is
+// B1 Tasks 6 and 7: the nexus:* IPC module. A fake registrar stands in for ipcMain; every handler is
 // called directly with fixtures. Real SQLite only; nothing launches Electron or touches userData.
+// The end-to-end write flows and the orphan checks are in nexus-platform-b1-flows.test.cjs.
 const h = require('./helpers/sqlite.cjs');
 if (!h.realSqliteOrSkip()) return;
 const test = require('node:test');
@@ -12,7 +13,8 @@ const { createNexusPlatform } = loadTs('src/main/nexus/platform.ts');
 const { PlatformError } = loadTs('src/main/nexus/errors.ts');
 const { verifyActivityChain } = loadTs('src/main/nexus/activity/writer.ts');
 const { registerNexusIpc, NEXUS_CHANNELS } = loadTs('src/main/nexusIpc/registerNexusIpc.ts');
-const { scrubMessage, fail, REASON_MESSAGES } = loadTs('src/main/nexusIpc/envelope.ts');
+const { scrubMessage, fail, REASON_MESSAGES, BUSY_MESSAGE } = loadTs('src/main/nexusIpc/envelope.ts');
+const { MAX_LIST_LIMIT } = loadTs('src/main/nexus/artifact/artifactService.ts');
 const { V, RequestError } = loadTs('src/main/nexusIpc/validate.ts');
 const { participationView, ACTIVITY_DETAIL_KEYS } = loadTs('src/main/nexusIpc/dto.ts');
 
@@ -58,9 +60,9 @@ const commitSave = (target, commit = SHA) => ({
 });
 const okData = (r) => { assert.equal(r.ok, true, JSON.stringify(r)); return r.data; };
 
-test('the registered channels are exactly the read channels, all in NEXUS_CHANNELS (21, frozen)', () => {
+test('every channel of NEXUS_CHANNELS is registered (21, frozen), the read channels among them', () => {
   const { handlers } = harness({ noPlatform: true });
-  assert.deepEqual([...handlers.keys()].sort(), [...READ_CHANNELS].sort());
+  assert.deepEqual([...handlers.keys()].sort(), [...NEXUS_CHANNELS].sort());
   assert.equal(NEXUS_CHANNELS.length, 21); assert.equal(new Set(NEXUS_CHANNELS).size, 21); assert.ok(Object.isFrozen(NEXUS_CHANNELS));
   for (const ch of READ_CHANNELS) assert.ok(NEXUS_CHANNELS.includes(ch), ch);
 });
@@ -105,7 +107,7 @@ test('I3 hostile arguments never throw, never leak a stack or a path, and never 
     }
   }
   assert.deepEqual(counts(), before, 'no hostile call wrote a platform row');
-  assert.deepEqual(sources.calls, [], 'no read channel touches the file system or git ports');
+  assert.deepEqual(sources.calls, [], 'no hostile request reaches the file system or git ports');
   // An unknown key is refused by name; a hostile key is never echoed.
   const r = await call('nexus:artifacts:list', { projectId: 'p-ledger', extra: 1 });
   assert.deepEqual([r.code, r.reason, r.field], ['invalid', 'bad_request', 'extra']);
@@ -316,4 +318,83 @@ test('validate: shapes, caps and the relPath rules', () => {
   bad(() => V.object(JSON.parse('{"constructor":1}'), ['constructor']));
   assert.equal(V.int(5, 'n', 1, 10), 5); bad(() => V.int(11, 'n', 1, 10)); bad(() => V.int(Number.MAX_SAFE_INTEGER + 2, 'n', 1, Infinity));
   assert.equal(V.enumOf('up', 'd', ['up', 'down']), 'up'); bad(() => V.enumOf('UP', 'd', ['up', 'down']));
+});
+
+// ---------- Task 7: Task 6 review fixes ----------
+
+test('platform_unavailable from a service gets a fixed message and a reason; no principal id leaks', async () => {
+  const { call, nx } = harness();
+  // A seeded principal missing (the real resolver path, with an id that is not seeded).
+  nx.principals.localUser = () => nx.principals.seeded('user:missing-one');
+  const r = await call('nexus:participations:list');
+  assert.deepEqual([r.ok, r.code, r.reason], [false, 'platform_unavailable', 'startup_failed']);
+  assert.doesNotMatch(JSON.stringify(r), /user:|seeded|missing/);
+  assert.equal(r.message, 'The Nexus platform is not available.');
+  // Busy and locked codes (with sub-codes) are 'busy'; any other code is 'startup_failed'.
+  const busy = (code) => fail(new PlatformError('platform_unavailable', 'the database is busy; try again user:local', { sqliteCode: code }), 'x', () => {});
+  for (const c of ['SQLITE_BUSY', 'SQLITE_BUSY_SNAPSHOT', 'SQLITE_LOCKED', 'SQLITE_LOCKED_SHAREDCACHE']) {
+    assert.deepEqual(busy(c), { ok: false, code: 'platform_unavailable', message: BUSY_MESSAGE, reason: 'busy' }, c);
+  }
+  for (const c of ['SQLITE_IOERR', 'SQLITE_BUSYX', undefined, 5]) assert.equal(busy(c).reason, 'startup_failed', String(c));
+  // Handoffs off from the service itself keeps its reason and sub-reason.
+  const ho = fail(new PlatformError('platform_unavailable', 'x', { reason: 'handoffs_unavailable', subReason: 'shape' }), 'x', () => {});
+  assert.deepEqual([ho.code, ho.reason, ho.subReason], ['platform_unavailable', 'handoffs_unavailable', 'shape']);
+});
+
+test('a real write lock held by another connection answers busy on a write channel and writes nothing', async () => {
+  const { call, db, s, nx, me } = harness();
+  const file = db.name;
+  db.pragma('busy_timeout = 50');                     // keep the wait short; the store default is 5 s
+  const before = db.prepare('SELECT COUNT(*) n FROM project_workspaces').get().n;
+  const seq = db.prepare('SELECT MAX(seq) s FROM activity').get().s;
+  const other = h.openRaw(file); other.pragma('busy_timeout = 0');
+  other.prepare('BEGIN IMMEDIATE').run();
+  try {
+    const r = await call('nexus:participation:attach', 'p-ledger', 'qa');
+    assert.deepEqual(r, { ok: false, code: 'platform_unavailable', message: BUSY_MESSAGE, reason: 'busy' });
+  } finally { other.prepare('ROLLBACK').run(); other.close(); }
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM project_workspaces').get().n, before);
+  assert.equal(db.prepare('SELECT MAX(seq) s FROM activity').get().s, seq);
+  // Once the lock is gone the same request succeeds.
+  const ok2 = okData(await call('nexus:participation:attach', 'p-ledger', 'qa'));
+  assert.equal(ok2.workspaceId, 'qa');
+  assert.equal(verifyActivityChain(db).ok, true);
+  void s; void nx; void me;
+});
+
+test('artifacts:byProject reports truncated only when more than MAX_LIST_LIMIT rows exist', async () => {
+  const { call, nx, me, db } = harness();
+  const spy = []; const real = nx.artifacts.summariesByProject.bind(nx.artifacts);
+  nx.artifacts.summariesByProject = (p, id, o) => { spy.push(o); return real(p, id, o); };
+  const save = (k) => nx.artifacts.saveUserVersion(me, textSave({ name: `a${k}` }, `text ${k}`));
+  db.transaction(() => { for (let k = 0; k < MAX_LIST_LIMIT - 1; k++) save(k); })();
+  const under = await call('nexus:artifacts:byProject', 'p-ledger');
+  assert.deepEqual([okData(under).length, under.truncated], [MAX_LIST_LIMIT - 1, false]);
+  save('x');
+  const exact = await call('nexus:artifacts:byProject', 'p-ledger');
+  assert.deepEqual([okData(exact).length, exact.truncated], [MAX_LIST_LIMIT, false], 'exactly 1000 rows is not truncated');
+  save('y');
+  const over = await call('nexus:artifacts:byProject', 'p-ledger');
+  assert.deepEqual([okData(over).length, over.truncated], [MAX_LIST_LIMIT, true]);
+  assert.deepEqual(spy[0], { limit: MAX_LIST_LIMIT + 1 });
+  // The service keeps its default and refuses a limit past MAX_LIST_LIMIT + 1.
+  assert.equal(real(me, 'p-ledger').length, MAX_LIST_LIMIT);
+  for (const bad of [0, MAX_LIST_LIMIT + 2, 1.5]) assert.throws(() => real(me, 'p-ledger', { limit: bad }), (e) => e.code === 'invalid');
+});
+
+test('V.object refuses getters and setters without running them', async () => {
+  let ran = 0;
+  const withGetter = { get projectId() { ran++; return 'p-ledger'; } };
+  assert.throws(() => V.object(withGetter, ['projectId']), (e) => e instanceof RequestError && e.field === 'projectId');
+  const withSetter = {}; Object.defineProperty(withSetter, 'projectId', { set() { ran++; }, enumerable: true });
+  assert.throws(() => V.object(withSetter, ['projectId']), (e) => e instanceof RequestError);
+  assert.equal(ran, 0, 'no accessor ran');
+  const { call } = harness();
+  const r = await call('nexus:artifacts:list', { get limit() { ran++; return 5; } });
+  assert.deepEqual([r.ok, r.code, r.reason, r.field], [false, 'invalid', 'bad_request', 'limit']);
+  const r2 = await call('nexus:artifact:saveTextFile', { projectId: 'p-ledger', workspaceId: 'sde', relPath: 'a.md', get target() { ran++; return { name: 'x' }; } });
+  assert.deepEqual([r2.code, r2.field], ['invalid', 'target']);
+  assert.equal(ran, 0);
+  // A plain data property still reads normally.
+  assert.deepEqual({ ...V.object({ projectId: 'p-ledger' }, ['projectId']) }, { projectId: 'p-ledger' });
 });

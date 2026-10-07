@@ -10,12 +10,14 @@
  * 2. Validation through validate.ts (exact shapes, unknown keys refused).
  * 3. The principal: always the local user, resolved here from the store. Nothing
  *    identity-shaped is read from the arguments.
- * 4. One service read, mapped to a view (dto.ts). Authorization stays in the services.
+ * 4. One service call, mapped to a view (dto.ts). Authorization stays in the services;
+ *    the write channels call the services (and UserSaves, built once per platform
+ *    instance over the main source ports) and decide nothing themselves.
  * 5. Errors through envelope.ts. The wrapper never throws.
  *
  * This module lives outside src/main/nexus on purpose: the platform core never knows
  * about transport (the composition test bans Electron's IPC objects there).
- * B1 Task 6 registers the read channels; the write channels follow in Task 7.
+ * B1 Task 6 registered the read channels; Task 7 the write channels (all 21).
  */
 import type { Principal } from '../../shared/nexus/platform';
 import type {
@@ -24,11 +26,15 @@ import type {
 import type { NexusPlatform } from '../nexus/platform';
 import type { SourcePorts } from '../nexus/commands/userSaves';
 import { MAX_LIST_LIMIT } from '../nexus/artifact/artifactService';
+import { UserSaves, type SaveResult } from '../nexus/commands/userSaves';
+import { PlatformError } from '../nexus/errors';
+import { MAX_SUBJECTS } from '../nexus/handoff/handoffRules';
+import { MAX_LINK_SOURCES } from '../nexus/lineage/lineageService';
 import { HANDOFF_STATUSES } from '../nexus/handoff/handoffRules';
 import { fail, ok, unavailable } from './envelope';
 import { V } from './validate';
 import {
-  activityView, artifactView, handoffDetailView, handoffSummaryView, lineageNodeView, participationView, summaryView,
+  activityView, artifactView, edgeView, handoffDetailView, handoffSummaryView, lineageNodeView, participationView, summaryView,
   versionDetail, versionView
 } from './dto';
 
@@ -79,7 +85,7 @@ export interface NexusIpcDeps {
   unavailableReason: () => PlatformUnavailableReason | null;
   /** Why handoffs alone are off while the platform is up; the sub-reason of 'handoffs_unavailable'. */
   handoffsUnavailableReason?: () => HandoffsUnavailableSubReason | string | null;
-  /** Main adapters for user saves (project folder, file read, commit resolve); used by the Task 7 write channels. */
+  /** Main adapters for user saves (project folder, file read, commit resolve); used by the two save channels. */
   sources: SourcePorts;
   log: (line: string) => void;
 }
@@ -96,7 +102,16 @@ function limitOf(x: unknown, f: string, max: number, dflt: number): number {
 const optionalObject = <K extends string>(x: unknown, keys: readonly K[]): Record<K, unknown> =>
   V.object(x === undefined ? {} : x, keys, keys);
 
+const saveView = (r: SaveResult) => ({ artifact: artifactView(r.artifact), version: versionView(r.version), created: r.created });
+
 export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): void {
+  // UserSaves is built lazily, once per platform instance (the platform object changes only across a restart).
+  const savers = new WeakMap<NexusPlatform, UserSaves>();
+  const userSaves = (nx: NexusPlatform): UserSaves => {
+    let u = savers.get(nx);
+    if (!u) { u = new UserSaves(nx, deps.sources); savers.set(nx, u); }
+    return u;
+  };
   const handler = <A>(channel: string, parse: (args: unknown[]) => A, run: Run<A>) => {
     const needsHandoffs = HANDOFF_CHANNELS.has(channel);
     return async (_evt: unknown, ...args: unknown[]): Promise<NexusResult<unknown>> => {
@@ -123,6 +138,16 @@ export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): v
   reg('nexus:participations:list', (args) => { V.arity(args, 0); },
     (nx, me) => ok(nx.workspaces.listForReader(me).map(participationView), false));
 
+  // #2 attach the project to another workspace (non-primary; idempotent, a withdrawn row is re-activated).
+  reg('nexus:participation:attach', (args) => {
+    V.arity(args, 2);
+    return { projectId: V.projectId(args[0]), workspaceId: V.workspaceId(args[1]) };
+  }, (nx, me, q) => ok(participationView(nx.workspaces.attach(me, q.projectId, q.workspaceId))));
+
+  // #3 withdraw a non-primary participation (refused while it has live work or open handoffs).
+  reg('nexus:participation:withdraw', (args) => { V.arity(args, 1); return V.platformId(args[0], 'participationId'); },
+    (nx, me, participationId) => ok(participationView(nx.workspaces.withdraw(me, participationId))));
+
   // #4 artifacts across projects, newest update first.
   reg('nexus:artifacts:list', (args) => {
     V.arity(args, 1);
@@ -144,10 +169,11 @@ export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): v
     return ok(rows.slice(0, f.limit).map(summaryView), rows.length > f.limit);
   });
 
-  // #5 every artifact of a project with its latest and current version (the service caps at MAX_LIST_LIMIT).
+  // #5 every artifact of a project with its latest and current version, at most MAX_LIST_LIMIT. One more row is
+  // asked for, so `truncated` is true only when more rows really exist.
   reg('nexus:artifacts:byProject', (args) => { V.arity(args, 1); return V.projectId(args[0]); }, (nx, me, projectId) => {
-    const rows = nx.artifacts.summariesByProject(me, projectId);
-    return ok(rows.map(summaryView), rows.length >= MAX_LIST_LIMIT);
+    const rows = nx.artifacts.summariesByProject(me, projectId, { limit: MAX_LIST_LIMIT + 1 });
+    return ok(rows.slice(0, MAX_LIST_LIMIT).map(summaryView), rows.length > MAX_LIST_LIMIT);
   });
 
   // #6 one artifact with all its versions (no content).
@@ -180,6 +206,47 @@ export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): v
     return ok({ nodes: walk.nodes.map(lineageNodeView), truncated: walk.truncated }, walk.truncated);
   });
 
+  // #9 save a commit of the project repository as a git_commit version (new artifact or append), one transaction.
+  reg('nexus:artifact:saveCommit', (args) => {
+    V.arity(args, 1);
+    const o = V.object(args[0], ['projectId', 'workspaceId', 'commit', 'target'] as const);
+    return { projectId: V.projectId(o.projectId), workspaceId: V.workspaceId(o.workspaceId), commit: V.commit(o.commit), target: V.saveTarget(o.target) };
+  }, async (nx, me, q) => ok(saveView(await userSaves(nx).saveCommit(me, q))));
+
+  // #10 save a small text file of the project folder as a text_file version, one transaction.
+  reg('nexus:artifact:saveTextFile', (args) => {
+    V.arity(args, 1);
+    const o = V.object(args[0], ['projectId', 'workspaceId', 'relPath', 'target'] as const);
+    return { projectId: V.projectId(o.projectId), workspaceId: V.workspaceId(o.workspaceId), relPath: V.relPath(o.relPath), target: V.saveTarget(o.target) };
+  }, async (nx, me, q) => ok(saveView(await userSaves(nx).saveTextFile(me, q))));
+
+  // #11 mark a user draft ready (draft -> candidate, finalized by the system on the user's behalf).
+  reg('nexus:version:markReady', (args) => { V.arity(args, 1); return V.platformId(args[0], 'versionId'); },
+    (nx, me, versionId) => ok(versionView(nx.artifacts.markReady(me, versionId))));
+
+  // #12 promote a candidate, or roll back to a version that was active before; compare-and-set on the current pointer.
+  reg('nexus:version:promote', (args) => {
+    V.arity(args, 2);
+    return { versionId: V.platformId(args[0], 'versionId'), expected: V.idOrNull(args[1], 'expectedCurrentVersionId') };
+  }, (nx, me, q) => {
+    const r = nx.artifacts.promote(me, q.versionId, q.expected);
+    if (!r.ok) throw new PlatformError('conflict', 'the current version changed; reload and try again', { currentVersionId: r.currentVersionId });
+    return ok(versionView(r.version));
+  });
+
+  // #13 discard a draft or a candidate.
+  reg('nexus:version:discard', (args) => { V.arity(args, 1); return V.platformId(args[0], 'versionId'); },
+    (nx, me, versionId) => ok(versionView(nx.artifacts.discard(me, versionId))));
+
+  // #14 record the versions a version was derived from (1 to 20, all or nothing).
+  reg('nexus:version:linkSources', (args) => {
+    V.arity(args, 2);
+    return { versionId: V.platformId(args[0], 'versionId'), sources: V.idList(args[1], 'sourceVersionIds', MAX_LINK_SOURCES) };
+  }, (nx, me, q) => {
+    const r = nx.lineage.linkSources(me, q.versionId, q.sources);
+    return ok({ edges: r.edges.map(edgeView), created: r.created });
+  });
+
   // #15 handoffs the user may read: inbox, sent or all; open first, then newest.
   reg('nexus:handoffs:list', (args) => {
     V.arity(args, 1);
@@ -204,6 +271,38 @@ export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): v
   // #16 one handoff with its subjects.
   reg('nexus:handoff:get', (args) => { V.arity(args, 1); return V.platformId(args[0], 'handoffId'); },
     (nx, me, handoffId) => ok(handoffDetailView(nx.handoffs!.get(me, handoffId))));
+
+  // #17 send candidate or active versions from one participation to another of the same project.
+  reg('nexus:handoff:send', (args) => {
+    V.arity(args, 1);
+    const o = V.object(args[0], ['projectId', 'fromParticipationId', 'toParticipationId', 'versionIds', 'title', 'note'] as const, ['note'] as const);
+    const q = {
+      projectId: V.projectId(o.projectId),
+      fromParticipationId: V.platformId(o.fromParticipationId, 'fromParticipationId'),
+      toParticipationId: V.platformId(o.toParticipationId, 'toParticipationId'),
+      versionIds: V.idList(o.versionIds, 'versionIds', MAX_SUBJECTS),
+      title: V.title(o.title, 'title')
+    };
+    const note = V.note(o.note);
+    return note === undefined ? q : { ...q, note };
+  }, (nx, me, q) => {
+    const r = nx.handoffs!.send(me, q);
+    return ok({ handoff: handoffDetailView(r.handoff), created: r.created });
+  });
+
+  // #18 accept: a receipt in the receiving participation that depends on each subject; one transaction.
+  reg('nexus:handoff:accept', (args) => { V.arity(args, 1); return V.platformId(args[0], 'handoffId'); },
+    (nx, me, handoffId) => ok(handoffDetailView(nx.handoffs!.accept(me, handoffId))));
+
+  // #19 decline, with an optional note.
+  reg('nexus:handoff:decline', (args) => {
+    V.arity(args, 2);
+    return { handoffId: V.platformId(args[0], 'handoffId'), note: V.note(args[1]) };
+  }, (nx, me, q) => ok(handoffDetailView(nx.handoffs!.decline(me, q.handoffId, q.note))));
+
+  // #20 withdraw an unanswered handoff (the sender's side).
+  reg('nexus:handoff:withdraw', (args) => { V.arity(args, 1); return V.platformId(args[0], 'handoffId'); },
+    (nx, me, handoffId) => ok(handoffDetailView(nx.handoffs!.withdraw(me, handoffId))));
 
   // #21 a project's activity, newest first, details reduced to an allow-list.
   reg('nexus:activity:byProject', (args) => {

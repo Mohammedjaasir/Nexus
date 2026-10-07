@@ -5,9 +5,10 @@
  * { ok: false, code: 'invalid', reason: 'bad_request', field }.
  *
  * - Objects are plain objects with an exact key set: an unknown key is refused, and
- *   so is an own `__proto__`, `constructor` or `prototype` key. No schema has a key
- *   for a principal, an actor, a role or a folder; the only path-like field is
- *   `relPath`, which the source port confines again with realpath.
+ *   so is an own `__proto__`, `constructor` or `prototype` key. Values are read from
+ *   their own data descriptors; an accessor (getter or setter) is refused, never run.
+ *   No schema has a key for a principal, an actor, a role or a folder; the only
+ *   path-like field is `relPath`, which the source port confines again with realpath.
  * - Strings have length caps and patterns; numbers are finite integers in range;
  *   arrays hold unique entries within their bounds.
  * Pure: no I/O and no service access.
@@ -105,6 +106,16 @@ export const V = {
    * A plain object with exactly these keys: every key not in `optional` is required, and an unknown key
    * is refused. Returns a null-prototype copy holding only the declared keys.
    */
+  /** Either `{ artifactId }` (append to that artifact) or `{ name }` (a new artifact), never both. */
+  saveTarget(x: unknown): { artifactId: string } | { name: string } {
+    const o = V.object(x, ['artifactId', 'name'] as const, ['artifactId', 'name'] as const);
+    if ((o.artifactId === undefined) === (o.name === undefined)) throw new RequestError('target', 'names either an artifactId or a name');
+    return o.artifactId !== undefined ? { artifactId: V.platformId(o.artifactId, 'artifactId') } : { name: V.title(o.name, 'name') };
+  },
+  /** A version id or null (the expected current version of a promote); undefined is refused. */
+  idOrNull(x: unknown, f: string): string | null {
+    return x === null ? null : V.platformId(x, f);
+  },
   object<K extends string>(x: unknown, keys: readonly K[], optional: readonly K[] = []): Record<K, unknown> {
     if (!isPlain(x)) throw new RequestError('request', 'must be an object');
     const own = Reflect.ownKeys(x);
@@ -115,8 +126,10 @@ export const V = {
     }
     const out = Object.create(null) as Record<K, unknown>;
     for (const k of keys) {
-      const has = Object.prototype.hasOwnProperty.call(x, k);
-      const v = has ? (x as Record<string, unknown>)[k] : undefined;
+      // Each value is read from its own data descriptor: a getter or setter (code that would run on read) is refused.
+      const d = Object.getOwnPropertyDescriptor(x, k);
+      if (d && (d.get !== undefined || d.set !== undefined || !('value' in d))) throw new RequestError(k, 'must be a plain value');
+      const v = d ? d.value : undefined;
       if (v === undefined && !optional.includes(k)) throw new RequestError(k, 'is required');
       out[k] = v;
     }

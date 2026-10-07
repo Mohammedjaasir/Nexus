@@ -13,8 +13,11 @@ import type {
 export type PlatformUnavailableReason = 'held' | 'migration_failed' | 'newer_schema' | 'shape_mismatch' | 'startup_failed' | 'not_open';
 /** Why handoffs alone are off while the platform is up (the sub-reason of 'handoffs_unavailable'). */
 export type HandoffsUnavailableSubReason = 'held' | 'auto_held' | 'backup_failed' | 'failed' | 'shape';
-/** The `reason` of a platform_unavailable answer. */
-export type UnavailableReason = PlatformUnavailableReason | 'handoffs_unavailable';
+/**
+ * The `reason` of a platform_unavailable answer. 'busy': another writer held the database lock past the busy
+ * timeout; nothing was written and the same request may be sent again.
+ */
+export type UnavailableReason = PlatformUnavailableReason | 'handoffs_unavailable' | 'busy';
 
 export type NexusErrorCode = PlatformErrorCode | 'internal';
 
@@ -101,6 +104,8 @@ export interface ActivityView {
   artifactId: ArtifactId | null; versionId: VersionId | null; details: ActivityDetailsView;
 }
 export interface SaveResultView { artifact: ArtifactView; version: VersionView; created: boolean }
+export interface LinkSourcesView { edges: EdgeView[]; created: number }
+export interface SendHandoffView { handoff: HandoffDetailView; created: boolean }
 
 // ---------- requests (what the renderer sends: ids and small values only) ----------
 

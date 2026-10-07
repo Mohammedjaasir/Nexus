@@ -8,6 +8,10 @@
  *   reason (detail.reason) is lifted to `reason` and, for user-facing refusals such as
  *   'path_refused', the message is replaced by a plain sentence. `detail` keeps only
  *   allow-listed keys with scalar values.
+ * - PlatformError 'platform_unavailable' -> a fixed message and a reason, never the
+ *   service text: 'busy' for a held lock (detail.sqliteCode SQLITE_BUSY* or
+ *   SQLITE_LOCKED*), 'handoffs_unavailable' (with its sub-reason) when v8 is off,
+ *   otherwise 'startup_failed'.
  * - Anything else -> 'internal' with a fixed message, plus ONE log line naming the
  *   channel, the error's name and its code. No stack, no path, no SQLite text.
  */
@@ -65,6 +69,9 @@ export function scrubMessage(text: string): string {
 }
 
 const REASON_RE = /^[a-z][a-z0-9_]{0,39}$/;
+/** The SQLite result codes of a held lock (immediateTx's detail.sqliteCode). */
+const SQLITE_BUSY_RE = /^SQLITE_(BUSY|LOCKED)(_|$)/;
+export const BUSY_MESSAGE = 'The database is busy. Try again in a moment.';
 
 function safeDetail(d: Record<string, unknown> | undefined): NexusFail['detail'] {
   if (!d || typeof d !== 'object') return undefined;
@@ -93,6 +100,16 @@ export function fail(e: unknown, channel: string, log: (l: string) => void): Nex
     }
     if (e instanceof PlatformError) {
       const raw = e.detail && typeof e.detail === 'object' ? e.detail : undefined;
+      // 'platform_unavailable' from a service never carries its own text (it may name a principal or a table):
+      // a fixed message and a reason. Handoffs off keeps its reason and sub-reason; a lock is 'busy'; anything
+      // else (a seeded row missing, a shape problem found late) is 'startup_failed'.
+      if (e.code === 'platform_unavailable') {
+        if (raw && raw.reason === 'handoffs_unavailable') return unavailable('handoffs_unavailable', typeof raw.subReason === 'string' ? raw.subReason : null);
+        const busy = raw !== undefined && typeof raw.sqliteCode === 'string' && SQLITE_BUSY_RE.test(raw.sqliteCode);
+        return busy
+          ? { ok: false, code: 'platform_unavailable', message: BUSY_MESSAGE, reason: 'busy' }
+          : unavailable('startup_failed');
+      }
       const reason = raw && typeof raw.reason === 'string' && REASON_RE.test(raw.reason) ? raw.reason : undefined;
       const known = reason !== undefined && Object.prototype.hasOwnProperty.call(REASON_MESSAGES, reason) ? REASON_MESSAGES[reason] : undefined;
       const out: NexusFail = { ok: false, code: e.code as NexusErrorCode, message: known ?? (scrubMessage(e.message) || 'The request was refused.') };

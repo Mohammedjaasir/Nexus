@@ -53,11 +53,16 @@ const NEXUS_CHANNEL_LIST = [
   'nexus:handoffs:list', 'nexus:handoff:get', 'nexus:handoff:send', 'nexus:handoff:accept', 'nexus:handoff:decline', 'nexus:handoff:withdraw',
   'nexus:activity:byProject'
 ];
-// Task 6 registers and exposes the read channels; Task 7 adds the writes (then both lists equal NEXUS_CHANNEL_LIST).
-const NEXUS_REGISTERED = ['nexus:participations:list', 'nexus:artifacts:list', 'nexus:artifacts:byProject', 'nexus:artifact:get',
-  'nexus:version:get', 'nexus:lineage:get', 'nexus:handoffs:list', 'nexus:handoff:get', 'nexus:activity:byProject'];
-const NEXUS_PRELOAD_METHODS = ['nexusParticipationsList', 'nexusArtifactsList', 'nexusArtifactsByProject', 'nexusArtifactGet',
-  'nexusVersionGet', 'nexusLineageGet', 'nexusHandoffsList', 'nexusHandoffGet', 'nexusActivityByProject'];
+// Task 7: every channel is registered and exposed (the read channels came in Task 6, the writes in Task 7).
+const NEXUS_REGISTERED = [...NEXUS_CHANNEL_LIST];
+const NEXUS_PRELOAD_METHODS = [
+  'nexusParticipationsList', 'nexusParticipationAttach', 'nexusParticipationWithdraw',
+  'nexusArtifactsList', 'nexusArtifactsByProject', 'nexusArtifactGet', 'nexusVersionGet', 'nexusLineageGet',
+  'nexusArtifactSaveCommit', 'nexusArtifactSaveTextFile', 'nexusVersionMarkReady', 'nexusVersionPromote',
+  'nexusVersionDiscard', 'nexusVersionLinkSources',
+  'nexusHandoffsList', 'nexusHandoffGet', 'nexusHandoffSend', 'nexusHandoffAccept', 'nexusHandoffDecline', 'nexusHandoffWithdraw',
+  'nexusActivityByProject'
+];
 const literals = (text) => new Set((text.match(/['"`]nexus:[A-Za-z:]+['"`]/g) || []).map((x) => x.slice(1, -1)));
 const sorted = (xs) => [...xs].sort();
 const walkTs = (dir) => fs.readdirSync(path.join(__dirname, '..', dir), { recursive: true }).map(String).filter((x) => x.endsWith('.ts')).map((x) => path.join(dir, x));
@@ -76,7 +81,7 @@ test('nexus:* channels: one module, the exact list, the exact preload surface', 
   const { NEXUS_CHANNELS, registerNexusIpc } = loadTs('src/main/nexusIpc/registerNexusIpc.ts');
   assert.deepEqual([...NEXUS_CHANNELS], NEXUS_CHANNEL_LIST);
   assert.deepEqual(sorted(literals(mod)), sorted(NEXUS_CHANNEL_LIST));
-  // The channels actually registered (a fake registrar) equal the preload's literals and the Task 6 list.
+  // The channels actually registered (a fake registrar) equal the preload's literals and the full list (21).
   const registered = [];
   registerNexusIpc({ handle: (c) => registered.push(c) }, { platform: () => null, unavailableReason: () => 'not_open',
     sources: { projectRoot: async () => null, readFile: async () => ({ error: 'not_found' }), resolveCommit: async () => ({ error: 'not_a_commit' }) },
@@ -111,6 +116,13 @@ test('nexusIpc: every registration goes through the one wrapper; no identity fro
     assert.doesNotMatch(text, /['"`](principal|principalId|actor|actorId|actorKind|role|onBehalfOf|createdBy)['"`]/, f);
     assert.doesNotMatch(text, /\b(o|a|q|f|args?\[\d\])\.(principal|principalId|actor|actorId|role|onBehalfOf)\b/, f);
   }
+  // Task 7: in the handler module and the validator, no identity-shaped property is read on ANY receiver (dto.ts maps
+  // stored service results and is pinned by the quoted-name ban above and the view tests instead).
+  for (const f of ['src/main/nexusIpc/registerNexusIpc.ts', 'src/main/nexusIpc/validate.ts']) {
+    assert.doesNotMatch(read(f), /\.(principal|principalId|actor|actorId|role|onBehalfOf)\b/, f);
+  }
+  assert.equal(NEXUS_REGISTERED.length, 21);
+  assert.equal(NEXUS_PRELOAD_METHODS.length, 21);
   // ... and 'kind' is read from a request only as the artifact-kind filter of nexus:artifacts:list.
   assert.deepEqual(mod.match(/\bo\.kind\b[^\n]*/g), ["o.kind === undefined ? undefined : V.artifactKind(o.kind, 'kind'),"]);
   assert.equal((mod.match(/['"`]kind['"`]/g) || []).length, 2, "the 'kind' key of the artifacts filter and its field name");

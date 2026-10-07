@@ -493,12 +493,17 @@ export class ArtifactService {
 
   // ---------- B1: summaries and cross-project reads ----------
 
-  /** Every artifact of the project (creation order, at most MAX_LIST_LIMIT) with its version count, latest and current version. */
-  summariesByProject(p: Principal, projectId: ProjectId): ArtifactSummary[] {
+  /**
+   * Every artifact of the project (creation order) with its version count, latest and current version. At most
+   * `o.limit` rows (default MAX_LIST_LIMIT); a caller may ask for MAX_LIST_LIMIT + 1 to learn whether more exist.
+   */
+  summariesByProject(p: Principal, projectId: ProjectId, o?: { limit?: number }): ArtifactSummary[] {
+    const limit = o?.limit === undefined ? MAX_LIST_LIMIT : o.limit;
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIST_LIMIT + 1) throw new PlatformError('invalid', `limit must be 1 to ${MAX_LIST_LIMIT + 1}`);
     // Project scope, as listByProject: the list spans every participation, so no single stored workspace applies.
     this.access.require(p, projectId, 'artifact.read');
     const rows = this.db.prepare('SELECT * FROM artifacts WHERE project_id = ? ORDER BY created_at, id LIMIT ?')
-      .all(projectId, MAX_LIST_LIMIT) as ArtifactRow[];
+      .all(projectId, limit) as ArtifactRow[];
     return rows.map((r) => this.summaryOf(r));
   }
 

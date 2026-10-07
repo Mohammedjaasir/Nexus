@@ -3,7 +3,8 @@ import type { AgentProvider } from '../shared/agentProvider';
 import type { HireManifest } from '../shared/hire';
 import type {
   ActivityPage, ActivityView, ArtifactDetail, ArtifactsListFilter, ArtifactSummaryView, HandoffDetailView, HandoffsListFilter,
-  HandoffSummaryView, LineageQuery, LineageView, NexusResult, ParticipationView, VersionDetail
+  HandoffSummaryView, LineageQuery, LineageView, LinkSourcesView, NexusResult, ParticipationView, SaveCommitArgs, SaveResultView,
+  SaveTextFileArgs, SendHandoffArgs, SendHandoffView, VersionDetail, VersionView
 } from '../shared/nexus/ipc';
 
 export type { HireManifest } from '../shared/hire';
@@ -1615,11 +1616,15 @@ const api = {
   ): Promise<GoalAnalysisResult | null> =>
     ipcRenderer.invoke('project:goal:set', projectId, title, description),
 
-  // ─── Nexus: platform read channels ─────────────────────────────────────────
+  // ─── Nexus: platform channels ──────────────────────────────────────────────
   // Ids and small values only; main resolves the principal and every folder. Each call
   // resolves to a NexusResult and never rejects for a refused request.
   nexusParticipationsList: (): Promise<NexusResult<ParticipationView[]>> =>
     ipcRenderer.invoke('nexus:participations:list'),
+  nexusParticipationAttach: (projectId: string, workspaceId: string): Promise<NexusResult<ParticipationView>> =>
+    ipcRenderer.invoke('nexus:participation:attach', projectId, workspaceId),
+  nexusParticipationWithdraw: (participationId: string): Promise<NexusResult<ParticipationView>> =>
+    ipcRenderer.invoke('nexus:participation:withdraw', participationId),
   nexusArtifactsList: (filter?: ArtifactsListFilter): Promise<NexusResult<ArtifactSummaryView[]>> =>
     ipcRenderer.invoke('nexus:artifacts:list', filter),
   nexusArtifactsByProject: (projectId: string): Promise<NexusResult<ArtifactSummaryView[]>> =>
@@ -1630,10 +1635,30 @@ const api = {
     ipcRenderer.invoke('nexus:version:get', versionId),
   nexusLineageGet: (versionId: string, query: LineageQuery): Promise<NexusResult<LineageView>> =>
     ipcRenderer.invoke('nexus:lineage:get', versionId, query),
+  nexusArtifactSaveCommit: (args: SaveCommitArgs): Promise<NexusResult<SaveResultView>> =>
+    ipcRenderer.invoke('nexus:artifact:saveCommit', args),
+  nexusArtifactSaveTextFile: (args: SaveTextFileArgs): Promise<NexusResult<SaveResultView>> =>
+    ipcRenderer.invoke('nexus:artifact:saveTextFile', args),
+  nexusVersionMarkReady: (versionId: string): Promise<NexusResult<VersionView>> =>
+    ipcRenderer.invoke('nexus:version:markReady', versionId),
+  nexusVersionPromote: (versionId: string, expectedCurrentVersionId: string | null): Promise<NexusResult<VersionView>> =>
+    ipcRenderer.invoke('nexus:version:promote', versionId, expectedCurrentVersionId),
+  nexusVersionDiscard: (versionId: string): Promise<NexusResult<VersionView>> =>
+    ipcRenderer.invoke('nexus:version:discard', versionId),
+  nexusVersionLinkSources: (versionId: string, sourceVersionIds: string[]): Promise<NexusResult<LinkSourcesView>> =>
+    ipcRenderer.invoke('nexus:version:linkSources', versionId, sourceVersionIds),
   nexusHandoffsList: (filter?: HandoffsListFilter): Promise<NexusResult<HandoffSummaryView[]>> =>
     ipcRenderer.invoke('nexus:handoffs:list', filter),
   nexusHandoffGet: (handoffId: string): Promise<NexusResult<HandoffDetailView>> =>
     ipcRenderer.invoke('nexus:handoff:get', handoffId),
+  nexusHandoffSend: (args: SendHandoffArgs): Promise<NexusResult<SendHandoffView>> =>
+    ipcRenderer.invoke('nexus:handoff:send', args),
+  nexusHandoffAccept: (handoffId: string): Promise<NexusResult<HandoffDetailView>> =>
+    ipcRenderer.invoke('nexus:handoff:accept', handoffId),
+  nexusHandoffDecline: (handoffId: string, note?: string): Promise<NexusResult<HandoffDetailView>> =>
+    ipcRenderer.invoke('nexus:handoff:decline', handoffId, note),
+  nexusHandoffWithdraw: (handoffId: string): Promise<NexusResult<HandoffDetailView>> =>
+    ipcRenderer.invoke('nexus:handoff:withdraw', handoffId),
   nexusActivityByProject: (projectId: string, page?: ActivityPage): Promise<NexusResult<ActivityView[]>> =>
     ipcRenderer.invoke('nexus:activity:byProject', projectId, page)
 };
