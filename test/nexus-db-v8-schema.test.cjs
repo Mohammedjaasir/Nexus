@@ -108,6 +108,7 @@ function seedHandoffWorld(db) {
     storage_ref_json, content_hash, actor_id, on_behalf_of, created_at, status_changed_at)
     VALUES (?, ?, ?, 'p-ledger', ?, 'draft', 'inline', '{}', ?, 'user:local', 'user:local', ?, ?)`);
   const cand = (id) => db.prepare("UPDATE artifact_versions SET status = 'candidate' WHERE id = ?").run(id);
+  const activate = (id) => { cand(id); db.prepare("UPDATE artifact_versions SET status = 'active' WHERE id = ?").run(id); };
   art.run('a-1', 'report', 'notes', p1, 'sde', T0, T0);
   ver.run('v-1', 'a-1', 1, p1, 'hash-1', T0, T0); cand('v-1');
   ver.run('v-1b', 'a-1', 2, p1, 'hash-1b', T0, T0); cand('v-1b');
@@ -115,10 +116,19 @@ function seedHandoffWorld(db) {
   art.run('a-ops', 'report', 'ops notes', 'pw-ops', 'devops', T0, T0);
   ver.run('v-ops', 'a-ops', 1, 'pw-ops', 'hash-ops', T0, T0); cand('v-ops');
   art.run('a-rcpt', 'handoff_receipt', 'receipt', 'pw-ops', 'devops', T0, T0);
-  ver.run('v-rcpt', 'a-rcpt', 1, 'pw-ops', 'hash-r', T0, T0);
-  ver.run('v-rcpt2', 'a-rcpt', 2, 'pw-ops', 'hash-r2', T0, T0);
+  ver.run('v-rcpt', 'a-rcpt', 1, 'pw-ops', 'hash-r', T0, T0); activate('v-rcpt');
+  ver.run('v-rcpt2', 'a-rcpt', 2, 'pw-ops', 'hash-r2', T0, T0); activate('v-rcpt2');
+  ver.run('v-rcpt-draft', 'a-rcpt', 3, 'pw-ops', 'hash-r3', T0, T0);
+  ver.run('v-rcpt-cand', 'a-rcpt', 4, 'pw-ops', 'hash-r4', T0, T0); cand('v-rcpt-cand');
   art.run('a-rcpt-sender', 'handoff_receipt', 'sender receipt', p1, 'sde', T0, T0);
-  ver.run('v-rcpt-sender', 'a-rcpt-sender', 1, p1, 'hash-rs', T0, T0);
+  ver.run('v-rcpt-sender', 'a-rcpt-sender', 1, p1, 'hash-rs', T0, T0); activate('v-rcpt-sender');
+  // A receipt in another project (p-invoice), owned by its own participation.
+  db.prepare(`INSERT INTO artifacts (id, project_id, kind, name, owner_participation_id, owner_workspace_id, created_by, created_at, updated_at)
+    VALUES ('a-rcpt-foreign', 'p-invoice', 'handoff_receipt', 'foreign receipt', ?, 'dl', 'user:local', ?, ?)`).run(other, T0, T0);
+  db.prepare(`INSERT INTO artifact_versions (id, artifact_id, version_no, project_id, participation_id, status, storage_kind,
+    storage_ref_json, content_hash, actor_id, on_behalf_of, created_at, status_changed_at)
+    VALUES ('v-rcpt-foreign', 'a-rcpt-foreign', 1, 'p-invoice', ?, 'draft', 'inline', '{}', 'hash-rf', 'user:local', 'user:local', ?, ?)`).run(other, T0, T0);
+  activate('v-rcpt-foreign');
   return { p1, p2: 'pw-ops', other };
 }
 function world() {
@@ -204,8 +214,12 @@ test('T8: accept needs a handoff_receipt version owned by the receiving particip
   const { db, ...w } = world();
   const id = sentHandoff(db, w);
   assert.throws(() => answer(db, id, 'accepted'), /an accepted handoff records its receipt/);
-  assert.throws(() => accept(db, id, 'v-ops'), /must be a handoff_receipt version owned by the receiving participation/);
-  assert.throws(() => accept(db, id, 'v-rcpt-sender'), /must be a handoff_receipt version owned by the receiving participation/);
+  const notReceipt = /the receipt must be an active handoff_receipt version owned by the receiving participation/;
+  assert.throws(() => accept(db, id, 'v-ops'), notReceipt);
+  assert.throws(() => accept(db, id, 'v-rcpt-sender'), notReceipt);
+  assert.throws(() => accept(db, id, 'v-rcpt-draft'), notReceipt, 'a draft receipt is refused');
+  assert.throws(() => accept(db, id, 'v-rcpt-cand'), notReceipt, 'a candidate receipt is refused');
+  assert.throws(() => accept(db, id, 'v-rcpt-foreign'), notReceipt, 'a receipt from another project is refused');
   accept(db, id, 'v-rcpt');
   const row = db.prepare('SELECT status, receipt_version_id FROM handoffs WHERE id = ?').get(id);
   assert.deepEqual({ ...row }, { status: 'accepted', receipt_version_id: 'v-rcpt' });
@@ -231,7 +245,8 @@ test('T9: a second answer, or a changed response note, is refused', () => {
 test('T10: declined -> accepted and withdrawn -> sent are refused', () => {
   const { db, ...w } = world();
   const d = sentHandoff(db, w); answer(db, d, 'declined');
-  assert.throws(() => db.prepare("UPDATE handoffs SET status = 'accepted', receipt_version_id = 'v-rcpt' WHERE id = ?").run(d));
+  assert.throws(() => db.prepare("UPDATE handoffs SET status = 'accepted', receipt_version_id = 'v-rcpt' WHERE id = ?").run(d),
+    /illegal handoff transition|a receipt is set once/);
   assert.throws(() => db.prepare("UPDATE handoffs SET status = 'accepted' WHERE id = ?").run(d), /illegal handoff transition/);
   const x = sentHandoff(db, w);
   db.prepare("UPDATE handoffs SET status = 'withdrawn', updated_at = ?, status_changed_at = ? WHERE id = ?").run(T0 + 1, T0 + 1, x);
@@ -255,5 +270,57 @@ test('T12: title, subject_count, created_by and to_participation_id are immutabl
   assert.throws(() => db.prepare("UPDATE handoffs SET created_by = 'system' WHERE id = ?").run(id), re);
   assert.throws(() => db.prepare("UPDATE handoffs SET to_participation_id = ? WHERE id = ?").run(w.p1, id), re);
   assert.throws(() => db.prepare("UPDATE handoffs SET note = 'n' WHERE id = ?").run(id), re);
+  assert.throws(() => db.prepare("UPDATE handoffs SET project_id = 'p-invoice' WHERE id = ?").run(id), re);
+  assert.throws(() => db.prepare("UPDATE handoffs SET from_participation_id = 'pw-ops' WHERE id = ?").run(id), re);
+  assert.throws(() => db.prepare("UPDATE handoffs SET from_workspace_id = 'devops' WHERE id = ?").run(id), re);
+  assert.throws(() => db.prepare("UPDATE handoffs SET to_workspace_id = 'qa' WHERE id = ?").run(id), re);
+  assert.throws(() => db.prepare("UPDATE handoffs SET id = 'h-other' WHERE id = ?").run(id), re);
+  assert.throws(() => db.prepare('UPDATE handoffs SET created_at = ? WHERE id = ?').run(T0 + 9, id), re);
   db.prepare('UPDATE handoffs SET updated_at = ? WHERE id = ?').run(T0 + 9, id);
+});
+
+// ---------- fix round 1: answer fields, receipt status, coverage gaps ----------
+
+test('answer fields: an accept or decline must record who answered and when', () => {
+  const { db, ...w } = world();
+  const id = sentHandoff(db, w);
+  const re = /an accept or decline records who answered and when/;
+  assert.throws(() => db.prepare("UPDATE handoffs SET status = 'declined' WHERE id = ?").run(id), re);
+  assert.throws(() => db.prepare("UPDATE handoffs SET status = 'accepted', receipt_version_id = 'v-rcpt' WHERE id = ?").run(id), re);
+  assert.equal(db.prepare('SELECT status FROM handoffs WHERE id = ?').get(id).status, 'sent');
+});
+test('answer fields: never written on a still-sent handoff without a transition', () => {
+  const { db, ...w } = world();
+  const id = sentHandoff(db, w);
+  const re = /a handoff answer is recorded once, in the update that answers it/;
+  assert.throws(() => db.prepare("UPDATE handoffs SET responded_by = 'user:local', responded_at = ? WHERE id = ?").run(T0 + 1, id), re);
+  assert.throws(() => db.prepare("UPDATE handoffs SET status = 'sent', responded_by = 'user:local', responded_at = ? WHERE id = ?").run(T0 + 1, id), re);
+});
+test('answer fields: never written after the decision, nor on a withdrawal', () => {
+  const { db, ...w } = world();
+  const x = sentHandoff(db, w);
+  assert.throws(() => db.prepare("UPDATE handoffs SET status = 'withdrawn', responded_by = 'user:local', responded_at = ? WHERE id = ?").run(T0 + 1, x),
+    /a withdrawal is not an answer and leaves the answer fields empty/);
+  db.prepare("UPDATE handoffs SET status = 'withdrawn', updated_at = ?, status_changed_at = ? WHERE id = ?").run(T0 + 1, T0 + 1, x);
+  assert.throws(() => db.prepare("UPDATE handoffs SET responded_by = 'user:local', responded_at = ? WHERE id = ?").run(T0 + 2, x),
+    /a handoff answer is recorded once/);
+  const d = sentHandoff(db, w); answer(db, d, 'declined');
+  assert.throws(() => db.prepare("UPDATE handoffs SET response_note = 'late' WHERE id = ?").run(d), /a handoff answer is recorded once/);
+  assert.deepEqual({ ...db.prepare('SELECT responded_by, responded_at, response_note FROM handoffs WHERE id = ?').get(x) },
+    { responded_by: null, responded_at: null, response_note: null });
+});
+test('accept is refused while the receiving participation is withdrawn', () => {
+  const { db, ...w } = world();
+  const id = sentHandoff(db, w);
+  db.prepare("UPDATE project_workspaces SET status = 'withdrawn' WHERE id = ?").run(w.p2);
+  assert.throws(() => accept(db, id, 'v-rcpt'), /its receiving participation is active/);
+  answer(db, id, 'declined');
+});
+test('no subject is added to an answered or withdrawn handoff', () => {
+  const { db, ...w } = world();
+  const id = sentHandoff(db, w); answer(db, id, 'declined');
+  assert.throws(() => insSubject(db, id, 'v-1b', 1, 'hash-1b'), /subjects are recorded on an unanswered handoff/);
+  const x = sentHandoff(db, w);
+  db.prepare("UPDATE handoffs SET status = 'withdrawn' WHERE id = ?").run(x);
+  assert.throws(() => insSubject(db, x, 'v-1b', 1, 'hash-1b'), /subjects are recorded on an unanswered handoff/);
 });

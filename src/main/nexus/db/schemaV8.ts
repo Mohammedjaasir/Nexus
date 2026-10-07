@@ -11,6 +11,13 @@
  *   exact v7 shape -> v8 shape pre-check -> DDL -> seeds -> nexus_migrations record ->
  *   one activity row (only when the record is new) -> verifyV8.
  * Any throw rolls the whole step back, including user_version.
+ *
+ * Known limit of the triggers: recursive_triggers is off, so INSERT OR REPLACE (and
+ * an upsert's DO UPDATE) on a protected table deletes or rewrites the old row without
+ * firing its BEFORE DELETE / BEFORE UPDATE guard. That is closed as a pinned source
+ * rule instead: test/nexus-core-append-only-writes.test.cjs fails on any OR REPLACE
+ * or ON CONFLICT ... DO UPDATE aimed at an append-only or immutable platform table
+ * under src/main/nexus. INSERT OR IGNORE is fine: it never deletes.
  */
 import type Database from 'better-sqlite3';
 import type { MigrationContext } from './migrationTypes';
@@ -91,20 +98,26 @@ BEGIN
   SELECT RAISE(ABORT, 'an accepted handoff records its receipt, and its receiving participation is active')
     WHERE NEW.status = 'accepted' AND (NEW.receipt_version_id IS NULL OR NOT EXISTS (
       SELECT 1 FROM project_workspaces p WHERE p.id = OLD.to_participation_id AND p.status = 'active'));
+  SELECT RAISE(ABORT, 'an accept or decline records who answered and when')
+    WHERE NEW.status IN ('accepted','declined') AND (NEW.responded_by IS NULL OR NEW.responded_at IS NULL);
+  SELECT RAISE(ABORT, 'a withdrawal is not an answer and leaves the answer fields empty')
+    WHERE NEW.status = 'withdrawn'
+      AND (NEW.responded_by IS NOT NULL OR NEW.responded_at IS NOT NULL OR NEW.response_note IS NOT NULL);
 END;
 CREATE TRIGGER IF NOT EXISTS tr_handoffs_response_once BEFORE UPDATE ON handoffs
-WHEN OLD.responded_at IS NOT NULL AND (NEW.responded_by IS NOT OLD.responded_by
-  OR NEW.responded_at IS NOT OLD.responded_at OR NEW.response_note IS NOT OLD.response_note)
-BEGIN SELECT RAISE(ABORT, 'a handoff answer is recorded once'); END;
+WHEN (OLD.responded_at IS NOT NULL OR OLD.status <> 'sent' OR NEW.status IS OLD.status)
+  AND (NEW.responded_by IS NOT OLD.responded_by OR NEW.responded_at IS NOT OLD.responded_at
+    OR NEW.response_note IS NOT OLD.response_note)
+BEGIN SELECT RAISE(ABORT, 'a handoff answer is recorded once, in the update that answers it'); END;
 CREATE TRIGGER IF NOT EXISTS tr_handoffs_receipt BEFORE UPDATE OF receipt_version_id ON handoffs
 WHEN NEW.receipt_version_id IS NOT OLD.receipt_version_id
 BEGIN
   SELECT RAISE(ABORT, 'a receipt is set once, in the update that accepts the handoff')
     WHERE OLD.receipt_version_id IS NOT NULL OR OLD.status <> 'sent' OR NEW.status <> 'accepted';
-  SELECT RAISE(ABORT, 'the receipt must be a handoff_receipt version owned by the receiving participation')
+  SELECT RAISE(ABORT, 'the receipt must be an active handoff_receipt version owned by the receiving participation')
     WHERE NOT EXISTS (SELECT 1 FROM artifact_versions v JOIN artifacts a ON a.id = v.artifact_id
       WHERE v.id = NEW.receipt_version_id AND v.project_id = NEW.project_id
-        AND v.participation_id = NEW.to_participation_id AND a.kind = 'handoff_receipt');
+        AND v.participation_id = NEW.to_participation_id AND a.kind = 'handoff_receipt' AND v.status = 'active');
 END;
 CREATE TRIGGER IF NOT EXISTS tr_handoffs_no_delete BEFORE DELETE ON handoffs
 BEGIN SELECT RAISE(ABORT, 'handoffs are never deleted'); END;
