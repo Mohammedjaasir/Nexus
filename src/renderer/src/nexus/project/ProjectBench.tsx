@@ -6,6 +6,8 @@ import type { ProjectTool } from '../router/routes';
 import { navigate } from '../router/useRoute';
 import { useProjectsLoader } from '../data/useProjects';
 import { useParticipationIndex } from '../data/useParticipations';
+import { useProjectArtifacts } from '../data/useProjectArtifacts';
+import { usePlatform, selectCanWrite } from '../data/platformStore';
 import { useNexusUi } from '../state/uiStore';
 import { EmptyState } from '../ui/EmptyState';
 import { Button } from '../ui/Button';
@@ -20,6 +22,8 @@ import { Spine } from './Spine';
 import { ToolRail } from './ToolRail';
 import { FocusSurface } from './FocusSurface';
 import { Passport } from './PassportPanel';
+import { SaveArtifactSheet } from './SaveArtifactSheet';
+import type { SaveSource } from './saveSheetModel';
 
 /** The project route: opens the project, then shows the Spine workbench. */
 export function ProjectBench({ id, tool }: { id: string; tool: ProjectTool }) {
@@ -66,7 +70,9 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   const setSelection = useNexusUi((s) => s.setSelection);
   const { git, refresh } = useProjectGit(project.rootPath);
   const idx = useParticipationIndex();
-  const groups = useMemo(() => buildSpine({ idx, projectId: project.id, git }), [idx, project.id, git]);
+  const { artifacts } = useProjectArtifacts(project.id);
+  const canWrite = usePlatform(selectCanWrite);
+  const groups = useMemo(() => buildSpine({ idx, projectId: project.id, git, artifacts }), [idx, project.id, git, artifacts]);
   const nodes = groups.flatMap((g) => g.nodes);
   const [selected, setSelected] = useState<string>(tool === 'changes' ? 'changes' : 'source');
 
@@ -76,7 +82,8 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   // Follow the URL: the changes tool selects the changes node, the bench selects source.
   useEffect(() => {
     if (tool === 'changes') setSelected('changes');
-    else if (tool === 'bench') setSelected('source');
+    // The bench keeps an artifact selection; only the changes node gives way to source.
+    else if (tool === 'bench') setSelected((s) => (s === 'changes' ? 'source' : s));
   }, [tool]);
 
   const node: SpineNode = nodes.find((n) => n.id === selected) ?? nodes[0];
@@ -141,6 +148,19 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
     setNotice(null);
     return refreshProject().catch((e) => setNotice(e instanceof Error ? e.message : String(e)));
   }, [refreshProject]);
+  // The Save sheet lives at the bench, so it outlives the Details sheet that may open it.
+  const [saveSource, setSaveSource] = useState<SaveSource | null>(null);
+  const openSave = useCallback((s: SaveSource) => setSaveSource(s), []);
+  const closeSave = useCallback(() => setSaveSource(null), []);
+  const onSaved = useCallback((artifactId: string) => {
+    setSaveSource(null);
+    setSelected(`artifact:${artifactId}`);
+    navigate({ name: 'project', id: project.id, tool: 'bench' });
+  }, [project.id]);
+  const onSave = canWrite ? openSave : undefined;
+  // Writes turned off (the platform became unavailable): the sheet goes and does not come back by itself.
+  useEffect(() => { if (!canWrite) setSaveSource(null); }, [canWrite]);
+
   return (
     <div className="nx-workbench">
       {mobile && <MobileRuns projectId={project.id} />}
@@ -152,12 +172,15 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
           )} />
         {!wide && notice && <p className="nx-passport__note" role="alert">{notice}</p>}
         <FocusSurface tool={tool} project={project} node={sourceNode} git={git} onRetryGit={refresh} />
-        {wide && <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} />}
+        {wide && <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} artifacts={artifacts} onSave={onSave} />}
       </div>
       {!wide && (
         <Sheet open={detailsOpen} onClose={closeDetails} side={mobile ? 'bottom' : 'right'} labelledBy="nx-passport-title">
-          <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshFromSheet} onOpenTerminal={openTerminal} notice={null} onBeforeAction={closeDetails} />
+          <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshFromSheet} onOpenTerminal={openTerminal} notice={null} onBeforeAction={closeDetails} artifacts={artifacts} onSave={onSave} />
         </Sheet>
+      )}
+      {saveSource && canWrite && (
+        <SaveArtifactSheet project={project} initial={saveSource} artifacts={artifacts} onClose={closeSave} onSaved={onSaved} />
       )}
     </div>
   );

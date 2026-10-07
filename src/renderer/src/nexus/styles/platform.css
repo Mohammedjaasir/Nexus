@@ -16,3 +16,34 @@
 .nx-pws__hint { margin: var(--nx-s2) 0 0; }
 .nx-pws__add { margin-top: var(--nx-s2); }
 .nx-pws__status { margin: var(--nx-s2) 0 0; color: var(--nx-text-2); }
+
+/* Artifact nodes on the Spine (project/Spine.tsx). A group whose participation is no
+   longer active is muted and says so in words; its hue stays provenance. */
+.nx-spx-muted { opacity: 0.66; }
+.nx-spx-state { font-weight: 500; letter-spacing: 0; text-transform: none; }
+
+/* The artifact Passport (project/ArtifactPassport.tsx), read-only. */
+.nx-apx__version { display: grid; gap: 2px; min-width: 0; }
+.nx-apx__content { font-family: var(--nx-font-id); font-size: 11.5px; color: var(--nx-text-2); overflow-wrap: anywhere; }
+.nx-apx__links { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--nx-s1); }
+
+/* The Save sheet (project/SaveArtifactSheet.tsx) and the commit rows that open it. */
+li.nx-svx-commit { grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; }
+.nx-svx { flex: 1; min-height: 0; display: grid; align-content: start; gap: var(--nx-s4); padding: var(--nx-s4); overflow: auto; font: 400 13px/1.5 var(--nx-font); color: var(--nx-ink); }
+.nx-svx__head { display: grid; gap: 4px; }
+.nx-svx__kind { margin: 0; font-size: 11px; color: var(--nx-text-3); }
+.nx-svx__title { margin: 0; font: 700 16px/1.2 var(--nx-font-display); color: var(--nx-ink); }
+.nx-svx__field { display: grid; gap: var(--nx-s2); margin: 0; padding: 0; border: 0; min-width: 0; }
+.nx-svx__label { padding: 0; font: 600 12px/1 var(--nx-font); color: var(--nx-text-3); }
+.nx-svx__control { width: 100%; }
+.nx-svx__sha { font-size: 11.5px; color: var(--nx-text-2); overflow-wrap: anywhere; }
+.nx-svx__path { margin: 0; color: var(--nx-text-2); overflow-wrap: anywhere; }
+.nx-svx__list { list-style: none; margin: 0; padding: 0; display: grid; max-height: 260px; overflow: auto; border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); }
+.nx-svx__entry { display: flex; width: 100%; gap: var(--nx-s2); padding: 6px var(--nx-s3); border: 0; border-bottom: 1px solid var(--nx-line); background: var(--nx-surface); color: var(--nx-ink); font: inherit; text-align: left; cursor: pointer; }
+.nx-svx__entry[aria-pressed="true"] { font-weight: 650; box-shadow: inset 2px 0 0 var(--nx-ink); }
+.nx-svx__entry:disabled { cursor: default; color: var(--nx-text-3); }
+.nx-svx__chosen { margin: 0; color: var(--nx-text-2); overflow-wrap: anywhere; }
+.nx-svx__choice { display: flex; align-items: center; gap: var(--nx-s2); }
+.nx-svx__steer { display: grid; gap: var(--nx-s2); padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line); border-left: 3px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-sunken); }
+.nx-svx__steer p { margin: 0; color: var(--nx-text-2); }
+.nx-svx__actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }

@@ -7,9 +7,12 @@ import { useParticipationIndex } from '../data/useParticipations';
 import { useNexusUi } from '../state/uiStore';
 import { Button } from '../ui/Button';
 import { WorkspacesSection } from './WorkspacesSection';
+import { ArtifactPassport } from './ArtifactPassport';
+import type { ArtifactSummary } from './spineModel';
+import type { SaveSource } from './saveSheetModel';
 import type { NexusIconName } from '../icons';
 
-type Commit = { shortSha: string; subject: string; time: number };
+type Commit = { sha: string; shortSha: string; subject: string; time: number };
 
 const ACTION_LABEL: Record<PassportAction, string> = { ask: 'Ask an agent', files: 'Open files', terminal: 'Open terminal', refresh: 'Refresh analysis' };
 const ACTION_ICON: Record<PassportAction, NexusIconName> = { ask: 'assistant', files: 'files', terminal: 'terminal', refresh: 'refresh' };
@@ -21,20 +24,32 @@ function useCommits(root: string, isGit: boolean, headSha: string | null): Commi
     if (!isGit) { setCommits([]); return; }
     let alive = true;
     window.cth.gitLog(root, 8)
-      .then((log) => { if (alive) setCommits(Array.isArray(log) ? log.map((c) => ({ shortSha: c.shortSha, subject: c.subject, time: c.time })) : []); })
+      .then((log) => { if (alive) setCommits(Array.isArray(log) ? log.map((c) => ({ sha: c.sha, shortSha: c.shortSha, subject: c.subject, time: c.time })) : []); })
       .catch(() => { if (alive) setCommits([]); });
     return () => { alive = false; };
   }, [root, isGit, headSha]);
   return commits;
 }
 
-/** `notice` carries bench-level errors (opening the terminal from the rail or
- *  from here), shown in the same alert line as the passport's own errors. */
-export function Passport({ project, node, headSha, onRefreshProject, onOpenTerminal, notice, onBeforeAction }: {
+type PassportProps = {
   project: Project; node: SpineNode; headSha: string | null; onRefreshProject: () => Promise<void>; onOpenTerminal: () => void; notice: string | null;
   /** Called before an action runs; the modal sheet uses it to close first. */
   onBeforeAction?: () => void;
-}) {
+  /** The project's artifact summaries (real rows from nexus:artifacts:byProject). */
+  artifacts: ArtifactSummary[];
+  /** Opens the Save sheet; absent while platform writes are off, so no save control renders. */
+  onSave?: (source: SaveSource) => void;
+};
+
+/** An artifact node gets the artifact Passport; the source and changes nodes get the project Passport. */
+export function Passport(props: PassportProps) {
+  if (props.node.kind === 'artifact') return <ArtifactPassport project={props.project} node={props.node} artifacts={props.artifacts} />;
+  return <SourcePassport {...props} />;
+}
+
+/** `notice` carries bench-level errors (opening the terminal from the rail or
+ *  from here), shown in the same alert line as the passport's own errors. */
+function SourcePassport({ project, node, headSha, onRefreshProject, onOpenTerminal, notice, onBeforeAction, artifacts, onSave }: PassportProps) {
   const actions = useShellActions();
   const focusIntent = useNexusUi((s) => s.focusIntent);
   const isGit = node.kind === 'source' && node.vcs === 'git';
@@ -42,7 +57,7 @@ export function Passport({ project, node, headSha, onRefreshProject, onOpenTermi
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const idx = useParticipationIndex();
-  const p = passportFor({ project, idx, node, commits });
+  const p = passportFor({ project, idx, node, commits, hasArtifacts: artifacts.length > 0 });
 
   const run = (a: PassportAction) => {
     if (onBeforeAction) {
@@ -51,6 +66,11 @@ export function Passport({ project, node, headSha, onRefreshProject, onOpenTermi
       onBeforeAction();
       setTimeout(() => act(a), 0);
     } else act(a);
+  };
+  // Saving opens a sheet at the bench; the modal Details sheet closes first.
+  const save = (source: SaveSource) => {
+    if (!onSave) return;
+    if (onBeforeAction) { onBeforeAction(); setTimeout(() => onSave(source), 0); } else onSave(source);
   };
   const act = (a: PassportAction) => {
     setNote(null);
@@ -82,21 +102,28 @@ export function Passport({ project, node, headSha, onRefreshProject, onOpenTermi
         <section>
           <h2>Versions</h2>
           <ol className="nx-versions">
-            {p.versions.map((v) => (
-              <li key={v.id} aria-current={v.current ? 'true' : undefined}>
-                <span className="nx-id">{v.id}</span><span>{v.label}</span>
-              </li>
-            ))}
+            {p.versions.map((v, i) => {
+              const c = commits[i];
+              return (
+                <li key={v.id} aria-current={v.current ? 'true' : undefined} className={onSave && c ? 'nx-svx-commit' : undefined}>
+                  <span className="nx-id">{v.id}</span><span>{v.label}</span>
+                  {onSave && c && (
+                    <Button variant="quiet" ariaLabel={`Save commit ${c.shortSha} as an artifact`} onClick={() => save({ kind: 'commit', sha: c.sha, subject: c.subject })}>Save as artifact</Button>
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </section>
       )}
-      <p className="nx-muted">{p.relationshipsNote}</p>
+      {p.relationshipsNote && <p className="nx-muted">{p.relationshipsNote}</p>}
       <div className="nx-passport__actions">
         {p.actions.map((a) => (
           <Button key={a} variant={a === 'ask' ? 'primary' : 'secondary'} icon={ACTION_ICON[a]} disabled={a === 'refresh' && busy} onClick={() => run(a)}>
             {a === 'refresh' && busy ? 'Refreshing…' : ACTION_LABEL[a]}
           </Button>
         ))}
+        {onSave && node.kind === 'source' && <Button icon="files" onClick={() => save({ kind: 'file', relPath: null })}>Save a file…</Button>}
       </div>
       {(note ?? notice) && <p className="nx-passport__note" role="alert">{note ?? notice}</p>}
     </aside>
