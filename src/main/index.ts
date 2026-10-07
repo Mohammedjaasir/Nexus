@@ -5601,6 +5601,8 @@ function onSystemResume(reason: string): void {
 }
 
 app.whenReady().then(() => {
+  if (!gotInstanceLock) return;   // a second instance that lost the lock is quitting: it never opens the store
+
   // Realtime Michael mic-gate hygiene (rt-8 / Pam rt-10 nit): the voice session
   // opens the mic permission gate by persisting realtimeVoiceEnabled=true and
   // closes it on disconnect — but a hard crash/reload mid-session skips that

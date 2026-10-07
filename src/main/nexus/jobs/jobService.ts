@@ -582,7 +582,7 @@ export class JobService {
     if (s.project_id !== pw.project_id || s.workspace_id !== pw.workspace_id || s.participation_id !== pw.id) {
       throw new PlatformError('invalid', 'the session belongs to another project or workspace');
     }
-    if (s.terminal === 1) throw new PlatformError('invalid', 'the session has ended');
+    if (s.terminal === 1) throw new PlatformError('conflict', 'the session has ended');
   }
 
   /** Inside the transaction: an input is a candidate or active version of the project. Returns its content hash. */

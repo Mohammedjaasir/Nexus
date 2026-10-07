@@ -10,7 +10,8 @@
  * - Workspace ids from the caller are validated against the `workspaces` table but
  *   never used as authority: attach authorizes at plain project scope; withdraw
  *   passes the workspace of the STORED row it loaded (see ProjectAccess).
- * - Writes run in IMMEDIATE transactions with their activity row.
+ * - Writes run in IMMEDIATE transactions with their activity row, through
+ *   immediateTx, so a lock held past busy_timeout surfaces as 'platform_unavailable'.
  */
 import type Database from 'better-sqlite3';
 import type {
@@ -20,6 +21,7 @@ import { PLATFORM_WORKSPACE_IDS } from '../../../shared/nexus/workspaceCatalog';
 import type { AuthService } from '../auth/authService';
 import { appendActivityRow } from '../activity/writer';
 import { newId } from '../db/ids';
+import { immediateTx } from '../db/tx';
 import { PlatformError } from '../errors';
 import { ProjectAccess } from '../project/projectAccess';
 import { syncPrimaryFromLegacyDomain } from './legacyPrimary';
@@ -57,7 +59,7 @@ export class WorkspaceService {
   ensureCatalog(system: Principal): number {
     this.deps.auth.require(system, 'system.reconcile', PLATFORM);
     const now = this.deps.now();
-    return this.db.transaction(() => {
+    return immediateTx(this.db, () => {
       const ins = this.db.prepare('INSERT OR IGNORE INTO workspaces (id, created_at, retired_at) VALUES (?, ?, NULL)');
       const added: string[] = [];
       for (const id of PLATFORM_WORKSPACE_IDS) if (ins.run(id, now).changes === 1) added.push(id);
@@ -66,7 +68,7 @@ export class WorkspaceService {
           action: 'workspace.catalog_ensured', status: 'succeeded', details: { added } }, now);
       }
       return added.length;
-    }).immediate();
+    });
   }
 
   /** Every participation of the project, primary first, then by workspace id. */
@@ -104,7 +106,7 @@ export class WorkspaceService {
     // Project scope only: the workspace named by the caller is the target, not a source of authority.
     this.access.require(p, projectId, 'participation.attach');
     const now = this.deps.now();
-    return this.db.transaction(() => {
+    return immediateTx(this.db, () => {
       const existing = this.rowFor(projectId, workspaceId);
       if (existing && existing.status === 'active') return toParticipation(existing);
       if (existing && existing.status === 'complete') {
@@ -124,7 +126,7 @@ export class WorkspaceService {
       appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, projectId, workspaceId, entityType: 'project_workspace', entityId: id,
         action: 'participation.attach', status: 'succeeded', details: { reactivated: existing !== null } }, now);
       return toParticipation(this.rowById(id)!);
-    }).immediate();
+    });
   }
 
   /**
@@ -141,7 +143,7 @@ export class WorkspaceService {
     // The stored row names the workspace; the caller never does.
     this.access.require(p, stored.project_id, 'participation.withdraw', { workspaceId: stored.workspace_id });
     const now = this.deps.now();
-    return this.db.transaction(() => {
+    return immediateTx(this.db, () => {
       const row = this.rowById(stored.id);
       if (!row) throw new PlatformError('not_found', 'participation not found');
       if (row.is_primary === 1) throw new PlatformError('invalid', 'the primary participation follows the project domain and cannot be withdrawn');
@@ -160,7 +162,7 @@ export class WorkspaceService {
       appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, projectId: row.project_id, workspaceId: row.workspace_id,
         entityType: 'project_workspace', entityId: row.id, action: 'participation.withdraw', status: 'succeeded', details: {} }, now);
       return toParticipation(this.rowById(row.id)!);
-    }).immediate();
+    });
   }
 
   /**
@@ -173,7 +175,7 @@ export class WorkspaceService {
     this.deps.auth.require(system, 'system.reconcile', PLATFORM);
     const now = this.deps.now();
     const out = { set: 0, cleared: 0 };
-    this.db.transaction(() => {
+    immediateTx(this.db, () => {
       const projects = this.db.prepare('SELECT id, domain_id FROM projects ORDER BY rowid').all() as { id: string; domain_id: string | null }[];
       for (const pr of projects) {
         try {
@@ -183,7 +185,7 @@ export class WorkspaceService {
           this.deps.log?.(`[nexus] reconcile primary failed project=${String(pr.id).slice(0, 128)} error=${(e as { code?: string })?.code ?? 'error'}`);
         }
       }
-    }).immediate();
+    });
     return out;
   }
 

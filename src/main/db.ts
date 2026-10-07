@@ -651,7 +651,7 @@ export class PersistStore {
    */
   private syncPrimaryCaught(db: Database.Database, projectId: string, domainId: string | null): 'ok' | 'failed' | 'aborted' {
     try {
-      db.transaction(() => syncPrimaryFromLegacyDomain(db, projectId, domainId, this.nexusNow(), (l) => this.nexusLogLine(l)))();
+      db.transaction(() => syncPrimaryFromLegacyDomain(db, projectId, domainId, this.nexusNow(), (l) => this.nexusLogLine(this.nexusScrub(l))))();
       return 'ok';
     } catch (err) {
       this.nexusLogLine(`[nexus] primary sync failed project=${this.nexusScrub(String(projectId))} error=${this.nexusScrub(errorMessage(err))}`);
@@ -727,8 +727,13 @@ export class PersistStore {
     } catch { return null; }
   }
 
-  /** Delete a project by ID. Returns true if removed. */
-  deleteProject(id: string): boolean {
+  /**
+   * Delete a project by ID. Returns true if removed. With `withGraph`, the project's
+   * knowledge graph is deleted in the SAME transaction, only when the project row is
+   * actually removed, and only after the (queued) platform-record re-check passed:
+   * a delete refused at any point keeps the graph.
+   */
+  deleteProject(id: string, o?: { withGraph?: boolean }): boolean {
     // Same contract as updateProject: not open -> false + log; open and the
     // write throws -> the whole operation is queued (returns whether the row was seen).
     if (!id) return false;
@@ -748,9 +753,13 @@ export class PersistStore {
         removed = false;
         return;
       }
-      // One transaction: the row and the active-project pointer change together or not at all.
+      // One transaction: the row, the active-project pointer and (withGraph) the graph change together or not at all.
       db.transaction(() => {
         const res = db.prepare('DELETE FROM projects WHERE id = ?').run(id);
+        if (res.changes > 0 && o?.withGraph) {
+          db.prepare('DELETE FROM project_graph_nodes WHERE project_id = ?').run(id);
+          db.prepare('DELETE FROM project_graph_edges WHERE project_id = ?').run(id);
+        }
         if (this.getActiveProjectId() === id) db.prepare(
           `INSERT INTO kv (key, value, updated_at) VALUES (?, ?, ?)
            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`

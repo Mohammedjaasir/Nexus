@@ -26,6 +26,8 @@ import type { PlatformAction, Principal, ProjectId, ScopeRef, WorkspaceId } from
 import type { AuthService } from '../auth/authService';
 import { PlatformError } from '../errors';
 
+const PLATFORM = { type: 'platform' } as const;
+
 export class ProjectAccess {
   constructor(private readonly db: Database.Database, private readonly deps: { auth: AuthService }) {}
 
@@ -47,8 +49,13 @@ export class ProjectAccess {
    * A version another record will consume (a job input, a session context, a
    * version input) must be readable by the caller: 'artifact.read' with the
    * workspace of the version's artifact's STORED owner (artifacts.owner_workspace_id).
-   * Order: unknown version 'not_found'; another project than `projectId` 'invalid';
-   * then authorization ('denied', audited). Call it BEFORE opening a transaction.
+   * No existence oracle: an unknown version, or one in another project than
+   * `projectId`, is authorized first at the caller's `projectId` scope and then at
+   * PLATFORM scope ('artifact.read'), and only then is 'not_found' or 'invalid'. So
+   * a principal not authorized platform-wide gets 'denied' (audited) for both and
+   * learns nothing about the foreign version. A version of `projectId` is then
+   * authorized in its owner's workspace ('denied', audited). Call it BEFORE opening
+   * a transaction.
    * Returns the version's status and content hash; callers re-check the status
    * inside their transaction.
    */
@@ -58,8 +65,14 @@ export class ProjectAccess {
           JOIN artifacts a ON a.id = v.artifact_id WHERE v.id = ?`).get(versionId) as
         { project_id: string; status: string; content_hash: string; owner_workspace_id: string | null } | undefined
       : undefined;
-    if (!v) throw new PlatformError('not_found', `${what} version not found`);
-    if (v.project_id !== projectId) throw new PlatformError('invalid', `the ${what} version belongs to another project`);
+    if (!v || v.project_id !== projectId) {
+      // Same checks, in the same order, for a missing and a foreign version: the answer reveals nothing until the
+      // caller is authorized platform-wide.
+      this.require(p, projectId, 'artifact.read');
+      this.deps.auth.require(p, 'artifact.read', PLATFORM);
+      if (!v) throw new PlatformError('not_found', `${what} version not found`);
+      throw new PlatformError('invalid', `the ${what} version belongs to another project`);
+    }
     this.require(p, v.project_id, 'artifact.read', v.owner_workspace_id ? { workspaceId: v.owner_workspace_id } : undefined);
     return { status: v.status, contentHash: v.content_hash };
   }

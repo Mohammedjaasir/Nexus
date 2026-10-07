@@ -471,3 +471,45 @@ test('N3: a caller who cannot read an input version is denied before learning it
     inputs: [{ versionId: sdeDraft.id, role: 'source' }] }), (e) => e.code === 'invalid');   // a reader still gets the draft rule
   s.close();
 });
+test('final fix 3: an ended session is a conflict for both job create and version register', () => {
+  const { s, db, nx, me } = setup();
+  const x = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key() }).session;
+  const a = nx.artifacts.create(me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report', name: 'out' });
+  nx.sessions.cancel(me, x.id);
+  const n = [h.count(db, 'jobs'), h.count(db, 'artifact_versions')];
+  assert.throws(() => job(nx, me, { sessionId: x.id }), (e) => e.code === 'conflict' && /session has ended/.test(e.message));
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: a.id, storage: { kind: 'inline', json: {} }, producedBySessionId: x.id }),
+    (e) => e.code === 'conflict' && /session has ended/.test(e.message));
+  assert.deepEqual([h.count(db, 'jobs'), h.count(db, 'artifact_versions')], n);
+  s.close();
+});
+test('final fix 5: a missing or foreign input version is denied to a project-scoped guest; the owner gets not_found and invalid', () => {
+  const { s, db, nx, me, sys } = setup();
+  const guest = addUser(db, 'user:pguest', 'project', 'p-ledger');
+  const qa = nx.workspaces.attach(me, 'p-invoice', 'qa');
+  const fa = nx.artifacts.create(me, { projectId: 'p-invoice', workspaceId: qa.workspaceId, kind: 'report', name: 'foreign' });
+  const fv = nx.artifacts.finalize(sys, nx.artifacts.registerVersion(me, { artifactId: fa.id, storage: { kind: 'inline', json: { f: 1 } } }).version.id, 'candidate');
+  const own = nx.artifacts.create(guest, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report', name: 'mine' });
+  const tries = (who) => [
+    () => job(nx, who, { inputs: [{ versionId: 'v-missing', role: 'source' }] }),
+    () => job(nx, who, { inputs: [{ versionId: fv.id, role: 'source' }] }),
+    () => nx.sessions.open(who, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key(), contextVersionId: 'v-missing' }),
+    () => nx.sessions.open(who, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key(), contextVersionId: fv.id }),
+    () => nx.artifacts.registerVersion(who, { artifactId: own.id, storage: { kind: 'inline', json: {} }, inputs: [{ versionId: 'v-missing', role: 'source' }] }),
+    () => nx.artifacts.registerVersion(who, { artifactId: own.id, storage: { kind: 'inline', json: {} }, inputs: [{ versionId: fv.id, role: 'source' }] })
+  ];
+  const d = denied(db); const n = [h.count(db, 'jobs'), h.count(db, 'agent_sessions'), h.count(db, 'artifact_versions')];
+  const guestRows = [];
+  for (const t of tries(guest)) {
+    assert.throws(t, (e) => e.code === 'denied');
+    guestRows.push(db.prepare("SELECT action, project_id, workspace_id, details_json FROM activity WHERE status='denied' ORDER BY seq DESC LIMIT 1").get());
+  }
+  assert.equal(denied(db), d + 6);
+  // The missing and the foreign id leave identical denial rows: nothing about the foreign version leaks.
+  for (let i = 0; i < 6; i += 2) assert.deepEqual(guestRows[i], guestRows[i + 1]);
+  assert.ok(guestRows.every((r) => r.project_id !== 'p-invoice'));
+  const codes = tries(me).map((t) => { try { t(); return 'ok'; } catch (e) { return e.code; } });
+  assert.deepEqual(codes, ['not_found', 'invalid', 'not_found', 'invalid', 'not_found', 'invalid']);
+  assert.deepEqual([h.count(db, 'jobs'), h.count(db, 'agent_sessions'), h.count(db, 'artifact_versions')], n);
+  s.close();
+});

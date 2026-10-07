@@ -385,5 +385,38 @@ test('N2: auditDenial records the stored principal, keeps the claim, fixes reaso
     'on_behalf_of', 'entity_type', 'entity_id']) assert.equal(r[col].length, 128, col);
   assert.equal(JSON.parse(r.details_json).reason.length, 128);
   assert.equal(r.status, 'denied');
+  // An unknown id claiming 'system' is recorded as 'user' with the claim, and the cut is flagged.
+  assert.equal(r.actor_kind, 'user');
+  assert.deepEqual([JSON.parse(r.details_json).claimedKind, JSON.parse(r.details_json).truncated], ['system', true]);
+  s.close();
+});
+
+test('final fix 1: secret-shaped name, description, metadata or ioContract is refused before any write (inline content is not checked)', () => {
+  const { s, db, nx, me } = setup();
+  const SK = `sk-ant-api03-${'A1b2C3d4'.repeat(8)}`;
+  const GHP = `ghp_${'a1B2c3D4e5'.repeat(4)}`.slice(0, 40);
+  const isSecret = (e) => e.code === 'invalid' && e.detail?.reason === 'secret_in_metadata';
+  const rows = () => [h.count(db, 'artifacts'), h.count(db, 'artifact_versions'), h.count(db, 'activity')];
+  const base = { projectId: 'p-ledger', workspaceId: 'sde', kind: 'report' };
+  let before = rows();
+  assert.throws(() => nx.artifacts.create(me, { ...base, name: 'n', metadata: { apiKey: SK } }), isSecret);
+  assert.throws(() => nx.artifacts.create(me, { ...base, name: 'n', metadata: { note: SK } }), isSecret);
+  assert.throws(() => nx.artifacts.create(me, { ...base, name: 'n', description: `clone with ${GHP}` }), isSecret);
+  assert.throws(() => nx.artifacts.create(me, { ...base, name: `token ${GHP}` }), isSecret);
+  assert.deepEqual(rows(), before);
+  const a = nx.artifacts.create(me, { ...base, name: 'clean', description: 'plain words', metadata: { tokensUsed: 12 } });
+  const v = nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({ d: 1 }) }).version;
+  before = rows();
+  const vrow = () => db.prepare('SELECT metadata_json, io_contract_json FROM artifact_versions WHERE id=?').get(v.id);
+  const stored = vrow();
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({ d: 2 }), metadata: { apiKey: SK } }), isSecret);
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({ d: 2 }), ioContract: { auth: SK } }), isSecret);
+  assert.throws(() => nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({ d: 2 }), ioContract: { in: [GHP] } }), isSecret);
+  assert.throws(() => nx.artifacts.updateDraft(me, v.id, { metadata: { apiKey: SK } }), isSecret);
+  assert.throws(() => nx.artifacts.updateDraft(me, v.id, { ioContract: { header: `Bearer ${GHP}` } }), isSecret);
+  assert.deepEqual(rows(), before);
+  assert.deepEqual(vrow(), stored);
+  // Inline storage CONTENT is product data: not secret-checked (secrets travel by reference).
+  assert.equal(nx.artifacts.registerVersion(me, { artifactId: a.id, storage: inline({ sample: SK }) }).created, true);
   s.close();
 });

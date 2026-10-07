@@ -172,7 +172,11 @@ test('the sync never changes a complete participation; the project is left witho
   s.updateProject('p-ledger', { domainId: 'ai-ml' });
   assert.deepEqual(db.prepare('SELECT * FROM project_workspaces WHERE id=?').get(ml.id), before);
   assert.equal(nx.workspaces.primaryOf(me, 'p-ledger'), null);                       // sde was cleared, ml stays complete
-  assert.ok(logs.some((l) => /participation is complete; left without a primary/.test(l)));
+  const completeLines = () => logs.filter((l) => /participation is complete; left without a primary/.test(l));
+  assert.equal(completeLines().length, 1);
+  s.updateProject('p-ledger', { name: 'ledger renamed' });                          // a later save clears nothing: no repeat
+  s.updateProject('p-ledger', { domainId: 'ai-ml' });
+  assert.equal(completeLines().length, 1);
   const { syncPrimaryFromLegacyDomain } = loadTs('src/main/nexus/workspace/legacyPrimary.ts');
   assert.equal(db.transaction(() => syncPrimaryFromLegacyDomain(db, 'p-ledger', 'ai-ml', h.NOW))(), 'complete_target');
   assert.deepEqual(nx.workspaces.reconcileLegacyPrimaries(sys), { set: 0, cleared: 0 });
@@ -259,5 +263,67 @@ test('saveProject inside an open caller transaction survives a forced sync failu
   assert.equal(s.pendingWrites, 0);
   assert.equal(nx.workspaces.primaryOf(me, 'p-tx'), null);
   assert.ok(logs.some((l) => /primary sync failed project=p-tx/.test(l)));
+  s.close();
+});
+test('final fix 4: a write lock held past busy_timeout surfaces as platform_unavailable on attach, and nothing changes', () => {
+  const { s, db, nx, me } = setup();
+  const other = h.openRaw(db.name);
+  other.prepare('BEGIN IMMEDIATE').run();
+  db.pragma('busy_timeout = 50');
+  const n = h.count(db, 'project_workspaces');
+  try {
+    assert.throws(() => nx.workspaces.attach(me, 'p-ledger', 'qa'), (e) => e.code === 'platform_unavailable' && /^SQLITE_BUSY/.test(e.detail.sqliteCode));
+  } finally { other.prepare('ROLLBACK').run(); other.close(); }
+  assert.equal(h.count(db, 'project_workspaces'), n);
+  assert.equal(nx.workspaces.attach(me, 'p-ledger', 'qa').status, 'active');
+  s.close();
+});
+test('final fix 6: the complete_target line is scrubbed and logged only when a primary was cleared', () => {
+  const { s, db, nx, me } = setup();
+  const lines = [];
+  const { syncPrimaryFromLegacyDomain } = loadTs('src/main/nexus/workspace/legacyPrimary.ts');
+  const secretId = `p-ghp_${'a1B2c3D4e5'.repeat(4)}`.slice(0, 42);
+  const base = db.prepare("SELECT * FROM projects WHERE id='p-ledger'").get();
+  db.prepare(`INSERT INTO projects (id,name,root_path,domain_id,project_type,metadata_json,health_json,created_at,updated_at,last_analyzed_at)
+    VALUES (?,?,?,?,?,?,?,1,1,1)`).run(secretId, 'sec', 'C:/work/sec', 'web-app-dev', base.project_type, '{}', '{}');
+  db.transaction(() => syncPrimaryFromLegacyDomain(db, secretId, 'web-app-dev', h.NOW))();
+  const ml = nx.workspaces.attach(me, secretId, 'ml');
+  db.prepare("UPDATE project_workspaces SET status='complete', completion_json='{}', completion_hash='h', completion_at=5 WHERE id=?").run(ml.id);
+  const sync = () => db.transaction(() => syncPrimaryFromLegacyDomain(db, secretId, 'ai-ml', h.NOW, (l) => lines.push(l)))();
+  assert.equal(sync(), 'complete_target');
+  assert.equal(lines.length, 1);
+  assert.doesNotMatch(lines[0], /ghp_a1B2/); assert.match(lines[0], /^\[nexus\] primary sync: project=/);
+  assert.equal(sync(), 'complete_target');                                          // nothing left to clear: silent
+  assert.equal(lines.length, 1);
+  s.close();
+});
+test('final fix 10: the graph goes only with the project row; a queued delete refused later keeps it', () => {
+  const { s, db } = setup();
+  const { ProjectManager } = loadTs('src/main/project/projectManager.ts');
+  const pm = new ProjectManager(s);
+  // A normal delete still removes the graph (Phase A behaviour).
+  assert.ok(s.getProjectGraphStats('p-ledger').nodeCount > 0);
+  assert.equal(pm.deleteProject('p-sales'), true);
+  s.saveProjectGraph('p-invoice', [{ id: 'g1', projectId: 'p-invoice', kind: 'file', name: 'a.py', path: 'a.py' }], []);
+  assert.equal(s.getProjectGraphStats('p-invoice').nodeCount, 1);
+  assert.equal(pm.deleteProject('p-invoice'), true);
+  assert.equal(s.getProject('p-invoice'), null);
+  assert.equal(s.getProjectGraphStats('p-invoice').nodeCount, 0);
+  // Queued, then refused by the in-closure re-check: the store answered true, yet the graph survives.
+  const nodes = s.getProjectGraphStats('p-ledger').nodeCount;
+  s.pauseWrites();
+  assert.equal(pm.deleteProject('p-ledger'), true);                                   // optimistic answer for a queued delete
+  assert.equal(s.getProjectGraphStats('p-ledger').nodeCount, nodes);                  // nothing deleted yet
+  const pw = db.prepare("SELECT id FROM project_workspaces WHERE project_id='p-ledger'").get().id;
+  db.prepare(`INSERT INTO artifacts (id,project_id,kind,name,owner_participation_id,owner_workspace_id,created_by,created_at,updated_at)
+    VALUES ('a-g','p-ledger','report','notes',?,'sde','user:local',?,?)`).run(pw, h.NOW, h.NOW);
+  s.resumeWrites();
+  assert.equal(s.pendingWrites, 0);
+  assert.ok(s.getProject('p-ledger'));
+  assert.equal(s.getProjectGraphStats('p-ledger').nodeCount, nodes);
+  // No project row: nothing is removed, so the graph is not touched either (deleted only with the row).
+  s.saveProjectGraph('p-orphan', [{ id: 'g2', projectId: 'p-orphan', kind: 'file', name: 'b.py', path: 'b.py' }], []);
+  assert.equal(pm.deleteProject('p-orphan'), false);                                 // no such project: nothing removed
+  assert.equal(s.getProjectGraphStats('p-orphan').nodeCount, 1);
   s.close();
 });

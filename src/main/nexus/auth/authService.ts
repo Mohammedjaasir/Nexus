@@ -30,7 +30,6 @@ import { appendActivityRow, type NewActivity } from '../activity/writer';
 import { decide } from './policy';
 import { PrincipalResolver } from './principals';
 
-const KINDS: readonly PrincipalKind[] = ['user', 'agent', 'system'];
 const isStr = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
 
 /** Every id-like string written to a denial row is truncated to this many characters. */
@@ -45,8 +44,6 @@ export interface DenialAudit {
   jobId?: string | null; sessionId?: string | null; onBehalfOf?: string | null; attemptN?: number | null;
   entityType?: string | null; entityId?: string | null; details?: unknown;
 }
-
-const cap = (v: unknown): string | null => (isStr(v) ? v.slice(0, MAX_AUDIT_ID_CHARS) : null);
 
 export class AuthService {
   private readonly principals: PrincipalResolver;
@@ -116,27 +113,35 @@ export class AuthService {
    * granted). It never trusts its input:
    * - the actor is the STORED principal: a known id with a mismatched kind is
    *   recorded with its stored kind and id, and the claim goes in
-   *   `details.claimedKind`. An unknown principal is recorded as claimed (kind
-   *   limited to user|agent|system, else 'user'), with its id capped;
-   * - every id-like field and the action are capped at MAX_AUDIT_ID_CHARS. A
-   *   scope's project and workspace win over the explicit fields;
-   * - `reason`, `needed` and `claimedKind` are fixed fields that caller details cannot
-   *   override; status is always 'denied'.
+   *   `details.claimedKind`. An unknown principal is recorded as 'agent' when it
+   *   claims 'agent' and as 'user' otherwise (an unknown caller is never recorded
+   *   as 'system'), with its id capped. Whenever the claimed kind differs from the
+   *   recorded one, the claim goes in `details.claimedKind`;
+   * - every id-like field, the action and the reason are capped at
+   *   MAX_AUDIT_ID_CHARS (the claimed kind at 32), and `details.truncated` is true
+   *   when any of them was shortened. A scope's project and workspace win over the
+   *   explicit fields;
+   * - `reason`, `needed`, `claimedKind` and `truncated` are fixed fields that caller
+   *   details cannot override; status is always 'denied'.
    * The row is written now in its own IMMEDIATE transaction, or, when a transaction
    * is open, queued and written once it has ended, so a rollback cannot lose it.
    * Returns true (written), 'deferred' (queued) or false (the write failed). Never throws.
    */
   auditDenial(p: Principal, a: DenialAudit): boolean | 'deferred' {
     const stored = isStr(p?.id) ? this.principals.get(p.id) : null;
-    const action = String(a?.action ?? '').slice(0, MAX_AUDIT_ID_CHARS);
-    const reason = String(a?.reason ?? 'denied').slice(0, MAX_AUDIT_ID_CHARS);
+    let truncated = false;
+    const cut = (v: string, max = MAX_AUDIT_ID_CHARS): string => { if (v.length > max) truncated = true; return v.slice(0, max); };
+    const cap = (v: unknown): string | null => (isStr(v) ? cut(v) : null);
+    const action = cut(String(a?.action ?? ''));
+    const reason = cut(String(a?.reason ?? 'denied'));
     const extra = a?.details && typeof a.details === 'object' && !Array.isArray(a.details) ? a.details as Record<string, unknown> : {};
     const details: Record<string, unknown> = { ...extra, reason };
-    delete details.claimedKind;
+    delete details.claimedKind; delete details.truncated;
     if (a?.needed) details.needed = a.needed; else delete details.needed;
-    // A known id with a mismatched kind is recorded as the stored principal, with the claim alongside.
-    const forged = stored !== null && stored.kind !== p.kind;
-    if (forged) details.claimedKind = typeof p?.kind === 'string' ? String(p.kind).slice(0, 32) : String(p?.kind);
+    // A known id is recorded with its STORED kind. An unknown id is recorded as 'agent' when it claims 'agent' and as
+    // 'user' otherwise, so an unknown caller is never recorded as 'system'. A claim that differs goes alongside.
+    const actorKind: PrincipalKind = stored !== null ? stored.kind : p?.kind === 'agent' ? 'agent' : 'user';
+    if (p?.kind !== actorKind) details.claimedKind = typeof p?.kind === 'string' ? cut(p.kind, 32) : String(p?.kind);
     const scope = a?.scope;
     const row: NewActivity = {
       onBehalfOf: cap(a?.onBehalfOf), sessionId: cap(a?.sessionId), jobId: cap(a?.jobId),
@@ -146,10 +151,11 @@ export class AuthService {
       workspaceId: cap((scope ? scopeWorkspace(scope) : null) ?? a?.workspaceId),
       projectId: cap((scope ? scopeProject(scope) : null) ?? a?.projectId),
       // Fixed fields last: the caller cannot rewrite who acted, what was asked, or the outcome.
-      actorKind: forged ? stored.kind : KINDS.includes(p?.kind) ? p.kind : 'user',
-      actorId: forged ? stored.id : cap(p?.id) ?? String(p?.id ?? '').slice(0, MAX_AUDIT_ID_CHARS),
+      actorKind,
+      actorId: stored !== null ? stored.id : cap(p?.id) ?? cut(String(p?.id ?? '')),
       action, status: 'denied', details
     };
+    if (truncated) details.truncated = true;
     if (this.db.inTransaction) {
       // Writing now would put the row in the caller's transaction, which may roll back. Write it after.
       this.log(`[nexus] denial audit deferred until the open transaction ends: ${action} (${reason})`);

@@ -93,7 +93,7 @@ test('jobs link to their session; agent.run jobs need a live session in the same
   assert.throws(() => db.prepare(`INSERT INTO jobs (id,kind,project_id,workspace_id,participation_id,session_id,idempotency_key,requested_by,on_behalf_of,created_at,updated_at,state_changed_at)
     VALUES ('jq','agent.run','p-ledger','qa',?,?,'kq','user:local','user:local',1,1,1)`).run(qaPw, x.id), /job session must belong/);
   const done = open(nx, me); nx.sessions.transition(sys, done.id, 'running'); nx.sessions.transition(sys, done.id, 'completed');
-  assert.throws(() => nx.jobs.create(me, { kind: 'agent.run', projectId: 'p-ledger', workspaceId: 'sde', sessionId: done.id, idempotencyKey: key() }), (e) => e.code === 'invalid');
+  assert.throws(() => nx.jobs.create(me, { kind: 'agent.run', projectId: 'p-ledger', workspaceId: 'sde', sessionId: done.id, idempotencyKey: key() }), (e) => e.code === 'conflict');   // ended session: 'conflict' everywhere
   s.close();
 });
 test('cancel records who and when, cancels live jobs of the session first, and leaves finished jobs alone', () => {

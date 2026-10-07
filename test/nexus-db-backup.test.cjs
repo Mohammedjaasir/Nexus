@@ -107,9 +107,40 @@ test('a target that appears after the initial check is not overwritten', () => {
 });
 // Test hooks: only these files may define `__testing`, each exactly once, on its export line.
 const HOOK_OWNERS = ['src/main/nexus/db/backup.ts', 'src/main/nexus/lineage/lineageService.ts'];
+const EXT = /\.(?:ts|tsx|js|cjs|mjs)$/;
+/** A relative specifier from `fromRel`, as an extension-less module path ('src/main/x'); null for a bare specifier. */
+function resolveSpec(fromRel, spec) {
+  if (!spec.startsWith('.')) return null;
+  return path.posix.normalize(path.posix.join(path.posix.dirname(fromRel), spec)).replace(EXT, '');
+}
+/** Every `export * [as x] from '...'` and `export { ... } from '...'` of a file: { star, names, spec }. */
+function reExports(text) {
+  const out = [];
+  for (const m of text.matchAll(/export\s+\*\s+(?:as\s+\w+\s+)?from\s+['"`]([^'"`]+)['"`]/g)) out.push({ star: true, names: '', spec: m[1] });
+  for (const m of text.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}\s*from\s+['"`]([^'"`]+)['"`]/g)) out.push({ star: false, names: m[1], spec: m[2] });
+  return out;
+}
+/**
+ * Modules that expose a hook owner's exports: the owners themselves, plus (to a fixed
+ * point) any module that `export *`s one of them, so a chain through a third module is caught.
+ */
+function hookCarriers(files) {
+  const mod = (rel) => rel.replace(EXT, '');
+  const carriers = new Set(HOOK_OWNERS.map(mod));
+  const has = (m) => m !== null && (carriers.has(m) || carriers.has(`${m}/index`));
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const { rel, text } of files) {
+      if (carriers.has(mod(rel))) continue;
+      if (reExports(text).some((r) => r.star && has(resolveSpec(rel, r.spec)))) { carriers.add(mod(rel)); changed = true; }
+    }
+  }
+  return { carriers, has };
+}
 /** files: [{ rel: 'src/...' (forward slashes), text }]. Returns one message per violation. */
 function hookViolations(files) {
   const out = [];
+  const { has } = hookCarriers(files);
   for (const { rel, text } of files) {
     const n = (text.match(/__testing/g) || []).length;
     if (n > 0 && !HOOK_OWNERS.includes(rel)) out.push(`${rel}: references __testing`);
@@ -118,6 +149,12 @@ function hookViolations(files) {
       if (lines.length !== 1 || !/^export const __testing\b/.test(lines[0])) out.push(`${rel}: __testing outside its export declaration`);
     }
     if (/export\s+\*\s+(?:as\s+\w+\s+)?from\s+['"][^'"]*(?:backup|lineageService)(?:\.ts)?['"]/.test(text)) out.push(`${rel}: export * from a hook owner`);
+    for (const r of reExports(text)) {
+      const target = resolveSpec(rel, r.spec);
+      if (!has(target) || HOOK_OWNERS.some((o) => o.replace(EXT, '') === target)) continue;   // direct owners: the check above
+      if (r.star) out.push(`${rel}: export * from a module that re-exports a hook owner`);
+      else if (/\b__testing\b/.test(r.names)) out.push(`${rel}: re-exports __testing through a module that re-exports a hook owner`);
+    }
     if (rel !== 'src/main/nexus/db/backup.ts' && /afterWrite|backupAndVerifyWithHook/.test(text)) out.push(`${rel}: references backup's hook`);
   }
   return out;
@@ -147,4 +184,24 @@ test('the hook scan flags each kind of offending source', () => {
   assert.deepEqual(hookViolations([{ rel: 'src/main/y.ts', text: "export * as b from '../db/backup.ts';" }]), ['src/main/y.ts: export * from a hook owner']);
   assert.deepEqual(hookViolations([{ rel: 'src/main/z.ts', text: 'opts.afterWrite = f;' }]), ["src/main/z.ts: references backup's hook"]);
   assert.deepEqual(hookViolations([{ rel: 'src/main/nexus/db/backup.ts', text: decl }, { rel: 'src/main/nexus/lineage/lineageService.ts', text: decl }]), []);
+});
+test('the hook scan follows a re-export chain through a third module (in-memory self-test)', () => {
+  const decl = 'export const __testing = { x: 1 };';
+  const owner = { rel: 'src/main/nexus/db/backup.ts', text: decl };
+  const mid = { rel: 'src/main/nexus/db/mid.ts', text: "export * from './backup';" };              // direct: flagged as before
+  const chain = { rel: 'src/main/other.ts', text: 'export * from "./nexus/db/mid";' };           // through mid
+  const deep = { rel: 'src/main/deeper/again.ts', text: "export * as ns from '../other.ts';" };   // through other, through mid
+  const named = { rel: 'src/main/named.ts', text: "export { __testing as t } from './nexus/db/mid';" };
+  const clean = { rel: 'src/main/nexus/db/clean.ts', text: 'export const y = 1;' };
+  const fine = { rel: 'src/main/fine.ts', text: "export * from './nexus/db/clean';\nexport { y } from './nexus/db/clean';" };
+  const v = hookViolations([owner, mid, chain, deep, named, clean, fine]);
+  assert.ok(v.includes('src/main/nexus/db/mid.ts: export * from a hook owner'), v.join('\n'));
+  assert.ok(v.includes('src/main/other.ts: export * from a module that re-exports a hook owner'), v.join('\n'));
+  assert.ok(v.includes('src/main/deeper/again.ts: export * from a module that re-exports a hook owner'), v.join('\n'));
+  assert.ok(v.includes('src/main/named.ts: re-exports __testing through a module that re-exports a hook owner'), v.join('\n'));
+  assert.ok(!v.some((x) => x.startsWith('src/main/fine.ts') || x.startsWith('src/main/nexus/db/clean.ts')), v.join('\n'));
+  // An index module counts: './nexus/db' resolves to its index.ts.
+  const idx = { rel: 'src/main/nexus/db/index.ts', text: "export * from './backup';" };
+  const viaIndex = { rel: 'src/main/via.ts', text: "export * from './nexus/db';" };
+  assert.ok(hookViolations([owner, idx, viaIndex]).includes('src/main/via.ts: export * from a module that re-exports a hook owner'));
 });

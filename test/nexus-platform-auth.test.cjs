@@ -240,3 +240,65 @@ test('when the audit insert fails the denial still throws, with audited false', 
   assert.equal(h.count(db, 'activity'), n);
   s.close();
 });
+test('final fix 2: an unknown principal claiming system is recorded as user with the claim; agent claims stay agent', () => {
+  const { s, db, nx } = setup();
+  assert.throws(() => nx.auth.require({ id: 'ghost-sys', kind: 'system', displayName: 'x' }, 'system.reconcile', { type: 'platform' }),
+    (e) => e.code === 'denied' && e.detail.audited === true);
+  let row = deniedRows(db).pop(); let d = JSON.parse(row.details_json);
+  assert.deepEqual([row.actor_kind, row.actor_id, d.claimedKind, d.reason], ['user', 'ghost-sys', 'system', 'unknown_principal']);
+  assert.equal(d.truncated, undefined);
+  assert.throws(() => nx.auth.require({ id: 'ghost-agent', kind: 'agent', displayName: 'x' }, 'artifact.read', proj('p-ledger')), (e) => e.code === 'denied');
+  row = deniedRows(db).pop(); d = JSON.parse(row.details_json);
+  assert.deepEqual([row.actor_kind, row.actor_id, d.claimedKind], ['agent', 'ghost-agent', undefined]);
+  assert.throws(() => nx.auth.require({ id: 'ghost-user', kind: 'user', displayName: 'x' }, 'artifact.read', proj('p-ledger')), (e) => e.code === 'denied');
+  row = deniedRows(db).pop(); d = JSON.parse(row.details_json);
+  assert.deepEqual([row.actor_kind, d.claimedKind], ['user', undefined]);
+  assert.throws(() => nx.auth.require({ id: 'ghost-root', kind: 'root', displayName: 'x' }, 'artifact.read', proj('p-ledger')), (e) => e.code === 'denied');
+  row = deniedRows(db).pop(); d = JSON.parse(row.details_json);
+  assert.deepEqual([row.actor_kind, d.claimedKind], ['user', 'root']);
+  // A caller hint cannot set or clear claimedKind / truncated.
+  assert.equal(nx.auth.auditDenial({ id: 'ghost-sys', kind: 'system', displayName: 'x' },
+    { action: 'job.create', reason: 'r', details: { claimedKind: 'user', truncated: true } }), true);
+  d = JSON.parse(deniedRows(db).pop().details_json);
+  assert.deepEqual([d.claimedKind, d.truncated], ['system', undefined]);
+  s.close();
+});
+test('final fix 2: a capped id or field sets details.truncated', () => {
+  const { s, db, nx } = setup();
+  const long = 'x'.repeat(500);
+  assert.throws(() => nx.auth.require({ id: `user:${long}`, kind: 'user', displayName: 'x' }, 'job.create', proj('p-ledger')), (e) => e.code === 'denied');
+  let row = deniedRows(db).pop();
+  assert.equal(row.actor_id.length, 128); assert.equal(JSON.parse(row.details_json).truncated, true);
+  assert.throws(() => nx.auth.require({ id: 'user:short', kind: 'user', displayName: 'x' }, 'job.create', proj('p-ledger'), { jobId: long }), (e) => e.code === 'denied');
+  row = deniedRows(db).pop();
+  assert.equal(row.job_id.length, 128); assert.equal(JSON.parse(row.details_json).truncated, true);
+  const exact = 'y'.repeat(128);
+  assert.throws(() => nx.auth.require({ id: 'user:short', kind: 'user', displayName: 'x' }, 'job.create', proj('p-ledger'), { jobId: exact }), (e) => e.code === 'denied');
+  assert.equal(JSON.parse(deniedRows(db).pop().details_json).truncated, undefined);   // exactly at the cap: nothing cut
+  s.close();
+});
+test('final fix 7: a deferred denial audit is dropped with a warning when a transaction stays open across every retry', async () => {
+  const lines = [];
+  const { s, db } = setup();
+  const nx = createNexusPlatform(db, { now: () => h.NOW, log: (l) => lines.push(l) });
+  const { DEFERRED_AUDIT_ATTEMPTS } = loadTs('src/main/nexus/auth/authService.ts');
+  assert.equal(DEFERRED_AUDIT_ATTEMPTS, 5);
+  const action = 'job.cancel';
+  const count = () => db.prepare("SELECT COUNT(*) AS n FROM activity WHERE status='denied' AND action=?").get(action).n;
+  const before = count();
+  const started = Date.now();
+  db.exec('BEGIN IMMEDIATE');
+  let err = null;
+  try { nx.auth.require({ id: 'user:guest', kind: 'user', displayName: 'guest' }, action, proj('p-ledger')); } catch (e) { err = e; }
+  assert.equal(err.code, 'denied'); assert.equal(err.detail.audited, 'deferred');
+  // Retries run at +0 (microtask), then 10, 20, 30 and 40 ms apart: ~100 ms in all. Hold the transaction well past that.
+  const dropped = () => lines.some((l) => /denial audit dropped after 5 attempt\(s\): job\.cancel/.test(l));
+  for (let i = 0; i < 60 && !dropped(); i++) await new Promise((r) => setTimeout(r, 10));
+  assert.ok(dropped(), lines.join('\n'));
+  assert.equal(db.inTransaction, true);
+  db.exec('ROLLBACK');
+  await new Promise((r) => setTimeout(r, 60));                       // nothing is retried after the drop
+  assert.equal(count(), before);
+  assert.ok(Date.now() - started < 1000);
+  s.close();
+});

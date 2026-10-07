@@ -28,6 +28,9 @@
  * - Promotion is compare-and-set on artifacts.current_version_id, in one IMMEDIATE
  *   transaction: activate the version, move the pointer, deprecate the previous
  *   active version(s). Every kind is single-active until the kind registry exists.
+ * - Secrets. A name, description, metadata or ioContract holding anything
+ *   secret-shaped is refused before any transaction ('invalid', reason
+ *   'secret_in_metadata'). Inline storage content is product data and is not checked.
  * - Each mutation writes exactly one activity row in its own transaction. Every
  *   transaction runs through immediateTx, so a lock held past busy_timeout surfaces
  *   as 'platform_unavailable'.
@@ -38,6 +41,7 @@ import type {
   SessionId, StorageRef, VersionId, VersionInput, VersionStatus, WorkspaceId
 } from '../../../shared/nexus/platform';
 import type { AuthService } from '../auth/authService';
+import { containsSecret, redactText } from '../activity/redact';
 import { appendActivityRow } from '../activity/writer';
 import { newId } from '../db/ids';
 import { immediateTx } from '../db/tx';
@@ -106,9 +110,27 @@ const toVersion = (r: VersionRow): ArtifactVersion => ({
   statusChangedAt: r.status_changed_at, promotedBy: r.promoted_by, promotedAt: r.promoted_at, clientKey: r.client_key
 });
 
-/** JSON text for a caller-supplied value: exact JSON only (nothing coerced), bounded like inline storage. */
+/**
+ * Secrets never reach artifact rows: a name, description, metadata or ioContract
+ * holding anything secret-shaped is refused ('invalid', reason 'secret_in_metadata'),
+ * as JobService refuses secret-shaped params. Inline storage CONTENT is product data
+ * and is deliberately not checked; secrets travel by reference.
+ */
+function refuseSecretText(s: string | undefined, what: string): void {
+  if (s !== undefined && redactText(s) !== s) {
+    throw new PlatformError('invalid', `${what} holds a secret-shaped value`, { reason: 'secret_in_metadata' });
+  }
+}
+function refuseSecretJson(v: unknown, what: string): void {
+  if (v !== undefined && containsSecret(v)) {
+    throw new PlatformError('invalid', `${what} holds a secret-shaped key or value`, { reason: 'secret_in_metadata' });
+  }
+}
+
+/** JSON text for a caller-supplied value: exact JSON only (nothing coerced), bounded like inline storage, never secret-shaped. */
 function jsonText(v: unknown, what: string): string {
   assertExactJson(v, what);
+  refuseSecretJson(v, what);
   const text = JSON.stringify(v);
   if (Buffer.byteLength(text, 'utf8') > INLINE_MAX_BYTES) throw new PlatformError('invalid', `${what} exceeds ${INLINE_MAX_BYTES} bytes`);
   return text;
@@ -133,6 +155,8 @@ export class ArtifactService {
       throw new PlatformError('invalid', `description must be at most ${MAX_DESCRIPTION_CHARS} characters`);
     }
     if (i.metadata !== undefined && !isPlainObject(i.metadata)) throw new PlatformError('invalid', 'metadata must be an object');
+    refuseSecretText(i.name, 'name');
+    refuseSecretText(i.description, 'description');
     const metadataJson = jsonText(i.metadata ?? {}, 'metadata');
 
     // The workspace input only SELECTS the participation; the stored row is the authority.
@@ -494,12 +518,9 @@ export class ArtifactService {
    */
   private checkInputs(p: Principal, a: ArtifactRow, inputs: VersionInput[], jobId: string | null): void {
     for (const x of inputs) {
-      const v = this.db.prepare('SELECT project_id, status FROM artifact_versions WHERE id = ?').get(x.versionId) as { project_id: string; status: string } | undefined;
-      if (!v) throw new PlatformError('not_found', 'input version not found');
-      if (v.project_id !== a.project_id) throw new PlatformError('invalid', 'inputs come from the same project');
-      // The caller must be able to read every input, in its owner's workspace ('denied', audited), before
-      // learning anything about its status.
-      this.access.requireVersionReadable(p, x.versionId, a.project_id);
+      // The caller must be able to read every input, in its owner's workspace ('denied', audited), before learning
+      // anything about it: whether it exists, its project (both only for a platform-authorized caller) or its status.
+      const v = this.access.requireVersionReadable(p, x.versionId, a.project_id);
       if (v.status === 'draft') throw new PlatformError('invalid', 'a draft cannot be an input');
     }
     if (jobId === null || inputs.length === 0) return;

@@ -247,8 +247,8 @@ caller in main ──Principal {id, kind}──▶ AuthService.require(p, action
 - **Authorize first, before any transaction**, so a denial is audited in its own IMMEDIATE transaction.
 - **The workspace used as authority always comes from a stored row.** Services use the participation of a job or session, the artifact's `owner_workspace_id`, or the participation being withdrawn. They never use a workspace named by the caller (`ProjectAccess` rule). When no stored row exists yet (attach, or the first create in a workspace), the caller is authorized at plain project scope, and the workspace id only selects the participation.
 - **Authorization comes before existence.** A principal without access gets `denied` whether or not the record exists. An unknown id is `not_found` only for a principal authorized for the action at platform scope.
-- **Reading an input version** (job inputs, session context, version inputs) needs `artifact.read` with the version's owner workspace (`ProjectAccess.requireVersionReadable`). This check runs before any status check, so a draft's status does not leak.
-- **Denials outside `authorize()`** use `AuthService.auditDenial`, which writes the same `denied` row. Examples are `input_not_granted`, `not_session_principal`, and a non-system `ingest` edge. `auditDenial` records the STORED principal: a forged kind is recorded under its stored kind, with `details.claimedKind`. Every id-like field and the action are capped at 128 characters.
+- **Reading an input version** (job inputs, session context, version inputs) needs `artifact.read` with the version's owner workspace (`ProjectAccess.requireVersionReadable`). This check runs before any status check, so a draft's status does not leak. A missing version, and a version of another project, are first authorized with `artifact.read` at the caller's project scope and then at platform scope; only then are they `not_found` and `invalid`. A principal not authorized platform-wide gets `denied` for both, with identical denial rows, and learns nothing about the foreign version.
+- **Denials outside `authorize()`** use `AuthService.auditDenial`, which writes the same `denied` row. Examples are `input_not_granted`, `not_session_principal`, and a non-system `ingest` edge. `auditDenial` records the STORED principal: a forged kind for a known id is recorded under its stored kind. An unknown id is recorded as `agent` when it claims `agent` and as `user` otherwise, never as `system`. Whenever the claimed kind differs from the recorded one, the claim is kept in `details.claimedKind`. Every id-like field, the action and the reason are capped at 128 characters, and `details.truncated = true` marks a row where any of them was cut. `reason`, `needed`, `claimedKind` and `truncated` cannot be set by caller details.
 - **A denial inside a caller's open transaction** is not written into it, because a rollback would lose it. It is queued and written after the transaction ends ([section 16, item 5](#16-known-limitations-and-operational-notes)).
 
 ---
@@ -310,6 +310,7 @@ caller in main ──Principal {id, kind}──▶ AuthService.require(p, action
 - `version_no` is `COALESCE(MAX)+1` inside BEGIN IMMEDIATE.
 - B0b storage is `inline` (exact JSON, at most 64 KiB of canonical JSON; the content hash is the sha256 of the canonical JSON) or `git` (a 40-hex commit; the hash is `git:<commit>`). `blob`, `tree` and `external` return `storage_unavailable` until the blob store exists.
 - Caller JSON (inline payload, metadata, IO contract) must be exact JSON. Nothing is coerced, and own `__proto__` keys are refused.
+- An artifact name, description or metadata, and a version's metadata or IO contract (on register and on `updateDraft`), that hold anything secret-shaped are refused before any transaction: `invalid` with `detail.reason = 'secret_in_metadata'` (`containsSecret` for JSON, `redactText` for text). Inline storage content is not checked ([section 16, item 11](#16-known-limitations-and-operational-notes)).
 
 **F.7 status table.** `VERSION_TRANSITIONS` in `versionRules.ts` mirrors `tr_versions_status`:
 
@@ -327,7 +328,7 @@ Who moves a version:
 - `promote` moves candidate to active, or deprecated back to active as a rollback. It is a compare-and-set on `artifacts.current_version_id`, in one transaction: activate the version, move the pointer, then deprecate the previous active versions. Every kind is single-active until the kind registry exists.
 
 **Producers.**
-- A producing job or session must exist, be in the artifact's project, act for the artifact's owner participation, and not be terminal.
+- A producing job or session must exist, be in the artifact's project, act for the artifact's owner participation, and not be terminal. A finished job or an ended session is a `conflict` (the same code `job.create` uses for an ended session).
 - With a job, every input must be granted to it in `job_inputs` as the same (version, role). Otherwise the call fails with `input_not_granted` and one denied row.
 - A repeated (job, clientKey) returns the stored version if the content hash matches, and is a `conflict` if it does not.
 
@@ -433,7 +434,7 @@ That is 23 transitions. `queued → running` does not exist: a job is `leased` f
 **Service rules.**
 - `create` is idempotent by `idempotencyKey`. A re-send compares the requester, kind, project, workspace, session, parent and retryOf every time. It compares the recipe, validator, priority, inputs (as a set), retry, runtime and raw params when they are supplied. Different work is a `conflict`.
 - A job runs in the ACTIVE participation. A missing row is `not_participating`; a withdrawn or complete row is `participation_inactive`.
-- `agent.run` needs a live session in the same participation, and only the session's principal (or the system) adds jobs to it (`not_session_principal`).
+- `agent.run` needs a live session in the same participation, and only the session's principal (or the system) adds jobs to it (`not_session_principal`). A job for a session that has ended is a `conflict`.
 - A child job must share its parent's participation and session.
 - Inputs must be candidate or active versions of the job's project that the caller can read. Their content hash is copied into `job_inputs`.
 - `transition` is system only. `requestCancel` is a user action (see [section 16, item 4](#16-known-limitations-and-operational-notes)).
@@ -498,12 +499,14 @@ A session is the durable record of one agent conversation in a project's workspa
   - **An unmapped domain:** every primary flag is cleared, and the rows are kept.
   - **A target whose participation is `complete`:** see [section 16, item 3](#16-known-limitations-and-operational-notes).
 - **The delete guard (D2).** `PersistStore.deleteProject` refuses, returning `false` and writing nothing, while the project has rows in `artifacts`, `jobs` or `agent_sessions` (`hasPlatformRecords`). It logs `[nexus] deleteProject refused project=<id>: it has platform records (artifacts, jobs or agent sessions)`. A failing check answers "present", so a project is kept rather than half-deleted. Participations alone do not block a delete: they cascade.
+- **The graph goes with the row.** `ProjectManager.deleteProject` calls `PersistStore.deleteProject(id, { withGraph: true })`. The store deletes the knowledge graph in the same transaction as the project row, only when the row is actually removed, and only after the platform-record re-check of a queued delete. A delete refused at any point, including a queued delete refused when it finally runs, keeps the graph. A normal delete removes it, as in Phase A.
 
 ---
 
 ## 13. Wiring in main
 
 `src/main/index.ts`, in `whenReady`:
+0. The first line returns when the single-instance lock was not obtained (`gotInstanceLock`), so a losing second instance never opens the store.
 1. `persist.open({ log: nexusMainLog, backupDir: join(userData, 'backups'), holdV7: process.env.NEXUS_DB_HOLD_V7 === '1', appVersion })`. The call is guarded: a DB failure degrades to defaults and never blocks startup.
 2. If `persist.platformAvailable` (v7 and the post-check passed), main composes the platform: `createNexusPlatform(persist.platformDatabase(), { log })`, on the same better-sqlite3 connection as the legacy store.
 3. Main then calls `startup()`. It resolves the seeded principals, ensures the workspace catalogue, reconciles the legacy primaries, recovers sessions and then jobs, and logs one `[nexus] platform ready` line.
@@ -675,7 +678,7 @@ To check a restore without launching the app: open the restored `harness.db` wit
 
 1. **Activity tail deletion.** The hash chain detects an edited, inserted or reordered row. It cannot detect deletion of the newest rows: the remaining prefix still verifies. `tr_activity_no_delete` stops deletion through ordinary SQL, but not someone who drops the trigger or edits the file. A later phase anchors the head hash and the row count outside the chain, for example in a record written in the same transaction, or outside the database.
 2. **Older builds have no delete guard.** A pre-B0b build (for example `e1fd80f`) opens a v7 database for legacy use, because its migration loop stops at 6. Its `deleteProject` has no `hasPlatformRecords` check. Once a project has artifacts, jobs or sessions, that build's delete fails with an FK error (`ON DELETE RESTRICT`, `SQLITE_CONSTRAINT_FOREIGNKEY`). Its `LegacyWriteQueue` does not treat that error as transient: the delete is retried up to `MAX_WRITE_ATTEMPTS` = 5 times, every later legacy write waits behind it in FIFO order meanwhile, and then the delete is dropped with an error log (`write "deleteProject:<id>" failed 5 times and was dropped`). The project stays. Participations alone do not block it, because they cascade. In the B0b build, a `deleteProject` that was queued (because its first attempt threw) re-checks `hasPlatformRecords` when it finally runs. A delete queued before any platform record existed is therefore refused cleanly, not retried forever. Its log line is `[nexus] queued deleteProject refused project=<id>: it has platform records`. A legacy save by an older build does not sync the primary; the B0b startup reconcile repairs it.
-3. **A completed participation as the mapped primary.** If the legacy domain maps to a workspace whose participation is `complete`, the sync never touches that row. Not its status, not its completion evidence. The DDL `CHECK (is_primary = 0 OR status = 'active')` forbids a non-active primary, so the project is left with **no** primary, and the sync returns `complete_target`. It logs `[nexus] primary sync: project=<id> maps to workspace=<ws> whose participation is complete; left without a primary`, and writes an activity row only if a previous primary was cleared. The renderer still shows the mapped workspace, because it derives it from the domain. This parity gap is to be revisited in B1, when authority flips to `project_workspaces`. The log line repeats on every save and startup for such a project.
+3. **A completed participation as the mapped primary.** If the legacy domain maps to a workspace whose participation is `complete`, the sync never touches that row. Not its status, not its completion evidence. The DDL `CHECK (is_primary = 0 OR status = 'active')` forbids a non-active primary, so the project is left with **no** primary, and the sync returns `complete_target`. Only when that sync actually cleared a previous primary does it log `[nexus] primary sync: project=<id> maps to workspace=<ws> whose participation is complete; left without a primary` (the id bounded and secret-redacted, and the save path scrubs the line like the other `[nexus]` lines) and write an activity row; later saves and startups of such a project are silent. The renderer still shows the mapped workspace, because it derives it from the domain. This parity gap is to be revisited in B1, when authority flips to `project_workspaces`.
 4. **Cancellation does not cascade everywhere.**
    - A terminal session transition (`completed`, `failed`, `timed_out` or `interrupted` through `transition` or recovery) does not cascade to the session's jobs. They can still finish, but they can never be requeued or retried, because the no-resurrection rule refuses `→ retry_scheduled` and `→ queued` once the session has ended.
    - `JobService.requestCancel` on a parent job does not cascade to its children (`parent_job_id`). Child cancellation is the J.5 executor follow-up.
@@ -704,12 +707,14 @@ To check a restore without launching the app: open the restored `harness.db` wit
     - checks that the B0b build reopens the file with outcome `not_needed`.
 
     It runs only under `npm run test:db`. A skip fails that runner.
+11. **Artifact metadata never holds secrets; inline content is product data.** Artifact names, descriptions and metadata, and version metadata and IO contracts, are refused when secret-shaped (`secret_in_metadata`), like job params. Inline storage CONTENT (the `StorageRef` json) is product data and is NOT secret-checked; secrets must travel by reference, never inside an artifact.
+12. **A withdrawn participation can become primary again.** A legacy domain change that maps to a withdrawn participation re-activates it as primary (D4 rule); its jobs and sessions are not resurrected.
 
 Further operational notes:
 - **Backups accumulate.** Every migration attempt that reaches the backup step writes a new file. Nothing prunes `userData/backups`.
 - **No minimum-version guard.** Nothing stops a pre-B0b build from opening a v7 database (D1). That is by design, and the downgrade test covers it.
 - **Workspace rows are never retired or deleted in B0b.** `retired_at` exists for later phases.
-- **Busy database.** A lock held past `busy_timeout` (5 s) surfaces from the services as `platform_unavailable` (`immediateTx`). The transaction has rolled back.
+- **Busy database.** A lock held past `busy_timeout` (5 s) surfaces from every service, workspaces included, as `platform_unavailable` (`immediateTx`). The transaction has rolled back.
 
 ---
 
