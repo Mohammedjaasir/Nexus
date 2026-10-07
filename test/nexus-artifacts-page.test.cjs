@@ -258,8 +258,10 @@ const hook = src('data/useArtifacts.ts');
 test('pin: the page reads through its hooks only and reuses the artifact Passport', () => {
   assert.doesNotMatch(page, /nexusClient|window\.cth/, 'the page itself makes no IPC call');
   assert.match(page, /import \{ ArtifactPassport \} from '\.\.\/project\/ArtifactPassport';/);
-  assert.match(page, /<ArtifactPassport key=\{detail\.artifact\.id\} project=\{\{ id: projectId, rootPath: project \? project\.rootPath : '' \}\} node=\{node\} artifacts=\{summaries\.artifacts\} onSpine=\{false\} \/>/);
-  assert.doesNotMatch(page, /versionMarkReady|versionPromote|versionDiscard|versionLinkSources|selectCanWrite/, 'version actions stay inside the Passport, gated there');
+  assert.match(page, /<ArtifactPassport key=\{detail\.artifact\.id\} project=\{\{ id: projectId, rootPath: project \? project\.rootPath : '' \}\} node=\{node\} artifacts=\{summaries\.artifacts\} onSpine=\{false\}\s*onHandOff=\{canWrite \? setHandoffStart : undefined\} \/>/);
+  assert.doesNotMatch(page, /versionMarkReady|versionPromote|versionDiscard|versionLinkSources/, 'version actions stay inside the Passport, gated there');
+  // Task 13: the page hosts the send sheet the Passport's "Hand off…" opens, only while writes are on.
+  assert.match(page, /\{handoffStart && canWrite && <SendHandoffSheet start=\{handoffStart\} artifacts=\{summaries\.artifacts\} onClose=\{\(\) => setHandoffStart\(null\)\} \/>\}/);
   assert.match(page, /const summaries = useProjectArtifacts\(projectId\);/);
   assert.match(page, /navigate\(\{ name: 'project', id: project\.id, tool: 'bench' \}\)\}>Open project<\/Button>/);
   assert.match(page, /navigate\(\{ name: 'artifacts', id: r\.id \}\)/);
@@ -302,10 +304,11 @@ test('pin: the hooks guard stale answers, reload on rev and mode, and never reje
 test('pin: routing, the Passport outside the Spine, and the styles', () => {
   const view = src('routes/RouteView.tsx');
   assert.match(view, /case 'artifacts': page = <ArtifactsPage id=\{route\.id \?\? null\} \/>; break;/);
-  assert.match(view, /case 'handoffs': page = <PlannedPage which="handoffs" \/>; break;/);
+  // Task 13: Handoffs is real; only Deployments stays planned.
+  assert.match(view, /case 'handoffs': page = <HandoffsPage id=\{route\.id \?\? null\} \/>; break;/);
   assert.match(view, /case 'deployments': page = <PlannedPage which="deployments" \/>; break;/);
   const planned = loadTs('src/renderer/src/nexus/pages/plannedContent.ts').PLANNED;
-  assert.deepEqual(Object.keys(planned).sort(), ['deployments', 'handoffs']);
+  assert.deepEqual(Object.keys(planned), ['deployments']);
   const passport = src('project/ArtifactPassport.tsx');
   assert.match(passport, /\{row\.shown && !row\.current \? \(onSpine \? ', shown on the spine' : ', shown here'\) : ''\}/);
   assert.match(passport, /if \(rootPath && \[\.\.\.contents\.values\(\)\]\.some\(\(c\) => c\.type === 'git'\)\)/, 'no git read without a project folder');

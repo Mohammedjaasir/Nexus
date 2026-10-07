@@ -87,3 +87,69 @@ li.nx-svx-commit { grid-template-columns: 64px minmax(0, 1fr) auto; align-items:
   .nx-afx[data-detail="open"] { grid-template-columns: minmax(0, 1fr); }
   .nx-afx[data-detail="open"] > .nx-afx__list { display: none; }
 }
+
+/* The Handoffs page (pages/HandoffsPage.tsx). Status is always words; the marks beside
+   workspace names are provenance only. The handoffs-off line is told apart by its rule. */
+.nx-hfx__lead { margin: 0; color: var(--nx-text-2); }
+.nx-hfx__boxes { display: inline-flex; flex-wrap: wrap; gap: var(--nx-s1); }
+.nx-hfx__box[aria-pressed="true"] { border-color: var(--nx-ink); box-shadow: inset 0 -2px 0 var(--nx-ink); font-weight: 650; }
+.nx-hfx { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--nx-s4); align-items: start; }
+.nx-hfx[data-detail="open"] { grid-template-columns: minmax(0, 1fr) minmax(320px, 460px); }
+.nx-hfx__list { display: grid; gap: var(--nx-s3); min-width: 0; }
+.nx-hfx__off { margin: 0; padding: var(--nx-s3) var(--nx-s4); border: 1px solid var(--nx-line); border-left: 3px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-surface); color: var(--nx-text-2); }
+.nx-hfx__line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); margin: 0; color: var(--nx-text-2); }
+.nx-hfx__group { display: grid; gap: var(--nx-s2); }
+.nx-hfx__group-title { display: flex; align-items: center; gap: var(--nx-s2); margin: 0; font: 600 12px/1.2 var(--nx-font); color: var(--nx-text-3); }
+.nx-hfx__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--nx-s2); }
+.nx-hfx__row[aria-current="true"] { border-color: var(--nx-ink); box-shadow: inset 2px 0 0 var(--nx-ink); }
+.nx-hfx__name { font: 650 15px/1.25 var(--nx-font-display); overflow-wrap: anywhere; }
+.nx-hfx__status { font-size: 12.5px; color: var(--nx-text-2); }
+.nx-hfx__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s3); }
+.nx-hfx__count { margin: 0; outline: none; }
+.nx-hfx__detail { min-width: 0; border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); background: var(--nx-surface); overflow: hidden; }
+.nx-hfx__pane { display: grid; gap: var(--nx-s2); padding: var(--nx-s2); }
+.nx-hfx__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); }
+.nx-hfx__card { display: grid; gap: var(--nx-s3); padding: var(--nx-s2); font: 400 13px/1.5 var(--nx-font); color: var(--nx-ink); }
+.nx-hfx__head { display: grid; gap: 4px; }
+.nx-hfx__kind { margin: 0; font-size: 11px; color: var(--nx-text-3); }
+.nx-hfx__title { margin: 0; font: 700 16px/1.2 var(--nx-font-display); color: var(--nx-ink); overflow-wrap: anywhere; }
+.nx-hfx__state { margin: 0; font-weight: 600; color: var(--nx-text-2); }
+.nx-hfx__facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--nx-s1) var(--nx-s3); margin: 0; }
+.nx-hfx__facts dt { color: var(--nx-text-3); }
+.nx-hfx__facts dd { margin: 0; display: flex; align-items: center; gap: var(--nx-s1); min-width: 0; }
+.nx-hfx__text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.nx-hfx__sub { margin: 0 0 var(--nx-s1); font: 600 12px/1.2 var(--nx-font); color: var(--nx-text-3); }
+.nx-hfx__subjects { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--nx-s2); }
+.nx-hfx__subjects li { display: grid; gap: 2px; padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); }
+.nx-hfx__receipt { display: grid; gap: var(--nx-s2); }
+.nx-hfx__receipt p { margin: 0; color: var(--nx-text-2); }
+.nx-hfx__acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); }
+.nx-hfx__acts p { flex: 1 1 100%; margin: 0; }
+.nx-hfx__confirm { display: grid; gap: var(--nx-s2); padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line); border-left: 3px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-sunken); }
+.nx-hfx__confirm p { margin: 0; color: var(--nx-text-2); }
+.nx-hfx__field { display: grid; gap: var(--nx-s1); color: var(--nx-text-2); }
+.nx-hfx__confirm-actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
+.nx-hfx__status { margin: 0; color: var(--nx-text-2); outline: none; }
+@media (max-width: 1023px) {
+  .nx-hfx[data-detail="open"] { grid-template-columns: minmax(0, 1fr); }
+  .nx-hfx[data-detail="open"] > .nx-hfx__list { display: none; }
+}
+
+/* The send sheet (handoffs/SendHandoffSheet.tsx) and the Passport's handoff links. */
+.nx-shx { flex: 1; min-height: 0; display: grid; align-content: start; gap: var(--nx-s4); padding: var(--nx-s4); overflow: auto; font: 400 13px/1.5 var(--nx-font); color: var(--nx-ink); }
+.nx-shx__head { display: grid; gap: 4px; }
+.nx-shx__kind { margin: 0; font-size: 11px; color: var(--nx-text-3); }
+.nx-shx__title { margin: 0; font: 700 16px/1.2 var(--nx-font-display); color: var(--nx-ink); }
+.nx-shx__lead { margin: 0; color: var(--nx-text-2); }
+.nx-shx__field { display: grid; gap: var(--nx-s2); margin: 0; padding: 0; border: 0; min-width: 0; }
+.nx-shx__label { padding: 0; font: 600 12px/1 var(--nx-font); color: var(--nx-text-3); }
+.nx-shx__value { margin: 0; }
+.nx-shx__control { width: 100%; }
+.nx-shx__note { resize: vertical; }
+.nx-shx__list { list-style: none; margin: 0; padding: 0; display: grid; max-height: 300px; overflow: auto; border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); }
+.nx-shx__choice { display: flex; align-items: flex-start; gap: var(--nx-s2); padding: 6px var(--nx-s3); border-bottom: 1px solid var(--nx-line); background: var(--nx-surface); cursor: pointer; }
+.nx-shx__subject { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.nx-shx__why { margin: 0; }
+.nx-shx__status { margin: 0; color: var(--nx-text-2); outline: none; }
+.nx-shx__actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
+.nx-apx__handoff { padding: 0; border: 0; background: none; color: var(--nx-ink); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }

@@ -3,13 +3,16 @@ import type { ArtifactDetail, LineageView, NexusFail, NexusResult, VersionConten
 import { nexusClient } from '../data/nexusClient';
 import { usePlatform, selectCanWrite } from '../data/platformStore';
 import { useParticipationIndex } from '../data/useParticipations';
+import { useArtifactHandoffs } from '../data/useHandoffs';
 import { errorCopy } from '../data/errorCopy';
 import { viewOf } from '../workspaces/participation';
+import { navigate } from '../router/useRoute';
+import { PASSPORT_HANDOFF_READS, canHandOff, type HandoffStart } from '../handoffs/handoffModel';
 import { Button } from '../ui/Button';
 import { Popover } from '../ui/Sheet';
 import type { ArtifactNode, ArtifactSummary } from './spineModel';
 import {
-  IDLE_ACTIONS, LINK_CANDIDATE_ARTIFACTS, actionDoneText, actionPendingText, actionFailed, actionFailureText, actionLabel, actionSucceeded, artifactPassportView,
+  IDLE_ACTIONS, LINK_CANDIDATE_ARTIFACTS, actionDoneText, actionsFor, actionPendingText, actionFailed, actionFailureText, actionLabel, actionSucceeded, artifactPassportView,
   askActionConfirm, beginAction, canLinkSources, candidateArtifactIds, cancelActionConfirm, confirmText, passportActionsFor,
   shouldReloadAfterAction, sourceChoices, type ActionState, type PassportActionKind, type PassportLink, type SourceChoice
 } from './artifactModel';
@@ -120,14 +123,19 @@ function Links({ title, links, truncated, empty, children }: { title: string; li
  *  current one marked), what each version holds, its sources and uses, and the
  *  version actions the platform allows (mark ready, make current, roll back,
  *  discard, link a source). The actions render only while platform writes are on. */
-export function ArtifactPassport({ project, node, artifacts, onSpine = true }: {
+export function ArtifactPassport({ project, node, artifacts, onSpine = true, onHandOff }: {
   project: { id: string; rootPath: string }; node: ArtifactNode; artifacts: ArtifactSummary[];
   /** False on the Artifacts page, where no Spine is shown: the shown version is then not called "shown on the spine". */
   onSpine?: boolean;
+  /** Opens the send sheet where it is hosted; without it no "Hand off…" control renders. */
+  onHandOff?: (start: HandoffStart) => void;
 }) {
   const idx = useParticipationIndex();
   const canWrite = usePlatform(selectCanWrite);
+  const handoffsAvailable = usePlatform((s) => s.handoffsAvailable);
   const bumpRev = usePlatform((s) => s.bumpRev);
+  // The project's handoffs that carry a version of this artifact (read while the database is the authority).
+  const carrying = useArtifactHandoffs(canWrite, project.id, node.artifactId);
   const { loaded, error } = useArtifactPassport(node.artifactId, node.versionNo, project.rootPath);
   const names = useMemo(() => new Map(artifacts.map((s) => [s.artifact.id, s.artifact.name])), [artifacts]);
 
@@ -253,6 +261,8 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true }: {
           {view.versions.map((row) => {
             const v = versionsById.get(row.id) ?? null;
             const allowed = v ? passportActionsFor(v, artifact, ownerActive, canWrite) : [];
+            // Hand off: exactly where actionsFor allows it, with writes on and handoffs known to be on.
+            const handOff = v !== null && onHandOff !== undefined && ownerRow !== null && canHandOff(actionsFor(v, artifact, ownerActive), canWrite, handoffsAvailable);
             const confirming = acts.confirming && acts.confirming.versionId === row.id ? acts.confirming : null;
             return (
               <li key={row.id} aria-current={row.current ? 'true' : undefined}>
@@ -261,7 +271,7 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true }: {
                   <span>{row.status}{row.current ? ', current' : ''}{row.shown && !row.current ? (onSpine ? ', shown on the spine' : ', shown here') : ''}</span>
                   {row.content && <span className="nx-apx__content">{row.content}</span>}
                   {row.subject && <span className="nx-muted">{row.subject}</span>}
-                  {v && allowed.length > 0 && !confirming && (
+                  {v && (allowed.length > 0 || handOff) && !confirming && (
                     <span className="nx-apx__acts" ref={(el) => { if (el) rowActs.current.set(v.id, el); else rowActs.current.delete(v.id); }}>
                       {allowed.map((a) => {
                         const mine = pending !== null && pending.kind === a.kind && pending.versionId === v.id;
@@ -275,6 +285,12 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true }: {
                           </Button>
                         );
                       })}
+                      {handOff && ownerRow && (
+                        <Button disabled={pending !== null} ariaLabel={`Hand off version ${v.versionNo}`}
+                          onClick={() => onHandOff?.({ projectId: project.id, ownerParticipationId: ownerRow.id, artifactId: artifact.id, artifactName: artifact.name, versionId: v.id, versionNo: v.versionNo })}>
+                          Hand off…
+                        </Button>
+                      )}
                     </span>
                   )}
                   {v && confirming && (
@@ -321,6 +337,24 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true }: {
         )}
       </Links>
       <Links title="Used by" links={view.downstream} truncated={view.downstreamTruncated} empty="Nothing uses this version yet." />
+      {canWrite && (
+        <section>
+          <h2>Handoffs</h2>
+          {!carrying.loaded ? <p className="nx-muted" role="status">Reading handoffs…</p>
+            : carrying.rows.length === 0 ? (!carrying.error && <p className="nx-muted">No handoff carries a version of this artifact.</p>) : (
+              <ul className="nx-apx__links">
+                {carrying.rows.map((c) => (
+                  <li key={c.id}>
+                    <button type="button" className="nx-apx__handoff" onClick={() => navigate({ name: 'handoffs', id: c.id })}>{c.title}</button>
+                    {' '}<span className="nx-muted">{c.route}, {c.versions}. {c.status}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          {carrying.error && <p className="nx-muted">{carrying.error}</p>}
+          {carrying.capped && <p className="nx-muted">Only the {PASSPORT_HANDOFF_READS} most recent handoffs of this project are checked.</p>}
+        </section>
+      )}
       {pending && <p ref={resultRef} tabIndex={-1} className="nx-apx__status" role="status">{actionPendingText(pending.kind, versionsById.get(pending.versionId)?.versionNo ?? 0)}</p>}
       {!pending && acts.announce && <p ref={resultRef} tabIndex={-1} className="nx-apx__status" role="status">{acts.announce}</p>}
       {!pending && acts.error && <p ref={resultRef} tabIndex={-1} className="nx-passport__note" role="alert">{acts.error}</p>}

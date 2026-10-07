@@ -14,7 +14,7 @@ export interface PlatformState extends PlatformView {
   rev: number;
   bumpRev: () => void;
   applyParticipations: (r: NexusResult<ParticipationView[]>) => void;
-  /** Record what any nexus:* answer says about handoffs. */
+  /** Record what a handoff channel's answer says: a success means handoffs are on; handoffs_unavailable means off. */
   noteHandoffs: (r: NexusResult<unknown>) => void;
 }
 
@@ -30,7 +30,9 @@ export const usePlatform = create<PlatformState>((set, get) => ({
     set(next);
   },
   noteHandoffs: (r) => {
-    if (!r.ok && r.code === 'platform_unavailable' && r.reason === 'handoffs_unavailable') {
+    if (r.ok) {
+      if (get().handoffsAvailable !== true) set({ handoffsAvailable: true, handoffsSubReason: null });
+    } else if (r.code === 'platform_unavailable' && r.reason === 'handoffs_unavailable') {
       set({ handoffsAvailable: false, handoffsSubReason: r.subReason ?? null });
     }
   }

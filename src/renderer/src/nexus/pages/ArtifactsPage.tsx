@@ -7,6 +7,9 @@ import { useProjectsLoader } from '../data/useProjects';
 import { relativeTime } from '../data/selectors';
 import { PlatformNotice } from '../components/PlatformNotice';
 import { ArtifactPassport } from '../project/ArtifactPassport';
+import { SendHandoffSheet } from '../handoffs/SendHandoffSheet';
+import type { HandoffStart } from '../handoffs/handoffModel';
+import { usePlatform, selectCanWrite } from '../data/platformStore';
 import { kindLabel } from '../project/artifactModel';
 import { navigate } from '../router/useRoute';
 import { Icon } from '../icons';
@@ -178,6 +181,10 @@ function ArtifactDetailBody({ detail, projects, projectsRead, back, stale }: {
   // The project's other artifacts: names for the lineage links and the Passport's link picker.
   const summaries = useProjectArtifacts(projectId);
   const node = useMemo(() => detailNode(detail), [detail]);
+  const canWrite = usePlatform(selectCanWrite);
+  // The send sheet opens from the Passport's "Hand off…" and is hosted here.
+  const [handoffStart, setHandoffStart] = useState<HandoffStart | null>(null);
+  useEffect(() => { if (!canWrite) setHandoffStart(null); }, [canWrite]);
   return (
     <div className="nx-afx__pane">
       <div className="nx-afx__bar">
@@ -192,7 +199,9 @@ function ArtifactDetailBody({ detail, projects, projectsRead, back, stale }: {
           {stale.retry && <Button variant="quiet" icon="refresh" onClick={stale.reload}>Try again</Button>}
         </div>
       )}
-      <ArtifactPassport key={detail.artifact.id} project={{ id: projectId, rootPath: project ? project.rootPath : '' }} node={node} artifacts={summaries.artifacts} onSpine={false} />
+      <ArtifactPassport key={detail.artifact.id} project={{ id: projectId, rootPath: project ? project.rootPath : '' }} node={node} artifacts={summaries.artifacts} onSpine={false}
+        onHandOff={canWrite ? setHandoffStart : undefined} />
+      {handoffStart && canWrite && <SendHandoffSheet start={handoffStart} artifacts={summaries.artifacts} onClose={() => setHandoffStart(null)} />}
     </div>
   );
 }

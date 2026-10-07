@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { browserStorage, readPref, writePref } from './prefs';
 import type { Selection } from '../intent/intentContext';
+import { DEFAULT_HANDOFF_VIEW, type HandoffView } from '../handoffs/handoffModel';
 
 export type SentRequest = { id: string; agentId: string; queuedMessageId: string; text: string; projectId: string | null; selectionLabel: string | null; sentAt: number };
 
@@ -29,6 +30,10 @@ interface NexusUi {
   /** What the user has selected on the current surface (not persisted). */
   selection: Selection | null;
   setSelection: (s: Selection | null) => void;
+  /** The Handoffs page's box, workspace and status (not persisted): kept across list and detail, and set by
+   *  the send sheet so a sent handoff opens on the sending side. */
+  handoffView: HandoffView;
+  setHandoffView: (v: HandoffView) => void;
 }
 
 const storage = browserStorage();
@@ -53,5 +58,7 @@ export const useNexusUi = create<NexusUi>((set) => ({
   memoryTick: 0,
   openSemanticMemory: () => set((s) => ({ memoryTick: s.memoryTick + 1 })),
   selection: null,
-  setSelection: (s) => set({ selection: s })
+  setSelection: (s) => set({ selection: s }),
+  handoffView: DEFAULT_HANDOFF_VIEW,
+  setHandoffView: (v) => set({ handoffView: v })
 }));

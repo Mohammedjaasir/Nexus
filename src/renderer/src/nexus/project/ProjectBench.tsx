@@ -8,6 +8,8 @@ import { useProjectsLoader } from '../data/useProjects';
 import { useParticipationIndex } from '../data/useParticipations';
 import { useProjectArtifacts } from '../data/useProjectArtifacts';
 import { usePlatform, selectCanWrite } from '../data/platformStore';
+import { SendHandoffSheet } from '../handoffs/SendHandoffSheet';
+import type { HandoffStart } from '../handoffs/handoffModel';
 import { useNexusUi } from '../state/uiStore';
 import { EmptyState } from '../ui/EmptyState';
 import { Button } from '../ui/Button';
@@ -163,8 +165,13 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
     navigate({ name: 'project', id: project.id, tool: 'bench' });
   }, [project.id]);
   const onSave = canWrite ? openSave : undefined;
-  // Writes turned off (the platform became unavailable): the sheet goes and does not come back by itself.
-  useEffect(() => { if (!canWrite) setSaveSource(null); }, [canWrite]);
+  // The send sheet also lives at the bench, so it outlives the Details sheet that may open it.
+  const [handoffStart, setHandoffStart] = useState<HandoffStart | null>(null);
+  const openHandoff = useCallback((s: HandoffStart) => setHandoffStart(s), []);
+  const closeHandoff = useCallback(() => setHandoffStart(null), []);
+  const onHandOff = canWrite ? openHandoff : undefined;
+  // Writes turned off (the platform became unavailable): the sheets go and do not come back by themselves.
+  useEffect(() => { if (!canWrite) { setSaveSource(null); setHandoffStart(null); } }, [canWrite]);
 
   return (
     <div className="nx-workbench">
@@ -178,16 +185,17 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
           )} />
         {!wide && notice && <p className="nx-passport__note" role="alert">{notice}</p>}
         <FocusSurface tool={tool} project={project} node={sourceNode} git={git} onRetryGit={refresh} />
-        {wide && <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} artifacts={artifacts} onSave={onSave} />}
+        {wide && <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} artifacts={artifacts} onSave={onSave} onHandOff={onHandOff} />}
       </div>
       {!wide && (
         <Sheet open={detailsOpen} onClose={closeDetails} side={mobile ? 'bottom' : 'right'} labelledBy="nx-passport-title">
-          <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshFromSheet} onOpenTerminal={openTerminal} notice={null} onBeforeAction={closeDetails} artifacts={artifacts} onSave={onSave} />
+          <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshFromSheet} onOpenTerminal={openTerminal} notice={null} onBeforeAction={closeDetails} artifacts={artifacts} onSave={onSave} onHandOff={onHandOff} />
         </Sheet>
       )}
       {saveSource && canWrite && (
         <SaveArtifactSheet project={project} initial={saveSource} artifacts={artifacts} onClose={closeSave} onSaved={onSaved} />
       )}
+      {handoffStart && canWrite && <SendHandoffSheet start={handoffStart} artifacts={artifacts} onClose={closeHandoff} />}
     </div>
   );
 }

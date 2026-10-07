@@ -11,6 +11,7 @@ import { ArtifactPassport } from './ArtifactPassport';
 import { ActivitySection } from './ActivitySection';
 import type { ArtifactSummary } from './spineModel';
 import type { SaveSource } from './saveSheetModel';
+import type { HandoffStart } from '../handoffs/handoffModel';
 import type { NexusIconName } from '../icons';
 
 type Commit = { sha: string; shortSha: string; subject: string; time: number };
@@ -40,11 +41,20 @@ type PassportProps = {
   artifacts: ArtifactSummary[];
   /** Opens the Save sheet; absent while platform writes are off, so no save control renders. */
   onSave?: (source: SaveSource) => void;
+  /** Opens the send sheet at the bench; absent while platform writes are off. */
+  onHandOff?: (start: HandoffStart) => void;
 };
 
 /** An artifact node gets the artifact Passport; the source and changes nodes get the project Passport. */
 export function Passport(props: PassportProps) {
-  if (props.node.kind === 'artifact') return <ArtifactPassport key={props.node.artifactId} project={props.project} node={props.node} artifacts={props.artifacts} />;
+  if (props.node.kind === 'artifact') {
+    const { onHandOff, onBeforeAction } = props;
+    // The send sheet lives at the bench; the modal Details sheet closes first.
+    const handOff = onHandOff
+      ? (start: HandoffStart) => { if (onBeforeAction) { onBeforeAction(); setTimeout(() => onHandOff(start), 0); } else onHandOff(start); }
+      : undefined;
+    return <ArtifactPassport key={props.node.artifactId} project={props.project} node={props.node} artifacts={props.artifacts} onHandOff={handOff} />;
+  }
   return <SourcePassport {...props} />;
 }
 

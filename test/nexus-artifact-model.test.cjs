@@ -330,7 +330,10 @@ test('pin: the artifact Passport reads the artifact, its versions and lineage bo
 });
 
 test('pin: the project Passport offers saving only when the bench passes onSave, and shows the artifact Passport for artifact nodes', () => {
-  assert.match(panel, /if \(props\.node\.kind === 'artifact'\) return <ArtifactPassport /);
+  // Task 13: the artifact branch also passes the bench's send-sheet opener (closing the Details sheet first).
+  assert.match(panel, /if \(props\.node\.kind === 'artifact'\) \{/);
+  assert.match(panel, /return <ArtifactPassport key=\{props\.node\.artifactId\} project=\{props\.project\} node=\{props\.node\} artifacts=\{props\.artifacts\} onHandOff=\{handOff\} \/>;/);
+  assert.match(panel, /if \(onBeforeAction\) \{ onBeforeAction\(\); setTimeout\(\(\) => onHandOff\(start\), 0\); \} else onHandOff\(start\);/);
   assert.match(panel, /\{onSave && c && \(/);
   assert.match(panel, />Save as artifact<\/Button>/);
   assert.match(panel, /\{onSave && node\.kind === 'source' && <Button icon="files" onClick=\{\(\) => save\(\{ kind: 'file', relPath: null \}\)\}>Save a file…<\/Button>\}/);
@@ -498,7 +501,8 @@ test('pin: the Passport actions render only while writes are on and only where a
   assert.match(passport, /passportActionsFor\(v, artifact, ownerActive, canWrite\)/);
   assert.match(passport, /canLinkSources\(artifact, ownerActive, canWrite\)/);
   assert.match(passport, /const ownerActive = ownerRow !== null && ownerRow\.status === 'active';/);
-  assert.match(passport, /\{v && allowed\.length > 0 && !confirming && \(/);
+  // Task 13: the row's action strip also renders for "Hand off…" alone.
+  assert.match(passport, /\{v && \(allowed\.length > 0 \|\| handOff\) && !confirming && \(/);
   assert.match(passport, /\{linkable && shownVersion && \(/);
 });
 
