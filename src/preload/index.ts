@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
 import type { AgentProvider } from '../shared/agentProvider';
 import type { HireManifest } from '../shared/hire';
+import type {
+  ActivityPage, ActivityView, ArtifactDetail, ArtifactsListFilter, ArtifactSummaryView, HandoffDetailView, HandoffsListFilter,
+  HandoffSummaryView, LineageQuery, LineageView, NexusResult, ParticipationView, VersionDetail
+} from '../shared/nexus/ipc';
+
 export type { HireManifest } from '../shared/hire';
 import type { IntegrationRecord, IntegrationTemplate } from '../shared/integrations';
 export type { IntegrationRecord, IntegrationTemplate } from '../shared/integrations';
@@ -1608,7 +1613,29 @@ const api = {
     title: string,
     description?: string
   ): Promise<GoalAnalysisResult | null> =>
-    ipcRenderer.invoke('project:goal:set', projectId, title, description)
+    ipcRenderer.invoke('project:goal:set', projectId, title, description),
+
+  // ─── Nexus: platform read channels ─────────────────────────────────────────
+  // Ids and small values only; main resolves the principal and every folder. Each call
+  // resolves to a NexusResult and never rejects for a refused request.
+  nexusParticipationsList: (): Promise<NexusResult<ParticipationView[]>> =>
+    ipcRenderer.invoke('nexus:participations:list'),
+  nexusArtifactsList: (filter?: ArtifactsListFilter): Promise<NexusResult<ArtifactSummaryView[]>> =>
+    ipcRenderer.invoke('nexus:artifacts:list', filter),
+  nexusArtifactsByProject: (projectId: string): Promise<NexusResult<ArtifactSummaryView[]>> =>
+    ipcRenderer.invoke('nexus:artifacts:byProject', projectId),
+  nexusArtifactGet: (artifactId: string): Promise<NexusResult<ArtifactDetail>> =>
+    ipcRenderer.invoke('nexus:artifact:get', artifactId),
+  nexusVersionGet: (versionId: string): Promise<NexusResult<VersionDetail>> =>
+    ipcRenderer.invoke('nexus:version:get', versionId),
+  nexusLineageGet: (versionId: string, query: LineageQuery): Promise<NexusResult<LineageView>> =>
+    ipcRenderer.invoke('nexus:lineage:get', versionId, query),
+  nexusHandoffsList: (filter?: HandoffsListFilter): Promise<NexusResult<HandoffSummaryView[]>> =>
+    ipcRenderer.invoke('nexus:handoffs:list', filter),
+  nexusHandoffGet: (handoffId: string): Promise<NexusResult<HandoffDetailView>> =>
+    ipcRenderer.invoke('nexus:handoff:get', handoffId),
+  nexusActivityByProject: (projectId: string, page?: ActivityPage): Promise<NexusResult<ActivityView[]>> =>
+    ipcRenderer.invoke('nexus:activity:byProject', projectId, page)
 };
 
 contextBridge.exposeInMainWorld('cth', api);

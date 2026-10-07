@@ -51,6 +51,8 @@ import { MemoryReflector, type ReflectSettings } from './reflect';
 import { PersistStore } from './db';
 import { createNexusPlatform, type NexusPlatform } from './nexus/platform';
 import type { HandoffsUnavailableReason } from './db';
+import { registerNexusIpc } from './nexusIpc/registerNexusIpc';
+import { createSourcePorts } from './nexusIpc/sources';
 import { readAgentUsage, readContextTokens, seedSessionTranscript, resolveSessionCwd } from './transcript';
 import { listIssues, listCIRuns } from './github';
 import { SlackWebhookServer, SlackReplyServer, postSlackReply, type SlackEventFile } from './slack';
@@ -375,7 +377,7 @@ const reflector = new MemoryReflector(
 const persist = new PersistStore();
 const projectManager = new ProjectManager(persist);
 // The Nexus platform core, composed on persist's connection once the database is
-// at v7. Held for later phases: B0b registers no IPC for it and nothing reads it.
+// at v7 or v8. Read lazily by the nexus:* IPC module (registerNexusIpc below).
 let nexusPlatform: NexusPlatform | null = null;
 /**
  * Why the WHOLE platform is unavailable, for the later nexus:* IPC layer to return with
@@ -3059,6 +3061,19 @@ ipcMain.handle('pty:list', () => ptyManager.list());
 // the cwd from a transcript record; null when the id is invalid/unknown.
 ipcMain.handle('session:resolveCwd', (_evt, sessionId: unknown) =>
   (typeof sessionId === 'string' ? resolveSessionCwd(sessionId) : null));
+
+// ─── IPC: Nexus platform (nexus:*) ──────────────────────────────────────────
+// Every nexus:* channel lives in src/main/nexusIpc/registerNexusIpc.ts. Registered here,
+// before whenReady: the handlers read the platform at call time and answer
+// platform_unavailable until it has started. The principal is resolved in main; a project
+// folder comes only from the stored project row, re-checked by acceptFsRoot.
+registerNexusIpc(ipcMain, {
+  platform: () => nexusPlatform,
+  unavailableReason: () => nexusUnavailableReason,
+  handoffsUnavailableReason: () => handoffsUnavailableReason,
+  sources: createSourcePorts({ acceptFsRoot, getProject: (id) => projectManager.getProject(id) }),
+  log: nexusMainLog
+});
 
 // ─── IPC: clipboard ─────────────────────────────────────────────────────────
 ipcMain.handle('app:copyToClipboard', (_evt, text: unknown) => {

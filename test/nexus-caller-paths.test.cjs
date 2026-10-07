@@ -121,3 +121,27 @@ test('uninstallSkill: a project skill under a junction that leads outside is ref
   assert.equal(res.ok, false);
   assert.ok(fs.existsSync(path.join(victim, 'SKILL.md')), 'the outside folder must survive');
 });
+
+// B1 Task 6: the nexus:* IPC layer never takes a folder from the renderer.
+test('nexus sources take a project root only from the stored project row, through acceptFsRoot', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src/main/nexusIpc/sources.ts'), 'utf8');
+  // One lookup of the stored row, its rootPath, and that path through acceptFsRoot: the only source of a root.
+  assert.equal((src.match(/deps\.getProject\(/g) || []).length, 1);
+  assert.equal((src.match(/deps\.acceptFsRoot\(/g) || []).length, 1);
+  assert.match(src, /row = deps\.getProject\(projectId\);[\s\S]{0,80}const rootPath = row\?\.rootPath;[\s\S]{0,200}accepted = deps\.acceptFsRoot\(rootPath\)/);
+  assert.match(idx, /createSourcePorts\(\{ acceptFsRoot, getProject: \(id\) => projectManager\.getProject\(id\) \}\)/);
+});
+
+test('no nexus:* request schema has a folder field (only relPath)', () => {
+  const read = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
+  const mod = read('src/main/nexusIpc/registerNexusIpc.ts');
+  const validate = read('src/main/nexusIpc/validate.ts');
+  // Every object schema: the key list passed to V.object(...) or optionalObject(...).
+  const lists = [...mod.matchAll(/(?:V\.object|optionalObject)\([^,]+,\s*\[([^\]]*)\]/g)].map((m) => m[1]);
+  assert.ok(lists.length >= 4, 'the schemas were found');
+  const keys = lists.flatMap((l) => [...l.matchAll(/['"`]([^'"`]+)['"`]/g)].map((m) => m[1]));
+  for (const k of keys) assert.ok(k === 'relPath' || !/^(root|rootPath|cwd|path|dir|folder)$|Path$|Root$|Dir$/i.test(k), k);
+  for (const text of [mod, validate]) assert.doesNotMatch(text, /['"`](root|rootPath|cwd|path|folder)['"`]/);
+  // A parsed request never names a root or a cwd field either.
+  assert.doesNotMatch(mod, /\.(root|rootPath|cwd)\b/);
+});

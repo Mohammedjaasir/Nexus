@@ -11,6 +11,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..', 'src', 'main', 'nexus');
+// B1 Task 6: the main-side IPC layer (src/main/nexusIpc) is platform code too, so it is scanned with the core.
+const IPC_ROOT = path.join(__dirname, '..', 'src', 'main', 'nexusIpc');
 /** The DDL text of a frozen schema module (read as text: this file runs under plain node). */
 function ddlText(file, name) {
   const src = fs.readFileSync(path.join(ROOT, 'db', file), 'utf8');
@@ -96,9 +98,11 @@ test('the protected list is derived from every BEFORE DELETE / BEFORE UPDATE tri
   assert.deepEqual(guardedTables('CREATE TRIGGER IF NOT EXISTS tr_x BEFORE UPDATE OF a, b ON some_table\nWHEN 1 BEGIN SELECT 1; END;'), new Set(['some_table']));
 });
 
-test('no OR REPLACE or DO UPDATE aimed at an append-only or immutable platform table under src/main/nexus', () => {
-  const files = tsFiles(ROOT);
-  assert.ok(files.length > 20, 'the platform sources were found');
+test('no OR REPLACE or DO UPDATE aimed at an append-only or immutable platform table under src/main/nexus or src/main/nexusIpc', () => {
+  const ipcFiles = tsFiles(IPC_ROOT);
+  for (const f of ['registerNexusIpc.ts', 'validate.ts', 'envelope.ts', 'dto.ts', 'sources.ts']) assert.ok(ipcFiles.some((x) => path.basename(x) === f), f);
+  const files = [...tsFiles(ROOT), ...ipcFiles];
+  assert.ok(files.length > 25, 'the platform sources were found');
   const bad = [];
   for (const f of files) {
     const rel = path.relative(ROOT, f).split(path.sep).join('/');
