@@ -188,21 +188,30 @@ test('H6 accepting twice, or declining or withdrawing after accept, is illegal_t
   done(s, db);
 });
 
-test('H7 a failure late in accept rolls everything back', () => {
+test('H7 a failure at any step of accept rolls everything back (every injection point)', () => {
   const { s, db, nx, me, h: ho } = sentHandoff();
-  const before = [count(db, 'artifacts'), count(db, 'artifact_versions'), count(db, 'artifact_edges'), count(db, 'activity')];
-  db.exec("CREATE TEMP TRIGGER fail_e BEFORE INSERT ON artifact_edges BEGIN SELECT RAISE(ABORT, 'injected'); END;");
-  assert.throws(() => nx.handoffs.accept(me, ho.id));
-  assert.equal(db.prepare("SELECT COUNT(*) n FROM artifacts WHERE kind = 'handoff_receipt'").get().n, 0);
-  assert.equal(db.prepare('SELECT status FROM handoffs WHERE id = ?').get(ho.id).status, 'sent');
-  assert.deepEqual([count(db, 'artifacts'), count(db, 'artifact_versions'), count(db, 'artifact_edges'), count(db, 'activity')], before);
-  db.exec('DROP TRIGGER temp.fail_e');
-  // A failure at the very last step (the handoff's own activity row) rolls back too.
-  db.exec("CREATE TEMP TRIGGER fail_a BEFORE INSERT ON activity WHEN NEW.action = 'handoff.accept' BEGIN SELECT RAISE(ABORT, 'injected'); END;");
-  assert.throws(() => nx.handoffs.accept(me, ho.id));
-  assert.deepEqual([count(db, 'artifacts'), count(db, 'artifact_versions'), count(db, 'artifact_edges'), count(db, 'activity')], before);
-  assert.equal(db.prepare('SELECT status FROM handoffs WHERE id = ?').get(ho.id).status, 'sent');
-  db.exec('DROP TRIGGER temp.fail_a');
+  const snapshot = () => [count(db, 'artifacts'), count(db, 'artifact_versions'), count(db, 'artifact_edges'), count(db, 'activity'),
+    db.prepare('SELECT status, receipt_version_id, responded_by, responded_at, updated_at FROM handoffs WHERE id = ?').get(ho.id),
+    db.prepare('SELECT COUNT(*) AS n FROM artifact_versions WHERE status = ?').get('active').n];
+  const before = snapshot();
+  const points = {
+    'artifact insert': "BEFORE INSERT ON artifacts WHEN NEW.kind = 'handoff_receipt'",
+    'version insert': 'BEFORE INSERT ON artifact_versions',
+    'finalize': "BEFORE UPDATE OF status ON artifact_versions WHEN NEW.status = 'candidate'",
+    'promote pointer': 'BEFORE UPDATE OF current_version_id ON artifacts',
+    'handoffs update': 'BEFORE UPDATE ON handoffs',
+    'edge insert': 'BEFORE INSERT ON artifact_edges',
+    'accept activity row': "BEFORE INSERT ON activity WHEN NEW.action = 'handoff.accept'"
+  };
+  for (const [name, when] of Object.entries(points)) {
+    db.exec(`CREATE TEMP TRIGGER fail_inject ${when} BEGIN SELECT RAISE(ABORT, 'injected'); END;`);
+    assert.throws(() => nx.handoffs.accept(me, ho.id), /injected/, name);
+    db.exec('DROP TRIGGER temp.fail_inject');
+    assert.deepEqual(snapshot(), before, name);
+    assert.equal(count(db, "artifacts WHERE kind = 'handoff_receipt'"), 0, name);
+    assert.deepEqual(db.pragma('foreign_key_check'), [], name);
+    assert.equal(verifyActivityChain(db).ok, true, name);
+  }
   assert.equal(nx.handoffs.accept(me, ho.id).status, 'accepted');
   done(s, db);
 });
@@ -383,5 +392,92 @@ test('H16 a mixed flow keeps foreign keys and the activity chain intact; the sta
   nx.handoffs.withdraw(me, w.id);
   nx.workspaces.withdraw(me, qa.id);
   assert.deepEqual(Object.keys(nx.startup()).sort(), ['catalogAdded', 'jobs', 'primaries', 'sessions']);
+  done(s, db);
+});
+
+// ---------- fix round 1 ----------
+
+test('H3b a receiver in another project is handled like an unknown id: audited denial for a non-platform caller', () => {
+  const { s, db, nx, me } = setup();
+  const qa = nx.workspaces.attach(me, 'p-ledger', 'qa'); const sde = nx.workspaces.primaryOf(me, 'p-ledger');
+  const v = readyVersion(nx, me, 'p-ledger', 'sde', 'x');
+  const invoiceQa = nx.workspaces.attach(me, 'p-invoice', 'qa');
+  db.prepare("INSERT INTO principals VALUES ('user:pm','user','pm',NULL,?)").run(h.NOW);
+  db.prepare("INSERT INTO memberships VALUES ('user:pm','project','p-ledger','member',?)").run(h.NOW);
+  const pm = { id: 'user:pm', kind: 'user', displayName: 'pm' };
+  const send = (who, to) => nx.handoffs.send(who, { projectId: 'p-ledger', fromParticipationId: sde.id, toParticipationId: to, versionIds: [v.id], title: 't' });
+  const denied = () => count(db, "activity WHERE status = 'denied' AND actor_id = 'user:pm' AND action = 'handoff.send'");
+  // Foreign and unknown receivers give the same answer, each with one audited row.
+  assert.throws(() => send(pm, invoiceQa.id), (e) => e.code === 'denied');
+  assert.equal(denied(), 1);
+  assert.throws(() => send(pm, 'pw-unknown'), (e) => e.code === 'denied');
+  assert.equal(denied(), 2);
+  // The platform owner learns the truth: invalid and not_found.
+  assert.throws(() => send(me, invoiceQa.id), (e) => e.code === 'invalid');
+  assert.throws(() => send(me, 'pw-unknown'), (e) => e.code === 'not_found');
+  // The project member can still send inside the project.
+  assert.equal(send(pm, qa.id).created, true);
+  done(s, db);
+});
+
+test('H13b side-specific denials: a sender-side member cannot answer; a receiver-side member cannot withdraw', () => {
+  const { s, db, nx, me, h: ho } = sentHandoff();
+  db.prepare("INSERT INTO principals VALUES ('user:sde','user','sde',NULL,?)").run(h.NOW);
+  db.prepare("INSERT INTO memberships VALUES ('user:sde','workspace','sde','member',?)").run(h.NOW);
+  db.prepare("INSERT INTO principals VALUES ('user:qa','user','qa',NULL,?)").run(h.NOW);
+  db.prepare("INSERT INTO memberships VALUES ('user:qa','workspace','qa','member',?)").run(h.NOW);
+  const sdeOnly = { id: 'user:sde', kind: 'user', displayName: 'sde' };
+  const qaOnly = { id: 'user:qa', kind: 'user', displayName: 'qa' };
+  const rows = (who, action) => count(db, "activity WHERE status = 'denied' AND actor_id = ? AND action = ?", who, action);
+  assert.throws(() => nx.handoffs.accept(sdeOnly, ho.id), (e) => e.code === 'denied');
+  assert.equal(rows('user:sde', 'handoff.respond'), 1);
+  assert.throws(() => nx.handoffs.decline(sdeOnly, ho.id), (e) => e.code === 'denied');
+  assert.equal(rows('user:sde', 'handoff.respond'), 2);
+  assert.throws(() => nx.handoffs.withdraw(qaOnly, ho.id), (e) => e.code === 'denied');
+  assert.equal(rows('user:qa', 'handoff.withdraw'), 1);
+  assert.equal(count(db, "activity WHERE status = 'denied' AND actor_id IN ('user:sde','user:qa')"), 3);
+  assert.equal(nx.handoffs.get(me, ho.id).status, 'sent');
+  // Each side can do its own part.
+  assert.equal(nx.handoffs.withdraw(sdeOnly, ho.id).status, 'withdrawn');
+  done(s, db);
+});
+
+test('H17 race: withdraw on connection A lands between accept\'s checks and its transaction on B: illegal_transition, no receipt', () => {
+  const { s, db, nx, me, h: ho } = sentHandoff();
+  const other = h.openRaw(db.name);
+  let fire = false;
+  // accept reads the clock after authorizing and before opening its transaction: A withdraws exactly there.
+  const nx2 = createNexusPlatform(other, { now: () => { if (fire) { fire = false; nx.handoffs.withdraw(me, ho.id); } return h.NOW; } });
+  const me2 = nx2.principals.localUser();
+  fire = true;
+  assert.throws(() => nx2.handoffs.accept(me2, ho.id), (e) => e.code === 'illegal_transition' && e.detail?.handoffId === ho.id);
+  assert.equal(fire, false, 'the withdraw ran in the gap');
+  assert.equal(db.prepare('SELECT status FROM handoffs WHERE id = ?').get(ho.id).status, 'withdrawn');
+  assert.equal(count(db, "artifacts WHERE kind = 'handoff_receipt'"), 0);
+  assert.equal(count(db, "artifact_edges WHERE source = 'handoff_convert'"), 0);
+  other.close();
+  done(s, db);
+});
+
+test('H18 handoffs forced on over a store without v8 build no service, so workspace withdraw is never blocked', () => {
+  const v7 = setup({ holdV8: true });
+  const forced = createNexusPlatform(v7.db, { now: () => h.NOW, handoffs: true });
+  assert.equal(forced.handoffs, null); assert.equal(forced.handoffsAvailable, false);
+  const me = forced.principals.localUser();
+  const qa = forced.workspaces.attach(me, 'p-ledger', 'qa');
+  assert.equal(forced.workspaces.withdraw(me, qa.id).status, 'withdrawn');
+  done(v7.s, v7.db);
+});
+
+test('H19 subjects are accepted as sent: a subject discarded between send and accept still gets its edge', () => {
+  const { s, db, nx, me, v, h: ho } = sentHandoff();
+  nx.artifacts.discard(me, v.id);
+  const a = nx.handoffs.accept(me, ho.id);
+  assert.equal(a.status, 'accepted');
+  assert.deepEqual(db.prepare('SELECT relation, source FROM artifact_edges WHERE from_version_id = ? AND to_version_id = ?').get(a.receiptVersionId, v.id),
+    { relation: 'depends_on', source: 'handoff_convert' });
+  assert.deepEqual(a.subjects.map((x) => [x.versionId, x.status, x.contentHash]), [[v.id, 'deprecated', v.contentHash]]);
+  const receipt = db.prepare('SELECT storage_ref_json FROM artifact_versions WHERE id = ?').get(a.receiptVersionId);
+  assert.deepEqual(JSON.parse(receipt.storage_ref_json).json.subjects, [{ versionId: v.id, contentHash: v.contentHash }]);
   done(s, db);
 });

@@ -21,7 +21,9 @@
  *   (via 'accept_handoff'), promoted by the user, linked to every subject with a
  *   'depends_on' edge of source 'handoff_convert', and the handoff moves sent -> accepted
  *   with its receipt and answer fields in ONE compare-and-set update. Any failure rolls all
- *   of it back. 'handoff_convert' edges are written only here; LineageService.record
+ *   of it back. Subjects are accepted AS SENT, whatever their current status (a subject
+ *   discarded after send is still referenced, and its edge points at the deprecated
+ *   version): the copied content hash is the evidence, and `get` shows the current status. 'handoff_convert' edges are written only here; LineageService.record
  *   refuses them.
  * - decline. 'handoff.respond' on the receiving workspace; CAS sent -> declined with the
  *   answer fields and an optional note. Nothing else is written besides its activity row.
@@ -153,7 +155,11 @@ export class HandoffService {
       this.deps.auth.require(p, 'handoff.send', PLATFORM);
       throw new PlatformError('not_found', 'receiving participation not found');
     }
-    if (to.project_id !== from.project_id) throw new PlatformError('invalid', 'a handoff stays inside one project');
+    if (to.project_id !== from.project_id) {
+      // A participation of another project is answered like an unknown id: no existence oracle.
+      this.deps.auth.require(p, 'handoff.send', PLATFORM);
+      throw new PlatformError('invalid', 'a handoff stays inside one project');
+    }
     if (to.id === from.id) throw new PlatformError('invalid', 'a handoff goes to another participation');
     if (to.status !== 'active') throw new PlatformError('participation_inactive', 'the receiving participation is not active');
 

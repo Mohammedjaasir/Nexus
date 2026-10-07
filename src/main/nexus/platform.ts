@@ -51,8 +51,9 @@ export interface NexusStartupReport {
 export function createNexusPlatform(db: Database.Database, opts?: { now?: () => number; log?: (line: string) => void; handoffs?: boolean }): NexusPlatform {
   const now = opts?.now ?? Date.now;
   const log = opts?.log ?? (() => {});
-  // The caller (main) says whether v8 is in place; without that, the v8 shape decides.
-  const handoffsOn = opts?.handoffs ?? (v8ShapeProblem(db, true) === null);
+  // The caller (main) may turn handoffs off; they are on only when the v8 shape also checks, so a forced `true` on a
+  // bad shape never builds a refusing service that would block workspace withdraw.
+  const handoffsOn = (opts?.handoffs ?? true) && v8ShapeProblem(db, true) === null;
   const principals = new PrincipalResolver(db);
   const auth = new AuthService(db, { now, log });
   const activity = new ActivityService(db, { auth });

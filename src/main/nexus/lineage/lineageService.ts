@@ -97,7 +97,7 @@ export class LineageService {
     if (!isStr(e.fromVersionId) || !isStr(e.toVersionId)) throw new PlatformError('invalid', 'fromVersionId and toVersionId are required');
     if (!isKnownRelation(this.db, e.relation)) throw new PlatformError('invalid', 'unknown lineage relation');
     const source = e.source as unknown;
-    if (source === 'handoff_convert') throw new PlatformError('invalid', 'handoff edges arrive with handoffs');
+    if (source === 'handoff_convert') throw new PlatformError('invalid', 'handoff_convert edges are written only by accepting a handoff');
     if (source !== 'user_action' && source !== 'job_input' && source !== 'ingest') throw new PlatformError('invalid', 'unknown edge source');
     const jobId = e.jobId === undefined ? null : e.jobId;
     if (jobId !== null && !isStr(jobId)) throw new PlatformError('invalid', 'jobId must be an id');
