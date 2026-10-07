@@ -236,7 +236,8 @@ test('the log is the exact observable sequence, every line ISO-stamped and basen
     new RegExp(`^\\[db\\] backup ok file=${rec.backup_file.replace(/\./g, '\\.')} bytes=${rec.backup_bytes} sha256=${rec.backup_sha256} from=6 writeMs=\\d+ verifyMs=\\d+ hashMs=\\d+$`),
     /^\[db\] row counts command_history=2 kv=3 project_gaps=2 project_goals=1 project_graph_edges=2 project_graph_nodes=3 project_plans=2 projects=5$/,
     /^\[db\] v7 migration: start from=6$/,
-    /^\[db\] v7 migration: success to=7 durationMs=\d+ backfilled=3 unassigned=2$/
+    /^\[db\] v7 migration: success to=7 durationMs=\d+ backfilled=3 unassigned=2$/,
+    /^\[db\] v8 migration: skipped reason=held \(NEXUS_DB_HOLD_V8=1\); database stays at v7$/
   ];
   assert.equal(body.length, expect.length, body.join('\n'));
   expect.forEach((re, i) => assert.match(body[i], re));

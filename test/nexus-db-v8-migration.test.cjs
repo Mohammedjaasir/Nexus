@@ -27,6 +27,7 @@ test('M1 v7 -> v8: verified harness-v7 backup, one transaction, record, one acti
   const file = v7File(); const { s, logs } = open(file);
   assert.equal(s.schemaVersion, 8); assert.equal(s.platformAvailable, true); assert.equal(s.handoffsAvailable, true);
   assert.equal(s.lastMigration.state, 'not_needed'); assert.equal(s.lastMigrationV8.state, 'applied');
+  assert.equal(s.handoffsUnavailableReason, null);
   inOrder(logs, ['schema version 7', 'v8 precheck ok', 'backup ok file=harness-v7-', 'row counts',
     'v8 migration: start from=7', 'v8 migration: success to=8']);
   // The backup line is the v7 format with from=7 (the brief listed 'from=7' as its own key; it is part of this line).
@@ -65,7 +66,7 @@ test('M3 a throw inside the v8 transaction leaves v7 with the platform on and ha
   const file = v7File();
   const { s, logs } = open(file, { hooks: { beforeCommit: (_db, v) => { if (v === 8) throw new Error('injected'); } } });
   assert.equal(s.schemaVersion, 7); assert.equal(s.platformAvailable, true); assert.equal(s.handoffsAvailable, false);
-  assert.equal(s.lastMigrationV8.state, 'failed');
+  assert.equal(s.lastMigrationV8.state, 'failed'); assert.equal(s.handoffsUnavailableReason, 'failed');
   assert.equal(s.platformDatabase().prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name LIKE 'handoff%'").get().n, 0);
   assert.ok(logs.some((l) => l.includes('failure 1 of 3') && l.includes('NEXUS_DB_HOLD_V8=1 to stay on v7')));
   assert.equal(JSON.parse(fs.readFileSync(platformFailureMarkerPath(file, 8), 'utf8')).count, 1);
@@ -96,7 +97,7 @@ test('M4 three failures hold v8 at the fourth launch with no new backup; deletin
   const held = launch(boom);
   assert.equal(held.s.schemaVersion, 7); assert.equal(held.s.platformAvailable, true); assert.equal(held.s.handoffsAvailable, false);
   assert.equal(held.s.lastMigrationV8.state, 'skipped'); assert.equal(held.s.lastMigrationV8.reason, 'held');
-  assert.equal(held.s.lastMigrationV8.detail, 'repeated_failure count=3');
+  assert.equal(held.s.lastMigrationV8.detail, 'repeated_failure count=3'); assert.equal(held.s.handoffsUnavailableReason, 'auto_held');
   assert.ok(held.logs.some((l) => /\[db\] v8 migration: skipped reason=held: repeated_failure count=3; database stays at v7; no new backup taken$/.test(l)));
   assert.ok(held.logs.some((l) => /\[db\] to retry v8, quit and delete harness\.db\.v8-failures\.json next to harness\.db; existing backups are kept \(restore one with the restore tool, tools\/nexus-db-restore\.cjs, if needed\)$/.test(l)));
   assert.ok(!held.logs.some((l) => /v8 precheck|backup ok|v8 migration: start/.test(l)));
@@ -113,7 +114,7 @@ test('M5 holdV8 keeps v7 with the platform on and handoffs off, and takes no bac
   const file = v7File(); const before = backups(file);
   const { s, logs } = open(file, { holdV8: true });
   assert.equal(s.schemaVersion, 7); assert.equal(s.platformAvailable, true); assert.equal(s.handoffsAvailable, false);
-  assert.equal(s.lastMigration.state, 'not_needed');
+  assert.equal(s.lastMigration.state, 'not_needed'); assert.equal(s.handoffsUnavailableReason, 'held');
   assert.equal(s.lastMigrationV8.state, 'skipped'); assert.equal(s.lastMigrationV8.reason, 'held');
   assert.ok(logs.some((l) => /\[db\] v8 migration: skipped reason=held \(NEXUS_DB_HOLD_V8=1\); database stays at v7$/.test(l)), logs.join('\n'));
   s.close();
@@ -131,12 +132,15 @@ test('M5b the hold also comes from NEXUS_DB_HOLD_V8=1 in the environment', () =>
   } finally { delete process.env.NEXUS_DB_HOLD_V8; }
 });
 
-test('M5c holdV8 on a v6 file: v7 applies, v8 is held silently (the v7 lines describe the launch), no v7 backup', () => {
+test('M5c holdV8 on a v6 file: v7 applies, then the v8 hold line is logged; no v7 backup', () => {
   const { file } = h.v6Fixture(); const { s, logs } = open(file, { holdV8: true });
   assert.equal(s.schemaVersion, 7); assert.equal(s.platformAvailable, true); assert.equal(s.handoffsAvailable, false);
   assert.equal(s.lastMigration.state, 'applied');
   assert.equal(s.lastMigrationV8.state, 'skipped'); assert.equal(s.lastMigrationV8.reason, 'held'); assert.equal(s.lastMigrationV8.detail, 'NEXUS_DB_HOLD_V8=1');
-  assert.ok(!logs.some((l) => /v8/.test(l)), logs.join('\n'));
+  assert.equal(s.handoffsUnavailableReason, 'held');
+  inOrder(logs, ['v7 migration: success to=7', 'v8 migration: skipped reason=held (NEXUS_DB_HOLD_V8=1); database stays at v7']);
+  assert.ok(/\[db\] v8 migration: skipped reason=held \(NEXUS_DB_HOLD_V8=1\); database stays at v7$/.test(logs[logs.length - 1]), logs.join('\n'));
+  assert.equal(logs.filter((l) => /v8/.test(l)).length, 1, logs.join('\n'));
   s.close();
   assert.deepEqual(backups(file).map((f) => f.slice(0, 11)), ['harness-v6-']);
 });
@@ -146,6 +150,7 @@ test('M6 holdV7 on a v6 file gives v6, platform off, v8 v7_unavailable and no v8
   assert.equal(s.schemaVersion, 6); assert.equal(s.platformAvailable, false); assert.equal(s.handoffsAvailable, false);
   assert.equal(s.lastMigration.reason, 'held');
   assert.equal(s.lastMigrationV8.state, 'skipped'); assert.equal(s.lastMigrationV8.reason, 'v7_unavailable');
+  assert.equal(s.handoffsUnavailableReason, null);   // the whole platform is off: that reason is the v7 side's
   assert.ok(!logs.some((l) => /v8/.test(l)), logs.join('\n'));
   s.close();
   assert.deepEqual(backups(file), []); assert.equal(userVersion(file), 6);
@@ -194,7 +199,7 @@ test('M8 reopening at v8 is not_needed twice with no new backup; a damaged v8 tr
   db.close();
   const { s, logs } = open(file);
   assert.equal(s.schemaVersion, 8); assert.equal(s.platformAvailable, true); assert.equal(s.handoffsAvailable, false);
-  assert.equal(s.lastMigrationV8.state, 'not_needed');
+  assert.equal(s.lastMigrationV8.state, 'not_needed'); assert.equal(s.handoffsUnavailableReason, 'shape');
   assert.ok(logs.some((l) => /\[db\] v8 shape check failed: trigger tr_handoffs_no_delete has a different definition; handoffs disabled$/.test(l)), logs.join('\n'));
   s.close();
   assert.deepEqual(backups(file), before);
@@ -247,18 +252,21 @@ test('M11 at v8 a project with an artifact has platform records; deleteProject r
 
 test('M13 a process killed inside the v8 transaction leaves a v7 file with no v8 object', () => {
   const file = v7File();
+  const pre = h.openRaw(file); const beforeRows = h.allRows(pre); pre.close();
   const r = spawnSync(process.execPath, [path.join(__dirname, 'helpers', 'migrate-and-die.cjs'), file, 'v8'],
     { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, encoding: 'utf8' });
   assert.ok(r.status !== 0 || r.signal, `the child must be killed, got status=${r.status} signal=${r.signal} ${r.stderr}`);
   const died = /IN_TXN wal=(\d+)/.exec(r.stdout);
   assert.ok(died, `the child reached the open v8 transaction: ${r.stdout} ${r.stderr}`);
   assert.doesNotMatch(r.stdout, /NOT_KILLED/);
+  assert.ok(Number(died[1]) > 0, 'uncommitted v8 frames were in the WAL when the process died');
   assert.equal(backups(file).filter((f) => f.startsWith('harness-v7-')).length, 1, 'the child died after its verified v7 backup');
   const db = h.openRaw(file);
   assert.equal(db.pragma('user_version', { simple: true }), 7);
   assert.equal(handoffObjects(db), 0);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM nexus_migrations WHERE version = 8').get().n, 0);
   assert.equal(db.pragma('integrity_check', { simple: true }), 'ok');
+  assert.deepEqual(h.allRows(db), beforeRows, 'every row of every table is as it was before the kill');
   db.close();
   // The next launch migrates cleanly.
   const { s } = open(file, { now: () => h.NOW + 60_000 }); assert.equal(s.schemaVersion, 8); assert.equal(s.handoffsAvailable, true); s.close();
@@ -273,7 +281,7 @@ test('M14 a precheck failure and insufficient disk skip v8 and leave v7 running'
     const { s, logs } = open(file, { hooks: { freeBytes: hook } });
     assert.equal(s.schemaVersion, 7); assert.equal(s.platformAvailable, true); assert.equal(s.handoffsAvailable, false);
     assert.equal(s.lastMigrationV8.state, 'skipped'); assert.equal(s.lastMigrationV8.reason, reason);
-    assert.match(s.lastMigrationV8.detail, detail);
+    assert.match(s.lastMigrationV8.detail, detail); assert.equal(s.handoffsUnavailableReason, 'failed');
     assert.ok(logs.some((l) => new RegExp(`\\[db\\] v8 migration: skipped reason=${reason} detail=.*; database left at v7$`).test(l)), logs.join('\n'));
     s.setKv('still_writable', 1); assert.equal(s.getKv('still_writable'), 1);
     s.close();
@@ -282,7 +290,41 @@ test('M14 a precheck failure and insufficient disk skip v8 and leave v7 running'
   }
 });
 
-test('M12 no log line of M1-M14 contains a temp folder', () => {
+test('M15 a v8 backup that cannot be written skips v8: v7 stays with the platform on, no marker', () => {
+  const file = v7File(); const dir = path.dirname(file);
+  const blocker = path.join(dir, 'not-a-dir'); fs.writeFileSync(blocker, 'x');
+  const { s, logs } = open(file, { backupDir: path.join(blocker, 'backups') });
+  assert.equal(s.schemaVersion, 7); assert.equal(s.platformAvailable, true); assert.equal(s.handoffsAvailable, false);
+  assert.equal(s.lastMigration.state, 'not_needed');
+  assert.equal(s.lastMigrationV8.state, 'skipped'); assert.equal(s.lastMigrationV8.reason, 'backup_failed');
+  assert.equal(s.lastMigrationV8.detail, 'stage=write'); assert.equal(s.handoffsUnavailableReason, 'backup_failed');
+  inOrder(logs, ['v8 precheck ok', 'backup failed stage=write error=', 'v8 migration: skipped reason=backup_failed detail=stage=write; database left at v7']);
+  assert.ok(!logs.some((l) => /v8 migration: start/.test(l)));
+  s.setKv('after_backup_failure', 1); assert.equal(s.getKv('after_backup_failure'), 1);
+  s.close();
+  assert.equal(fs.existsSync(platformFailureMarkerPath(file, 8)), false, 'a backup failure is a skip, not a counted failure');
+  assert.equal(fs.statSync(blocker).isFile(), true);
+  const db = h.openRaw(file);
+  assert.equal(db.pragma('user_version', { simple: true }), 7); assert.equal(handoffObjects(db), 0); db.close();
+});
+
+test('M16 v6 file with a v8-only failure: two backups, v7 applied, v8 failed, marker 1', () => {
+  const { file } = h.v6Fixture();
+  const { s, logs } = open(file, { hooks: { beforeCommit: (_db, v) => { if (v === 8) throw new Error('v8 only'); } } });
+  assert.equal(s.schemaVersion, 7); assert.equal(s.platformAvailable, true); assert.equal(s.handoffsAvailable, false);
+  assert.equal(s.lastMigration.state, 'applied'); assert.equal(s.lastMigrationV8.state, 'failed');
+  assert.equal(s.handoffsUnavailableReason, 'failed');
+  const b = backups(file);
+  assert.equal(b.length, 2); assert.match(b[0], /^harness-v6-/); assert.match(b[1], /^harness-v7-/);
+  inOrder(logs, ['v7 migration: success to=7', 'v8 migration: start from=7', 'v8 migration: failed from=7 error=v8 only; database left at v7',
+    'failure 1 of 3']);
+  s.close();
+  assert.equal(JSON.parse(fs.readFileSync(platformFailureMarkerPath(file, 8), 'utf8')).count, 1);
+  assert.equal(fs.existsSync(platformFailureMarkerPath(file, 7)), false);
+  assert.equal(userVersion(file), 7);
+});
+
+test('M12 no log line of M1-M16 contains a temp folder', () => {
   assert.ok(ALL_LOGS.length > 30, 'the earlier cases logged');
   const tmp = os.tmpdir();
   for (const { line, dir } of ALL_LOGS) {

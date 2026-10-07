@@ -50,6 +50,7 @@ import { KnowledgeManager } from './knowledge';
 import { MemoryReflector, type ReflectSettings } from './reflect';
 import { PersistStore } from './db';
 import { createNexusPlatform, type NexusPlatform } from './nexus/platform';
+import type { HandoffsUnavailableReason } from './db';
 import { readAgentUsage, readContextTokens, seedSessionTranscript, resolveSessionCwd } from './transcript';
 import { listIssues, listCIRuns } from './github';
 import { SlackWebhookServer, SlackReplyServer, postSlackReply, type SlackEventFile } from './slack';
@@ -377,12 +378,16 @@ const projectManager = new ProjectManager(persist);
 // at v7. Held for later phases: B0b registers no IPC for it and nothing reads it.
 let nexusPlatform: NexusPlatform | null = null;
 /**
- * Why the platform (or only its handoffs) is unavailable, for the later nexus:* IPC
- * layer to return with platform_unavailable. null when everything is available.
+ * Why the WHOLE platform is unavailable, for the later nexus:* IPC layer to return with
+ * platform_unavailable. null when the platform is up (even if handoffs alone are off).
  */
-type NexusUnavailableReason = 'held' | 'migration_failed' | 'newer_schema' | 'shape_mismatch' | 'startup_failed' | 'not_open'
-  | 'handoffs_unavailable';
+type NexusUnavailableReason = 'held' | 'migration_failed' | 'newer_schema' | 'shape_mismatch' | 'startup_failed' | 'not_open';
 let nexusUnavailableReason: NexusUnavailableReason | null = 'not_open';
+/**
+ * Why handoffs alone are off while the platform is up (the IPC layer answers handoff channels
+ * with platform_unavailable / handoffs_unavailable and this sub-reason). null otherwise.
+ */
+let handoffsUnavailableReason: HandoffsUnavailableReason | null = null;
 
 /** The reason from the store's two migration outcomes (before the platform starts). */
 function storeUnavailableReason(): NexusUnavailableReason | null {
@@ -394,7 +399,7 @@ function storeUnavailableReason(): NexusUnavailableReason | null {
     if (v7.state === 'failed' || v7.state === 'applied') return 'migration_failed';   // applied here means the post-check failed
     return 'shape_mismatch';
   }
-  return persist.handoffsAvailable ? null : 'handoffs_unavailable';
+  return null;
 }
 
 /** Same sink as the v7 migration's default: console plus the main crash log file. */
@@ -5664,10 +5669,11 @@ app.whenReady().then(() => {
       appVersion: app.getVersion()
     });
   } catch (e) { console.error('[db] open failed:', e); }
-  // Compose the platform core on the same connection, only when the store is at v7.
+  // Compose the platform core on the same connection, only when the store is at v7 or v8.
   // A failure here leaves nexusPlatform null and never blocks the window: Phase A
   // keeps working on the legacy tables. Only the error's name and code are logged.
   nexusUnavailableReason = storeUnavailableReason();
+  handoffsUnavailableReason = persist.handoffsUnavailableReason;
   try {
     nexusPlatform = persist.platformAvailable
       ? createNexusPlatform(persist.platformDatabase()!, {
@@ -5679,6 +5685,7 @@ app.whenReady().then(() => {
   } catch (e) {
     nexusPlatform = null;
     nexusUnavailableReason = 'startup_failed';
+    handoffsUnavailableReason = null;
     const name = e instanceof Error ? e.name : typeof e;
     const code = e && typeof e === 'object' && typeof (e as { code?: unknown }).code === 'string' ? (e as { code: string }).code : 'none';
     nexusMainLog(`${new Date().toISOString()} [nexus] platform startup failed error=${name} code=${code}; platform disabled, legacy features unaffected`);

@@ -47,6 +47,9 @@ const PLATFORM_RECORD_TABLES: readonly string[] = ['artifacts', 'jobs', 'agent_s
 /** Migrations before the platform core; they run exactly as they always have. */
 const LEGACY_VERSION = 6;
 
+/** See PersistStore.handoffsUnavailableReason. */
+export type HandoffsUnavailableReason = 'held' | 'auto_held' | 'backup_failed' | 'failed' | 'shape';
+
 export interface PersistOpenOptions {
   /** Receives every migration log line (already ISO-stamped). Default: console plus the main crash log file. */
   log?: (line: string) => void;
@@ -512,9 +515,7 @@ export class PersistStore {
     const holdV7 = opts.holdV7 ?? process.env.NEXUS_DB_HOLD_V7 === '1';
     if (holdV8 || holdV7) {
       const by = holdV8 ? 'NEXUS_DB_HOLD_V8=1' : 'NEXUS_DB_HOLD_V7=1';
-      // When v7 itself was applied in this launch, its own lines (success to=7) already say where the
-      // database stays, and the v7 log sequence stays exactly as before; the outcome records the hold.
-      if (v7?.state !== 'applied') log(`[db] v8 migration: skipped reason=held (${by}); database stays at v${V7}`);
+      log(`[db] v8 migration: skipped reason=held (${by}); database stays at v${V7}`);
       this.outcomeV8 = { state: 'skipped', fromVersion: V7, reason: 'held', detail: by };
       return;
     }
@@ -634,6 +635,29 @@ export class PersistStore {
 
   /** The v8 step's outcome; null before open(). */
   get lastMigrationV8(): MigrationOutcome | null { return this.outcomeV8; }
+
+  /**
+   * Why handoffs alone are off while the platform is on, from the v8 outcome. null when
+   * handoffs are available, and also when the whole platform is off (that reason is the v7 side's).
+   *   held          NEXUS_DB_HOLD_V8=1 (or NEXUS_DB_HOLD_V7=1) kept the database at v7
+   *   auto_held     the v8 failure marker reached V8_FAILURE_LIMIT
+   *   backup_failed the harness-v7 backup could not be written or verified
+   *   failed        the v8 transaction rolled back, the v8 post-check failed, a pre-check or the
+   *                 disk check skipped v8, or the v8 step threw unexpectedly
+   *   shape         the database is at v8 but the v8 shape check failed on reopen
+   */
+  get handoffsUnavailableReason(): HandoffsUnavailableReason | null {
+    if (!this.platformAvailable || this.handoffsAvailable) return null;
+    const o = this.outcomeV8;
+    if (!o) return 'failed';
+    if (o.state === 'skipped') {
+      if (o.reason === 'held') return o.detail.startsWith('repeated_failure') ? 'auto_held' : 'held';
+      if (o.reason === 'backup_failed') return 'backup_failed';
+      return 'failed';
+    }
+    if (o.state === 'not_needed') return 'shape';
+    return 'failed';
+  }
 
   /** The shared connection for the platform services (main process only); null unless the platform is available. */
   platformDatabase(): Database.Database | null { return this.platformAvailable ? this.db : null; }
