@@ -1,23 +1,12 @@
 // The renderer's view of the Nexus platform: the participation index read from
 // the database, whether screens are in the labelled legacy fallback, and a
-// revision bumped after every platform mutation so readers refresh.
+// revision bumped after every platform mutation so readers refresh. The
+// transitions themselves live in platformState.ts (pure).
 import { create } from 'zustand';
 import type { NexusResult, ParticipationView } from '@shared/nexus/ipc';
-import { fromRows, type ParticipationIndex, type ParticipationRow } from '../workspaces/participation';
-import { errorCopy } from './errorCopy';
+import { INITIAL_PLATFORM_VIEW, canWrite, nextPlatformState, type PlatformView } from './platformState';
 
-export interface PlatformState {
-  /**
-   * 'db' once participations were read from the database. 'legacy' before the first answer and while the
-   * platform is unavailable: screens then group projects by detected domain and show no write action.
-   */
-  mode: 'db' | 'legacy';
-  /** The database index; null until the first successful read, and again while the platform is unavailable. */
-  participations: ParticipationIndex | null;
-  /** Set while the platform is unavailable (the reason main gave, when it gave one). */
-  unavailable: { reason: string | null } | null;
-  /** A passing failure (a busy database, an unexpected error): "try again", never the degraded mode. */
-  retry: { text: string } | null;
+export interface PlatformState extends PlatformView {
   /** False once a handoff channel answered handoffs_unavailable; null while unknown. Affects handoff UI only. */
   handoffsAvailable: boolean | null;
   handoffsSubReason: string | null;
@@ -29,31 +18,16 @@ export interface PlatformState {
   noteHandoffs: (r: NexusResult<unknown>) => void;
 }
 
-const toRow = (v: ParticipationView): ParticipationRow => ({
-  id: v.id, projectId: v.projectId, workspaceId: v.workspaceId, status: v.status, isPrimary: v.isPrimary, source: v.source
-});
-
-export const usePlatform = create<PlatformState>((set) => ({
-  mode: 'legacy',
-  participations: null,
-  unavailable: null,
-  retry: null,
+export const usePlatform = create<PlatformState>((set, get) => ({
+  ...INITIAL_PLATFORM_VIEW,
   handoffsAvailable: null,
   handoffsSubReason: null,
   rev: 0,
   bumpRev: () => set((s) => ({ rev: s.rev + 1 })),
   applyParticipations: (r) => {
-    if (r.ok) {
-      set({ mode: 'db', participations: fromRows(Array.isArray(r.data) ? r.data.map(toRow) : []), unavailable: null, retry: null });
-      return;
-    }
-    const copy = errorCopy(r.code, r.reason, r.subReason);
-    if (copy.kind === 'unavailable') {
-      set({ mode: 'legacy', participations: null, unavailable: { reason: r.reason ?? null }, retry: null });
-      return;
-    }
-    // Busy, internal or an unexpected refusal: keep what was last read and offer to try again.
-    set({ retry: { text: copy.text } });
+    const s = get();
+    const next = nextPlatformState({ mode: s.mode, participations: s.participations, unavailable: s.unavailable, retry: s.retry }, r);
+    set(next);
   },
   noteHandoffs: (r) => {
     if (!r.ok && r.code === 'platform_unavailable' && r.reason === 'handoffs_unavailable') {
@@ -63,4 +37,4 @@ export const usePlatform = create<PlatformState>((set) => ({
 }));
 
 /** Platform write actions render only while the database is the authority. */
-export const selectCanWrite = (s: PlatformState): boolean => s.mode === 'db' && s.unavailable === null;
+export const selectCanWrite = (s: PlatformState): boolean => canWrite(s);

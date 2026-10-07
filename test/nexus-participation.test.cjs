@@ -103,6 +103,8 @@ test('R6 buildWorkspaceIndex(projects, idx) counts primary plus attached', () =>
   const wi = buildWorkspaceIndex(projects, idx);
   const qa = wi.rows.find((r) => r.id === 'qa');
   assert.equal(qa.count, 3);
+  assert.equal(qa.attached, 3);
+  assert.equal(wi.rows.find((r) => r.id === 'sde').attached, 0);
   assert.deepEqual(qa.recent.map((p) => p.id), ['a', 'b']);
   assert.equal(wi.rows.find((r) => r.id === 'ml').count, 1);
   assert.equal(wi.totalProjects, 3);
@@ -163,11 +165,19 @@ test('the notice is on the Workspaces, Workspace and Projects pages, and every s
   assert.match(notice, />Try again</);
 });
 
-test('busy keeps the database index; only platform_unavailable switches to the legacy mode', () => {
+test('the store delegates every transition to the pure platformState module', () => {
   const store = src('data/platformStore.ts');
-  assert.match(store, /copy\.kind === 'unavailable'[\s\S]*?mode: 'legacy', participations: null/);
-  assert.match(store, /set\(\{ retry: \{ text: copy\.text \} \}\)/);
-  assert.match(store, /selectCanWrite = \(s: PlatformState\): boolean => s\.mode === 'db' && s\.unavailable === null/);
+  assert.match(store, /nextPlatformState\(/);
+  assert.match(store, /selectCanWrite = \(s: PlatformState\): boolean => canWrite\(s\)/);
+  assert.doesNotMatch(src('data/platformState.ts'), /from 'zustand'|from 'react'/);
+});
+
+test('the Workspaces count tooltip says primaries follow the domain and attached projects are included', () => {
+  const page = src('pages/WorkspacesPage.tsx');
+  assert.match(page, /title=\{projectsTitle\(r\)\}/);
+  assert.match(page, /Primary by detected domain: /);
+  assert.match(page, /attached project'\)\} included/);
+  assert.doesNotMatch(page, /Projects detected as:/);
 });
 
 test('the workspace page lists attached projects with a tag; its empty state no longer promises handoffs later', () => {

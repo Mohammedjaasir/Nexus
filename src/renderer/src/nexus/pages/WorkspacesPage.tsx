@@ -11,6 +11,13 @@ import type { WorkspaceId } from '../workspaces/types';
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
 
+/** What the count means: primaries follow the detected domain; attached projects are counted too. */
+function projectsTitle(r: { ws: { domainIds: string[] }; hasDomain: boolean; attached: number }): string | undefined {
+  const attached = r.attached > 0 ? `${plural(r.attached, 'attached project')} included` : '';
+  if (r.hasDomain) return `Primary by detected domain: ${r.ws.domainIds.join(', ')}${attached ? `; ${attached}` : ''}`;
+  return attached ? `${attached[0].toUpperCase()}${attached.slice(1)}` : undefined;
+}
+
 /** Workspaces as an index: one row per kind of work, with its real projects
  *  and what is planned. Click a row to open it. */
 export function WorkspacesPage() {
@@ -48,7 +55,7 @@ export function WorkspacesPage() {
                 <small>{r.ws.tagline}</small>
               </span>
               <span className="nx-wsx__desc">{r.ws.description}</span>
-              <span className="nx-wsx__projects" title={r.hasDomain ? `Projects detected as: ${r.ws.domainIds.join(', ')}` : undefined}>
+              <span className="nx-wsx__projects" title={projectsTitle(r)}>
                 {r.count > 0 ? (
                   <>
                     <b>{plural(r.count, 'project')}</b>

@@ -55,6 +55,10 @@ test('R8 every platform-unavailable reason has a notice; busy is "try again", no
   }
   assert.equal(E.unavailableNotice('held'),
     'Workspace data is not available because the database upgrade is held. Projects are grouped by their detected domain until it runs.');
+  // True at startup and mid-session alike.
+  assert.equal(E.unavailableNotice('startup_failed'),
+    'Workspace data is not available because the workspace database could not be read. Projects are grouped by their detected domain until it runs.');
+  assert.doesNotMatch(E.unavailableNotice('startup_failed'), /did not start/);
   const busy = E.errorCopy('platform_unavailable', 'busy');
   assert.deepEqual([busy.kind, busy.retry], ['busy', true]);
   assert.match(busy.text, /try again/i);

@@ -44,7 +44,7 @@ const UNAVAILABLE_WHY: Record<string, string> = {
   migration_failed: 'the database upgrade did not complete',
   newer_schema: 'the database was upgraded by a newer version of the app',
   shape_mismatch: 'the database does not have the expected layout',
-  startup_failed: 'the platform did not start',
+  startup_failed: 'the workspace database could not be read',
   not_open: 'the database is not open'
 };
 export const UNAVAILABLE_REASONS: readonly string[] = Object.freeze(Object.keys(UNAVAILABLE_WHY));

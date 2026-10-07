@@ -9,6 +9,8 @@ export interface WorkspaceRow<T extends P = P> {
   id: WorkspaceConfig['id'];
   ws: WorkspaceConfig;
   count: number;
+  /** How many of `count` are attached (not primary) here. */
+  attached: number;
   /** The two most recently updated projects, newest first. */
   recent: T[];
   /** False when no analyzer domain files projects here yet. */
@@ -20,8 +22,9 @@ export interface WorkspaceRow<T extends P = P> {
  *  is the projects with no primary. Pure: testable in node. */
 export function buildWorkspaceIndex<T extends P>(projects: T[], idx: ParticipationIndex) {
   const rows: WorkspaceRow<T>[] = WORKSPACES.map((ws) => {
-    const mine = projectsInWorkspace(idx, projects, ws.id).map((x) => x.project);
-    return { id: ws.id, ws, count: mine.length, recent: recentProjects(mine, 2), hasDomain: ws.domainIds.length > 0 };
+    const here = projectsInWorkspace(idx, projects, ws.id);
+    const mine = here.map((x) => x.project);
+    return { id: ws.id, ws, count: mine.length, attached: here.filter((x) => x.role === 'attached').length, recent: recentProjects(mine, 2), hasDomain: ws.domainIds.length > 0 };
   });
   return { rows, totalProjects: projects.length, unassigned: unassignedCount(idx, projects) };
 }
