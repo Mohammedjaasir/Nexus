@@ -42,6 +42,13 @@
  * Nothing is ever deleted and the backup itself is left in place. On platforms
  * other than Windows an open file can be renamed, so quitting the app first is the
  * only protection there.
+ *
+ * The hold switch to use next. After the sha256 check, the tool reads the backup's
+ * user_version from its SQLite header (bytes 60-63, big-endian; backups are written
+ * by VACUUM INTO in journal mode DELETE, so the header is current) and names the
+ * switch that keeps the app on that schema: a v6 backup -> NEXUS_DB_HOLD_V7=1, a v7
+ * backup -> NEXUS_DB_HOLD_V8=1. A file without a SQLite header, or a version with no
+ * switch, gets a plain sentence instead; the restore itself never depends on it.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -144,7 +151,7 @@ function prepare(opts, now) {
     const tag = n === 1 ? base : `${base}-${n}`;
     const moves = present.map((s) => ({ from: o.db + s, to: `${o.db}.pre-restore-${tag}${s}` }));
     const temp = `${o.db}.restoring-${tag}`;
-    if (!moves.some((m) => fs.existsSync(m.to)) && !fs.existsSync(temp)) return { ...o, moves, temp, tag };
+    if (!moves.some((m) => fs.existsSync(m.to)) && !fs.existsSync(temp)) return { ...o, moves, temp, tag, userVersion: readUserVersion(o.backup) };
   }
 }
 
@@ -158,6 +165,48 @@ function planRestore(opts, now = Date.now()) {
     { op: 'verify', from: p.temp, describe: `verify sha256 of ${p.temp} is ${p.sha256}` },
     { op: 'install', from: p.temp, to: p.db, describe: `rename ${p.temp} -> ${p.db}` }
   ];
+}
+
+/** The 16-byte magic string every SQLite 3 database file starts with. */
+const SQLITE_MAGIC = Buffer.from('SQLite format 3\0', 'latin1');
+/** Offset of the 4-byte big-endian user_version in the 100-byte database header. */
+const USER_VERSION_OFFSET = 60;
+/** The schema a hold switch keeps the database on: NEXUS_DB_HOLD_V<n+1>=1 stays on v<n>. */
+const HOLD_SWITCHES = Object.freeze({ 6: 'NEXUS_DB_HOLD_V7', 7: 'NEXUS_DB_HOLD_V8' });
+
+/**
+ * The user_version stored in a SQLite file's header (bytes 60-63, big-endian), read
+ * without SQLite. Returns null when the file cannot be read, is shorter than the
+ * 100-byte header, or does not start with the SQLite magic. Never throws.
+ */
+function readUserVersion(file) {
+  let fd;
+  try {
+    fd = fs.openSync(file, 'r');
+    const header = Buffer.alloc(100);
+    const n = fs.readSync(fd, header, 0, header.length, 0);
+    if (n < header.length || !header.subarray(0, SQLITE_MAGIC.length).equals(SQLITE_MAGIC)) return null;
+    return header.readInt32BE(USER_VERSION_OFFSET);
+  } catch {
+    return null;
+  } finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch { /* already closed */ } }
+  }
+}
+
+/** The "what next" sentence for a backup at schema `userVersion` (null: not read). */
+function holdHint(userVersion) {
+  const name = Number.isInteger(userVersion) ? HOLD_SWITCHES[userVersion] : undefined;
+  if (name) {
+    return `Next: launch with ${name}=1 to stay on schema v${userVersion}, `
+      + 'or launch normally to migrate again (a new backup is taken first).';
+  }
+  if (Number.isInteger(userVersion)) {
+    return `Next: the backup is at schema v${userVersion}, and no hold switch keeps the app on it; `
+      + 'launching normally opens it and migrates it forward if it is older than the build (a backup is taken first).';
+  }
+  return "Next: the backup's schema version could not be read from its header. To stay on the backup's schema, launch with "
+    + 'NEXUS_DB_HOLD_V7=1 for a v6 backup or NEXUS_DB_HOLD_V8=1 for a v7 backup; launching normally migrates it again (a new backup is taken first).';
 }
 
 const isLockError = (e) => e && (e.code === 'EBUSY' || e.code === 'EPERM');
@@ -267,7 +316,7 @@ function applyRestore(opts, now = Date.now()) {
     // A failure no branch above expected: still roll back (or give the manual steps).
     failAndRollBack('error', `unexpected error during the restore (${why(e)})`, moved, p, state);
   }
-  return { movedAside: moved.map((m) => m.to), restored: p.db };
+  return { movedAside: moved.map((m) => m.to), restored: p.db, userVersion: p.userVersion };
 }
 
 /** --flag value and --flag=value; every flag at most once. */
@@ -306,13 +355,14 @@ function main(argv) {
       console.log('nexus-db-restore: dry run, nothing was changed. With --apply it would:');
       steps.forEach((s, i) => console.log(`  ${i + 1}. ${s.describe}`));
       console.log('Quit the app first, then run again with --apply.');
+      console.log(`After the restore: ${holdHint(readUserVersion(path.resolve(a.backup)))}`);
       return EXIT.ok;
     }
     const r = applyRestore(opts);
     console.log(`nexus-db-restore: restored ${r.restored} from ${path.resolve(a.backup)} (sha256 ${a.sha256.toLowerCase()} verified)`);
     console.log('Moved aside (kept, never deleted):');
     for (const f of r.movedAside) console.log(`  ${f}`);
-    console.log('Next: launch with NEXUS_DB_HOLD_V7=1 to stay on schema v6, or launch normally to migrate again (a new backup is taken first).');
+    console.log(holdHint(r.userVersion));
     return EXIT.ok;
   } catch (e) {
     if (e instanceof RestoreError) {
@@ -325,6 +375,6 @@ function main(argv) {
   }
 }
 
-module.exports = { planRestore, applyRestore, RestoreError, EXIT };
+module.exports = { planRestore, applyRestore, readUserVersion, holdHint, RestoreError, EXIT };
 
 if (require.main === module) process.exitCode = main(process.argv.slice(2));

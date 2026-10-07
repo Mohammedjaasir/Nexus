@@ -346,3 +346,78 @@ for (const platform of ['win32', 'linux']) test(`a NEW harness.db appears during
   for (const m of err.stuck) assert.match(fs.readFileSync(m.to, 'utf8'), /^v7 /);
   assert.ok(fs.readdirSync(dir).some((x) => x.includes('.restoring-')));
 });
+
+// ---- B1 Task 14: the hold switch that matches the backup's own schema ----
+
+const { readUserVersion, holdHint } = require('../tools/nexus-db-restore.cjs');
+/** A file that starts with a real 100-byte SQLite header (magic + user_version at 60, big-endian), plus a page tail. */
+function sqliteLike(userVersion, tail = 'page data') {
+  const header = Buffer.alloc(100);
+  header.write('SQLite format 3\0', 0, 'latin1');
+  header.writeUInt16BE(4096, 16);
+  header.writeInt32BE(userVersion, 60);
+  return Buffer.concat([header, Buffer.from(tail)]);
+}
+/** A restore scene whose backup carries a SQLite header at `userVersion`. */
+function versionScene(userVersion) {
+  const s = scene();
+  const backup = path.join(s.dir, 'backups', `harness-v${userVersion}-20261007T120000Z.db`);
+  const bytes = sqliteLike(userVersion);
+  fs.writeFileSync(backup, bytes);
+  return { ...s, backup, bytes, hash: sha(bytes) };
+}
+
+test('the backup\'s user_version is read from its SQLite header (bytes 60-63, big-endian)', () => {
+  const { dir } = scene();
+  const at = (name, bytes) => { const f = path.join(dir, name); fs.writeFileSync(f, bytes); return f; };
+  assert.equal(readUserVersion(at('v6.db', sqliteLike(6))), 6);
+  assert.equal(readUserVersion(at('v7.db', sqliteLike(7))), 7);
+  assert.equal(readUserVersion(at('big.db', sqliteLike(0x01020304))), 0x01020304, 'big-endian, all four bytes');
+  // Little-endian bytes at 60 would read as a different number: 7 is 00 00 00 07.
+  assert.deepEqual([...sqliteLike(7).subarray(60, 64)], [0, 0, 0, 7]);
+  assert.equal(readUserVersion(at('text.db', 'v6 copy')), null, 'no SQLite magic');
+  assert.equal(readUserVersion(at('short.db', sqliteLike(7).subarray(0, 64))), null, 'shorter than the 100-byte header');
+  const wrongMagic = sqliteLike(7); wrongMagic[0] = 0x73;
+  assert.equal(readUserVersion(at('magic.db', wrongMagic)), null);
+  assert.equal(readUserVersion(path.join(dir, 'missing.db')), null, 'an unreadable file never throws');
+});
+
+test('the hint names the matching hold switch: v7 -> NEXUS_DB_HOLD_V8, v6 -> NEXUS_DB_HOLD_V7', () => {
+  assert.match(holdHint(7), /NEXUS_DB_HOLD_V8=1 to stay on schema v7/);
+  assert.doesNotMatch(holdHint(7), /HOLD_V7/);
+  assert.match(holdHint(6), /NEXUS_DB_HOLD_V7=1 to stay on schema v6/);
+  assert.doesNotMatch(holdHint(6), /HOLD_V8/);
+  for (const v of [0, 5, 8, 9]) {
+    assert.doesNotMatch(holdHint(v), /NEXUS_DB_HOLD_V\d=1 to stay/, `no switch claimed for v${v}`);
+    assert.match(holdHint(v), new RegExp(`schema v${v}[,;. ]`));
+  }
+  assert.match(holdHint(null), /could not be read/);
+});
+
+for (const [v, want, other] of [[7, 'NEXUS_DB_HOLD_V8', 'NEXUS_DB_HOLD_V7'], [6, 'NEXUS_DB_HOLD_V7', 'NEXUS_DB_HOLD_V8']]) {
+  test(`the CLI restores a v${v} backup and prints ${want}=1 (dry run and apply)`, () => {
+    const { dir, db, backup, bytes, hash } = versionScene(v);
+    const before = snapshot(dir);
+    const dry = cli('--db', db, '--backup', backup, '--sha256', hash);
+    assert.equal(dry.status, 0, dry.stderr);
+    assert.ok(dry.stdout.includes(`${want}=1 to stay on schema v${v}`), dry.stdout);
+    assert.ok(!dry.stdout.includes(other), 'the other switch is not named');
+    assert.deepEqual(snapshot(dir), before, 'the dry run changes nothing');
+    const ok = cli('--db', db, '--backup', backup, '--sha256', hash, '--apply');
+    assert.equal(ok.status, 0, ok.stderr);
+    assert.ok(ok.stdout.includes(`Next: launch with ${want}=1 to stay on schema v${v}`), ok.stdout);
+    assert.ok(!ok.stdout.includes(other));
+    assert.deepEqual(fs.readFileSync(db), bytes, 'the backup bytes are installed');
+    const r = applyRestore({ db, backup, sha256: hash }, Date.UTC(2026, 9, 7, 15));
+    assert.equal(r.userVersion, v);
+  });
+}
+
+test('a backup without a SQLite header still restores; the hint names both switches and claims no version', () => {
+  const { db, backup, hash } = scene();
+  const ok = cli('--db', db, '--backup', backup, '--sha256', hash, '--apply');
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.equal(fs.readFileSync(db, 'utf8'), 'v6 copy');
+  assert.match(ok.stdout, /could not be read from its header/);
+  assert.match(ok.stdout, /NEXUS_DB_HOLD_V7=1 for a v6 backup or NEXUS_DB_HOLD_V8=1 for a v7 backup/);
+});
