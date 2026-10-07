@@ -86,7 +86,10 @@ export function redactSecretText(s: string): string {
  *
  * Measured on 64 KiB (V8's regex interpreter, which V8 falls back to after it flushes compiled regex code):
  * one `x-x-...` run took 5 s compiled; runs of 2,047 characters took 4 to 10 s per pattern; runs just under
- * this bound take under 0.5 s for the whole check (about 30 ms compiled). A long run WITHOUT separators
+ * this bound take about 40 ms compiled. With the interpreter forced (--regexp-interpret-all), an adversarial
+ * 64 KiB input reached 3.4 s in containsSecret and 1.7 s in redactSecretText: 127 separators in a scheme or
+ * key chain followed by a long separator-free tail, because the scan after a boundary can run past the end of
+ * the run. V8 was not observed to fall back on its own in normal use. A long run WITHOUT separators
  * (`yyyy...`, `xxxx...`) has no inner boundary, is linear, and is not affected: the B0b tests pin such
  * params and error messages as stored exactly. redactText and redactDetails are deliberately unchanged:
  * activity hashes depend on their exact output, and redactDetails already caps every string at MAX_STRING.
