@@ -495,3 +495,36 @@ export async function checkoutRef(cwd: string, ref: string, detach: boolean): Pr
   }
   return { ok: true, detached: detach };
 }
+
+/** A commit resolved by git in a known folder: the full sha, its subject and commit time (unix ms). */
+export interface ResolvedCommit { commit: string; subject: string; committedAt: number }
+const COMMIT_ISH = /^[0-9a-fA-F]{4,40}$/;
+const FULL_SHA = /^[0-9a-f]{40}$/;
+
+/**
+ * Resolve `sha` to a commit OF THE REPOSITORY AT `cwd`, through git itself:
+ * `rev-parse --verify --quiet <sha>^{commit}` then `show -s` on the full sha
+ * git returned (never on the caller's text). `sha` must be hex (4 to 40
+ * characters), so it can never be read as an option, a ref name or a range.
+ * `cwd` must already be a folder main accepted (acceptFsRoot); renderer
+ * strings are untrusted. Errors: 'not_a_repository' when git finds no
+ * repository at `cwd`, 'not_a_commit' for anything else.
+ */
+export async function resolveCommit(cwd: string, sha: string): Promise<ResolvedCommit | { error: 'not_a_repository' | 'not_a_commit' }> {
+  if (typeof cwd !== 'string' || !cwd || cwd.includes('\0')) return { error: 'not_a_repository' };
+  const classify = async (): Promise<{ error: 'not_a_repository' | 'not_a_commit' }> => {
+    const repo = await runGit(cwd, ['rev-parse', '--git-dir']);
+    return { error: repo.ok ? 'not_a_commit' : 'not_a_repository' };
+  };
+  if (typeof sha !== 'string' || !COMMIT_ISH.test(sha)) return classify();
+  const parsed = await runGit(cwd, ['rev-parse', '--verify', '--quiet', `${sha}^{commit}`]);
+  if (!parsed.ok) return classify();
+  const full = parsed.stdout.trim().toLowerCase();
+  if (!FULL_SHA.test(full)) return { error: 'not_a_commit' };
+  const shown = await runGit(cwd, ['show', '-s', '--format=%H%x00%ct%x00%s', full]);
+  if (!shown.ok) return { error: 'not_a_commit' };
+  const [h, ct, ...rest] = shown.stdout.replace(/\r?\n$/, '').split('\0');
+  if ((h ?? '').trim().toLowerCase() !== full) return { error: 'not_a_commit' };
+  const seconds = Number.parseInt(ct ?? '', 10);
+  return { commit: full, subject: rest.join(' ').trim(), committedAt: Number.isFinite(seconds) ? seconds * 1000 : 0 };
+}
