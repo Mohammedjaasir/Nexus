@@ -171,3 +171,110 @@ test('a stale rollback journal is moved aside too, and a missing database file i
   assert.equal(again.movedAside.length, 1);
   assert.equal(fs.readFileSync(db, 'utf8'), 'v6 copy');
 });
+
+// ---- install-phase failures and the rollback (fix round 1) ----
+
+const errno = (code) => Object.assign(new Error(`${code}: simulated`), { code });
+/** Patches functions on the shared node:fs object (the tool's fs) for the duration of fn. */
+function withFs(patches, fn) {
+  const orig = {};
+  for (const [k, make] of Object.entries(patches)) { orig[k] = fs[k]; fs[k] = make(orig[k]); }
+  try { return fn(); } finally { Object.assign(fs, orig); }
+}
+const withoutTemp = (snap) => Object.fromEntries(Object.entries(snap).filter(([k]) => !k.includes('.restoring-')));
+const failures = {
+  copy: { code: 'error', exit: 1, temp: false,
+    patch: (db) => ({ copyFileSync: () => () => { throw errno('ENOSPC'); } }) },
+  rehash: { code: 'sha_mismatch', exit: 2, temp: 'unverified',
+    patch: (db) => ({ copyFileSync: (real) => (src, dest, mode) => { real(src, dest, mode); fs.writeFileSync(dest, 'corrupted copy'); } }) },
+  rename: { code: 'locked', exit: 3, temp: 'verified',
+    patch: (db) => ({ renameSync: (real) => (src, dest) => { if (dest === db && src.includes('.restoring-')) throw errno('EPERM'); return real(src, dest); } }) }
+};
+/** Also make the rollback of `which` (the main file, or its -wal) fail. */
+const failRollbackOf = (db, which, inner) => (real) => {
+  const base = inner ? inner(real) : real;
+  return (src, dest) => {
+    if (dest === which && src.includes('.pre-restore-')) throw errno('EPERM');
+    return base(src, dest);
+  };
+};
+
+for (const [name, f] of Object.entries(failures)) {
+  test(`install failure (${name}): every file is put back byte for byte, exit ${f.exit}`, () => {
+    const { dir, db, backup, hash } = scene();
+    const before = snapshot(dir);
+    let err;
+    withFs(f.patch(db), () => { try { applyRestore({ db, backup, sha256: hash }, Date.UTC(2026, 9, 7, 9)); } catch (e) { err = e; } });
+    assert.ok(err, 'the restore must fail');
+    assert.equal(err.code, f.code); assert.equal(err.exitCode, f.exit);
+    assert.match(err.message, /every moved file was put back/);
+    assert.deepEqual(withoutTemp(snapshot(dir)), before, 'harness.db, -wal and -shm are back exactly');
+    const temps = fs.readdirSync(dir).filter((x) => x.includes('.restoring-'));
+    if (f.temp) {
+      assert.equal(temps.length, 1, 'the .restoring- copy is kept for inspection');
+      assert.match(err.message, /kept for inspection and is safe to delete by hand/);
+    } else {
+      assert.equal(temps.length, 0);
+    }
+    if (name === 'rename') { assert.match(err.message, /quit the app first/); assert.match(err.message, /antivirus/); }
+  });
+
+  test(`install failure (${name}) AND the main file cannot be put back: exit 5, side files stay aside, exact manual steps`, () => {
+    const { dir, db, backup, hash } = scene();
+    let err;
+    const patches = f.patch(db);
+    patches.renameSync = failRollbackOf(db, db, patches.renameSync);
+    withFs(patches, () => { try { applyRestore({ db, backup, sha256: hash }, Date.UTC(2026, 9, 7, 9)); } catch (e) { err = e; } });
+    assert.ok(err, 'the restore must fail');
+    assert.equal(err.code, 'rollback_failed'); assert.equal(err.exitCode, 5); assert.equal(err.cause, f.code);
+    assert.ok(!fs.existsSync(db), 'harness.db is not in place');
+    assert.ok(!fs.existsSync(`${db}-wal`) && !fs.existsSync(`${db}-shm`), 'no stale WAL/SHM beside a missing harness.db');
+    assert.deepEqual(err.stuck.map((m) => path.basename(m.from)).sort(), ['harness.db', 'harness.db-shm', 'harness.db-wal']);
+    assert.equal(err.stuck[0].from, db, 'the main file is listed first');
+    for (const m of err.stuck) {
+      assert.match(fs.readFileSync(m.to, 'utf8'), /^v7 /, 'the moved file is intact');
+      assert.ok(err.message.includes(`rename "${m.to}" "${m.from}"`), `manual step for ${path.basename(m.from)}`);
+    }
+    assert.match(err.message, /ROLLBACK INCOMPLETE/); assert.match(err.message, /harness\.db is NOT in place/);
+    const temp = fs.readdirSync(dir).find((x) => x.includes('.restoring-'));
+    if (f.temp === 'verified') {
+      assert.ok(err.message.includes(`a verified copy of the backup is at ${path.join(dir, temp)}; rename it to harness.db`));
+    } else if (f.temp === 'unverified') {
+      assert.match(err.message, /did NOT verify/); assert.doesNotMatch(err.message, /a verified copy/);
+    } else {
+      assert.equal(temp, undefined);
+    }
+  });
+}
+
+test('the main file goes back but its -wal cannot: exit 5, harness.db in place, the -wal step is given', () => {
+  const { dir, db, backup, hash } = scene();
+  let err;
+  const patches = failures.rename.patch(db);
+  patches.renameSync = failRollbackOf(db, `${db}-wal`, patches.renameSync);
+  withFs(patches, () => { try { applyRestore({ db, backup, sha256: hash }, Date.UTC(2026, 9, 7, 9)); } catch (e) { err = e; } });
+  assert.equal(err.code, 'rollback_failed'); assert.equal(err.exitCode, 5); assert.equal(err.cause, 'locked');
+  assert.equal(fs.readFileSync(db, 'utf8'), 'v7 main'); assert.equal(fs.readFileSync(`${db}-shm`, 'utf8'), 'v7 shm');
+  assert.deepEqual(err.stuck.map((m) => m.from), [`${db}-wal`]);
+  assert.match(err.message, /harness\.db is back in place/);
+  assert.ok(err.message.includes(`rename "${err.stuck[0].to}" "${db}-wal"`));
+  assert.ok(fs.readdirSync(dir).some((x) => x.includes('.restoring-')));
+});
+
+test('the CLI exits 5 with the manual steps when the install and the rollback both fail', () => {
+  const { dir, db, backup, hash } = scene();
+  const preload = path.join(dir, 'fail-renames.cjs');
+  fs.writeFileSync(preload, `'use strict';
+const fs = require('node:fs'); const real = fs.renameSync; const db = process.env.NX_TEST_DB;
+fs.renameSync = (src, dest) => {
+  if (dest === db && (src.includes('.restoring-') || src.includes('.pre-restore-'))) throw Object.assign(new Error('EPERM: simulated'), { code: 'EPERM' });
+  return real(src, dest);
+};`);
+  const r = spawnSync(process.execPath, ['--require', preload, TOOL, '--db', db, '--backup', backup, '--sha256', hash, '--apply'],
+    { encoding: 'utf8', env: { ...process.env, NX_TEST_DB: db } });
+  assert.equal(r.status, 5, r.stderr);
+  assert.match(r.stderr, /ROLLBACK INCOMPLETE/);
+  assert.match(r.stderr, /rename ".*harness\.db\.pre-restore-[^"]*" ".*harness\.db"/);
+  assert.match(r.stderr, /a verified copy of the backup is at .*\.restoring-.*; rename it to harness\.db/);
+  assert.ok(!fs.existsSync(db) && !fs.existsSync(`${db}-wal`));
+});
