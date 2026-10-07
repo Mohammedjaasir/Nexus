@@ -138,7 +138,8 @@ export class LineageService {
   /**
    * Links one version to 1..MAX_LINK_SOURCES distinct source versions in ONE transaction: relation
    * 'derived_from', source 'user_action', a user principal only. Every endpoint is authorized ('lineage.write',
-   * the STORED owner workspace) before the transaction. Inside it, each target is re-checked to be out of draft and
+   * the STORED owner workspace) before the transaction. Inside it, the consumer's artifact must be writable
+   * (archived 'conflict', frozen owner 'participation_inactive', as requireWritableArtifact), each target is re-checked to be out of draft and
    * each edge goes through writeEdge (dedupe and cycle check); one 'lineage.write' row per created edge. Any
    * failure (a draft target, another project, a cycle) writes nothing: all or nothing.
    */
@@ -160,6 +161,15 @@ export class LineageService {
     }
     const now = this.deps.now();
     return immediateTx(this.db, () => {
+      // The consumer gains lineage, so its artifact must be writable: the same rule and codes as
+      // ArtifactService.requireWritableArtifact (archived 'conflict'; a frozen owner 'participation_inactive').
+      const art = this.db.prepare(`SELECT a.status, a.owner_participation_id, pw.status AS pw_status FROM artifacts a
+        LEFT JOIN project_workspaces pw ON pw.id = a.owner_participation_id WHERE a.id = ?`).get(from.artifact_id) as
+        { status: string; owner_participation_id: string | null; pw_status: string | null } | undefined;
+      if (!art) throw new PlatformError('not_found', 'artifact not found');
+      if (art.status !== 'active') throw new PlatformError('conflict', 'the artifact is archived');
+      if (art.owner_participation_id === null) throw new PlatformError('invalid', 'project-owned artifacts are not writable in this phase');
+      if (art.pw_status !== 'active') throw new PlatformError('participation_inactive', 'the owning participation is not active; its artifacts are frozen');
       const status = this.db.prepare('SELECT status FROM artifact_versions WHERE id = ?');
       const edges: ArtifactEdge[] = [];
       let created = 0;

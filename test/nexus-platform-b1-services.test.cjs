@@ -60,6 +60,14 @@ test('S1 save as a new artifact is one transaction: a failing version insert lea
   nx.artifacts.discard(me, r.version.id);
   const fresh = nx.artifacts.saveUserVersion(me, commitSave('p-ledger', 'sde', { name: 'Release' }));
   assert.equal(fresh.created, true); assert.notEqual(fresh.artifact.id, r.artifact.id);
+  // The dedupe is per owner participation: the same name and hash in qa and in another project are new artifacts.
+  nx.workspaces.attach(me, 'p-ledger', 'qa');
+  const inQa = nx.artifacts.saveUserVersion(me, commitSave('p-ledger', 'qa', { name: 'Release' }));
+  const invoicePrimary = nx.workspaces.primaryOf(me, 'p-invoice').workspaceId;
+  const inInvoice = nx.artifacts.saveUserVersion(me, commitSave('p-invoice', invoicePrimary, { name: 'Release' }));
+  assert.deepEqual([inQa.created, inInvoice.created], [true, true]);
+  assert.equal(new Set([fresh.artifact.id, inQa.artifact.id, inInvoice.artifact.id]).size, 3);
+  assert.equal(new Set([fresh.version.contentHash, inQa.version.contentHash, inInvoice.version.contentHash]).size, 1);
   done(s, db);
 });
 
@@ -113,6 +121,16 @@ test('S4 markReady runs finalize as the system principal on the user\'s behalf; 
   assert.throws(() => nx.artifacts.markReady(viewer, v2.id), (e) => e.code === 'denied');
   assert.equal(count(db, "activity WHERE status = 'denied'"), denied0 + 1);
   assert.equal(nx.artifacts.getVersion(me, v2.id).status, 'draft');
+  // A member holding only a qa workspace grant cannot mark an sde draft ready: denied, one audited row.
+  nx.workspaces.attach(me, 'p-ledger', 'qa');
+  db.prepare("INSERT INTO principals VALUES ('user:qa','user','qa',NULL,?)").run(h.NOW);
+  db.prepare("INSERT INTO memberships VALUES ('user:qa','workspace','qa','member',?)").run(h.NOW);
+  const qaMember = { id: 'user:qa', kind: 'user', displayName: 'qa' };
+  const denied1 = count(db, "activity WHERE status = 'denied'");
+  assert.throws(() => nx.artifacts.markReady(qaMember, v2.id), (e) => e.code === 'denied');
+  assert.equal(count(db, "activity WHERE status = 'denied'"), denied1 + 1);
+  assert.equal(count(db, "activity WHERE status = 'denied' AND actor_id = 'user:qa' AND action = 'version.update_draft'"), 1);
+  assert.equal(nx.artifacts.getVersion(me, v2.id).status, 'draft');
   // The system principal is not a user: mark ready is refused for it.
   assert.throws(() => nx.artifacts.markReady(nx.principals.system(), v2.id), (e) => e.code === 'invalid');
   done(s, db);
@@ -132,6 +150,10 @@ test('S5 markReady: a candidate is returned unchanged; active is illegal_transit
   const jv = nx.artifacts.registerVersion(me, { artifactId: a.id, storage: { kind: 'inline', json: { n: 1 } }, producedByJobId: job.id }).version;
   assert.throws(() => nx.artifacts.markReady(me, jv.id), (e) => e.code === 'invalid' && e.detail?.reason === 'produced_by_job');
   assert.equal(nx.artifacts.getVersion(me, jv.id).status, 'draft');
+  const session = nx.sessions.open(me, { projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: 's5-session' }).session;
+  const sv = nx.artifacts.registerVersion(me, { artifactId: a.id, storage: { kind: 'inline', json: { n: 2 } }, producedBySessionId: session.id }).version;
+  assert.throws(() => nx.artifacts.markReady(me, sv.id), (e) => e.code === 'invalid' && e.detail?.reason === 'produced_by_job');
+  assert.equal(nx.artifacts.getVersion(me, sv.id).status, 'draft');
   done(s, db);
 });
 
@@ -203,6 +225,16 @@ test('S9 a source owned by another workspace of the same project links; a versio
   const foreign = readyVersion(nx, me, 'p-invoice', invoicePrimary, 'Other project');
   assert.throws(() => nx.lineage.linkSources(me, from.id, [foreign.id]), (e) => e.code === 'invalid');
   assert.equal(count(db, 'artifact_edges WHERE to_version_id = ?', foreign.id), 0);
+  // A member holding only an sde grant cannot link to a qa source: denied, one audited row, no edge.
+  db.prepare("INSERT INTO principals VALUES ('user:sde','user','sde',NULL,?)").run(h.NOW);
+  db.prepare("INSERT INTO memberships VALUES ('user:sde','workspace','sde','member',?)").run(h.NOW);
+  const sdeMember = { id: 'user:sde', kind: 'user', displayName: 'sde' };
+  const qaV2 = readyVersion(nx, me, 'p-ledger', 'qa', 'QA report 2');
+  const denied0 = count(db, "activity WHERE status = 'denied'");
+  assert.throws(() => nx.lineage.linkSources(sdeMember, from.id, [qaV2.id]), (e) => e.code === 'denied');
+  assert.equal(count(db, "activity WHERE status = 'denied'"), denied0 + 1);
+  assert.equal(count(db, "activity WHERE status = 'denied' AND actor_id = 'user:sde' AND action = 'lineage.write'"), 1);
+  assert.equal(count(db, 'artifact_edges WHERE to_version_id = ?', qaV2.id), 0);
   done(s, db);
 });
 
@@ -307,5 +339,42 @@ test('S16 the activity chain verifies after a mixed B1 flow', () => {
   nx.workspaces.withdraw(me, qa.id);
   const v = verifyActivityChain(db);
   assert.equal(v.ok, true); assert.ok(v.rows > 0);
+  done(s, db);
+});
+
+// ---------- fix round 1 ----------
+test('F1 ArtifactService exposes exactly its public API plus the four @internal *Tx helpers', () => {
+  const { s, db, nx, me } = setup();
+  const proto = Object.getPrototypeOf(nx.artifacts);
+  const PRIVATE = ['requireTx', 'activeParticipation', 'artifactRow', 'versionRow', 'latestLiveVersion', 'summaryOf', 'ownerWorkspace',
+    'loadArtifact', 'loadVersion', 'requireWritableArtifact', 'ownerActive', 'checkProducer', 'requireLiveJob', 'requireLiveSession',
+    'validateInputs', 'checkInputs'];
+  assert.deepEqual(Object.getOwnPropertyNames(proto).filter((k) => k !== 'constructor' && typeof proto[k] === 'function' && !PRIVATE.includes(k)).sort(),
+    ['archive', 'create', 'discard', 'finalize', 'get', 'getVersion', 'listByProject', 'listForReader', 'listVersions', 'markReady',
+      'promote', 'registerVersion', 'saveUserVersion', 'summariesByProject', 'updateDraft',
+      // @internal: in-transaction, authorize nothing; never map them to a transport.
+      'insertArtifactTx', 'insertVersionTx', 'promoteTx', 'setStatusTx'].sort());
+  // Outside a transaction the helpers refuse; setStatusTx refuses a non-system actor even inside one.
+  const { version } = nx.artifacts.saveUserVersion(me, textSave('p-ledger', 'sde', { name: 'Draft' }));
+  assert.throws(() => nx.artifacts.setStatusTx(nx.principals.system(), version.id, 'candidate', { now: h.NOW }), (e) => e.code === 'invalid');
+  assert.throws(() => db.transaction(() => nx.artifacts.setStatusTx(me, version.id, 'candidate', { now: h.NOW })).immediate(), (e) => e.code === 'invalid');
+  assert.equal(nx.artifacts.getVersion(me, version.id).status, 'draft');
+  done(s, db);
+});
+
+test('F2 linkSources refuses a consumer whose artifact is archived (conflict) or whose owner is withdrawn (participation_inactive)', () => {
+  const { s, db, nx, me } = setup();
+  const src = readyVersion(nx, me, 'p-ledger', 'sde', 'Source');
+  const archived = nx.artifacts.saveUserVersion(me, textSave('p-ledger', 'sde', { name: 'Archived consumer' }));
+  nx.artifacts.archive(me, archived.artifact.id);
+  const w0 = count(db, "activity WHERE action = 'lineage.write'");
+  assert.throws(() => nx.lineage.linkSources(me, archived.version.id, [src.id]), (e) => e.code === 'conflict');
+  assert.equal(count(db, 'artifact_edges WHERE from_version_id = ?', archived.version.id), 0);
+  const qa = nx.workspaces.attach(me, 'p-ledger', 'qa');
+  const frozen = nx.artifacts.saveUserVersion(me, textSave('p-ledger', 'qa', { name: 'QA consumer' }));
+  nx.workspaces.withdraw(me, qa.id);
+  assert.throws(() => nx.lineage.linkSources(me, frozen.version.id, [src.id]), (e) => e.code === 'participation_inactive');
+  assert.equal(count(db, 'artifact_edges WHERE from_version_id = ?', frozen.version.id), 0);
+  assert.equal(count(db, "activity WHERE action = 'lineage.write'"), w0);
   done(s, db);
 });

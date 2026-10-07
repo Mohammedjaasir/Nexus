@@ -375,13 +375,13 @@ export class ArtifactService {
 
   // ---------- in-transaction helpers ----------
   //
-  // INTERNAL. Each runs inside the caller's open IMMEDIATE transaction (it refuses to run outside one) and
+  // INTERNAL (@internal; pinned by test/nexus-platform-b1-services.test.cjs so no transport maps them). Each runs inside the caller's open IMMEDIATE transaction (it refuses to run outside one) and
   // AUTHORIZES NOTHING: the caller has already authorized the principal, with the stored owner workspace, before
   // opening the transaction, and has checked the rules of its own operation. Each writes its row(s) plus exactly
   // the activity row the public method always wrote, so create, registerVersion, finalize and promote keep their
   // B0b behaviour. The single-transaction flows (user saves, mark ready, handoff accept) compose them.
 
-  /** Inserts a participation-owned artifact and its 'artifact.create' row. `metadataJson` is already validated. */
+  /** @internal Inserts a participation-owned artifact and its 'artifact.create' row. `metadataJson` is already validated. */
   insertArtifactTx(actor: Principal, o: {
     participation: { id: string; project_id: string; workspace_id: string }; kind: string; name: string;
     description: string | null; metadataJson: string; now: number;
@@ -400,6 +400,7 @@ export class ArtifactService {
   }
 
   /**
+   * @internal
    * Appends a draft version (the next version_no), its lineage edges, the artifact's updated_at and its
    * 'version.register' row. Storage, hash and JSON texts are already validated; the caller has run
    * requireWritableArtifact (and its producer checks) in the same transaction.
@@ -438,6 +439,7 @@ export class ArtifactService {
   }
 
   /**
+   * @internal
    * The engine transition draft -> candidate | failed and its 'version.finalize' row, acted by `system`. With
    * `onBehalfOf` and `via`, the row also records the user the system acted for and the flow (for example
    * 'mark_ready'). A version that is not a draft is 'illegal_transition'. The caller has checked the owner
@@ -445,6 +447,10 @@ export class ArtifactService {
    */
   setStatusTx(system: Principal, versionId: VersionId, to: 'candidate' | 'failed', o: { now: number; onBehalfOf?: string; via?: string }): ArtifactVersion {
     this.requireTx();
+    // Only the stored system principal performs the engine transition (callers authorized it for version.finalize).
+    if (system?.kind !== 'system' || this.principals.get(system.id)?.kind !== 'system') {
+      throw new PlatformError('invalid', 'the engine transition is performed by the system principal');
+    }
     const v = this.versionRow(versionId);
     if (!v) throw new PlatformError('not_found', 'version not found');
     if (v.status !== 'draft') throw new PlatformError('illegal_transition', `cannot finalize a ${v.status} version`);
@@ -457,7 +463,7 @@ export class ArtifactService {
     return toVersion(this.versionRow(v.id)!);
   }
 
-  /** The body of promote(): compare-and-set on the current pointer, single-active, one 'version.promote' row. */
+  /** @internal The body of promote(): compare-and-set on the current pointer, single-active, one 'version.promote' row. */
   promoteTx(p: Principal, versionId: VersionId, expectedCurrentVersionId: VersionId | null, now: number): PromoteResult {
     this.requireTx();
     const v = this.versionRow(versionId);
