@@ -206,7 +206,8 @@ export function nextHandoffList(prev: HandoffListState, key: string, r: NexusRes
   const copy = errorCopy(r.code, r.reason, r.subReason);
   if (copy.kind === 'handoffs_unavailable') return { ...NO_HANDOFF_LIST, key, loaded: true, handoffsOff: copy.text };
   if (copy.kind === 'unavailable') return { ...NO_HANDOFF_LIST, key, loaded: true, unavailable: true };
-  if (copy.retry) return { ...prev, loaded: true, loading: false, error: copy.text, retry: true };
+  // A passing failure keeps the rows, but never a stale "handoffs are off" or "unavailable" flag.
+  if (copy.retry) return { ...prev, handoffsOff: null, unavailable: false, loaded: true, loading: false, error: copy.text, retry: true };
   return { ...NO_HANDOFF_LIST, key, loaded: true, error: copy.text };
 }
 
@@ -621,6 +622,19 @@ export function initialSendState(to: readonly ParticipationChoice[], preselectVe
   };
 }
 
+/** The chosen versions the sheet actually offers, in pick order, without duplicates: what is counted and sent. */
+export function offeredIds(versionIds: readonly string[], subjects: readonly Pick<SubjectChoice, 'versionId'>[]): string[] {
+  const offered = new Set(subjects.map((c) => c.versionId));
+  return [...new Set(versionIds.filter((id) => offered.has(id)))];
+}
+
+/** Once the choices are read, a chosen version that is not offered is dropped, so the count and the request agree. */
+export function keepOffered(s: SendState, subjects: readonly Pick<SubjectChoice, 'versionId'>[]): SendState {
+  if (s.pending || s.sent) return s;
+  const kept = offeredIds(s.versionIds, subjects);
+  return kept.length === s.versionIds.length ? s : { ...s, versionIds: kept };
+}
+
 /** Pick or unpick a version; never more than SEND_MAX_SUBJECTS; nothing changes while sending or once sent. */
 export function toggleSubject(s: SendState, versionId: string): SendState {
   if (s.pending || s.sent) return s;
@@ -639,8 +653,7 @@ export function validTitle(title: string): boolean {
 export function sendBlocker(s: SendState, subjects: readonly SubjectChoice[], to: readonly ParticipationChoice[]): string | null {
   if (to.length === 0) return 'This project takes part in no other active workspace, so there is nowhere to hand off to.';
   if (!s.toParticipationId || !to.some((c) => c.participationId === s.toParticipationId)) return 'Choose the workspace to hand off to.';
-  const offered = new Set(subjects.map((c) => c.versionId));
-  const chosen = s.versionIds.filter((id) => offered.has(id));
+  const chosen = offeredIds(s.versionIds, subjects);
   if (chosen.length === 0) return 'Choose at least one version to hand off.';
   if (chosen.length > SEND_MAX_SUBJECTS) return `A handoff carries at most ${SEND_MAX_SUBJECTS} versions.`;
   if (!validTitle(s.title)) return `Give the handoff a title of 1 to ${TITLE_MAX} characters.`;
@@ -654,8 +667,7 @@ export function sendBlocker(s: SendState, subjects: readonly SubjectChoice[], to
  */
 export function buildSendRequest(projectId: string, fromParticipationId: string, s: SendState, subjects: readonly SubjectChoice[], to: readonly ParticipationChoice[]): SendHandoffArgs | null {
   if (sendBlocker(s, subjects, to) !== null || !s.toParticipationId) return null;
-  const offered = new Set(subjects.map((c) => c.versionId));
-  const versionIds = [...new Set(s.versionIds.filter((id) => offered.has(id)))];
+  const versionIds = offeredIds(s.versionIds, subjects);
   const args: SendHandoffArgs = { projectId, fromParticipationId, toParticipationId: s.toParticipationId, versionIds, title: s.title.trim() };
   const note = s.note.trim();
   if (note) args.note = note;
@@ -698,6 +710,24 @@ export interface CarryingRow {
   status: string;
   /** "version 2", "versions 1 and 3". */
   versions: string;
+}
+
+/** The Passport's handoffs line after a failed list read: always a sentence, never "no handoffs". */
+export const CARRYING_UNAVAILABLE_TEXT = 'Handoffs are read from workspace data, so they cannot be listed right now.';
+export function carryingFailureText(r: Pick<NexusFail, 'code' | 'reason' | 'subReason'>): string {
+  const copy = errorCopy(r.code, r.reason, r.subReason);
+  return copy.kind === 'unavailable' ? CARRYING_UNAVAILABLE_TEXT : copy.text;
+}
+
+/**
+ * Which handoff details to read again: those never read, and those whose status (or anything else) changed since
+ * the last read, judged by the list row's statusChangedAt and updatedAt. A handoff's subjects never change.
+ */
+export function detailIdsToRead(list: readonly Pick<HandoffSummaryView, 'id' | 'statusChangedAt' | 'updatedAt'>[], cache: ReadonlyMap<string, Pick<HandoffDetailView, 'statusChangedAt' | 'updatedAt'>>): string[] {
+  return list.filter((h) => {
+    const c = cache.get(h.id);
+    return !c || c.statusChangedAt !== h.statusChangedAt || c.updatedAt !== h.updatedAt;
+  }).map((h) => h.id);
 }
 
 function versionsList(nos: number[]): string {

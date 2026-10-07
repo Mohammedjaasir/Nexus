@@ -481,7 +481,7 @@ test('pin: the hooks guard stale answers, note handoff availability, reload on r
 });
 
 test('pin: the send sheet: writes and handoffs on, From is the owner, To the other active ones, lazy subjects, one call, errorCopy', () => {
-  assert.match(sheet, /if \(!canWrite \|\| handoffsAvailable !== true\) return null;/);
+  assert.match(sheet, /if \(!canWrite \|\| !openable\) return null;/);
   assert.match(sheet, /fromChoice\(idx, start\.projectId, start\.ownerParticipationId\)/);
   assert.match(sheet, /toChoices\(idx, start\.projectId, from\.participationId\)/);
   assert.match(sheet, /const subjects = useSubjectDetails\(ids\);/);
@@ -521,4 +521,72 @@ test('pin: routing, nav and the styles', () => {
   const tokens = src('styles/tokens.css');
   for (const v of new Set(css.match(/var\(--nx-[a-z0-9-]+\)/g) || [])) assert.ok(tokens.includes(`${v.slice(4, -1)}:`), v);
   assert.doesNotMatch(css, /#[0-9a-fA-F]{3,8}\b[^}]*\.nx-(hfx|shx)/, 'tokens only');
+});
+
+// ---------- Task 13 fix round 1 ----------
+
+test('fix 1: every failed Passport handoffs read gives a sentence; "no handoff carries" shows only after an ok read', () => {
+  for (const r of [fail('platform_unavailable', { reason: 'held' }), fail('platform_unavailable', { reason: 'startup_failed' })]) {
+    assert.equal(M.carryingFailureText(r), M.CARRYING_UNAVAILABLE_TEXT);
+  }
+  assert.equal(M.carryingFailureText(fail('platform_unavailable', { reason: 'handoffs_unavailable', subReason: 'held' })), handoffsNotice('held'));
+  for (const code of ['denied', 'not_found', 'internal', 'invalid']) {
+    const t = M.carryingFailureText(fail(code));
+    assert.ok(typeof t === 'string' && t.length > 0, code);
+    assert.equal(t, errorCopy(code).text, code);
+  }
+  assert.equal(M.carryingFailureText(fail('platform_unavailable', { reason: 'busy' })), errorCopy('platform_unavailable', 'busy').text);
+  assert.match(hooks, /setState\(\{ rows: \[\], loaded: true, ok: false, error: carryingFailureText\(list\), capped: false \}\);/);
+  assert.match(hooks, /loaded: true, ok: true, capped: list\.truncated === true,/);
+  assert.match(passport, /carrying\.rows\.length === 0 \? \(carrying\.ok && !carrying\.error && <p className="nx-muted">No handoff carries a version of this artifact\.<\/p>\)/);
+});
+
+test('fix 2: the send sheet checks availability at open only, so a handoffs_unavailable refusal stays on screen', () => {
+  assert.match(sheet, /const \[openable\] = useState\(\(\) => usePlatform\.getState\(\)\.handoffsAvailable === true\);/);
+  assert.match(sheet, /if \(!canWrite \|\| !openable\) return null;/);
+  assert.doesNotMatch(sheet, /handoffsAvailable !== true\) return null/);
+  assert.doesNotMatch(sheet, /usePlatform\(\(s\) => s\.handoffsAvailable\)/, 'no live subscription that could unmount the result');
+  assert.match(sheet, /\{!pending && state\.error && <p ref=\{resultRef\}/);
+});
+
+test('fix 3: handoff details are read again only when their list row changed', () => {
+  const list = [handoff(H1, 'sde', 'qa', { statusChangedAt: 20 }), handoff(H2, 'sde', 'ml', { statusChangedAt: 20 }), handoff(H3, 'qa', 'sde')];
+  assert.deepEqual(M.detailIdsToRead(list, new Map()), [H1, H2, H3], 'the first read reads every detail');
+  const cache = new Map([[H1, detail(list[0], [])], [H2, detail(list[1], [])], [H3, detail(list[2], [])]]);
+  assert.deepEqual(M.detailIdsToRead(list, cache), [], 'a rev with nothing changed reads no detail');
+  const answered = [{ ...list[0], status: 'accepted', statusChangedAt: 40, updatedAt: 40 }, list[1], list[2]];
+  assert.deepEqual(M.detailIdsToRead(answered, cache), [H1]);
+  assert.deepEqual(M.detailIdsToRead([{ ...list[1], updatedAt: 99 }], cache), [H2]);
+  assert.match(hooks, /const ids = detailIdsToRead\(rows, cache\.current\);\s*const reads = await Promise\.all\(ids\.map\(\(id\) => nexusClient\.handoffGet\(id\)\)\);/);
+  assert.match(hooks, /useEffect\(\(\) => \{ cache\.current = new Map\(\); \}, \[projectId\]\);/);
+});
+
+test('fix 4: a passing failure clears a stale handoffs-off or unavailable flag', () => {
+  const key = M.handoffViewKey(M.DEFAULT_HANDOFF_VIEW);
+  const start = M.startHandoffListRead(M.NO_HANDOFF_LIST, key);
+  const off = M.nextHandoffList(start, key, fail('platform_unavailable', { reason: 'handoffs_unavailable', subReason: 'held' }));
+  for (const prev of [off, M.nextHandoffList(start, key, fail('platform_unavailable', { reason: 'held' }))]) {
+    for (const r of [fail('internal'), fail('platform_unavailable', { reason: 'busy' })]) {
+      const next = M.nextHandoffList(M.startHandoffListRead(prev, key), key, r);
+      assert.deepEqual([next.handoffsOff, next.unavailable, next.loaded, next.loading, next.retry], [null, false, true, false, true]);
+      assert.equal(next.error, errorCopy(r.code, r.reason).text);
+      assert.deepEqual(M.handoffListNotice(next, M.DEFAULT_HANDOFF_VIEW), { kind: 'error', text: next.error, retry: true });
+    }
+  }
+});
+
+test('fix 5: only offered versions are counted and sent', () => {
+  const to = M.toChoices(IDX, 'p1', P_SDE);
+  const subjects = [V2, V3].map((v) => ({ versionId: v, artifactId: A1, label: v, status: 'active', hash: 'h' }));
+  const s = { ...M.initialSendState(to, V4, 'T'), versionIds: [V4, V2, V2, V3, 'TYPED'] };
+  assert.deepEqual(M.offeredIds(s.versionIds, subjects), [V2, V3]);
+  assert.deepEqual(M.buildSendRequest('p1', P_SDE, s, subjects, to).versionIds, [V2, V3]);
+  const kept = M.keepOffered(s, subjects);
+  assert.deepEqual(kept.versionIds, [V2, V3]);
+  assert.equal(M.keepOffered(kept, subjects), kept, 'nothing to drop: unchanged');
+  const pending = M.beginSend(kept, true);
+  assert.equal(M.keepOffered(pending, []), pending, 'never changed while sending');
+  assert.match(sheet, /const chosenCount = offeredIds\(state\.versionIds, choices\)\.length;/);
+  assert.match(sheet, /Versions \(\{chosenCount\} of at most \{SEND_MAX_SUBJECTS\}\)/);
+  assert.match(sheet, /useEffect\(\(\) => \{ if \(subjects\.loaded\) setState\(\(s\) => keepOffered\(s, choices\)\); \}, \[subjects\.loaded, choices\]\);/);
 });

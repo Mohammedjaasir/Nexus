@@ -341,7 +341,7 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
         <section>
           <h2>Handoffs</h2>
           {!carrying.loaded ? <p className="nx-muted" role="status">Reading handoffs…</p>
-            : carrying.rows.length === 0 ? (!carrying.error && <p className="nx-muted">No handoff carries a version of this artifact.</p>) : (
+            : carrying.rows.length === 0 ? (carrying.ok && !carrying.error && <p className="nx-muted">No handoff carries a version of this artifact.</p>) : (
               <ul className="nx-apx__links">
                 {carrying.rows.map((c) => (
                   <li key={c.id}>

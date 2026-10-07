@@ -11,7 +11,7 @@ import { Button } from '../ui/Button';
 import type { ArtifactSummary } from '../project/spineModel';
 import {
   NOTE_MAX, SEND_MAX_SUBJECTS, SUBJECT_CANDIDATE_ARTIFACTS, TITLE_MAX, beginSend, buildSendRequest, defaultHandoffTitle, fromChoice,
-  initialSendState, sendBlocker, sendFailed, sendFailureText, sendSucceeded, sentText, shouldReloadAfterHandoffAction, subjectArtifactIds,
+  initialSendState, keepOffered, offeredIds, sendBlocker, sendFailed, sendFailureText, sendSucceeded, sentText, shouldReloadAfterHandoffAction, subjectArtifactIds,
   subjectChoices, toChoices, toggleSubject, type HandoffStart, type SendState
 } from './handoffModel';
 
@@ -50,7 +50,9 @@ export function SendHandoffSheet({ start, artifacts, onClose }: {
   onClose: () => void;
 }) {
   const canWrite = usePlatform(selectCanWrite);
-  const handoffsAvailable = usePlatform((s) => s.handoffsAvailable);
+  // Availability is checked when the sheet opens only: a send refused as handoffs_unavailable flips the store, and the
+  // sheet must stay to show that refusal (and keep focus on it).
+  const [openable] = useState(() => usePlatform.getState().handoffsAvailable === true);
   const bumpRev = usePlatform((s) => s.bumpRev);
   const noteHandoffs = usePlatform((s) => s.noteHandoffs);
   const setHandoffView = useNexusUi((s) => s.setHandoffView);
@@ -70,6 +72,9 @@ export function SendHandoffSheet({ start, artifacts, onClose }: {
   useEffect(() => {
     setState((s) => (s.pending || s.sent || to.some((c) => c.participationId === s.toParticipationId) ? s : { ...s, toParticipationId: to[0]?.participationId ?? null }));
   }, [to]);
+
+  // Once the choices are read, a chosen version that is not offered is dropped: the count and the request agree.
+  useEffect(() => { if (subjects.loaded) setState((s) => keepOffered(s, choices)); }, [subjects.loaded, choices]);
 
   const running = useRef(false);
   const alive = useRef(true);
@@ -124,11 +129,12 @@ export function SendHandoffSheet({ start, artifacts, onClose }: {
     navigate({ name: 'handoffs', id });
   };
 
-  if (!canWrite || handoffsAvailable !== true) return null;
+  if (!canWrite || !openable) return null;
   const pending = state.pending;
   const done = state.sent !== null;
   const chosen = new Set(state.versionIds);
-  const full = state.versionIds.length >= SEND_MAX_SUBJECTS;
+  const chosenCount = offeredIds(state.versionIds, choices).length;
+  const full = chosenCount >= SEND_MAX_SUBJECTS;
   return (
     <Sheet open onClose={safeClose} side="right" labelledBy="nx-shx-title">
       <form className="nx-shx" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
@@ -156,7 +162,7 @@ export function SendHandoffSheet({ start, artifacts, onClose }: {
 
         {from && (
           <fieldset className="nx-shx__field" disabled={pending || done}>
-            <legend className="nx-shx__label">Versions ({state.versionIds.length} of at most {SEND_MAX_SUBJECTS})</legend>
+            <legend className="nx-shx__label">Versions ({chosenCount} of at most {SEND_MAX_SUBJECTS})</legend>
             {!subjects.loaded ? (
               <p className="nx-muted" role="status">Reading versions…</p>
             ) : choices.length === 0 ? (

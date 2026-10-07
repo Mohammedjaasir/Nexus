@@ -5,7 +5,7 @@ import { usePlatform } from './platformStore';
 import {
   HANDOFF_PAGE, NO_HANDOFF_LIST, PASSPORT_HANDOFF_READS, handoffDetailLoading, handoffListRequest, handoffViewKey, handoffsCarrying,
   nextHandoffDetail, nextHandoffLimit, nextHandoffList, receiptArtifactId, startHandoffListRead,
-  type CarryingRow, type HandoffDetailState, type HandoffListState, type HandoffView
+  carryingFailureText, detailIdsToRead, type CarryingRow, type HandoffDetailState, type HandoffListState, type HandoffView
 } from '../handoffs/handoffModel';
 import { errorCopy } from './errorCopy';
 
@@ -100,16 +100,27 @@ export function useReceiptArtifact(receiptVersionId: string | null): string | nu
   return found && found.versionId === receiptVersionId ? found.artifactId : null;
 }
 
-export interface CarryingState { rows: CarryingRow[]; loaded: boolean; error: string | null; capped: boolean }
-const NO_CARRYING: CarryingState = { rows: [], loaded: false, error: null, capped: false };
+export interface CarryingState {
+  rows: CarryingRow[];
+  loaded: boolean;
+  /** True only after a successful list read: the "no handoff carries..." line shows only then. */
+  ok: boolean;
+  error: string | null;
+  capped: boolean;
+}
+const NO_CARRYING: CarryingState = { rows: [], loaded: false, ok: false, error: null, capped: false };
 
 /** The project's handoffs that carry a version of this artifact, for the artifact Passport. Reads the project's
- *  most recent handoffs (open first) and their subjects, only while `enabled`; reloads on every `rev`. A
+ *  most recent handoffs (open first) and their subjects, only while `enabled`; reloads on every `rev`, but a
+ *  handoff's detail is read again only when its list row changed (statusChangedAt, updatedAt). A
  *  handoffs_unavailable answer is noted in the store, so no "Hand off" control renders. Never rejects. */
 export function useArtifactHandoffs(enabled: boolean, projectId: string, artifactId: string): CarryingState {
   const rev = usePlatform((s) => s.rev);
   const noteHandoffs = usePlatform((s) => s.noteHandoffs);
   const [state, setState] = useState<CarryingState>(NO_CARRYING);
+  // Details read so far, by handoff id; kept across revs, dropped when the project changes.
+  const cache = useRef(new Map<string, HandoffDetailView>());
+  useEffect(() => { cache.current = new Map(); }, [projectId]);
   useEffect(() => {
     if (!enabled) { setState(NO_CARRYING); return; }
     let alive = true;
@@ -119,19 +130,21 @@ export function useArtifactHandoffs(enabled: boolean, projectId: string, artifac
         noteHandoffs(list);
         if (!alive) return;
         if (!list.ok) {
-          const copy = errorCopy(list.code, list.reason, list.subReason);
-          setState({ rows: [], loaded: true, error: copy.kind === 'unavailable' ? null : copy.text, capped: false });
+          setState({ rows: [], loaded: true, ok: false, error: carryingFailureText(list), capped: false });
           return;
         }
-        const reads = await Promise.all(list.data.map((h) => nexusClient.handoffGet(h.id)));
+        const rows = Array.isArray(list.data) ? list.data : [];
+        const ids = detailIdsToRead(rows, cache.current);
+        const reads = await Promise.all(ids.map((id) => nexusClient.handoffGet(id)));
         if (!alive) return;
-        const details = reads.flatMap((r) => (r.ok ? [r.data] : []));
+        for (const r of reads) if (r.ok) cache.current.set(r.data.id, r.data);
+        const details = rows.flatMap((h) => { const d = cache.current.get(h.id); return d ? [d] : []; });
         setState({
-          rows: handoffsCarrying(details, artifactId), loaded: true, capped: list.truncated === true,
+          rows: handoffsCarrying(details, artifactId), loaded: true, ok: true, capped: list.truncated === true,
           error: reads.some((r) => !r.ok) ? 'Some handoffs could not be read, so they are not listed.' : null
         });
       } catch {
-        if (alive) setState((s) => ({ ...s, loaded: true, error: errorCopy('internal').text }));
+        if (alive) setState((s) => ({ ...s, loaded: true, ok: false, error: errorCopy('internal').text }));
       }
     })();
     return () => { alive = false; };
