@@ -66,3 +66,24 @@ li.nx-svx-commit { grid-template-columns: 64px minmax(0, 1fr) auto; align-items:
 .nx-acx__line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); margin: 0; }
 .nx-acx__more { margin-top: var(--nx-s2); }
 .nx-apx__pick-note { margin: 0; padding: 6px 8px; white-space: normal; }
+
+/* The Artifacts page (pages/ArtifactsPage.tsx): the list, and at #/artifacts/<id> a detail pane
+   that holds the artifact Passport. On narrow screens the detail replaces the list. */
+.nx-afx { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--nx-s4); align-items: start; }
+.nx-afx[data-detail="open"] { grid-template-columns: minmax(0, 1fr) minmax(320px, 440px); }
+.nx-afx__list { display: grid; gap: var(--nx-s2); min-width: 0; }
+.nx-afx__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--nx-s2); }
+.nx-afx__row[aria-current="true"] { border-color: var(--nx-ink); box-shadow: inset 2px 0 0 var(--nx-ink); }
+.nx-afx__name { font: 650 15px/1.25 var(--nx-font-display); overflow-wrap: anywhere; }
+.nx-afx__version { font-size: 12.5px; color: var(--nx-text-2); }
+.nx-afx__line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); margin: 0; color: var(--nx-text-2); }
+.nx-afx__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s3); }
+.nx-afx__count { margin: 0; outline: none; }
+.nx-afx__detail { min-width: 0; border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); background: var(--nx-surface); overflow: hidden; }
+.nx-afx__pane { display: grid; gap: var(--nx-s2); padding: var(--nx-s2); }
+.nx-afx__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); }
+.nx-afx__pane > aside { border-left: 0; }
+@media (max-width: 1023px) {
+  .nx-afx[data-detail="open"] { grid-template-columns: minmax(0, 1fr); }
+  .nx-afx[data-detail="open"] > .nx-afx__list { display: none; }
+}

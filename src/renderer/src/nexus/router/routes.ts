@@ -11,13 +11,23 @@ export type Route =
   | { name: 'workspace'; id: WorkspaceId }
   | { name: 'projects' }
   | { name: 'project'; id: string; tool: ProjectTool }
-  | { name: 'artifacts' }
-  | { name: 'handoffs' }
+  | { name: 'artifacts'; id?: string }
+  | { name: 'handoffs'; id?: string }
   | { name: 'deployments' }
   | { name: 'agents' }
   | { name: 'not-found'; path: string };
 
 const SIMPLE = ['browse', 'workspaces', 'projects', 'artifacts', 'handoffs', 'deployments', 'agents'] as const;
+
+/** Pages with an optional record id: `#/artifacts/<id>`, `#/handoffs/<id>`. */
+const WITH_ID = ['artifacts', 'handoffs'] as const;
+
+/** The platform id shape (the ULID `newId` produces). Anything else in the address is not found. */
+export const PLATFORM_ID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+
+export function isPlatformId(id: unknown): id is string {
+  return typeof id === 'string' && PLATFORM_ID_RE.test(id);
+}
 
 function decode(s: string): string | null {
   try { return decodeURIComponent(s); } catch { return null; }
@@ -37,6 +47,9 @@ export function parseHash(hash: string): Route {
   if (parts.length === 2 || parts.length === 3) {
     const id = decode(parts[1]);
     if (!id) return notFound;
+    if ((WITH_ID as readonly string[]).includes(parts[0]) && parts.length === 2) {
+      return isPlatformId(id) ? ({ name: parts[0], id } as Route) : notFound;
+    }
     if (parts[0] === 'w' && parts.length === 2) return getWorkspace(id) ? { name: 'workspace', id: id as WorkspaceId } : notFound;
     if (parts[0] === 'p') {
       // The old plan tool's links ('#/p/<id>/plan') open Completion.
@@ -52,6 +65,8 @@ export function formatRoute(r: Route): string {
     case 'home': return '#/';
     case 'workspace': return `#/w/${encodeURIComponent(r.id)}`;
     case 'project': return r.tool === 'bench' ? `#/p/${encodeURIComponent(r.id)}` : `#/p/${encodeURIComponent(r.id)}/${r.tool}`;
+    case 'artifacts':
+    case 'handoffs': return r.id !== undefined ? `#/${r.name}/${encodeURIComponent(r.id)}` : `#/${r.name}`;
     case 'not-found': return `#${r.path}`;
     default: return `#/${r.name}`;
   }
@@ -67,6 +82,8 @@ const TOOL_TITLES: Record<ProjectTool, string> = { bench: 'Project', changes: 'C
 export function routeTitle(r: Route): string {
   if (r.name === 'workspace') return `${getWorkspace(r.id)?.label ?? r.id} workspace`;
   if (r.name === 'project') return TOOL_TITLES[r.tool];
+  if (r.name === 'artifacts' && r.id !== undefined) return 'Artifact';
+  if (r.name === 'handoffs' && r.id !== undefined) return 'Handoff';
   return TITLES[r.name];
 }
 

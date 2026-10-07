@@ -52,7 +52,8 @@ function useArtifactPassport(artifactId: string, shownVersionNo: number, rootPat
         for (const r of reads) if (r.ok) contents.set(r.data.id, r.data.content);
         // Commit subjects come only from the project's own git log: the allow-list for that text.
         const subjects = new Map<string, string>();
-        if ([...contents.values()].some((c) => c.type === 'git')) {
+        // No folder (a project the list no longer has): no git read, the SHA stands alone.
+        if (rootPath && [...contents.values()].some((c) => c.type === 'git')) {
           const log = await window.cth.gitLog(rootPath, 200).catch(() => null);
           if (!alive) return;
           if (Array.isArray(log)) for (const c of log) subjects.set(c.sha, c.subject);
@@ -119,7 +120,11 @@ function Links({ title, links, truncated, empty, children }: { title: string; li
  *  current one marked), what each version holds, its sources and uses, and the
  *  version actions the platform allows (mark ready, make current, roll back,
  *  discard, link a source). The actions render only while platform writes are on. */
-export function ArtifactPassport({ project, node, artifacts }: { project: { id: string; rootPath: string }; node: ArtifactNode; artifacts: ArtifactSummary[] }) {
+export function ArtifactPassport({ project, node, artifacts, onSpine = true }: {
+  project: { id: string; rootPath: string }; node: ArtifactNode; artifacts: ArtifactSummary[];
+  /** False on the Artifacts page, where no Spine is shown: the shown version is then not called "shown on the spine". */
+  onSpine?: boolean;
+}) {
   const idx = useParticipationIndex();
   const canWrite = usePlatform(selectCanWrite);
   const bumpRev = usePlatform((s) => s.bumpRev);
@@ -253,7 +258,7 @@ export function ArtifactPassport({ project, node, artifacts }: { project: { id: 
               <li key={row.id} aria-current={row.current ? 'true' : undefined}>
                 <span className="nx-id">v{row.versionNo}</span>
                 <span className="nx-apx__version">
-                  <span>{row.status}{row.current ? ', current' : ''}{row.shown && !row.current ? ', shown on the spine' : ''}</span>
+                  <span>{row.status}{row.current ? ', current' : ''}{row.shown && !row.current ? (onSpine ? ', shown on the spine' : ', shown here') : ''}</span>
                   {row.content && <span className="nx-apx__content">{row.content}</span>}
                   {row.subject && <span className="nx-muted">{row.subject}</span>}
                   {v && allowed.length > 0 && !confirming && (

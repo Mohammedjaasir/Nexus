@@ -69,7 +69,7 @@
   .nx-rail__item { width: 40px; }
   .nx-rail__sep { width: 1px; height: auto; margin: 4px; }
   .nx-rail__item[aria-current="page"] { box-shadow: inset 0 -2px 0 var(--nx-ink); }
-  .nx-passport { display: none; }
+  .nx-bench > .nx-passport { display: none; }
   .nx-passport-btn { display: inline-flex; }
 }
 @media (min-width: 1280px) { .nx-passport-btn { display: none; } }

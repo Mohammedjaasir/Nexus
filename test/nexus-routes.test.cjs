@@ -68,3 +68,40 @@ test('routeTitle: workspace titles come from the registry', () => {
   assert.equal(routeTitle({ name: 'workspace', id: 'ml' }), 'ML workspace');
   assert.equal(routeTitle({ name: 'project', id: 'x', tool: 'changes' }), 'Changes');
 });
+
+// ---------- Task 12: artifacts and handoffs take an optional record id ----------
+
+const ID = '01J9ZQ3V4K5M6N7P8Q9R0STVWX';
+
+test('#/artifacts/<id> and #/handoffs/<id> round-trip', () => {
+  assert.deepEqual(parseHash(`#/artifacts/${ID}`), { name: 'artifacts', id: ID });
+  assert.deepEqual(parseHash(`#/handoffs/${ID}`), { name: 'handoffs', id: ID });
+  assert.deepEqual(parseHash(`#/artifacts/${ID}/`), { name: 'artifacts', id: ID });
+  for (const r of [{ name: 'artifacts', id: ID }, { name: 'handoffs', id: ID }, { name: 'artifacts' }, { name: 'handoffs' }]) {
+    assert.deepEqual(parseHash(formatRoute(r)), r);
+  }
+  assert.equal(formatRoute({ name: 'artifacts', id: ID }), `#/artifacts/${ID}`);
+  assert.equal(formatRoute({ name: 'artifacts' }), '#/artifacts');
+  assert.equal(routeTitle({ name: 'artifacts' }), 'Artifacts');
+  assert.equal(routeTitle({ name: 'artifacts', id: ID }), 'Artifact');
+  assert.equal(routeTitle({ name: 'handoffs', id: ID }), 'Handoff');
+});
+
+test('a malformed artifact or handoff id is not found', () => {
+  for (const bad of ['x', ID.toLowerCase(), ID.slice(1), `${ID}0`, ID.replace('Z', 'U'), ID.replace('Z', 'I'), '..', '%E0%A4%A', `${ID}%2Fx`]) {
+    assert.equal(parseHash(`#/artifacts/${bad}`).name, 'not-found', bad);
+    assert.equal(parseHash(`#/handoffs/${bad}`).name, 'not-found', bad);
+  }
+  assert.equal(parseHash(`#/artifacts/${ID}/extra`).name, 'not-found');
+  assert.equal(parseHash(`#/deployments/${ID}`).name, 'not-found');
+  assert.equal(parseHash(`#/projects/${ID}`).name, 'not-found');
+});
+
+test('the old routes still parse exactly as before', () => {
+  assert.deepEqual(parseHash('#/artifacts'), { name: 'artifacts' });
+  assert.ok(!('id' in parseHash('#/artifacts')));
+  assert.deepEqual(parseHash('#/handoffs'), { name: 'handoffs' });
+  assert.deepEqual(parseHash('#/deployments'), { name: 'deployments' });
+  assert.deepEqual(parseHash('#/p/proj-1/changes'), { name: 'project', id: 'proj-1', tool: 'changes' });
+  assert.deepEqual(parseHash('#/w/ml'), { name: 'workspace', id: 'ml' });
+});

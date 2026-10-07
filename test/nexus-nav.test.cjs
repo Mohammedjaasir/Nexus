@@ -26,6 +26,15 @@ test('unknown project id yields only what is known', () => {
   assert.deepEqual(pathSegments({ name: 'project', id: 'gone', tool: 'bench' }, P, I), []);
 });
 test('menu lists planned places separately', () => {
+  // Task 12: Artifacts is real and moved to "Go to"; Handoffs (until Task 13) and Deployments stay planned.
   const planned = MENU_GROUPS.flatMap((g) => g.items).filter((i) => i.planned).map((i) => i.id);
-  assert.deepEqual(planned.sort(), ['artifacts', 'deployments', 'handoffs']);
+  assert.deepEqual(planned.sort(), ['deployments', 'handoffs']);
+  assert.deepEqual(MENU_GROUPS.find((g) => g.label === 'Planned').items.map((i) => i.id), ['handoffs', 'deployments']);
+});
+test('Artifacts is a real place in "Go to", after Projects', () => {
+  const go = MENU_GROUPS.find((g) => g.label === 'Go to').items;
+  assert.deepEqual(go.map((i) => i.id), ['home', 'workspaces', 'projects', 'artifacts', 'agents']);
+  const a = go.find((i) => i.id === 'artifacts');
+  assert.deepEqual(a.route, { name: 'artifacts' });
+  assert.equal(a.planned, undefined);
 });

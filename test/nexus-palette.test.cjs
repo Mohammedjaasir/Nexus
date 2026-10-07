@@ -29,3 +29,14 @@ test('empty query shows a bounded default list', () => {
   assert.equal(res.filter((e) => e.group === 'Projects').length, 5);
   assert.equal(res[0].group, 'Pages');
 });
+
+test('Task 12: the Artifacts page is no longer hinted as planned; Handoffs and Deployments still are', () => {
+  const idx = buildPaletteIndex(projects);
+  const page = (id) => idx.find((e) => e.id === id);
+  assert.deepEqual(page('page:artifacts').route, { name: 'artifacts' });
+  assert.doesNotMatch(page('page:artifacts').hint ?? '', /planned/i);
+  assert.equal(page('page:handoffs').hint, 'planned');
+  assert.equal(page('page:deployments').hint, 'planned');
+  assert.ok(searchPalette(idx, 'artifacts').some((e) => e.id === 'page:artifacts'));
+  assert.ok(!searchPalette(idx, 'planned').some((e) => e.id === 'page:artifacts'));
+});

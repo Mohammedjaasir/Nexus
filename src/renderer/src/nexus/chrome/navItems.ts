@@ -12,10 +12,10 @@ export const MENU_GROUPS: { label: string; items: NavItem[] }[] = [
     { id: 'home', label: 'Home', icon: 'home', route: { name: 'home' } },
     { id: 'workspaces', label: 'Workspaces', icon: 'workspaces', route: { name: 'workspaces' } },
     { id: 'projects', label: 'Projects', icon: 'projects', route: { name: 'projects' } },
+    { id: 'artifacts', label: 'Artifacts', icon: 'artifacts', route: { name: 'artifacts' } },
     { id: 'agents', label: 'Agents', icon: 'agents', route: { name: 'agents' } }
   ] },
   { label: 'Planned', items: [
-    { id: 'artifacts', label: 'Artifacts', icon: 'artifacts', route: { name: 'artifacts' }, planned: true },
     { id: 'handoffs', label: 'Handoffs', icon: 'handoffs', route: { name: 'handoffs' }, planned: true },
     { id: 'deployments', label: 'Deployments', icon: 'deployments', route: { name: 'deployments' }, planned: true }
   ] },
