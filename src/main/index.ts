@@ -376,6 +376,26 @@ const projectManager = new ProjectManager(persist);
 // The Nexus platform core, composed on persist's connection once the database is
 // at v7. Held for later phases: B0b registers no IPC for it and nothing reads it.
 let nexusPlatform: NexusPlatform | null = null;
+/**
+ * Why the platform (or only its handoffs) is unavailable, for the later nexus:* IPC
+ * layer to return with platform_unavailable. null when everything is available.
+ */
+type NexusUnavailableReason = 'held' | 'migration_failed' | 'newer_schema' | 'shape_mismatch' | 'startup_failed' | 'not_open'
+  | 'handoffs_unavailable';
+let nexusUnavailableReason: NexusUnavailableReason | null = 'not_open';
+
+/** The reason from the store's two migration outcomes (before the platform starts). */
+function storeUnavailableReason(): NexusUnavailableReason | null {
+  if (!persist.isOpen) return 'not_open';
+  if (!persist.platformAvailable) {
+    const v7 = persist.lastMigration;
+    if (!v7) return 'not_open';
+    if (v7.state === 'skipped') return v7.reason === 'newer_schema' ? 'newer_schema' : v7.reason === 'held' ? 'held' : 'migration_failed';
+    if (v7.state === 'failed' || v7.state === 'applied') return 'migration_failed';   // applied here means the post-check failed
+    return 'shape_mismatch';
+  }
+  return persist.handoffsAvailable ? null : 'handoffs_unavailable';
+}
 
 /** Same sink as the v7 migration's default: console plus the main crash log file. */
 function nexusMainLog(line: string): void {
@@ -5632,26 +5652,33 @@ app.whenReady().then(() => {
   // Open the durable store first — createWindow() reads the saved window bounds.
   // Guarded: a DB failure (e.g. a bad native build) must degrade to defaults,
   // never block app startup.
-  // The v7 migration logs through nexusMainLog (lines arrive ISO-stamped), backs up
-  // to userData/backups first, and is held at v6 when NEXUS_DB_HOLD_V7=1.
+  // The v7 and v8 migrations log through nexusMainLog (lines arrive ISO-stamped), back up
+  // to userData/backups first, and are held at v6 when NEXUS_DB_HOLD_V7=1 (v8 alone,
+  // at v7, when NEXUS_DB_HOLD_V8=1).
   try {
     persist.open({
       log: nexusMainLog,
       backupDir: join(app.getPath('userData'), 'backups'),
       holdV7: process.env.NEXUS_DB_HOLD_V7 === '1',
+      holdV8: process.env.NEXUS_DB_HOLD_V8 === '1',
       appVersion: app.getVersion()
     });
   } catch (e) { console.error('[db] open failed:', e); }
   // Compose the platform core on the same connection, only when the store is at v7.
   // A failure here leaves nexusPlatform null and never blocks the window: Phase A
   // keeps working on the legacy tables. Only the error's name and code are logged.
+  nexusUnavailableReason = storeUnavailableReason();
   try {
     nexusPlatform = persist.platformAvailable
-      ? createNexusPlatform(persist.platformDatabase()!, { log: (line) => nexusMainLog(`${new Date().toISOString()} ${line}`) })
+      ? createNexusPlatform(persist.platformDatabase()!, {
+        log: (line) => nexusMainLog(`${new Date().toISOString()} ${line}`),
+        handoffs: persist.handoffsAvailable
+      })
       : null;
     nexusPlatform?.startup();
   } catch (e) {
     nexusPlatform = null;
+    nexusUnavailableReason = 'startup_failed';
     const name = e instanceof Error ? e.name : typeof e;
     const code = e && typeof e === 'object' && typeof (e as { code?: unknown }).code === 'string' ? (e as { code: string }).code : 'none';
     nexusMainLog(`${new Date().toISOString()} [nexus] platform startup failed error=${name} code=${code}; platform disabled, legacy features unaffected`);

@@ -30,6 +30,8 @@ export interface NexusPlatform {
   lineage: LineageService;
   jobs: JobService;
   sessions: SessionService;
+  /** True when the store is at v8 with its shape checked; the handoff service arrives with it (Task 4). */
+  handoffsAvailable: boolean;
   startup(): NexusStartupReport;
 }
 
@@ -41,8 +43,9 @@ export interface NexusStartupReport {
   jobs: { interrupted: number; requeued: number };
 }
 
-export function createNexusPlatform(db: Database.Database, opts?: { now?: () => number; log?: (line: string) => void }): NexusPlatform {
+export function createNexusPlatform(db: Database.Database, opts?: { now?: () => number; log?: (line: string) => void; handoffs?: boolean }): NexusPlatform {
   const now = opts?.now ?? Date.now;
+  const handoffsAvailable = opts?.handoffs === true;
   const log = opts?.log ?? (() => {});
   const principals = new PrincipalResolver(db);
   const auth = new AuthService(db, { now, log });
@@ -54,7 +57,7 @@ export function createNexusPlatform(db: Database.Database, opts?: { now?: () => 
   const jobs = new JobService(db, { auth, now });
   const sessions = new SessionService(db, { auth, jobs, now });
   return {
-    principals, auth, activity, workspaces, projects, artifacts, lineage, jobs, sessions,
+    principals, auth, activity, workspaces, projects, artifacts, lineage, jobs, sessions, handoffsAvailable,
     startup(): NexusStartupReport {
       // The seeded principals must resolve; a missing one throws platform_unavailable.
       principals.localUser();

@@ -42,6 +42,14 @@ test('main wiring: no new IPC channel, no preload change, the principal never co
     assert.doesNotMatch(read(path.join('src/main/nexus', String(f))), /ipcMain|ipcRenderer|webContents/, String(f));
 });
 test('NEXUS_DB_HOLD_V7 is honoured by main', () => assert.match(read('src/main/index.ts'), /NEXUS_DB_HOLD_V7/));
+test('NEXUS_DB_HOLD_V8 is honoured by main', () => {
+  const idx = read('src/main/index.ts');
+  assert.match(idx, /holdV8: process\.env\.NEXUS_DB_HOLD_V8 === '1'/);
+  assert.match(idx, /handoffs: persist\.handoffsAvailable/);
+  // Inside the one persist.open call, next to the v7 hold.
+  const call = idx.slice(idx.indexOf('persist.open({'), idx.indexOf('});', idx.indexOf('persist.open({')));
+  assert.match(call, /holdV7: process\.env\.NEXUS_DB_HOLD_V7 === '1'/); assert.match(call, /holdV8: process\.env\.NEXUS_DB_HOLD_V8 === '1'/);
+});
 test('a second instance that lost the single-instance lock never opens the store', () => {
   const idx = read('src/main/index.ts');
   assert.match(idx, /const gotInstanceLock = app\.requestSingleInstanceLock\(\);/);

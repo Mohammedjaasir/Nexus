@@ -3,10 +3,10 @@ import type { BackupRecord } from './backup';
 
 /** Test seams around the v7 transaction. Production code never sets these. */
 export interface MigrationHooks {
-  /** Runs inside the v7 transaction after every write and `user_version = 7`, just before COMMIT. */
+  /** Runs inside the v7 (or v8) transaction after every write and `user_version = toVersion`, just before COMMIT. */
   beforeCommit?: (db: Database.Database, toVersion: number) => void;
-  /** Runs just before the v7 transaction begins (the crash test lowers cache_size here). */
-  beforeTransaction?: (db: Database.Database) => void;
+  /** Runs just before the v7 (or v8) transaction begins (the crash test lowers cache_size here). The v7 step passes no version. */
+  beforeTransaction?: (db: Database.Database, toVersion?: number) => void;
   /** Replaces the free-space probe of the backup directory (insufficient_disk test). */
   freeBytes?: () => number | null;
 }
@@ -25,5 +25,5 @@ export interface MigrationContext {
 export type MigrationOutcome =
   | { state: 'not_needed'; version: number }
   | { state: 'applied'; fromVersion: number; backupFile: string | null; durationMs: number; backfilled: number; unassigned: number; postCheckOk: boolean }
-  | { state: 'skipped'; fromVersion: number; reason: 'held' | 'precheck_failed' | 'insufficient_disk' | 'backup_failed' | 'newer_schema'; detail: string }
+  | { state: 'skipped'; fromVersion: number; reason: 'held' | 'precheck_failed' | 'insufficient_disk' | 'backup_failed' | 'newer_schema' | 'v7_unavailable'; detail: string }
   | { state: 'failed'; fromVersion: number; error: string; backupFile: string | null };

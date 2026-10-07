@@ -13,7 +13,7 @@ const { PersistStore, MIGRATIONS } = loadTs('src/main/db.ts');
 function openStore(file, extra = {}) {
   const logs = [];
   const s = new PersistStore(file);
-  s.open({ backupDir: path.join(path.dirname(file), 'backups'), log: (l) => logs.push(l), now: () => h.NOW, appVersion: 'test', ...extra });
+  s.open({ backupDir: path.join(path.dirname(file), 'backups'), log: (l) => logs.push(l), now: () => h.NOW, appVersion: 'test', holdV8: true, ...extra });
   return { s, logs };
 }
 const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
@@ -347,12 +347,12 @@ test('downgrade safety: the e1fd80f store opens a v7 database and its reads and 
 
 test('a newer schema is opened for legacy use only, never migrated or downgraded', () => {
   const { file } = h.v6Fixture(); openStore(file).s.close();
-  const pre = h.openRaw(file); pre.pragma('user_version = 8'); pre.close();
+  const pre = h.openRaw(file); pre.pragma('user_version = 9'); pre.close();
   const { s, logs } = openStore(file);
-  assert.equal(s.isOpen, true); assert.equal(s.schemaVersion, 8); assert.equal(s.platformAvailable, false);
+  assert.equal(s.isOpen, true); assert.equal(s.schemaVersion, 9); assert.equal(s.platformAvailable, false);
   assert.equal(s.platformDatabase(), null);
   assert.equal(s.lastMigration.reason, 'newer_schema');
-  assert.ok(logs.some((l) => /schema v8 is newer than this build/.test(l)));
+  assert.ok(logs.some((l) => /schema v9 is newer than this build \(v8\)/.test(l)));
   assert.equal(s.getKv('window_bounds').width, 1200);
   s.close();
 });
@@ -372,7 +372,7 @@ test('writes submitted before open wait in the legacy queue and land after the m
   const s = new PersistStore(file);
   s.setKv('early', { a: 1 });
   assert.equal(s.pendingWrites, 1);
-  s.open({ backupDir: path.join(path.dirname(file), 'backups'), log: () => {}, now: () => h.NOW });
+  s.open({ backupDir: path.join(path.dirname(file), 'backups'), log: () => {}, now: () => h.NOW, holdV8: true });
   assert.equal(s.schemaVersion, 7); assert.equal(s.pendingWrites, 0);
   assert.deepEqual(s.getKv('early'), { a: 1 });
   s.close();

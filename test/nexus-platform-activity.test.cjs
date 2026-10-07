@@ -7,7 +7,7 @@ const path = require('node:path');
 const loadTs = require('./load-ts.cjs');
 const { PersistStore } = loadTs('src/main/db.ts');
 const { appendActivityRow } = loadTs('src/main/nexus/activity/writer.ts');
-function v7() { const dir = h.tmpDir(); const s = new PersistStore(path.join(dir, 'harness.db')); s.open({ log: () => {}, backupDir: path.join(dir, 'b') }); return { s, db: s.platformDatabase() }; }
+function v7() { const dir = h.tmpDir(); const s = new PersistStore(path.join(dir, 'harness.db')); s.open({ log: () => {}, backupDir: path.join(dir, 'b'), holdV8: true }); return { s, db: s.platformDatabase() }; }
 const base = { actorKind: 'user', actorId: 'user:local', entityType: 'artifact', action: 'artifact.create', status: 'succeeded', projectId: 'p1' };
 
 test('append writes a redacted, chained row', () => {
@@ -100,7 +100,7 @@ test('a standalone append (no caller transaction) still chains and leaves no tra
 });
 test('the migration activity row keeps its backup hash under the redacting writer', () => {
   const { dir, file } = h.v6Fixture();                         // a v6 database with data, so the migration takes a backup
-  const s = new PersistStore(file); s.open({ log: () => {}, backupDir: path.join(dir, 'b') });
+  const s = new PersistStore(file); s.open({ log: () => {}, backupDir: path.join(dir, 'b'), holdV8: true });
   const db = s.platformDatabase();
   const rec = db.prepare('SELECT backup_sha256 FROM nexus_migrations WHERE version = 7').get();
   const a = db.prepare("SELECT details_json FROM activity WHERE action = 'db.migrated'").get();
