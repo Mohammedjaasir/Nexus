@@ -502,6 +502,9 @@ export function v7DdlObjects(ddl: string): V7DdlObject[] {
   return out;
 }
 
+/** The same parser under a version-neutral name: it is generic, and later schema modules (v8) use it. */
+export const ddlObjects: (ddl: string) => V7DdlObject[] = v7DdlObjects;
+
 const V7_OBJECTS: V7DdlObject[] = v7DdlObjects(V7_DDL);
 const V7_TABLES = new Set(Object.keys(V7_EXPECTED.tables));
 const quoteIdent = (name: string): string => `"${name.replace(/"/g, '""')}"`;
