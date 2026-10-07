@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '@/store/store';
 import { WORKSPACES } from '../workspaces/registry';
-import { workspaceForDomain } from '../workspaces/mapping';
+import { activeWorkspacesOf, primaryViewOf } from '../workspaces/participation';
+import { useParticipationIndex } from '../data/useParticipations';
 import { recentProjects } from '../data/selectors';
 import { useProjectsLoader } from '../data/useProjects';
 import { navigate } from '../router/useRoute';
@@ -10,6 +11,7 @@ import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 import { ProjectRow } from '../components/ProjectRow';
 import { LoadError, RowsSkeleton } from '../components/LoadStates';
+import { PlatformNotice } from '../components/PlatformNotice';
 
 export function ProjectsPage() {
   const projects = useStore((s) => s.projects);
@@ -17,12 +19,14 @@ export function ProjectsPage() {
   const actions = useShellActions();
   const [q, setQ] = useState('');
   const [ws, setWs] = useState<string>('all');
+  const idx = useParticipationIndex();
+  // A workspace matches any ACTIVE participation; "Unassigned" means no primary.
   const shown = useMemo(() => recentProjects(projects, projects.length).filter((p) => {
-    const w = workspaceForDomain(p.domainId)?.id ?? 'unassigned';
-    if (ws !== 'all' && w !== ws) return false;
+    if (ws === 'unassigned' && primaryViewOf(idx, p.id) !== null) return false;
+    if (ws !== 'all' && ws !== 'unassigned' && !activeWorkspacesOf(idx, p.id).some((x) => x.row.workspaceId === ws)) return false;
     const needle = q.trim().toLowerCase();
     return !needle || p.name.toLowerCase().includes(needle) || p.rootPath.toLowerCase().includes(needle);
-  }), [projects, q, ws]);
+  }), [projects, q, ws, idx]);
 
   return (
     <div className="nx-page">
@@ -33,6 +37,7 @@ export function ProjectsPage() {
           <Button variant="primary" icon="plus" onClick={() => actions.openNewProject()}>New project</Button>
         </div>
       </header>
+      <PlatformNotice />
       {projects.length > 0 && (
         <div className="nx-toolbar">
           <input className="nx-input nx-focusable" type="search" placeholder="Filter by name or folder" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filter projects" />
@@ -52,7 +57,7 @@ export function ProjectsPage() {
         ) : shown.length === 0 ? (
           <p className="nx-muted" role="status">No projects match these filters.</p>
         ) : (
-          <div className="nx-rows">{shown.map((p) => <ProjectRow key={p.id} project={p} onOpen={() => navigate({ name: 'project', id: p.id, tool: 'bench' })} />)}</div>
+          <div className="nx-rows">{shown.map((p) => <ProjectRow key={p.id} project={p} idx={idx} onOpen={() => navigate({ name: 'project', id: p.id, tool: 'bench' })} />)}</div>
         )}
     </div>
   );

@@ -1,5 +1,5 @@
 import { WORKSPACES } from '../workspaces/registry';
-import { projectsForWorkspace } from '../workspaces/mapping';
+import { projectsInWorkspace, unassignedCount, type ParticipationIndex } from '../workspaces/participation';
 import { recentProjects } from '../data/selectors';
 import type { WorkspaceConfig } from '../workspaces/types';
 
@@ -15,12 +15,13 @@ export interface WorkspaceRow<T extends P = P> {
   hasDomain: boolean;
 }
 
-/** The Workspaces index, from real projects only. Pure: testable in node. */
-export function buildWorkspaceIndex<T extends P>(projects: T[]) {
+/** The Workspaces index, from real projects and their participations only.
+ *  `count` is every active participation (primary plus attached); `unassigned`
+ *  is the projects with no primary. Pure: testable in node. */
+export function buildWorkspaceIndex<T extends P>(projects: T[], idx: ParticipationIndex) {
   const rows: WorkspaceRow<T>[] = WORKSPACES.map((ws) => {
-    const mine = projectsForWorkspace(projects, ws.id);
+    const mine = projectsInWorkspace(idx, projects, ws.id).map((x) => x.project);
     return { id: ws.id, ws, count: mine.length, recent: recentProjects(mine, 2), hasDomain: ws.domainIds.length > 0 };
   });
-  const assigned = rows.reduce((n, r) => n + r.count, 0);
-  return { rows, totalProjects: projects.length, unassigned: projects.length - assigned };
+  return { rows, totalProjects: projects.length, unassigned: unassignedCount(idx, projects) };
 }

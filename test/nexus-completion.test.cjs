@@ -20,7 +20,9 @@ test('completion copy never claims anything is complete or verified', () => {
   const c = completionCopy({ domainLabel: 'Software engineering' });
   const all = [c.title, c.badge, c.lead, c.planned, c.detail, ...c.facts.map((f) => `${f.label} ${f.value}`)].join(' ');
   assert.doesNotMatch(all, /\b(completed?|verified|progress|tests? pass(ed)?|confidence)\b|\d+\s*%/i);
-  assert.equal(c.badge, 'Planned · B1');
+  // C9: nothing real backs completion in B1, so the badge names no phase.
+  assert.equal(c.badge, 'Planned');
+  assert.doesNotMatch(all, /\bB\d\b|phase B/);
   assert.deepEqual(completionCopy({}).facts, [{ label: 'Domain', value: 'Unassigned' }]);
 });
 

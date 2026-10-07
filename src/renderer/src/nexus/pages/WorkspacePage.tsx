@@ -3,7 +3,9 @@ import { useEffect } from 'react';
 import { useStore } from '@/store/store';
 import type { WorkspaceId } from '../workspaces/types';
 import { getWorkspace } from '../workspaces/registry';
-import { projectsForWorkspace, workspaceTabs } from '../workspaces/mapping';
+import { workspaceTabs } from '../workspaces/mapping';
+import { projectsInWorkspace } from '../workspaces/participation';
+import { useParticipationIndex } from '../data/useParticipations';
 import { recentProjects } from '../data/selectors';
 import { useProjectsLoader } from '../data/useProjects';
 import { navigate } from '../router/useRoute';
@@ -14,6 +16,7 @@ import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 import { ProjectRow } from '../components/ProjectRow';
 import { LoadError, RowsSkeleton } from '../components/LoadStates';
+import { PlatformNotice } from '../components/PlatformNotice';
 
 export function WorkspacePage({ id }: { id: WorkspaceId }) {
   const ws = getWorkspace(id)!; // route parsing guarantees a known id
@@ -22,7 +25,14 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
   const actions = useShellActions();
   const setLast = useNexusUi((s) => s.setLastWorkspace);
   useEffect(() => { setLast(id); }, [id, setLast]);
-  const mine = recentProjects(projectsForWorkspace(projects, id), Infinity);
+  const idx = useParticipationIndex();
+  // Primary projects first, then attached ones; each newest first.
+  const here = projectsInWorkspace(idx, projects, id);
+  const roleOf = new Map(here.map((x) => [x.project.id, x.role]));
+  const mine = [
+    ...recentProjects(here.filter((x) => x.role === 'primary').map((x) => x.project), Infinity),
+    ...recentProjects(here.filter((x) => x.role === 'attached').map((x) => x.project), Infinity)
+  ];
   const unmappable = ws.domainIds.length === 0;
   const tabs = workspaceTabs(ws);
   const planned = tabs.filter((t) => !t.available);
@@ -38,6 +48,7 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
           <Button variant="primary" icon="plus" onClick={() => actions.openNewProject(ws.defaultDomainId)}>New project</Button>
         </div>
       </header>
+      <PlatformNotice />
       <div className="nx-wstabs nx-prov" style={provenanceStyle(ws.hueSlot)}>
         <div role="tablist" aria-label={`${ws.label} workspace`} className="nx-wstabs__list">
           <button type="button" role="tab" id="ws-tab-projects" aria-selected="true" aria-controls="ws-panel-projects" className="nx-wstab nx-focusable">Projects</button>
@@ -58,10 +69,10 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
       <section role="tabpanel" id="ws-panel-projects" aria-labelledby="ws-tab-projects">
         {status === 'error' && projects.length === 0 ? <LoadError error={error} onRetry={refresh} />
           : status === 'loading' && projects.length === 0 ? <RowsSkeleton count={3} />
-          : mine.length > 0 ? <div className="nx-rows">{mine.map((p) => <ProjectRow key={p.id} project={p} onOpen={() => navigate({ name: 'project', id: p.id, tool: 'bench' })} />)}</div>
+          : mine.length > 0 ? <div className="nx-rows">{mine.map((p) => <ProjectRow key={p.id} project={p} idx={idx} role={roleOf.get(p.id)} onOpen={() => navigate({ name: 'project', id: p.id, tool: 'bench' })} />)}</div>
           : unmappable ? (
             <EmptyState level={2} icon={ws.icon} title={`No ${ws.label} projects yet`}
-              body={<>Projects are grouped by the domain the analyzer detects, and none map to {ws.label} today. {ws.label} work will arrive through handoffs in a later phase.</>}
+              body={<>No project takes part in {ws.label} yet. New projects join a workspace through the domain the analyzer detects, and none map to {ws.label} today.</>}
               actions={<Button onClick={() => navigate({ name: 'projects' })}>See all projects</Button>} />
           ) : (
             <EmptyState level={2} icon={ws.icon} title={`No ${ws.label} projects yet`} body="Create one here, or import a folder; it joins this workspace when its domain matches."

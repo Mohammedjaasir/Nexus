@@ -2,7 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { Project } from '@shared/project';
 import type { GitState, SpineNode } from './spineModel';
 import { provenanceLine } from './sourceProvenance';
-import { workspaceForDomain } from '../workspaces/mapping';
+import { primaryViewOf } from '../workspaces/participation';
+import { useParticipationIndex } from '../data/useParticipations';
 import { ProvenanceMark } from '../ui/ProvenanceMark';
 import { Button } from '../ui/Button';
 
@@ -35,7 +36,7 @@ function Fact({ title, children }: { title: string; children: ReactNode }) {
 
 /** The bench: what the analyzer and git actually know about the project. */
 export function SourceView({ project, node, git, onRetry }: { project: Project; node: SpineNode; git: GitState; onRetry: () => void }) {
-  const ws = workspaceForDomain(project.domainId);
+  const ws = primaryViewOf(useParticipationIndex(), project.id);
   const langs = project.detectedLanguages.filter((l) => l.language);
   const entries = project.entryPoints.slice(0, 6);
   const suites = project.testSuites;

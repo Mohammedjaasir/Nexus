@@ -3,7 +3,7 @@ import { navigate } from '../router/useRoute';
 import type { ProjectTool } from '../router/routes';
 import { useNexusUi } from '../state/uiStore';
 import { WORKSPACES } from '../workspaces/registry';
-import { projectsForWorkspace } from '../workspaces/mapping';
+import { projectsInWorkspace, type ParticipationIndex } from '../workspaces/participation';
 import type { WorkspaceId } from '../workspaces/types';
 import { ProvenanceMark } from '../ui/ProvenanceMark';
 import { Popover } from '../ui/Sheet';
@@ -12,11 +12,13 @@ import type { PathSegment } from './navItems';
 /** One path segment in the context bar. Opens a listbox of its real siblings:
  *  a workspace segment lists every workspace; a project segment lists the
  *  projects of its workspace (all projects when the workspace is Unassigned). */
-export function PathSwitcher({ segment, workspaceId, projects, tool }: {
+export function PathSwitcher({ segment, workspaceId, projects, idx, tool }: {
   segment: PathSegment;
   /** For a project segment: the id of the workspace segment before it. */
   workspaceId?: string;
   projects: Project[];
+  /** Which workspaces each project takes part in. */
+  idx: ParticipationIndex;
   /** The current project tool, kept when switching projects. */
   tool?: ProjectTool;
 }) {
@@ -44,7 +46,7 @@ export function PathSwitcher({ segment, workspaceId, projects, tool }: {
         }
         const list = !workspaceId || workspaceId === 'unassigned'
           ? projects
-          : projectsForWorkspace(projects, workspaceId as WorkspaceId);
+          : projectsInWorkspace(idx, projects, workspaceId as WorkspaceId).map((x) => x.project);
         if (list.length === 0) {
           return <div role="option" aria-disabled="true" aria-selected="false" className="nx-menu__empty">No projects here</div>;
         }

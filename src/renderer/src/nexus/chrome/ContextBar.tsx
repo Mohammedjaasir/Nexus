@@ -6,6 +6,7 @@ import { Icon } from '../icons';
 import { useRoute } from '../router/useRoute';
 import { useNexusUi } from '../state/uiStore';
 import { pathSegments } from './navItems';
+import { useParticipationIndex } from '../data/useParticipations';
 import { NexusMenu } from './NexusMenu';
 import { PathSwitcher } from './PathSwitcher';
 import { RunsIndicator } from '../runs/RunsIndicator';
@@ -19,7 +20,8 @@ export function ContextBar() {
   const projects = useStore((s) => s.projects);
   const theme = useAppTheme();
   const setPaletteOpen = useNexusUi((s) => s.setPaletteOpen);
-  const segments = pathSegments(route, projects);
+  const idx = useParticipationIndex();
+  const segments = pathSegments(route, projects, idx);
   const wsId = segments.find((s) => s.kind === 'workspace')?.id;
 
   return (
@@ -30,7 +32,7 @@ export function ContextBar() {
           {segments.map((s) => (
             <Fragment key={`${s.kind}:${s.id}`}>
               <span className="nx-path__sep" aria-hidden="true">/</span>
-              <PathSwitcher segment={s} workspaceId={s.kind === 'project' ? wsId : undefined} projects={projects}
+              <PathSwitcher segment={s} workspaceId={s.kind === 'project' ? wsId : undefined} projects={projects} idx={idx}
                 tool={route.name === 'project' ? route.tool : undefined} />
             </Fragment>
           ))}

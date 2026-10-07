@@ -4,7 +4,8 @@ import { Icon } from '../icons';
 import { useRoute } from '../router/useRoute';
 import { formatRoute, routeTitle, type ProjectTool } from '../router/routes';
 import { getWorkspace } from '../workspaces/registry';
-import { workspaceForDomain } from '../workspaces/mapping';
+import { primaryViewOf } from '../workspaces/participation';
+import { useParticipationIndex } from '../data/useParticipations';
 import { useNexusUi } from '../state/uiStore';
 import { buildContextHeader } from '../assistant/context';
 import { SUGGESTIONS } from '../assistant/prompts';
@@ -23,6 +24,7 @@ export function IntentLine({ summoned = false, onClose }: { summoned?: boolean; 
   const port = useAssistant();
   const route = useRoute();
   const projects = useStore((s) => s.projects);
+  const idx = useParticipationIndex();
   const draft = useNexusUi((s) => s.draft);
   const setDraft = useNexusUi((s) => s.setDraft);
   const selection = useNexusUi((s) => s.selection);
@@ -61,14 +63,14 @@ export function IntentLine({ summoned = false, onClose }: { summoned?: boolean; 
     if (route.name === 'project') {
       const p = projects.find((x) => x.id === route.id) ?? null;
       return {
-        ws: p ? workspaceForDomain(p.domainId) : null,
+        ws: p ? primaryViewOf(idx, p.id) : null,
         project: p,
         page: TOOL_PAGE[route.tool],
         selection: p ? selectionLabel(selection) : null
       };
     }
     return { ws: route.name === 'workspace' ? getWorkspace(route.id) : null, project: null, page: routeTitle(route), selection: null };
-  }, [route, projects, selection]);
+  }, [route, projects, selection, idx]);
 
   const chip = ctx.selection ?? ctx.project?.name ?? ctx.ws?.label ?? null;
   const header = buildContextHeader({

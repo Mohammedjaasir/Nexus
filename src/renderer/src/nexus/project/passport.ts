@@ -1,16 +1,17 @@
 import type { SpineNode } from './spineModel';
-import { workspaceForDomain, UNASSIGNED_LABEL } from '../workspaces/mapping';
+import { UNASSIGNED_LABEL } from '../workspaces/mapping';
+import { primaryViewOf, type ParticipationIndex } from '../workspaces/participation';
 import { repoHealth } from '../data/selectors';
 
-export type PassportProject = { name: string; rootPath: string; domainId: string; detectedLanguages: { language: string }[]; frameworks: string[]; health: unknown };
+export type PassportProject = { id: string; name: string; rootPath: string; domainId: string; detectedLanguages: { language: string }[]; frameworks: string[]; health: unknown };
 export type PassportSection = { title: string; rows: { label: string; value: string }[] };
 export type PassportAction = 'ask' | 'files' | 'terminal' | 'refresh';
 
 export const RELATIONSHIPS_NOTE = 'Relationships, usage and handoffs appear here once this project has artifacts.';
 
-export function passportFor(input: { project: PassportProject; node: SpineNode; commits: { shortSha: string; subject: string; time: number }[] }) {
+export function passportFor(input: { project: PassportProject; idx: ParticipationIndex; node: SpineNode; commits: { shortSha: string; subject: string; time: number }[] }) {
   const { project, node } = input;
-  const ws = workspaceForDomain(project.domainId);
+  const ws = primaryViewOf(input.idx, project.id);
   const identity: PassportSection = { title: 'Identity', rows: [
     { label: 'Location', value: project.rootPath },
     { label: 'Workspace', value: ws ? ws.label : UNASSIGNED_LABEL }

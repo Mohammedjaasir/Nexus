@@ -5,8 +5,11 @@ const loadTs = require('./load-ts.cjs');
 
 const { WORKSPACES, UNMAPPED_DOMAINS, getWorkspace, WORKSPACE_IDS } =
   loadTs('src/renderer/src/nexus/workspaces/registry.ts');
-const { workspaceForDomain, projectsForWorkspace, countsByWorkspace } =
-  loadTs('src/renderer/src/nexus/workspaces/mapping.ts');
+const { workspaceForDomain } = loadTs('src/renderer/src/nexus/workspaces/mapping.ts');
+// projectsForWorkspace and countsByWorkspace moved to participation.ts and take an index (Task 8).
+const { legacyIndex, projectsInWorkspace, countsByWorkspace: countsByIndex } = loadTs('src/renderer/src/nexus/workspaces/participation.ts');
+const projectsForWorkspace = (projects, id) => projectsInWorkspace(legacyIndex(projects), projects, id).map((x) => x.project);
+const countsByWorkspace = (projects) => countsByIndex(legacyIndex(projects), projects);
 const { NEXUS_ICON_NAMES } = loadTs('src/renderer/src/nexus/iconNames.ts');
 const { listDomainDefinitions } = loadTs('src/shared/domain.ts');
 

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { DomainId } from '@shared/domain';
 import { useStore } from '@/store/store';
 import { WORKSPACES, getWorkspace } from '../workspaces/registry';
-import { projectsForWorkspace } from '../workspaces/mapping';
+import { projectsInWorkspace } from '../workspaces/participation';
+import { useParticipationIndex } from '../data/useParticipations';
 import { recentProjects } from '../data/selectors';
 import { navigate } from '../router/useRoute';
 import { useNexusUi } from '../state/uiStore';
@@ -29,6 +30,7 @@ function Emblem({ id }: { id: string }) {
  *  where it goes on the right. Nothing runs until Start is pressed. */
 export function StartPage() {
   const projects = useStore((s) => s.projects);
+  const idx = useParticipationIndex();
   const setProjects = useStore((s) => s.setProjects);
   const setActiveProject = useStore((s) => s.setActiveProject);
   const setLast = useNexusUi((s) => s.setLastWorkspace);
@@ -49,10 +51,10 @@ export function StartPage() {
   const ws = envId ? getWorkspace(envId) : null;
 
   const ordered = useMemo(() => {
-    const here = ws ? recentProjects(projectsForWorkspace(projects, ws.id), projects.length) : [];
+    const here = ws ? recentProjects(projectsInWorkspace(idx, projects, ws.id).map((x) => x.project), projects.length) : [];
     const rest = recentProjects(projects.filter((p) => !here.includes(p)), projects.length);
     return { here, rest };
-  }, [projects, ws]);
+  }, [projects, ws, idx]);
 
   const project = pick.kind === 'existing' ? projects.find((p) => p.id === pick.id) ?? null
     : pick.kind === 'auto' ? ordered.here[0] ?? null

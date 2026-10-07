@@ -1,7 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { useStore } from '@/store/store';
 import { WORKSPACES, getWorkspace } from '../workspaces/registry';
-import { projectsForWorkspace } from '../workspaces/mapping';
+import { projectsInWorkspace } from '../workspaces/participation';
+import { useParticipationIndex } from '../data/useParticipations';
 import { recentProjects, relativeTime } from '../data/selectors';
 import { navigate } from '../router/useRoute';
 import { useNexusUi } from '../state/uiStore';
@@ -42,6 +43,7 @@ function useTypedPlaceholder(active: boolean): string {
 export function LauncherPage() {
   const entries = useMemo(() => entriesFromRegistry(WORKSPACES), []);
   const projects = useStore((s) => s.projects);
+  const idx = useParticipationIndex();
   const last = useNexusUi((s) => s.lastWorkspace);
   const setLast = useNexusUi((s) => s.setLastWorkspace);
   const actions = useShellActions();
@@ -86,7 +88,7 @@ export function LauncherPage() {
   });
 
   const sel = shown[active] ? getWorkspace(shown[active].id) : null;
-  const selProjects = sel ? recentProjects(projectsForWorkspace(projects, sel.id), projects.length) : [];
+  const selProjects = sel ? recentProjects(projectsInWorkspace(idx, projects, sel.id).map((x) => x.project), projects.length) : [];
   const optionId = (id: string) => `${listId}-${id}`;
 
   return (
@@ -111,7 +113,7 @@ export function LauncherPage() {
       <div ref={grid} id={listId} role="listbox" aria-label="Environments" className="nx-wall__grid">
         {shown.map((e, i) => {
           const ws = getWorkspace(e.id);
-          const count = ws ? projectsForWorkspace(projects, ws.id).length : 0;
+          const count = ws ? projectsInWorkspace(idx, projects, ws.id).length : 0;
           return (
             <div key={e.id} id={optionId(e.id)} role="option" aria-selected={i === active}
               className={`nx-panel nx-prov${ws ? '' : ' nx-prov--none'}`}

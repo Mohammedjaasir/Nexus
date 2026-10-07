@@ -1,4 +1,5 @@
-import { workspaceForDomain, UNASSIGNED_LABEL } from '../workspaces/mapping';
+import { UNASSIGNED_LABEL } from '../workspaces/mapping';
+import { primaryViewOf, type ParticipationIndex } from '../workspaces/participation';
 
 export type ChangeKind = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked';
 export type GitState =
@@ -14,10 +15,10 @@ export type SpineNode =
 
 export type SpineGroup = { workspaceId: string; label: string; hueSlot: number | null; nodes: SpineNode[] };
 
-/** Only real data becomes a node. Artifact nodes arrive with the Phase B
- *  artifact backend; until then the spine never shows placeholders. */
-export function buildSpine(input: { domainId: string; git: GitState }): SpineGroup[] {
-  const ws = workspaceForDomain(input.domainId);
+/** Only real data becomes a node; the spine never shows placeholders. The
+ *  source group is the project's primary workspace (Unassigned without one). */
+export function buildSpine(input: { idx: ParticipationIndex; projectId: string; git: GitState }): SpineGroup[] {
+  const ws = primaryViewOf(input.idx, input.projectId);
   const group: SpineGroup = ws ? { workspaceId: ws.id, label: ws.label, hueSlot: ws.hueSlot, nodes: [] } : { workspaceId: 'unassigned', label: UNASSIGNED_LABEL, hueSlot: null, nodes: [] };
   const g = input.git;
   if (g.status !== 'ready') {

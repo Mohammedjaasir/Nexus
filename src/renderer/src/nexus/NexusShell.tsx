@@ -7,6 +7,7 @@ import { ContextBar } from './chrome/ContextBar';
 import { MobileTabs } from './chrome/MobileTabs';
 import { RouteView } from './routes/RouteView';
 import { useProjectsLoader } from './data/useProjects';
+import { useParticipations } from './data/useParticipations';
 import { IntentLine } from './intent/IntentLine';
 import { useRoute } from './router/useRoute';
 import { formatRoute } from './router/routes';
@@ -35,6 +36,7 @@ function IntentSlot() {
 
 export function NexusShell({ config, actions }: { config: HarnessConfig; actions: ShellActions }) {
   useProjectsLoader();
+  useParticipations();
   useShortcuts();
   return (
     <ShellActionsContext.Provider value={actions}>

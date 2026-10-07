@@ -5,6 +5,8 @@ import { navigate } from '../router/useRoute';
 import { useNexusUi } from '../state/uiStore';
 import { useShellActions } from '../shellActions';
 import { buildWorkspaceIndex } from './workspaceIndex';
+import { useParticipationIndex } from '../data/useParticipations';
+import { PlatformNotice } from '../components/PlatformNotice';
 import type { WorkspaceId } from '../workspaces/types';
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
@@ -15,7 +17,7 @@ export function WorkspacesPage() {
   const projects = useStore((s) => s.projects);
   const setLast = useNexusUi((s) => s.setLastWorkspace);
   const actions = useShellActions();
-  const idx = buildWorkspaceIndex(projects);
+  const idx = buildWorkspaceIndex(projects, useParticipationIndex());
 
   const open = (id: WorkspaceId) => {
     setLast(id);
@@ -34,6 +36,7 @@ export function WorkspacesPage() {
         </div>
         <button type="button" className="nx-wsx__new" onClick={() => actions.openNewProject()}>New project</button>
       </header>
+      <PlatformNotice />
 
       <ul className="nx-wsx__list" aria-label="Workspaces">
         {idx.rows.map((r) => (

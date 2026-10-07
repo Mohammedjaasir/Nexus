@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import type { Project } from '@shared/project';
-import { workspaceForDomain } from '../workspaces/mapping';
+import { primaryViewOf } from '../workspaces/participation';
+import { useParticipationIndex } from '../data/useParticipations';
 import { Badge } from '../ui/Badge';
 import { Icon } from '../icons';
 import { completionCopy } from './completionModel';
@@ -8,8 +9,8 @@ import { completionCopy } from './completionModel';
 /** The Completion tool before the platform engine exists: a plain planned
  *  state. No checklist, no counts, no actions; nothing here is tracked yet. */
 export function CompletionPlaceholder({ project }: { project: Project }) {
-  // Same domain source the passport uses.
-  const c = completionCopy({ domainLabel: workspaceForDomain(project.domainId)?.label ?? null });
+  // Same workspace source the passport uses: the project's primary.
+  const c = completionCopy({ domainLabel: primaryViewOf(useParticipationIndex(), project.id)?.label ?? null });
   return (
     <section className="nx-surface" aria-labelledby="nx-surface-title">
       <header className="nx-surface__head">

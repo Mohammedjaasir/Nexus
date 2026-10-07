@@ -5,6 +5,7 @@ import { useStore } from '@/store/store';
 import type { ProjectTool } from '../router/routes';
 import { navigate } from '../router/useRoute';
 import { useProjectsLoader } from '../data/useProjects';
+import { useParticipationIndex } from '../data/useParticipations';
 import { useNexusUi } from '../state/uiStore';
 import { EmptyState } from '../ui/EmptyState';
 import { Button } from '../ui/Button';
@@ -64,7 +65,8 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   const setLastProject = useNexusUi((s) => s.setLastProject);
   const setSelection = useNexusUi((s) => s.setSelection);
   const { git, refresh } = useProjectGit(project.rootPath);
-  const groups = useMemo(() => buildSpine({ domainId: project.domainId, git }), [project.domainId, git]);
+  const idx = useParticipationIndex();
+  const groups = useMemo(() => buildSpine({ idx, projectId: project.id, git }), [idx, project.id, git]);
   const nodes = groups.flatMap((g) => g.nodes);
   const [selected, setSelected] = useState<string>(tool === 'changes' ? 'changes' : 'source');
 

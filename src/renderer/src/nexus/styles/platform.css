@@ -1,0 +1,5 @@
+/* Platform data states (Nexus B1). Neutral by rule: colour means provenance, so
+   the notice is told apart by its rule and its words, never by a status hue. */
+.nx-platform-notice { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2) var(--nx-s3); margin: 0; padding: var(--nx-s3) var(--nx-s4); border: 1px solid var(--nx-line); border-left: 3px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-surface); font: 400 13px/1.5 var(--nx-font); color: var(--nx-text-2); }
+.nx-platform-notice__text { flex: 1 1 280px; min-width: 0; }
+.nx-row__title .nx-badge { margin-left: var(--nx-s2); vertical-align: middle; }

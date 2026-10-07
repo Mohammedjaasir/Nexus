@@ -3,6 +3,7 @@ import type { Project } from '@shared/project';
 import type { SpineNode } from './spineModel';
 import { passportFor, type PassportAction } from './passport';
 import { useShellActions } from '../shellActions';
+import { useParticipationIndex } from '../data/useParticipations';
 import { useNexusUi } from '../state/uiStore';
 import { Button } from '../ui/Button';
 import type { NexusIconName } from '../icons';
@@ -39,7 +40,8 @@ export function Passport({ project, node, headSha, onRefreshProject, onOpenTermi
   const commits = useCommits(project.rootPath, isGit, headSha);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const p = passportFor({ project, node, commits });
+  const idx = useParticipationIndex();
+  const p = passportFor({ project, idx, node, commits });
 
   const run = (a: PassportAction) => {
     if (onBeforeAction) {
