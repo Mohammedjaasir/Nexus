@@ -199,5 +199,5 @@ test('the workspace page lists attached projects with a tag; its empty state no 
   const page = src('pages/WorkspacePage.tsx');
   assert.match(page, /role=\{roleOf\.get\(p\.id\)\}/);
   assert.doesNotMatch(page, /arrive through handoffs in a later phase/);
-  assert.match(src('components/ProjectRow.tsx'), /role === 'attached' && <Badge>Attached<\/Badge>/);
+  assert.match(src('components/ProjectRow.tsx'), /role === 'attached' && <span className="nx-attached-tag"><Badge>Attached<\/Badge><\/span>/);
 });

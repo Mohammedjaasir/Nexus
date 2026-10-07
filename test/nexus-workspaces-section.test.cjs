@@ -120,11 +120,13 @@ test('pin: both actions go through nexusClient and bump rev on success', () => {
   assert.match(section, /nexusClient\.participationAttach\(projectId, workspaceId\)/);
   assert.match(section, /nexusClient\.participationWithdraw\(participationId\)/);
   assert.doesNotMatch(section, /window\.cth/);
-  assert.match(section, /if \(r\.ok\) \{\s*setState\(\(s\) => succeeded\(s, okText\)\);\s*bumpRev\(\);/);
+  // The refresh is decided before the unmount check, so a write that lands after the sheet closed still refreshes every screen.
+  assert.match(section, /if \(r\.ok \|\| shouldReload\(r\)\) bumpRev\(\);\s*if \(!alive\.current\) return;\s*if \(r\.ok\) setState\(\(s\) => succeeded\(s, okText\)\);/);
+  assert.equal((section.match(/bumpRev\(\)/g) || []).length, 1, 'one refresh point');
 });
 
 test('pin: every failure path sets the role="alert" line', () => {
-  assert.match(section, /\} else \{\s*setState\(\(s\) => failed\(s, failText\(r\)\)\);/);
+  assert.match(section, /else setState\(\(s\) => failed\(s, failText\(r\)\)\);/);
   assert.match(section, /\{state\.error && <p className="nx-passport__note" role="alert">\{state\.error\}<\/p>\}/);
   assert.match(section, /attachFailureText\);/);
   assert.match(section, /withdrawFailureText\);/);
@@ -143,6 +145,12 @@ test('pin: writes render only with selectCanWrite; a double submit is blocked; l
   assert.match(section, /'Withdrawing…'/);
 });
 
+test('pin: opening the withdraw confirmation focuses Cancel, not the destructive button', () => {
+  assert.match(section, /cancelRef\.current\?\.focus\(\)/);
+  assert.match(section, /<button ref=\{cancelRef\}[\s\S]*?>\s*<span>Cancel<\/span><\/button>/);
+  assert.doesNotMatch(section, /querySelector<HTMLButtonElement>\('button'\)/);
+});
+
 test('pin: the Passport mounts the section on the source node', () => {
   const panel = src('project/PassportPanel.tsx');
   assert.match(panel, /\{node\.kind === 'source' && <WorkspacesSection key=\{project\.id\} projectId=\{project\.id\} \/>\}/);
@@ -156,10 +164,42 @@ test('pin: the workspace page says a project can be added from its own page only
 
 test('pin: the section styles live in platform.css and use only existing tokens', () => {
   const css = fs.readFileSync(path.join(NEXUS, 'styles', 'platform.css'), 'utf8');
-  assert.match(css, /\.nx-wsx__row/);
+  assert.match(css, /\.nx-pws__row/);
+  assert.doesNotMatch(section, /nx-wsx/, 'the Workspaces index owns nx-wsx*');
+  for (const cls of ['nx-pws', 'nx-pws__list', 'nx-pws__row', 'nx-pws__name', 'nx-pws__act', 'nx-pws__confirm', 'nx-pws__hint', 'nx-pws__add', 'nx-pws__status'])
+    assert.match(section, new RegExp(`className="(?:[^"]* )?${cls}(?: [^"]*)?"`), cls);
   const tokens = fs.readFileSync(path.join(NEXUS, 'styles', 'tokens.css'), 'utf8');
   for (const v of new Set(css.match(/var\(--nx-[a-z0-9-]+\)/g) || [])) {
     const name = v.slice(4, -1);
     assert.ok(tokens.includes(`${name}:`), `${name} is an existing token`);
   }
+});
+
+// Every class a rule selects in a stylesheet (comments stripped; only selector text, never declarations).
+function selectorClasses(css) {
+  const out = new Set();
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const m of text.matchAll(/([^{}]+)\{/g)) {
+    for (const c of m[1].matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)) out.add(c[1]);
+  }
+  return out;
+}
+
+test('no class selected in platform.css is selected by any other stylesheet of the app', () => {
+  const RENDERER = path.join(__dirname, '..', 'src', 'renderer');
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+    e.name === 'node_modules' ? [] : e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
+  const platformFile = path.join(NEXUS, 'styles', 'platform.css');
+  const mine = selectorClasses(fs.readFileSync(platformFile, 'utf8'));
+  assert.ok(mine.size > 0);
+  const others = walk(RENDERER).filter((f) => f.endsWith('.css') && path.resolve(f) !== path.resolve(platformFile));
+  assert.ok(others.some((f) => f.endsWith('pages.css')), 'the scan covers pages.css');
+  const clashes = [];
+  for (const f of others) {
+    const theirs = selectorClasses(fs.readFileSync(f, 'utf8'));
+    for (const c of mine) if (theirs.has(c)) clashes.push(`${c} (${path.relative(RENDERER, f)})`);
+  }
+  assert.deepEqual(clashes, []);
+  // The extractor itself: it sees the index's nx-wsx rules.
+  assert.ok(selectorClasses(fs.readFileSync(path.join(NEXUS, 'styles', 'pages.css'), 'utf8')).has('nx-wsx__row'));
 });

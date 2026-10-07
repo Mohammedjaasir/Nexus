@@ -14,7 +14,7 @@ export function ProjectRow({ project, idx, role, onOpen }: { project: Project; i
     <button type="button" className="nx-row nx-focusable" onClick={onOpen}>
       <ProvenanceMark slot={ws?.hueSlot ?? null} size={10} />
       <span className="nx-row__main">
-        <span className="nx-row__title">{project.name}{role === 'attached' && <Badge>Attached</Badge>}</span>
+        <span className="nx-row__title">{project.name}{role === 'attached' && <span className="nx-attached-tag"><Badge>Attached</Badge></span>}</span>
         <span className="nx-row__meta">{ws ? ws.label : UNASSIGNED_LABEL}{others.length > 0 && <span title={`Also in ${others.join(', ')}`}> +{others.length}</span>} · {project.domainId} · <span className="nx-id">{project.rootPath}</span></span>
       </span>
       <span className="nx-row__side">
