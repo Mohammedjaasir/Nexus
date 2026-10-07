@@ -8,6 +8,7 @@ import { useNexusUi } from '../state/uiStore';
 import { Button } from '../ui/Button';
 import { WorkspacesSection } from './WorkspacesSection';
 import { ArtifactPassport } from './ArtifactPassport';
+import { ActivitySection } from './ActivitySection';
 import type { ArtifactSummary } from './spineModel';
 import type { SaveSource } from './saveSheetModel';
 import type { NexusIconName } from '../icons';
@@ -43,7 +44,7 @@ type PassportProps = {
 
 /** An artifact node gets the artifact Passport; the source and changes nodes get the project Passport. */
 export function Passport(props: PassportProps) {
-  if (props.node.kind === 'artifact') return <ArtifactPassport project={props.project} node={props.node} artifacts={props.artifacts} />;
+  if (props.node.kind === 'artifact') return <ArtifactPassport key={props.node.artifactId} project={props.project} node={props.node} artifacts={props.artifacts} />;
   return <SourcePassport {...props} />;
 }
 
@@ -117,6 +118,7 @@ function SourcePassport({ project, node, headSha, onRefreshProject, onOpenTermin
         </section>
       )}
       {p.relationshipsNote && <p className="nx-muted">{p.relationshipsNote}</p>}
+      {node.kind === 'source' && <ActivitySection key={project.id} projectId={project.id} artifacts={artifacts} />}
       <div className="nx-passport__actions">
         {p.actions.map((a) => (
           <Button key={a} variant={a === 'ask' ? 'primary' : 'secondary'} icon={ACTION_ICON[a]} disabled={a === 'refresh' && busy} onClick={() => run(a)}>

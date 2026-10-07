@@ -1,11 +1,12 @@
 // Pure: how artifacts and their versions read on the Spine and in the artifact
 // Passport. Labels, the actions the platform would allow on a version, and the
-// read-only Passport view built from what the nexus:* read channels returned.
+// Passport view built from what the nexus:* read channels returned, and how the
+// Passport's version actions move through confirmation, pending and result.
 // No React, so tests load it directly. Nothing here invents a row: every value
 // comes from an IPC answer or from the project's own git log.
 import type { VersionStatus } from '@shared/nexus/platform';
 import type {
-  ArtifactDetail, ArtifactSummaryView, ArtifactView, LineageNodeView, LineageView, NexusResult, VersionContent, VersionView
+  ArtifactDetail, ArtifactSummaryView, ArtifactView, LineageNodeView, LineageView, NexusFail, NexusResult, VersionContent, VersionView
 } from '@shared/nexus/ipc';
 import { errorCopy } from '../data/errorCopy';
 
@@ -31,7 +32,7 @@ export function relationLabel(relation: string): string {
   return relation.replace(/_/g, ' ');
 }
 
-// ---------- version actions (the rules; Task 11 renders them) ----------
+// ---------- version actions (the rules) ----------
 
 export type VersionAction =
   | { kind: 'markReady'; versionId: string }
@@ -186,4 +187,171 @@ export function artifactPassportView(i: ArtifactPassportInput): ArtifactPassport
     upstreamTruncated: !!i.up?.truncated,
     downstreamTruncated: !!i.down?.truncated
   };
+}
+
+// ---------- version actions in the Passport (confirmation, pending, result) ----------
+
+/** The writes the artifact Passport sends. 'link' adds a source to the shown version. */
+export type PassportActionKind = 'markReady' | 'promote' | 'rollback' | 'discard' | 'link';
+
+/** Discard and roll back change what a person relies on, so they ask first. */
+export function needsConfirm(kind: PassportActionKind): kind is 'discard' | 'rollback' {
+  return kind === 'discard' || kind === 'rollback';
+}
+
+export interface ActionState {
+  /** The one action in flight; every action button is disabled while it is set. */
+  pending: { kind: PassportActionKind; versionId: string } | null;
+  /** The destructive action waiting for the person's confirmation. */
+  confirming: { kind: 'discard' | 'rollback'; versionId: string } | null;
+  /** The failure sentence (the role="alert" line). */
+  error: string | null;
+  /** The success sentence (the role="status" line). */
+  announce: string | null;
+}
+
+export const IDLE_ACTIONS: ActionState = { pending: null, confirming: null, error: null, announce: null };
+
+/** Ask to confirm a discard or a roll back. Ignored while an action is running. */
+export function askActionConfirm(s: ActionState, kind: 'discard' | 'rollback', versionId: string): ActionState {
+  return s.pending ? s : { pending: null, confirming: { kind, versionId }, error: null, announce: null };
+}
+
+export function cancelActionConfirm(s: ActionState): ActionState {
+  return s.pending ? s : { ...s, confirming: null };
+}
+
+/**
+ * Start an action; null while another one is running (no double submit). A
+ * destructive action starts only from its own open confirmation.
+ */
+export function beginAction(s: ActionState, kind: PassportActionKind, versionId: string): ActionState | null {
+  if (s.pending) return null;
+  if (needsConfirm(kind) && (!s.confirming || s.confirming.kind !== kind || s.confirming.versionId !== versionId)) return null;
+  return { pending: { kind, versionId }, confirming: s.confirming, error: null, announce: null };
+}
+
+/** Any answer ends the action: the buttons come back and the confirmation closes. */
+export function actionSucceeded(_s: ActionState, announce: string): ActionState {
+  return { pending: null, confirming: null, error: null, announce };
+}
+
+export function actionFailed(_s: ActionState, error: string): ActionState {
+  return { pending: null, confirming: null, error, announce: null };
+}
+
+/** A promote or roll back lost its compare-and-set: another version was made current first. */
+export const PROMOTE_CONFLICT_TEXT = 'The current version changed; the list is refreshed';
+/** A link that would make a loop. */
+export const LINK_CYCLE_TEXT = 'That version already depends on this one, so it cannot also be its source. Nothing was linked.';
+/** A source the service refused as a draft or as another project's version. */
+export const LINK_INVALID_TEXT = 'That version cannot be a source here: it is still a draft or belongs to another project. Nothing was linked.';
+
+/** The sentence for a failed Passport action. */
+export function actionFailureText(kind: PassportActionKind, r: Pick<NexusFail, 'code' | 'reason' | 'subReason'>): string {
+  if ((kind === 'promote' || kind === 'rollback') && r.code === 'conflict') return PROMOTE_CONFLICT_TEXT;
+  if (kind === 'link' && r.code === 'cycle') return LINK_CYCLE_TEXT;
+  if (kind === 'link' && r.code === 'invalid' && !r.reason) return LINK_INVALID_TEXT;
+  return errorCopy(r.code, r.reason, r.subReason).text;
+}
+
+/**
+ * Whether what the Passport shows may be stale after this failure, so every
+ * reader loads again (rev). A refusal that changed nothing and says nothing
+ * about the shown data (a cycle, a bad request, a busy database) keeps the
+ * screen as it is.
+ */
+export function shouldReloadAfterAction(r: Pick<NexusFail, 'code' | 'reason'>): boolean {
+  switch (r.code) {
+    case 'conflict': case 'not_found': case 'illegal_transition': case 'participation_inactive': return true;
+    case 'invalid': return r.reason !== 'bad_request' && r.reason !== 'produced_by_job';
+    case 'platform_unavailable': return r.reason !== 'busy' && r.reason !== 'handoffs_unavailable';
+    default: return false;
+  }
+}
+
+const ACTION_TEXT: Record<PassportActionKind, { idle: string; pending: string }> = {
+  markReady: { idle: 'Mark ready', pending: 'Marking ready…' },
+  promote: { idle: 'Make current', pending: 'Making current…' },
+  rollback: { idle: 'Roll back', pending: 'Rolling back…' },
+  discard: { idle: 'Discard', pending: 'Discarding…' },
+  link: { idle: 'Link a source…', pending: 'Linking…' }
+};
+
+/** A button's words, idle or while its own action runs. */
+export function actionLabel(kind: PassportActionKind, pending: boolean): string {
+  return pending ? ACTION_TEXT[kind].pending : ACTION_TEXT[kind].idle;
+}
+
+/** The confirmation question for a destructive action. */
+export function confirmText(kind: 'discard' | 'rollback', versionNo: number, currentNo: number | null): string {
+  if (kind === 'discard') return `Discard version ${versionNo}? It stays in the history as discarded and can no longer be made ready or current.`;
+  return currentNo !== null
+    ? `Make version ${versionNo} current again? Version ${currentNo} stops being current.`
+    : `Make version ${versionNo} current again?`;
+}
+
+/** The sentence after a successful action. */
+export function actionDoneText(kind: PassportActionKind, versionNo: number, o: { created?: number; sourceLabel?: string } = {}): string {
+  switch (kind) {
+    case 'markReady': return `Version ${versionNo} is ready.`;
+    case 'promote': return `Version ${versionNo} is now current.`;
+    case 'rollback': return `Rolled back: version ${versionNo} is current again.`;
+    case 'discard': return `Version ${versionNo} was discarded.`;
+    case 'link': {
+      const what = o.sourceLabel ?? 'That version';
+      return o.created === 0 ? `${what} was already a source of version ${versionNo}.` : `${what} is now a source of version ${versionNo}.`;
+    }
+  }
+}
+
+type PassportVersionAction = Exclude<VersionAction, { kind: 'handoff' }>;
+
+/**
+ * The Passport's actions on one version: exactly what actionsFor allows, only
+ * while platform writes are on. Hand off is left to the handoff sheet.
+ */
+export function passportActionsFor(version: ActionVersion, artifact: ActionArtifact, ownerActive: boolean, canWrite: boolean): PassportVersionAction[] {
+  if (!canWrite) return [];
+  return actionsFor(version, artifact, ownerActive).filter((a): a is PassportVersionAction => a.kind !== 'handoff');
+}
+
+/** Whether sources may be linked to a version of this artifact: the same writability rule as every version action. */
+export function canLinkSources(artifact: ActionArtifact, ownerActive: boolean, canWrite: boolean): boolean {
+  return canWrite && ownerActive && artifact.status === 'active' && artifact.ownerScope === 'participation';
+}
+
+// ---------- link sources: the versions a person may pick ----------
+
+export interface SourceChoice { versionId: string; label: string; status: string }
+
+/** How many other artifacts the picker reads (most recently changed first); more are left out, and the picker says so. */
+export const LINK_CANDIDATE_ARTIFACTS = 30;
+
+/** The other artifacts whose versions the picker reads: not archived, with versions, most recently changed first, capped. */
+export function candidateArtifactIds(selfArtifactId: string, summaries: readonly ArtifactSummaryView[]): { ids: string[]; capped: boolean } {
+  const others = summaries.filter((s) => s.artifact.id !== selfArtifactId && s.artifact.status === 'active' && s.versionCount > 0)
+    .sort((x, y) => y.artifact.updatedAt - x.artifact.updatedAt);
+  return { ids: others.slice(0, LINK_CANDIDATE_ARTIFACTS).map((s) => s.artifact.id), capped: others.length > LINK_CANDIDATE_ARTIFACTS };
+}
+
+/**
+ * The versions a person may link as sources: versions the platform returned for
+ * this project, out of draft (ready or active), of another artifact that is not
+ * archived, and not already linked. Never an id typed by hand.
+ */
+export function sourceChoices(selfArtifactId: string, projectId: string, details: readonly ArtifactDetail[], alreadyLinked: ReadonlySet<string>): SourceChoice[] {
+  const out: (SourceChoice & { name: string; versionNo: number })[] = [];
+  for (const d of details) {
+    const a = d.artifact;
+    if (a.id === selfArtifactId || a.status !== 'active' || a.projectId !== projectId) continue;
+    for (const v of d.versions) {
+      if (v.artifactId !== a.id || v.projectId !== projectId) continue;
+      if (v.status !== 'candidate' && v.status !== 'active') continue;
+      if (alreadyLinked.has(v.id)) continue;
+      out.push({ versionId: v.id, label: `${kindLabel(a.kind)} ${a.name}, version ${v.versionNo}`, status: statusLabel(v.status), name: a.name, versionNo: v.versionNo });
+    }
+  }
+  out.sort((x, y) => x.name.localeCompare(y.name) || y.versionNo - x.versionNo);
+  return out.map(({ versionId, label, status }) => ({ versionId, label, status }));
 }

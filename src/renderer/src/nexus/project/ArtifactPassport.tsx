@@ -1,15 +1,23 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
-import type { ArtifactDetail, LineageView, VersionContent } from '@shared/nexus/ipc';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { ArtifactDetail, LineageView, NexusFail, NexusResult, VersionContent, VersionView } from '@shared/nexus/ipc';
 import { nexusClient } from '../data/nexusClient';
-import { usePlatform } from '../data/platformStore';
+import { usePlatform, selectCanWrite } from '../data/platformStore';
 import { useParticipationIndex } from '../data/useParticipations';
 import { errorCopy } from '../data/errorCopy';
 import { viewOf } from '../workspaces/participation';
+import { Button } from '../ui/Button';
+import { Popover } from '../ui/Sheet';
 import type { ArtifactNode, ArtifactSummary } from './spineModel';
-import { artifactPassportView, type PassportLink } from './artifactModel';
+import {
+  IDLE_ACTIONS, LINK_CANDIDATE_ARTIFACTS, actionDoneText, actionFailed, actionFailureText, actionLabel, actionSucceeded, artifactPassportView,
+  askActionConfirm, beginAction, canLinkSources, candidateArtifactIds, cancelActionConfirm, confirmText, passportActionsFor,
+  shouldReloadAfterAction, sourceChoices, type ActionState, type PassportActionKind, type PassportLink, type SourceChoice
+} from './artifactModel';
 
 /** How many versions get their content read (newest first). */
 const CONTENT_READS = 12;
+
+const INTERNAL: NexusFail = { ok: false, code: 'internal', message: 'The request could not be completed.' };
 
 type Loaded = {
   detail: ArtifactDetail;
@@ -19,7 +27,7 @@ type Loaded = {
   down: LineageView | null;
 };
 
-/** Everything the read-only Passport shows, read over nexus:* (and the project's own git log for commit subjects). */
+/** Everything the Passport shows, read over nexus:* (and the project's own git log for commit subjects). */
 function useArtifactPassport(artifactId: string, shownVersionNo: number, rootPath: string): { loaded: Loaded | null; error: string | null } {
   const rev = usePlatform((s) => s.rev);
   const [state, setState] = useState<{ loaded: Loaded | null; error: string | null }>({ loaded: null, error: null });
@@ -63,7 +71,35 @@ function useArtifactPassport(artifactId: string, shownVersionNo: number, rootPat
   return state;
 }
 
-function Links({ title, links, truncated, empty }: { title: string; links: PassportLink[] | null; truncated: boolean; empty: string }) {
+type Candidates = { details: ArtifactDetail[]; loading: boolean; error: string | null };
+const NO_CANDIDATES: Candidates = { details: [], loading: false, error: null };
+
+/** The project's other artifacts with every version, read only while sources may be linked: the picker's choices come from these answers. */
+function useLinkCandidates(enabled: boolean, artifactId: string, artifacts: ArtifactSummary[]): Candidates & { capped: boolean } {
+  const rev = usePlatform((s) => s.rev);
+  const { ids, capped } = useMemo(() => candidateArtifactIds(artifactId, artifacts), [artifactId, artifacts]);
+  const key = ids.join(',');
+  const [state, setState] = useState<Candidates>(NO_CANDIDATES);
+  useEffect(() => {
+    if (!enabled) { setState(NO_CANDIDATES); return; }
+    let alive = true;
+    setState((s) => ({ ...s, loading: s.details.length === 0 }));
+    void (async () => {
+      try {
+        const reads = await Promise.all(key ? key.split(',').map((id) => nexusClient.artifactGet(id)) : []);
+        if (!alive) return;
+        const details = reads.flatMap((r) => (r.ok ? [r.data] : []));
+        setState({ details, loading: false, error: reads.some((r) => !r.ok) ? 'Some versions could not be read, so they are not offered.' : null });
+      } catch {
+        if (alive) setState((s) => ({ details: s.details, loading: false, error: errorCopy('internal').text }));
+      }
+    })();
+    return () => { alive = false; };
+  }, [enabled, key, rev]);
+  return { ...state, capped };
+}
+
+function Links({ title, links, truncated, empty, children }: { title: string; links: PassportLink[] | null; truncated: boolean; empty: string; children?: ReactNode }) {
   return (
     <section>
       <h2>{title}</h2>
@@ -73,28 +109,87 @@ function Links({ title, links, truncated, empty }: { title: string; links: Passp
         </ul>
       )}
       {truncated && <p className="nx-muted">More links exist than are shown here.</p>}
+      {children}
     </section>
   );
 }
 
-/** The artifact Passport (read-only): the artifact, its versions with their
- *  statuses (the current one marked), what each version holds, and its sources
- *  and uses. Version actions arrive in a later task. */
+/** The artifact Passport: the artifact, its versions with their statuses (the
+ *  current one marked), what each version holds, its sources and uses, and the
+ *  version actions the platform allows (mark ready, make current, roll back,
+ *  discard, link a source). The actions render only while platform writes are on. */
 export function ArtifactPassport({ project, node, artifacts }: { project: { id: string; rootPath: string }; node: ArtifactNode; artifacts: ArtifactSummary[] }) {
   const idx = useParticipationIndex();
+  const canWrite = usePlatform(selectCanWrite);
+  const bumpRev = usePlatform((s) => s.bumpRev);
   const { loaded, error } = useArtifactPassport(node.artifactId, node.versionNo, project.rootPath);
   const names = useMemo(() => new Map(artifacts.map((s) => [s.artifact.id, s.artifact.name])), [artifacts]);
+
+  const [acts, setActs] = useState<ActionState>(IDLE_ACTIONS);
+  // The guard against a second submit before React re-renders.
+  const running = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  // Opening a confirmation focuses Cancel, never the destructive button.
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (acts.confirming && !acts.pending) cancelRef.current?.focus();
+  }, [acts.confirming, acts.pending]);
+
+  const artifact = loaded ? loaded.detail.artifact : null;
+  const ownerRow = artifact && artifact.ownerParticipationId
+    ? (idx.byProject.get(project.id) ?? []).find((r) => r.id === artifact.ownerParticipationId) ?? null
+    : null;
+  // Writes need the owner participation known to be active; an unknown owner offers nothing.
+  const ownerActive = ownerRow !== null && ownerRow.status === 'active';
+  const versionsById = useMemo(() => new Map((loaded?.detail.versions ?? []).map((v) => [v.id, v])), [loaded]);
+  const shownVersion = loaded ? loaded.detail.versions.find((v) => v.versionNo === node.versionNo) ?? null : null;
+  const linkable = artifact !== null && shownVersion !== null && canLinkSources(artifact, ownerActive, canWrite);
+  const candidates = useLinkCandidates(linkable, node.artifactId, artifacts);
+  const choices = useMemo(() => {
+    if (!linkable || !loaded) return [];
+    const linked = new Set((loaded.up?.nodes ?? []).map((n) => n.versionId));
+    return sourceChoices(node.artifactId, project.id, candidates.details, linked);
+  }, [linkable, loaded, node.artifactId, project.id, candidates.details]);
 
   const view = useMemo(() => {
     if (!loaded) return null;
     const a = loaded.detail.artifact;
-    const row = a.ownerParticipationId ? (idx.byProject.get(project.id) ?? []).find((r) => r.id === a.ownerParticipationId) ?? null : null;
-    const owner = a.ownerWorkspaceId ? { label: viewOf(a.ownerWorkspaceId).label, active: row ? row.status === 'active' : true } : null;
-    const shown = loaded.detail.versions.find((v) => v.versionNo === node.versionNo) ?? null;
-    return artifactPassportView({ detail: loaded.detail, shownVersionId: shown ? shown.id : null, owner, contents: loaded.contents, subjects: loaded.subjects, names, up: loaded.up, down: loaded.down });
-  }, [loaded, idx, project.id, node.versionNo, names]);
+    const owner = a.ownerWorkspaceId ? { label: viewOf(a.ownerWorkspaceId).label, active: ownerRow ? ownerRow.status === 'active' : true } : null;
+    return artifactPassportView({ detail: loaded.detail, shownVersionId: shownVersion ? shownVersion.id : null, owner, contents: loaded.contents, subjects: loaded.subjects, names, up: loaded.up, down: loaded.down });
+  }, [loaded, ownerRow, shownVersion, names]);
 
-  if (!view) {
+  /** One IPC call per action. Promote and roll back send the current version this Passport shows as the compare-and-set value. */
+  const send = async (kind: PassportActionKind, v: VersionView, source: SourceChoice | null): Promise<NexusResult<unknown>> => {
+    switch (kind) {
+      case 'markReady': return nexusClient.versionMarkReady(v.id);
+      case 'promote':
+      case 'rollback': return nexusClient.versionPromote(v.id, loaded?.detail.artifact.currentVersionId ?? null);
+      case 'discard': return nexusClient.versionDiscard(v.id);
+      case 'link': return source ? nexusClient.versionLinkSources(v.id, [source.versionId]) : INTERNAL;
+    }
+  };
+
+  const act = async (kind: PassportActionKind, v: VersionView, source: SourceChoice | null = null) => {
+    if (running.current) return;
+    const next = beginAction(acts, kind, v.id);
+    if (!next) return;
+    running.current = true;
+    setActs(next);
+    const r = await send(kind, v, source).catch((): NexusResult<unknown> => INTERNAL);
+    running.current = false;
+    // Refresh every reader even when this Passport has gone (the node changed mid-call).
+    if (r.ok || shouldReloadAfterAction(r)) bumpRev();
+    if (!alive.current) return;
+    if (r.ok) {
+      const created = kind === 'link' ? (r.data as { created?: unknown } | null)?.created : undefined;
+      setActs((s) => actionSucceeded(s, actionDoneText(kind, v.versionNo, { created: typeof created === 'number' ? created : undefined, sourceLabel: source?.label })));
+    } else {
+      setActs((s) => actionFailed(s, actionFailureText(kind, r)));
+    }
+  };
+
+  if (!view || !loaded || !artifact) {
     return (
       <aside className="nx-passport" aria-labelledby="nx-passport-title">
         <header>
@@ -105,6 +200,9 @@ export function ArtifactPassport({ project, node, artifacts }: { project: { id: 
       </aside>
     );
   }
+
+  const pending = acts.pending;
+  const current = artifact.currentVersionId ? versionsById.get(artifact.currentVersionId) ?? null : null;
   return (
     <aside className="nx-passport" aria-labelledby="nx-passport-title">
       <header>
@@ -118,20 +216,78 @@ export function ArtifactPassport({ project, node, artifacts }: { project: { id: 
       <section>
         <h2>Versions</h2>
         <ol className="nx-versions">
-          {view.versions.map((v) => (
-            <li key={v.id} aria-current={v.current ? 'true' : undefined}>
-              <span className="nx-id">v{v.versionNo}</span>
-              <span className="nx-apx__version">
-                <span>{v.status}{v.current ? ', current' : ''}{v.shown && !v.current ? ', shown on the spine' : ''}</span>
-                {v.content && <span className="nx-apx__content">{v.content}</span>}
-                {v.subject && <span className="nx-muted">{v.subject}</span>}
-              </span>
-            </li>
-          ))}
+          {view.versions.map((row) => {
+            const v = versionsById.get(row.id) ?? null;
+            const allowed = v ? passportActionsFor(v, artifact, ownerActive, canWrite) : [];
+            const confirming = acts.confirming && acts.confirming.versionId === row.id ? acts.confirming : null;
+            return (
+              <li key={row.id} aria-current={row.current ? 'true' : undefined}>
+                <span className="nx-id">v{row.versionNo}</span>
+                <span className="nx-apx__version">
+                  <span>{row.status}{row.current ? ', current' : ''}{row.shown && !row.current ? ', shown on the spine' : ''}</span>
+                  {row.content && <span className="nx-apx__content">{row.content}</span>}
+                  {row.subject && <span className="nx-muted">{row.subject}</span>}
+                  {v && allowed.length > 0 && !confirming && (
+                    <span className="nx-apx__acts">
+                      {allowed.map((a) => {
+                        const mine = pending !== null && pending.kind === a.kind && pending.versionId === v.id;
+                        const onClick = a.kind === 'discard' || a.kind === 'rollback'
+                          ? () => setActs((s) => askActionConfirm(s, a.kind as 'discard' | 'rollback', v.id))
+                          : () => { void act(a.kind, v); };
+                        return (
+                          <Button key={a.kind} variant={a.kind === 'promote' ? 'primary' : 'secondary'} disabled={pending !== null} onClick={onClick}
+                            ariaLabel={`${actionLabel(a.kind, mine)} version ${v.versionNo}`}>
+                            {actionLabel(a.kind, mine)}
+                          </Button>
+                        );
+                      })}
+                    </span>
+                  )}
+                  {v && confirming && (
+                    <div className="nx-apx__confirm" role="group" aria-label={`${actionLabel(confirming.kind, false)} version ${v.versionNo}`}>
+                      <p>{confirmText(confirming.kind, v.versionNo, current ? current.versionNo : null)}</p>
+                      <div className="nx-apx__confirm-actions">
+                        <Button variant="primary" disabled={pending !== null} onClick={() => { void act(confirming.kind, v); }}>
+                          {actionLabel(confirming.kind, pending !== null && pending.versionId === v.id)}
+                        </Button>
+                        <button ref={cancelRef} type="button" className="nx-btn" disabled={pending !== null} onClick={() => setActs((s) => cancelActionConfirm(s))}><span>Cancel</span></button>
+                      </div>
+                    </div>
+                  )}
+                </span>
+              </li>
+            );
+          })}
         </ol>
       </section>
-      <Links title="Sources" links={view.upstream} truncated={view.upstreamTruncated} empty="No sources recorded for this version." />
+      <Links title="Sources" links={view.upstream} truncated={view.upstreamTruncated} empty="No sources recorded for this version.">
+        {linkable && shownVersion && (
+          <div className="nx-apx__link">
+            {candidates.loading ? (
+              <p className="nx-muted" role="status">Reading versions to link…</p>
+            ) : choices.length === 0 ? (
+              <p className="nx-muted">No ready or active version of another artifact is available to link.</p>
+            ) : pending !== null ? (
+              <Button disabled>{actionLabel('link', pending.kind === 'link')}</Button>
+            ) : (
+              <Popover kind="listbox" label={`Versions to link as sources of version ${shownVersion.versionNo}`} triggerClassName="nx-btn" trigger={<span>{actionLabel('link', false)}</span>}>
+                {(close) => choices.map((c) => (
+                  <button key={c.versionId} type="button" role="option" tabIndex={-1} aria-selected={false} className="nx-menu__item"
+                    disabled={pending !== null} onClick={() => { close(); void act('link', shownVersion, c); }}>
+                    <span className="nx-menu__text">{c.label}</span>
+                    <span className="nx-muted">{c.status}</span>
+                  </button>
+                ))}
+              </Popover>
+            )}
+            {candidates.error && <p className="nx-muted">{candidates.error}</p>}
+            {candidates.capped && <p className="nx-muted">Only the {LINK_CANDIDATE_ARTIFACTS} most recently changed artifacts are offered.</p>}
+          </div>
+        )}
+      </Links>
       <Links title="Used by" links={view.downstream} truncated={view.downstreamTruncated} empty="Nothing uses this version yet." />
+      {acts.announce && <p className="nx-apx__status" role="status">{acts.announce}</p>}
+      {acts.error && <p className="nx-passport__note" role="alert">{acts.error}</p>}
       {error && <p className="nx-passport__note" role="alert">{error}</p>}
     </aside>
   );

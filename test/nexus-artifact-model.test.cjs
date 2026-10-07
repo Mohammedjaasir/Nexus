@@ -319,12 +319,11 @@ test('pin: the Save sheet bumps rev before the unmount check, blocks a double su
   assert.match(sheet, /steerText\(steer\.name, ws\.label\)/);
 });
 
-test('pin: the artifact Passport is read-only: reads only, lineage both ways, no version action', () => {
+test('pin: the artifact Passport reads the artifact, its versions and lineage both ways', () => {
   for (const call of ['artifactGet', 'versionGet', 'lineageGet']) assert.match(passport, new RegExp(`nexusClient\\.${call}\\(`), call);
   assert.match(passport, /direction: 'up', depth: 1/);
   assert.match(passport, /direction: 'down', depth: 1/);
-  for (const write of ['versionMarkReady', 'versionPromote', 'versionDiscard', 'versionLinkSources', 'handoffSend', 'artifactSave', 'bumpRev', 'actionsFor'])
-    assert.doesNotMatch(passport, new RegExp(write), write);
+  for (const write of ['handoffSend', 'artifactSave']) assert.doesNotMatch(passport, new RegExp(write), write);
   assert.match(passport, /artifactPassportView\(/);
   assert.match(passport, /truncated=\{view\.upstreamTruncated\}/);
   assert.match(passport, /truncated=\{view\.downstreamTruncated\}/);
@@ -354,4 +353,192 @@ test('the passport relationships note gives way once the project has artifacts',
   assert.equal(passportFor({ project, idx, node, commits: [], hasArtifacts: true }).relationshipsNote, null);
   const artNode = { kind: 'artifact', id: 'artifact:A', artifactId: 'A', artifactKind: 'text_file', name: 'n', versionNo: 1, status: 'draft', isCurrent: false };
   assert.equal(passportFor({ project, idx, node: artNode, commits: [] }).kind, 'Text file');
+});
+
+// ---------- Task 11: version actions in the Passport ----------
+
+test('VA1: the Passport offers exactly what actionsFor allows, minus hand off, and nothing while writes are off', () => {
+  const kinds = (v, a = art(), owner = true, write = true) => A.passportActionsFor(v, a, owner, write).map((x) => x.kind);
+  assert.deepEqual(kinds(ver()), ['markReady', 'discard']);
+  assert.deepEqual(kinds(ver({ producedByEngine: true })), ['discard']);
+  assert.deepEqual(kinds(ver({ status: 'candidate' })), ['promote', 'discard']);
+  assert.deepEqual(kinds(ver({ status: 'active' })), [], 'hand off is not a Passport button here');
+  assert.deepEqual(kinds(ver({ status: 'deprecated', promotedAt: 5 })), ['rollback']);
+  assert.deepEqual(kinds(ver({ status: 'deprecated', promotedAt: null })), []);
+  for (const v of [ver(), ver({ status: 'candidate' }), ver({ status: 'deprecated', promotedAt: 5 })]) {
+    assert.deepEqual(kinds(v, art(), true, false), [], 'writes off');
+    assert.deepEqual(kinds(v, art(), false, true), [], 'frozen owner');
+    assert.deepEqual(kinds(v, art({ status: 'archived' })), [], 'archived');
+    assert.deepEqual(kinds(v, art({ ownerScope: 'project' })), [], 'project-owned');
+  }
+  assert.equal(A.canLinkSources(art(), true, true), true);
+  assert.equal(A.canLinkSources(art(), true, false), false);
+  assert.equal(A.canLinkSources(art(), false, true), false);
+  assert.equal(A.canLinkSources(art({ status: 'archived' }), true, true), false);
+  assert.equal(A.canLinkSources(art({ ownerScope: 'project' }), true, true), false);
+});
+
+test('VA2: promote and roll back carry the current version the person saw; null only when there is none', () => {
+  const p = A.passportActionsFor(ver({ status: 'candidate' }), art({ currentVersionId: 'CUR' }), true, true).find((a) => a.kind === 'promote');
+  assert.equal(p.expectedCurrentVersionId, 'CUR');
+  const r = A.passportActionsFor(ver({ status: 'deprecated', promotedAt: 1 }), art({ currentVersionId: 'V9' }), true, true)[0];
+  assert.equal(r.expectedCurrentVersionId, 'V9');
+  const first = A.passportActionsFor(ver({ status: 'candidate' }), art({ currentVersionId: null }), true, true)[0];
+  assert.equal(first.expectedCurrentVersionId, null);
+});
+
+test('VA3: the pending/confirm machine blocks double submits and starts destructive actions only from their confirmation', () => {
+  const S0 = A.IDLE_ACTIONS;
+  assert.equal(A.needsConfirm('discard'), true);
+  assert.equal(A.needsConfirm('rollback'), true);
+  assert.equal(A.needsConfirm('promote'), false);
+  assert.equal(A.needsConfirm('markReady'), false);
+  assert.equal(A.needsConfirm('link'), false);
+  assert.equal(A.beginAction(S0, 'discard', 'V1'), null, 'no discard without confirming');
+  assert.equal(A.beginAction(S0, 'rollback', 'V1'), null);
+  const c = A.askActionConfirm({ ...S0, error: 'old', announce: 'old' }, 'discard', 'V1');
+  assert.deepEqual(c, { pending: null, confirming: { kind: 'discard', versionId: 'V1' }, error: null, announce: null });
+  assert.equal(A.beginAction(c, 'discard', 'V2'), null, 'the confirmation is for another version');
+  assert.equal(A.beginAction(c, 'rollback', 'V1'), null, 'the confirmation is for another action');
+  const p = A.beginAction(c, 'discard', 'V1');
+  assert.deepEqual(p.pending, { kind: 'discard', versionId: 'V1' });
+  assert.deepEqual(p.confirming, { kind: 'discard', versionId: 'V1' }, 'the confirmation stays visible, disabled, while pending');
+  assert.equal(A.beginAction(p, 'discard', 'V1'), null, 'double submit');
+  assert.equal(A.beginAction(p, 'markReady', 'V2'), null, 'any other action while one runs');
+  assert.equal(A.askActionConfirm(p, 'rollback', 'V3'), p, 'no new confirmation while pending');
+  assert.equal(A.cancelActionConfirm(p), p, 'no cancel while pending');
+  assert.equal(A.cancelActionConfirm(c).confirming, null);
+  const m = A.beginAction(S0, 'markReady', 'V1');
+  assert.deepEqual(m, { pending: { kind: 'markReady', versionId: 'V1' }, confirming: null, error: null, announce: null });
+  // Any answer re-enables everything.
+  assert.deepEqual(A.actionSucceeded(p, 'done'), { pending: null, confirming: null, error: null, announce: 'done' });
+  assert.deepEqual(A.actionFailed(p, 'no'), { pending: null, confirming: null, error: 'no', announce: null });
+});
+
+test('VA4: a promote or roll back conflict says plainly that the current version changed, and reloads', () => {
+  const conflict = { code: 'conflict', detail: { currentVersionId: 'X' } };
+  assert.equal(A.actionFailureText('promote', conflict), 'The current version changed; the list is refreshed');
+  assert.equal(A.actionFailureText('rollback', conflict), A.PROMOTE_CONFLICT_TEXT);
+  assert.equal(A.shouldReloadAfterAction(conflict), true);
+  // A conflict elsewhere (an archived artifact) keeps the general sentence.
+  assert.equal(A.actionFailureText('discard', { code: 'conflict' }), errorCopy('conflict').text);
+});
+
+test('VA5: failure copy: cycle and bad sources for links; errorCopy for everything else', () => {
+  assert.equal(A.actionFailureText('link', { code: 'cycle' }), A.LINK_CYCLE_TEXT);
+  assert.notEqual(A.LINK_CYCLE_TEXT, errorCopy('cycle').text);
+  assert.equal(A.actionFailureText('link', { code: 'invalid' }), A.LINK_INVALID_TEXT);
+  assert.equal(A.actionFailureText('link', { code: 'invalid', reason: 'bad_request' }), errorCopy('invalid', 'bad_request').text);
+  assert.equal(A.actionFailureText('markReady', { code: 'invalid', reason: 'produced_by_job' }), errorCopy('invalid', 'produced_by_job').text);
+  for (const code of ['denied', 'not_found', 'illegal_transition', 'participation_inactive', 'internal'])
+    for (const k of ['markReady', 'promote', 'rollback', 'discard', 'link']) assert.equal(A.actionFailureText(k, { code }), errorCopy(code).text, `${k} ${code}`);
+  assert.equal(A.actionFailureText('promote', { code: 'platform_unavailable', reason: 'busy' }), errorCopy('platform_unavailable', 'busy').text);
+});
+
+test('VA6: which failures reload the readers', () => {
+  const yes = [{ code: 'conflict' }, { code: 'not_found' }, { code: 'illegal_transition' }, { code: 'participation_inactive' },
+    { code: 'invalid' }, { code: 'platform_unavailable', reason: 'held' }];
+  const no = [{ code: 'cycle' }, { code: 'denied' }, { code: 'internal' }, { code: 'invalid', reason: 'bad_request' },
+    { code: 'invalid', reason: 'produced_by_job' }, { code: 'platform_unavailable', reason: 'busy' }, { code: 'platform_unavailable', reason: 'handoffs_unavailable' }];
+  for (const r of yes) assert.equal(A.shouldReloadAfterAction(r), true, JSON.stringify(r));
+  for (const r of no) assert.equal(A.shouldReloadAfterAction(r), false, JSON.stringify(r));
+});
+
+test('VA7: labels, confirmation questions and result sentences', () => {
+  assert.equal(A.actionLabel('markReady', false), 'Mark ready');
+  assert.equal(A.actionLabel('markReady', true), 'Marking ready…');
+  assert.equal(A.actionLabel('promote', false), 'Make current');
+  assert.equal(A.actionLabel('rollback', true), 'Rolling back…');
+  assert.equal(A.actionLabel('discard', true), 'Discarding…');
+  assert.equal(A.actionLabel('link', false), 'Link a source…');
+  assert.match(A.confirmText('discard', 3, 2), /^Discard version 3\?/);
+  assert.equal(A.confirmText('rollback', 1, 2), 'Make version 1 current again? Version 2 stops being current.');
+  assert.equal(A.confirmText('rollback', 1, null), 'Make version 1 current again?');
+  assert.equal(A.actionDoneText('markReady', 3), 'Version 3 is ready.');
+  assert.equal(A.actionDoneText('promote', 3), 'Version 3 is now current.');
+  assert.equal(A.actionDoneText('rollback', 1), 'Rolled back: version 1 is current again.');
+  assert.equal(A.actionDoneText('discard', 4), 'Version 4 was discarded.');
+  assert.equal(A.actionDoneText('link', 2, { created: 1, sourceLabel: 'Commit Release, version 1' }), 'Commit Release, version 1 is now a source of version 2.');
+  assert.equal(A.actionDoneText('link', 2, { created: 0, sourceLabel: 'Commit Release, version 1' }), 'Commit Release, version 1 was already a source of version 2.');
+});
+
+test('VA8: link choices come only from returned versions: out of draft, other non-archived artifacts of this project, not already linked', () => {
+  const v = (id, artifactId, versionNo, status, projectId = 'p') => ({ id, artifactId, versionNo, status, projectId });
+  const d = (id, name, kind, versions, o = {}) => ({ artifact: { id, projectId: 'p', name, kind, status: 'active', ...o }, versions });
+  const details = [
+    d('SELF', 'Me', 'text_file', [v('S1', 'SELF', 1, 'active')]),
+    d('R', 'Release', 'git_commit', [v('R1', 'R', 1, 'deprecated'), v('R2', 'R', 2, 'active'), v('R3', 'R', 3, 'candidate'), v('R4', 'R', 4, 'draft'), v('R5', 'R', 5, 'failed')]),
+    d('N', 'Notes', 'text_file', [v('N1', 'N', 1, 'candidate'), v('N2', 'N', 2, 'active')]),
+    d('OLD', 'Old', 'text_file', [v('O1', 'OLD', 1, 'active')], { status: 'archived' }),
+    d('X', 'Elsewhere', 'text_file', [v('X1', 'X', 1, 'active', 'q')], { projectId: 'q' }),
+    d('M', 'Mixed', 'text_file', [v('M1', 'OTHER', 1, 'active')])
+  ];
+  const c = A.sourceChoices('SELF', 'p', details, new Set(['N2']));
+  assert.deepEqual(c, [
+    { versionId: 'N1', label: 'Text file Notes, version 1', status: 'ready' },
+    { versionId: 'R3', label: 'Commit Release, version 3', status: 'ready' },
+    { versionId: 'R2', label: 'Commit Release, version 2', status: 'active' }
+  ]);
+  assert.deepEqual(A.sourceChoices('SELF', 'p', [], new Set()), []);
+});
+
+test('VA9: the picker reads the most recently changed other artifacts, capped, and says when it is capped', () => {
+  const s = (id, updatedAt, o = {}) => ({ artifact: { id, status: 'active', updatedAt, ...o }, versionCount: 1, latest: null, current: null });
+  const r = A.candidateArtifactIds('SELF', [s('SELF', 9), s('A', 1), s('B', 3), s('C', 2, { status: 'archived' }), { ...s('E', 5), versionCount: 0 }]);
+  assert.deepEqual(r, { ids: ['B', 'A'], capped: false });
+  const many = Array.from({ length: A.LINK_CANDIDATE_ARTIFACTS + 2 }, (_, i) => s(`A${i}`, i));
+  const big = A.candidateArtifactIds('SELF', many);
+  assert.equal(big.ids.length, A.LINK_CANDIDATE_ARTIFACTS);
+  assert.equal(big.capped, true);
+  assert.equal(big.ids[0], `A${A.LINK_CANDIDATE_ARTIFACTS + 1}`);
+});
+
+test('pin: the Passport actions render only while writes are on and only where actionsFor allows them', () => {
+  assert.match(passport, /const canWrite = usePlatform\(selectCanWrite\);/);
+  assert.match(passport, /passportActionsFor\(v, artifact, ownerActive, canWrite\)/);
+  assert.match(passport, /canLinkSources\(artifact, ownerActive, canWrite\)/);
+  assert.match(passport, /const ownerActive = ownerRow !== null && ownerRow\.status === 'active';/);
+  assert.match(passport, /\{v && allowed\.length > 0 && !confirming && \(/);
+  assert.match(passport, /\{linkable && shownVersion && \(/);
+});
+
+test('pin: every Passport action is one real IPC call; promote sends the current version shown', () => {
+  assert.match(passport, /case 'markReady': return nexusClient\.versionMarkReady\(v\.id\);/);
+  assert.match(passport, /case 'rollback': return nexusClient\.versionPromote\(v\.id, loaded\?\.detail\.artifact\.currentVersionId \?\? null\);/);
+  assert.match(passport, /case 'discard': return nexusClient\.versionDiscard\(v\.id\);/);
+  assert.match(passport, /nexusClient\.versionLinkSources\(v\.id, \[source\.versionId\]\)/);
+  assert.equal((passport.match(/nexusClient\.versionPromote\(/g) || []).length, 1);
+});
+
+test('pin: pending blocks double submits, bumpRev runs before the unmount check, and failures use the action copy', () => {
+  assert.match(passport, /if \(running\.current\) return;\s*const next = beginAction\(acts, kind, v\.id\);\s*if \(!next\) return;/);
+  assert.match(passport, /const r = await send\(kind, v, source\)\.catch\(\(\): NexusResult<unknown> => INTERNAL\);/);
+  assert.match(passport, /if \(r\.ok \|\| shouldReloadAfterAction\(r\)\) bumpRev\(\);\s*if \(!alive\.current\) return;/);
+  assert.equal((passport.match(/bumpRev\(\)/g) || []).length, 1);
+  assert.match(passport, /setActs\(\(s\) => actionFailed\(s, actionFailureText\(kind, r\)\)\)/);
+  assert.match(passport, /disabled=\{pending !== null\} onClick=\{onClick\}/);
+  assert.match(passport, /role="alert">\{acts\.error\}/);
+  assert.match(passport, /role="status">\{acts\.announce\}/);
+});
+
+test('pin: discard and roll back confirm inline with focus on Cancel', () => {
+  assert.match(passport, /a\.kind === 'discard' \|\| a\.kind === 'rollback'\s*\? \(\) => setActs\(\(s\) => askActionConfirm\(s, a\.kind as 'discard' \| 'rollback', v\.id\)\)/);
+  assert.match(passport, /if \(acts\.confirming && !acts\.pending\) cancelRef\.current\?\.focus\(\);/);
+  assert.match(passport, /<button ref=\{cancelRef\} type="button" className="nx-btn" disabled=\{pending !== null\} onClick=\{\(\) => setActs\(\(s\) => cancelActionConfirm\(s\)\)\}><span>Cancel<\/span><\/button>/);
+});
+
+test('pin: link sources picks from returned versions in a Popover; no id is typed; loaders never reject', () => {
+  assert.match(passport, /<Popover kind="listbox" label=\{`Versions to link as sources of version \$\{shownVersion\.versionNo\}`\}/);
+  assert.match(passport, /sourceChoices\(node\.artifactId, project\.id, candidates\.details, linked\)/);
+  assert.doesNotMatch(passport, /<input|<textarea|contentEditable/);
+  assert.equal((passport.match(/\} catch \{/g) || []).length, 2, 'both async loaders catch');
+  assert.match(panel, /return <ArtifactPassport key=\{props\.node\.artifactId\} /);
+});
+
+test('pin: the Passport action styles use unique prefixes', () => {
+  const css = fs.readFileSync(path.join(NEXUS, 'styles', 'platform.css'), 'utf8');
+  for (const cls of ['nx-apx__acts', 'nx-apx__confirm', 'nx-apx__confirm-actions', 'nx-apx__link', 'nx-apx__status']) {
+    assert.match(css, new RegExp(`\\.${cls}\\b`), cls);
+    assert.match(passport, new RegExp(`className="${cls}"`), cls);
+  }
 });

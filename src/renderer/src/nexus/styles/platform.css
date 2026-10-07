@@ -48,3 +48,20 @@ li.nx-svx-commit { grid-template-columns: 64px minmax(0, 1fr) auto; align-items:
 .nx-svx__steer p { margin: 0; color: var(--nx-text-2); }
 .nx-svx__actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
 .nx-spx-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); white-space: normal; }
+
+/* Version actions in the artifact Passport. Destructive actions confirm inline. */
+.nx-apx__acts { display: flex; flex-wrap: wrap; gap: var(--nx-s2); margin-top: var(--nx-s1); }
+.nx-apx__confirm { display: grid; gap: var(--nx-s2); margin-top: var(--nx-s1); padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line); border-left: 3px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-sunken); }
+.nx-apx__confirm p { margin: 0; color: var(--nx-text-2); }
+.nx-apx__confirm-actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
+.nx-apx__link { display: grid; justify-items: start; gap: var(--nx-s1); margin-top: var(--nx-s2); }
+.nx-apx__link p { margin: 0; }
+.nx-apx__status { margin: var(--nx-s2) 0 0; color: var(--nx-text-2); }
+
+/* The project's recent activity (project/ActivitySection.tsx): sentences, who, when. */
+.nx-acx__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--nx-s2); }
+.nx-acx__row { display: grid; gap: 2px; min-width: 0; }
+.nx-acx__text { color: var(--nx-ink); overflow-wrap: anywhere; }
+.nx-acx__meta { font-size: 11.5px; }
+.nx-acx__line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); margin: 0; }
+.nx-acx__more { margin-top: var(--nx-s2); }
