@@ -31,10 +31,14 @@
  * already moved are put back, MAIN FILE FIRST. If the main file cannot be put back,
  * the rollback STOPS there: its -wal/-shm/-journal stay aside, because a stale WAL
  * beside a missing (or different) harness.db must never be replayed. The tool then
- * exits 5 and prints, for every file still aside, the exact `rename "<to>" "<from>"`
- * to do by hand, plus, when a verified copy of the backup exists, the alternative of
- * renaming that copy to harness.db. A .restoring-<stamp> copy that is left behind is
- * kept for inspection and is safe to delete by hand.
+ * exits 5 and prints, for every file still aside, the exact command to do by hand:
+ * `move "<to>" "<from>"` on Windows (works in cmd and PowerShell) or `mv "<to>" "<from>"`
+ * elsewhere, plus, when a verified copy of the backup exists, the alternative of
+ * moving that copy to harness.db. If a NEW harness.db (or side file) appeared during
+ * the restore, most likely because the app was started, the message says so first:
+ * quit the app and move that new file aside before the listed steps. A
+ * .restoring-<stamp> copy that is left behind is kept for inspection and is safe to
+ * delete by hand. Every failure after the first move goes through this rollback.
  * Nothing is ever deleted and the backup itself is left in place. On platforms
  * other than Windows an open file can be renamed, so quitting the app first is the
  * only protection there.
@@ -118,7 +122,9 @@ function checkOptions(opts) {
   if (!dir || !dir.isDirectory()) throw new RestoreError('bad_arguments', `the target's folder does not exist: ${path.dirname(dbPath)}`);
   const d = statOrNull(dbPath);
   if (d && !d.isFile()) throw new RestoreError('bad_arguments', `the target is not a file: ${dbPath}`);
-  return { db: dbPath, backup: backupPath, sha256: sha256.toLowerCase() };
+  const platform = opts.platform === undefined ? process.platform : opts.platform;
+  if (typeof platform !== 'string') throw new RestoreError('bad_arguments', 'platform must be a string');
+  return { db: dbPath, backup: backupPath, sha256: sha256.toLowerCase(), platform };
 }
 
 /**
@@ -138,7 +144,7 @@ function prepare(opts, now) {
     const tag = n === 1 ? base : `${base}-${n}`;
     const moves = present.map((s) => ({ from: o.db + s, to: `${o.db}.pre-restore-${tag}${s}` }));
     const temp = `${o.db}.restoring-${tag}`;
-    if (!moves.some((m) => fs.existsSync(m.to)) && !fs.existsSync(temp)) return { ...o, moves, temp };
+    if (!moves.some((m) => fs.existsSync(m.to)) && !fs.existsSync(temp)) return { ...o, moves, temp, tag };
   }
 }
 
@@ -157,19 +163,25 @@ function planRestore(opts, now = Date.now()) {
 const isLockError = (e) => e && (e.code === 'EBUSY' || e.code === 'EPERM');
 const LOCK_HINT = 'quit the app first (on Windows an antivirus or indexer holding the file can also cause this)';
 
+/** Text of any thrown value, for a message: its errno code, else its message. */
+const why = (e) => (e && (e.code || e.message)) || String(e);
+/** The manual move command for this platform: `move` works in cmd and PowerShell; `mv` elsewhere. */
+const moveCmd = (platform, from, to) => `${platform === 'win32' ? 'move' : 'mv'} "${from}" "${to}"`;
+
 /**
  * Puts already-moved files back, MAIN FILE FIRST. Never overwrites: a name that
- * exists again is not renamed onto. If the main file cannot go back, nothing else is
- * tried: its side files stay aside, so a stale WAL never sits beside a missing or
- * different harness.db. Returns the moves still aside, each with the reason.
+ * exists again is not renamed onto (it is marked `reappeared`). If the main file
+ * cannot go back, nothing else is tried: its side files stay aside, so a stale WAL
+ * never sits beside a missing or different harness.db. Returns the moves still aside,
+ * each with the reason. Never throws.
  */
 function rollback(moved, db) {
   const ordered = [...moved.filter((m) => m.from === db), ...moved.filter((m) => m.from !== db)];
   const stuck = [];
   for (const m of ordered) {
     if (stuck.some((x) => x.from === db)) { stuck.push({ ...m, reason: 'left aside because harness.db is not back' }); continue; }
-    if (fs.existsSync(m.from)) { stuck.push({ ...m, reason: `${path.basename(m.from)} exists again` }); continue; }
-    try { fs.renameSync(m.to, m.from); } catch (e) { stuck.push({ ...m, reason: e.code || e.message }); }
+    if (fs.existsSync(m.from)) { stuck.push({ ...m, reason: `a new ${path.basename(m.from)} appeared`, reappeared: true }); continue; }
+    try { fs.renameSync(m.to, m.from); } catch (e) { stuck.push({ ...m, reason: why(e) }); }
   }
   return stuck;
 }
@@ -186,17 +198,23 @@ function failAndRollBack(code, message, moved, p, state) {
     const back = moved.length ? '; every moved file was put back' : '';
     throw new RestoreError(code, `${message}${back}${kept}`);
   }
+  const name = path.basename(p.db);
   const mainStuck = stuck.some((m) => m.from === p.db);
   const lines = [message, `ROLLBACK INCOMPLETE: ${stuck.length} file(s) could not be put back.`];
+  for (const m of stuck.filter((x) => x.reappeared)) {
+    lines.push(`A NEW ${path.basename(m.from)} appeared at ${m.from} during the restore, most likely because the app is running. `
+      + `Quit the app, then move that new file aside first: ${moveCmd(p.platform, m.from, `${m.from}.unexpected-${p.tag}`)}`);
+  }
   if (mainStuck) {
-    lines.push(`${path.basename(p.db)} is NOT in place. Its side files were left aside on purpose: never put a -wal/-shm back beside a missing or different ${path.basename(p.db)}.`);
+    lines.push(`${name} is NOT in place. Its side files were left aside on purpose: never put a -wal/-shm back beside a missing or different ${name}.`);
   } else {
-    lines.push(`${path.basename(p.db)} is back in place, but some of its side files are still aside: put them back before launching the app.`);
+    lines.push(`${name} is back in place, but some of its side files are still aside: put them back before launching the app.`);
   }
   lines.push('With the app closed, put the original files back by hand, in this order:');
-  for (const m of stuck) lines.push(`  rename "${m.to}" "${m.from}"    (${m.reason})`);
+  for (const m of stuck) lines.push(`  ${moveCmd(p.platform, m.to, m.from)}    (${m.reason})`);
   if (mainStuck && tempLeft && state.verified) {
-    lines.push(`Or finish the restore instead: a verified copy of the backup is at ${p.temp}; rename it to ${path.basename(p.db)} ("${p.db}") and leave the side files aside.`);
+    lines.push(`Or finish the restore instead: a verified copy of the backup is at ${p.temp}; move it to ${name} `
+      + `and leave the side files aside: ${moveCmd(p.platform, p.temp, p.db)}`);
   } else if (tempLeft) {
     lines.push(`The copy ${p.temp} is kept for inspection${state.verified ? '' : ' (it did NOT verify: do not use it)'} and is safe to delete by hand.`);
   }
@@ -208,34 +226,46 @@ function applyRestore(opts, now = Date.now()) {
   const p = prepare(opts, now);
   const moved = [];
   const state = { verified: false, installed: false };
-  for (const m of p.moves) {
-    try {
-      fs.renameSync(m.from, m.to);
-      moved.push(m);
-    } catch (e) {
-      if (isLockError(e)) failAndRollBack('locked', `${path.basename(m.from)} is locked or in use (${e.code}): ${LOCK_HINT}`, moved, p, state);
-      failAndRollBack('error', `could not move ${m.from} aside (${e.code || e.message})`, moved, p, state);
+  // From the first move on, every failure (expected or not) goes through failAndRollBack.
+  try {
+    for (const m of p.moves) {
+      try {
+        fs.renameSync(m.from, m.to);
+        moved.push(m);
+      } catch (e) {
+        if (isLockError(e)) failAndRollBack('locked', `${path.basename(m.from)} is locked or in use (${e.code}): ${LOCK_HINT}`, moved, p, state);
+        failAndRollBack('error', `could not move ${m.from} aside (${why(e)})`, moved, p, state);
+      }
     }
-  }
-  try {
-    fs.copyFileSync(p.backup, p.temp, fs.constants.COPYFILE_EXCL);
+    try {
+      fs.copyFileSync(p.backup, p.temp, fs.constants.COPYFILE_EXCL);
+    } catch (e) {
+      failAndRollBack('error', `could not copy the backup to ${p.temp} (${why(e)})`, moved, p, state);
+    }
+    let copied;
+    try {
+      copied = sha256File(p.temp);
+    } catch (e) {
+      failAndRollBack('error', `could not re-hash the copy ${p.temp} (${why(e)})`, moved, p, state);
+    }
+    if (copied !== p.sha256) {
+      failAndRollBack('sha_mismatch', `sha256 of the copy ${p.temp} is ${copied}, expected ${p.sha256}`, moved, p, state);
+    }
+    state.verified = true;
+    if (fs.existsSync(p.db)) {
+      failAndRollBack('locked', `a new ${p.db} appeared during the restore: is the app running? ${LOCK_HINT}`, moved, p, state);
+    }
+    try {
+      fs.renameSync(p.temp, p.db);
+      state.installed = true;
+    } catch (e) {
+      const hint = isLockError(e) ? `: ${LOCK_HINT}` : '';
+      failAndRollBack(isLockError(e) ? 'locked' : 'error', `could not rename the verified copy ${p.temp} to ${p.db} (${why(e)})${hint}`, moved, p, state);
+    }
   } catch (e) {
-    failAndRollBack('error', `could not copy the backup to ${p.temp} (${e.code || e.message})`, moved, p, state);
-  }
-  const copied = sha256File(p.temp);
-  if (copied !== p.sha256) {
-    failAndRollBack('sha_mismatch', `sha256 of the copy ${p.temp} is ${copied}, expected ${p.sha256}`, moved, p, state);
-  }
-  state.verified = true;
-  if (fs.existsSync(p.db)) {
-    failAndRollBack('locked', `${p.db} reappeared during the restore: is the app running? ${LOCK_HINT}`, moved, p, state);
-  }
-  try {
-    fs.renameSync(p.temp, p.db);
-    state.installed = true;
-  } catch (e) {
-    const why = isLockError(e) ? `: ${LOCK_HINT}` : '';
-    failAndRollBack(isLockError(e) ? 'locked' : 'error', `could not rename the verified copy ${p.temp} to ${p.db} (${e.code || e.message})${why}`, moved, p, state);
+    if (e instanceof RestoreError) throw e;
+    // A failure no branch above expected: still roll back (or give the manual steps).
+    failAndRollBack('error', `unexpected error during the restore (${why(e)})`, moved, p, state);
   }
   return { movedAside: moved.map((m) => m.to), restored: p.db };
 }

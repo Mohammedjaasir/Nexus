@@ -219,12 +219,13 @@ for (const [name, f] of Object.entries(failures)) {
     if (name === 'rename') { assert.match(err.message, /quit the app first/); assert.match(err.message, /antivirus/); }
   });
 
-  test(`install failure (${name}) AND the main file cannot be put back: exit 5, side files stay aside, exact manual steps`, () => {
+  for (const platform of ['win32', 'linux']) test(`install failure (${name}) AND the main file cannot be put back (${platform}): exit 5, side files stay aside, exact manual steps`, () => {
     const { dir, db, backup, hash } = scene();
+    const cmd = platform === 'win32' ? 'move' : 'mv';
     let err;
     const patches = f.patch(db);
     patches.renameSync = failRollbackOf(db, db, patches.renameSync);
-    withFs(patches, () => { try { applyRestore({ db, backup, sha256: hash }, Date.UTC(2026, 9, 7, 9)); } catch (e) { err = e; } });
+    withFs(patches, () => { try { applyRestore({ db, backup, sha256: hash, platform }, Date.UTC(2026, 9, 7, 9)); } catch (e) { err = e; } });
     assert.ok(err, 'the restore must fail');
     assert.equal(err.code, 'rollback_failed'); assert.equal(err.exitCode, 5); assert.equal(err.cause, f.code);
     assert.ok(!fs.existsSync(db), 'harness.db is not in place');
@@ -233,12 +234,15 @@ for (const [name, f] of Object.entries(failures)) {
     assert.equal(err.stuck[0].from, db, 'the main file is listed first');
     for (const m of err.stuck) {
       assert.match(fs.readFileSync(m.to, 'utf8'), /^v7 /, 'the moved file is intact');
-      assert.ok(err.message.includes(`rename "${m.to}" "${m.from}"`), `manual step for ${path.basename(m.from)}`);
+      assert.ok(err.message.includes(`  ${cmd} "${m.to}" "${m.from}"`), `manual step for ${path.basename(m.from)}`);
     }
     assert.match(err.message, /ROLLBACK INCOMPLETE/); assert.match(err.message, /harness\.db is NOT in place/);
+    assert.doesNotMatch(err.message, /\brename "/, 'no cmd-incompatible rename form');
+    assert.doesNotMatch(err.message, platform === 'win32' ? /^\s*mv "/m : /^\s*move "/m);
     const temp = fs.readdirSync(dir).find((x) => x.includes('.restoring-'));
     if (f.temp === 'verified') {
-      assert.ok(err.message.includes(`a verified copy of the backup is at ${path.join(dir, temp)}; rename it to harness.db`));
+      assert.ok(err.message.includes(`a verified copy of the backup is at ${path.join(dir, temp)}; move it to harness.db`));
+      assert.ok(err.message.includes(`${cmd} "${path.join(dir, temp)}" "${db}"`));
     } else if (f.temp === 'unverified') {
       assert.match(err.message, /did NOT verify/); assert.doesNotMatch(err.message, /a verified copy/);
     } else {
@@ -252,12 +256,12 @@ test('the main file goes back but its -wal cannot: exit 5, harness.db in place, 
   let err;
   const patches = failures.rename.patch(db);
   patches.renameSync = failRollbackOf(db, `${db}-wal`, patches.renameSync);
-  withFs(patches, () => { try { applyRestore({ db, backup, sha256: hash }, Date.UTC(2026, 9, 7, 9)); } catch (e) { err = e; } });
+  withFs(patches, () => { try { applyRestore({ db, backup, sha256: hash, platform: 'win32' }, Date.UTC(2026, 9, 7, 9)); } catch (e) { err = e; } });
   assert.equal(err.code, 'rollback_failed'); assert.equal(err.exitCode, 5); assert.equal(err.cause, 'locked');
   assert.equal(fs.readFileSync(db, 'utf8'), 'v7 main'); assert.equal(fs.readFileSync(`${db}-shm`, 'utf8'), 'v7 shm');
   assert.deepEqual(err.stuck.map((m) => m.from), [`${db}-wal`]);
   assert.match(err.message, /harness\.db is back in place/);
-  assert.ok(err.message.includes(`rename "${err.stuck[0].to}" "${db}-wal"`));
+  assert.ok(err.message.includes(`move "${err.stuck[0].to}" "${db}-wal"`));
   assert.ok(fs.readdirSync(dir).some((x) => x.includes('.restoring-')));
 });
 
@@ -274,7 +278,71 @@ fs.renameSync = (src, dest) => {
     { encoding: 'utf8', env: { ...process.env, NX_TEST_DB: db } });
   assert.equal(r.status, 5, r.stderr);
   assert.match(r.stderr, /ROLLBACK INCOMPLETE/);
-  assert.match(r.stderr, /rename ".*harness\.db\.pre-restore-[^"]*" ".*harness\.db"/);
-  assert.match(r.stderr, /a verified copy of the backup is at .*\.restoring-.*; rename it to harness\.db/);
+  const cmd = process.platform === 'win32' ? 'move' : 'mv';
+  assert.match(r.stderr, new RegExp(`^  ${cmd} ".*harness\\.db\\.pre-restore-[^"]*" ".*harness\\.db"`, 'm'));
+  assert.match(r.stderr, new RegExp(`a verified copy of the backup is at .*\\.restoring-.*; move it to harness\\.db .*: ${cmd} "`));
   assert.ok(!fs.existsSync(db) && !fs.existsSync(`${db}-wal`));
+});
+
+// ---- fix round 2: re-hash read failures, a new harness.db appearing ----
+
+/** Makes every open of the .restoring- copy fail (the re-hash read). */
+const failRehashRead = () => ({ openSync: (real) => (file, ...rest) => {
+  if (String(file).includes('.restoring-')) throw errno('EIO');
+  return real(file, ...rest);
+} });
+
+test('the re-hash read fails (EIO): every file is put back, exit 1, the copy is kept', () => {
+  const { dir, db, backup, hash } = scene();
+  const before = snapshot(dir);
+  let err;
+  withFs(failRehashRead(), () => { try { applyRestore({ db, backup, sha256: hash }, Date.UTC(2026, 9, 7, 10)); } catch (e) { err = e; } });
+  assert.ok(err, 'the restore must fail');
+  assert.equal(err.code, 'error'); assert.equal(err.exitCode, 1);
+  assert.match(err.message, /could not re-hash the copy .*\(EIO\)/); assert.match(err.message, /every moved file was put back/);
+  assert.deepEqual(withoutTemp(snapshot(dir)), before);
+  assert.equal(fs.readdirSync(dir).filter((x) => x.includes('.restoring-')).length, 1);
+});
+
+test('the re-hash read fails AND the main file cannot be put back: exit 5 with the steps, the unverified copy is not offered', () => {
+  const { db, backup, hash } = scene();
+  let err;
+  const patches = failRehashRead();
+  patches.renameSync = failRollbackOf(db, db);
+  withFs(patches, () => { try { applyRestore({ db, backup, sha256: hash, platform: 'win32' }, Date.UTC(2026, 9, 7, 10)); } catch (e) { err = e; } });
+  assert.equal(err.code, 'rollback_failed'); assert.equal(err.exitCode, 5); assert.equal(err.cause, 'error');
+  assert.ok(!fs.existsSync(db) && !fs.existsSync(`${db}-wal`) && !fs.existsSync(`${db}-shm`));
+  for (const m of err.stuck) assert.ok(err.message.includes(`  move "${m.to}" "${m.from}"`));
+  assert.match(err.message, /did NOT verify/); assert.doesNotMatch(err.message, /a verified copy/);
+});
+
+test('an unexpected throw after the moves (not an errno) still rolls back', () => {
+  const { dir, db, backup, hash } = scene();
+  const before = snapshot(dir);
+  let err;
+  withFs({ copyFileSync: () => () => { throw 'not an Error object'; } }, () => {
+    try { applyRestore({ db, backup, sha256: hash }, Date.UTC(2026, 9, 7, 10)); } catch (e) { err = e; }
+  });
+  assert.equal(err.code, 'error'); assert.equal(err.exitCode, 1);
+  assert.deepEqual(snapshot(dir), before);
+});
+
+for (const platform of ['win32', 'linux']) test(`a NEW harness.db appears during the restore (${platform}): exit 5, it is untouched, the message says to quit and move it aside first`, () => {
+  const { dir, db, backup, hash } = scene();
+  const cmd = platform === 'win32' ? 'move' : 'mv';
+  let err;
+  // The app starts mid-restore and creates a fresh harness.db before the install.
+  withFs({ copyFileSync: (real) => (src, dest, mode) => { real(src, dest, mode); fs.writeFileSync(db, 'new file from a running app'); } }, () => {
+    try { applyRestore({ db, backup, sha256: hash, platform }, Date.UTC(2026, 9, 7, 11)); } catch (e) { err = e; }
+  });
+  assert.equal(err.code, 'rollback_failed'); assert.equal(err.exitCode, 5); assert.equal(err.cause, 'locked');
+  assert.equal(fs.readFileSync(db, 'utf8'), 'new file from a running app', 'the new file is never overwritten');
+  assert.ok(!fs.existsSync(`${db}-wal`), 'no stale WAL is put beside it');
+  assert.match(err.message, /A NEW harness\.db appeared at .* during the restore, most likely because the app is running/);
+  assert.match(err.message, /Quit the app, then move that new file aside first/);
+  assert.ok(err.message.includes(`${cmd} "${db}" "${db}.unexpected-`));
+  const mainStep = err.message.indexOf(`  ${cmd} "${err.stuck[0].to}" "${db}"`);
+  assert.ok(mainStep > err.message.indexOf('A NEW harness.db'), 'the new-file instruction comes before the listed steps');
+  for (const m of err.stuck) assert.match(fs.readFileSync(m.to, 'utf8'), /^v7 /);
+  assert.ok(fs.readdirSync(dir).some((x) => x.includes('.restoring-')));
 });
