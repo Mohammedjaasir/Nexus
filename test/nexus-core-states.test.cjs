@@ -51,6 +51,15 @@ test('retry needs an idempotent, non-agent job with attempts left', () => {
   assert.equal(canRetry({ kind: 'validate', retry: { ...r, idempotent: false }, attempts: 1 }), false);
   assert.equal(canRetry({ kind: 'agent.run', retry: r, attempts: 1 }), false);
 });
+const { HANDOFF_TRANSITIONS, canTransitionHandoff } = loadTs('src/main/nexus/handoff/handoffRules.ts');
+const { V8_HANDOFF_TRANSITIONS, V8_HANDOFF_STATES } = loadTs('src/main/nexus/db/v8Seed.ts');
+test('the handoff table in code equals the v8 seed (4 states, 3 transitions)', () => {
+  assert.deepEqual(flat(HANDOFF_TRANSITIONS), V8_HANDOFF_TRANSITIONS.map(([a, b]) => `${a}>${b}`).sort());
+  assert.deepEqual(Object.keys(HANDOFF_TRANSITIONS).sort(), V8_HANDOFF_STATES.map((s) => s.state).sort());
+  for (const s of V8_HANDOFF_STATES.filter((x) => x.terminal === 1)) assert.deepEqual([...HANDOFF_TRANSITIONS[s.state]], [], s.state);
+  assert.equal(canTransitionHandoff('sent', 'accepted'), true);
+  assert.equal(canTransitionHandoff('accepted', 'declined'), false);
+});
 test('the session table in code equals the seeded table (8 states, 14 transitions)', () => {
   assert.deepEqual(flat(SESSION_TRANSITIONS), seed.V7_SESSION_TRANSITIONS.map(([a, b]) => `${a}>${b}`).sort());
   for (const t of TERMINAL_SESSION_STATES) assert.deepEqual([...SESSION_TRANSITIONS[t]], [], t);

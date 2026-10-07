@@ -11,7 +11,8 @@
  *                  (AuthService.auditDenial, action 'lineage.write');
  *     ingest       the system principal only ('denied', audited as system_only);
  *                  `from` was produced by the named job;
- *     handoff_convert  refused ('invalid') until handoffs exist.
+ *     handoff_convert  `handoff_convert` edges are written only by `HandoffService.accept`;
+ *                  `record` refuses them ('invalid').
  * - Endpoints. Both versions must exist and be in one project ('invalid'; the
  *   tr_edges_insert trigger is the backstop). The target is a source someone
  *   consumed, so it must be out of draft ('invalid'), as registerVersion requires
