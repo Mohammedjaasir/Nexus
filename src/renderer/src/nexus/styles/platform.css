@@ -65,3 +65,4 @@ li.nx-svx-commit { grid-template-columns: 64px minmax(0, 1fr) auto; align-items:
 .nx-acx__meta { font-size: 11.5px; }
 .nx-acx__line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); margin: 0; }
 .nx-acx__more { margin-top: var(--nx-s2); }
+.nx-apx__pick-note { margin: 0; padding: 6px 8px; white-space: normal; }

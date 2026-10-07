@@ -127,7 +127,7 @@ test('pin: both actions go through nexusClient and bump rev on success', () => {
 
 test('pin: every failure path sets the role="alert" line', () => {
   assert.match(section, /else setState\(\(s\) => failed\(s, failText\(r\)\)\);/);
-  assert.match(section, /\{state\.error && <p className="nx-passport__note" role="alert">\{state\.error\}<\/p>\}/);
+  assert.match(section, /\{!pendingLine && state\.error && <p ref=\{resultRef\} tabIndex=\{-1\} className="nx-passport__note" role="alert">\{state\.error\}<\/p>\}/);
   assert.match(section, /attachFailureText\);/);
   assert.match(section, /withdrawFailureText\);/);
   // The one runner is the only place a result is handled.
@@ -202,4 +202,26 @@ test('no class selected in platform.css is selected by any other stylesheet of t
   assert.deepEqual(clashes, []);
   // The extractor itself: it sees the index's nx-wsx rules.
   assert.ok(selectorClasses(fs.readFileSync(path.join(NEXUS, 'styles', 'pages.css'), 'utf8')).has('nx-wsx__row'));
+});
+
+// ---------- Task 11 fix round 1: focus and Escape ----------
+
+test('pin: focus rests on the status line while an action runs and when it ends; Cancel returns it to the row', () => {
+  assert.match(section, /setState\(next\);\s*requestFocus\('result'\);\s*const r = await call\(\);/);
+  assert.match(section, /else setState\(\(s\) => failed\(s, failText\(r\)\)\);\s*requestFocus\('result'\);/);
+  assert.match(section, /if \(focusReq\.to === 'result'\) resultRef\.current\?\.focus\(\);/);
+  assert.match(section, /\{pendingLine && <p ref=\{resultRef\} tabIndex=\{-1\} className="nx-pws__status" role="status">\{pendingLine\}<\/p>\}/);
+  assert.match(section, /\{!pendingLine && state\.announce && <p ref=\{resultRef\} tabIndex=\{-1\} className="nx-pws__status" role="status">\{state\.announce\}<\/p>\}/);
+  assert.match(section, /setState\(\(s\) => cancelConfirm\(s\)\);\s*requestFocus\('row', participationId\);/);
+  assert.match(section, /rowActs\.current\.get\(focusReq\.participationId\)\?\.querySelector<HTMLButtonElement>\('button:not\(\[disabled\]\)'\)\?\.focus\(\)/);
+  assert.match(section, /onClick=\{\(\) => cancelWithdraw\(r\.participationId\)\}><span>Cancel<\/span><\/button>/);
+  const M = loadTs('src/renderer/src/nexus/project/workspacesSectionModel.ts');
+  assert.equal(M.addingMessage('Quality'), 'Adding to Quality…');
+  assert.equal(M.withdrawingMessage('Quality'), 'Withdrawing from Quality…');
+});
+
+test('pin: Escape closes the withdraw confirmation while nothing is pending', () => {
+  assert.match(section, /role="group" aria-label=\{`Withdraw from \$\{r\.label\}`\} onKeyDown=\{onConfirmKey\(r\.participationId\)\}/);
+  assert.match(section, /if \(e\.key !== 'Escape' \|\| state\.pending\) return;\s*e\.preventDefault\(\);\s*e\.stopPropagation\(\);\s*cancelWithdraw\(participationId\);/);
+  assert.match(section, /const cancelWithdraw = \(participationId: string\) => \{\s*if \(state\.pending\) return;/);
 });

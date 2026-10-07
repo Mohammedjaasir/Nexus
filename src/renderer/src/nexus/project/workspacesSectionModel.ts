@@ -71,6 +71,9 @@ export function failed(_s: SectionState, error: string): SectionState {
 
 export const addedMessage = (label: string): string => `Added to ${label}`;
 export const withdrawnMessage = (label: string): string => `Withdrawn from ${label}`;
+/** The status line while an action runs; focus rests on it so it never falls to the page. */
+export const addingMessage = (label: string): string => `Adding to ${label}…`;
+export const withdrawingMessage = (label: string): string => `Withdrawing from ${label}…`;
 export const confirmQuestion = (label: string): string => `Withdraw from ${label}? Its artifacts stay readable and stop taking new versions.`;
 
 export const OPEN_HANDOFFS_TEXT = 'Answer or withdraw its open handoffs first.';

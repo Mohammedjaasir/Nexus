@@ -283,6 +283,17 @@ export function actionLabel(kind: PassportActionKind, pending: boolean): string 
   return pending ? ACTION_TEXT[kind].pending : ACTION_TEXT[kind].idle;
 }
 
+/** The status line while an action runs; focus rests on it so it never falls to the page. */
+export function actionPendingText(kind: PassportActionKind, versionNo: number): string {
+  switch (kind) {
+    case 'markReady': return `Marking version ${versionNo} ready…`;
+    case 'promote': return `Making version ${versionNo} current…`;
+    case 'rollback': return `Rolling back to version ${versionNo}…`;
+    case 'discard': return `Discarding version ${versionNo}…`;
+    case 'link': return `Linking a source to version ${versionNo}…`;
+  }
+}
+
 /** The confirmation question for a destructive action. */
 export function confirmText(kind: 'discard' | 'rollback', versionNo: number, currentNo: number | null): string {
   if (kind === 'discard') return `Discard version ${versionNo}? It stays in the history as discarded and can no longer be made ready or current.`;

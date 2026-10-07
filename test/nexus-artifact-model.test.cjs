@@ -517,14 +517,14 @@ test('pin: pending blocks double submits, bumpRev runs before the unmount check,
   assert.equal((passport.match(/bumpRev\(\)/g) || []).length, 1);
   assert.match(passport, /setActs\(\(s\) => actionFailed\(s, actionFailureText\(kind, r\)\)\)/);
   assert.match(passport, /disabled=\{pending !== null\} onClick=\{onClick\}/);
-  assert.match(passport, /role="alert">\{acts\.error\}/);
-  assert.match(passport, /role="status">\{acts\.announce\}/);
+  assert.match(passport, /\{!pending && acts\.error && <p ref=\{resultRef\} tabIndex=\{-1\} className="nx-passport__note" role="alert">\{acts\.error\}<\/p>\}/);
+  assert.match(passport, /\{!pending && acts\.announce && <p ref=\{resultRef\} tabIndex=\{-1\} className="nx-apx__status" role="status">\{acts\.announce\}<\/p>\}/);
 });
 
 test('pin: discard and roll back confirm inline with focus on Cancel', () => {
   assert.match(passport, /a\.kind === 'discard' \|\| a\.kind === 'rollback'\s*\? \(\) => setActs\(\(s\) => askActionConfirm\(s, a\.kind as 'discard' \| 'rollback', v\.id\)\)/);
   assert.match(passport, /if \(acts\.confirming && !acts\.pending\) cancelRef\.current\?\.focus\(\);/);
-  assert.match(passport, /<button ref=\{cancelRef\} type="button" className="nx-btn" disabled=\{pending !== null\} onClick=\{\(\) => setActs\(\(s\) => cancelActionConfirm\(s\)\)\}><span>Cancel<\/span><\/button>/);
+  assert.match(passport, /<button ref=\{cancelRef\} type="button" className="nx-btn" disabled=\{pending !== null\} onClick=\{\(\) => cancelConfirm\(v\.id\)\}><span>Cancel<\/span><\/button>/);
 });
 
 test('pin: link sources picks from returned versions in a Popover; no id is typed; loaders never reject', () => {
@@ -541,4 +541,44 @@ test('pin: the Passport action styles use unique prefixes', () => {
     assert.match(css, new RegExp(`\\.${cls}\\b`), cls);
     assert.match(passport, new RegExp(`className="${cls}"`), cls);
   }
+});
+
+// ---------- Task 11 fix round 1: lazy picker, focus, Escape ----------
+
+test('pin: link candidates are read only after the picker was first opened, then refresh on rev', () => {
+  assert.match(passport, /const \[pickerOpened, setPickerOpened\] = useState\(false\);/);
+  assert.match(passport, /const candidates = useLinkCandidates\(linkable && pickerOpened, node\.artifactId, artifacts\);/);
+  assert.match(passport, /onOpen=\{\(\) => setPickerOpened\(true\)\}/);
+  assert.match(passport, /if \(!enabled\) \{ setState\(NO_CANDIDATES\); return; \}/);
+  assert.match(passport, /\}, \[enabled, key, rev\]\);/);
+  // Nothing about the candidates shows before the picker opened; inside it, a loading line until the read lands.
+  assert.match(passport, /\{\(close\) => !candidates\.loaded \? \(\s*<p className="nx-muted nx-apx__pick-note" role="status">Reading versions to link…<\/p>/);
+  assert.match(passport, /\{pickerOpened && candidates\.error && /);
+  assert.match(passport, /\{pickerOpened && candidates\.capped && /);
+  // The shared Popover reports opening, focuses items that arrive late, and closes on Escape from the trigger.
+  const sheetUi = src('ui/Sheet.tsx');
+  assert.match(sheetUi, /setOpen\(true\);\s*onOpen\?\.\(\);/);
+  assert.match(sheetUi, /if \(!open \|\| pop\.current\?\.contains\(document\.activeElement\)\) return;/);
+  assert.match(sheetUi, /\}, \[open, itemsKey\]\);/);
+  assert.match(sheetUi, /else if \(e\.key === 'Escape' && open\) \{ e\.preventDefault\(\); e\.stopPropagation\(\); close\(\); \}/);
+});
+
+test('pin: focus rests on the status line while an action runs and when it ends; Cancel returns it to the row', () => {
+  assert.match(passport, /setActs\(next\);\s*requestFocus\('result'\);\s*const r = await send/);
+  assert.match(passport, /setActs\(\(s\) => actionFailed\(s, actionFailureText\(kind, r\)\)\);\s*\}\s*requestFocus\('result'\);/);
+  assert.match(passport, /if \(focusReq\.to === 'result'\) resultRef\.current\?\.focus\(\);/);
+  assert.match(passport, /\{pending && <p ref=\{resultRef\} tabIndex=\{-1\} className="nx-apx__status" role="status">\{actionPendingText\(pending\.kind, /);
+  assert.match(passport, /setActs\(\(s\) => cancelActionConfirm\(s\)\);\s*requestFocus\('row', versionId\);/);
+  assert.match(passport, /rowActs\.current\.get\(focusReq\.versionId\)\?\.querySelector<HTMLButtonElement>\('button:not\(\[disabled\]\)'\)\?\.focus\(\)/);
+  assert.equal(A.actionPendingText('markReady', 3), 'Marking version 3 ready…');
+  assert.equal(A.actionPendingText('promote', 3), 'Making version 3 current…');
+  assert.equal(A.actionPendingText('rollback', 1), 'Rolling back to version 1…');
+  assert.equal(A.actionPendingText('discard', 4), 'Discarding version 4…');
+  assert.equal(A.actionPendingText('link', 2), 'Linking a source to version 2…');
+});
+
+test('pin: Escape closes the inline confirmation while nothing is pending', () => {
+  assert.match(passport, /role="group" aria-label=\{`\$\{actionLabel\(confirming\.kind, false\)\} version \$\{v\.versionNo\}`\} onKeyDown=\{onConfirmKey\(v\.id\)\}/);
+  assert.match(passport, /if \(e\.key !== 'Escape' \|\| acts\.pending\) return;\s*e\.preventDefault\(\);\s*e\.stopPropagation\(\);\s*cancelConfirm\(versionId\);/);
+  assert.match(passport, /const cancelConfirm = \(versionId: string\) => \{\s*if \(acts\.pending\) return;/);
 });

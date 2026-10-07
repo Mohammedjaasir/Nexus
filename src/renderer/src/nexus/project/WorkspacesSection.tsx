@@ -1,17 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { NexusResult, ParticipationView } from '@shared/nexus/ipc';
 import { nexusClient } from '../data/nexusClient';
 import { usePlatform, selectCanWrite } from '../data/platformStore';
 import { useParticipationIndex } from '../data/useParticipations';
 import { PlatformNotice } from '../components/PlatformNotice';
 import { UNASSIGNED_LABEL } from '../workspaces/mapping';
+import { viewOf } from '../workspaces/participation';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Popover } from '../ui/Sheet';
 import { ProvenanceMark } from '../ui/ProvenanceMark';
 import {
-  IDLE, addedMessage, askConfirm, attachFailureText, attachOptions, begin, cancelConfirm, confirmQuestion, failed, sectionRows,
-  shouldReload, succeeded, withdrawFailureText, withdrawnMessage, type Pending, type SectionState
+  IDLE, addedMessage, addingMessage, askConfirm, attachFailureText, attachOptions, begin, cancelConfirm, confirmQuestion, failed, sectionRows,
+  shouldReload, succeeded, withdrawFailureText, withdrawingMessage, withdrawnMessage, type Pending, type SectionState
 } from './workspacesSectionModel';
 
 /** The project's workspaces on its source node: the primary (set by the detected
@@ -31,6 +32,17 @@ export function WorkspacesSection({ projectId }: { projectId: string }) {
   useEffect(() => {
     if (state.confirming && !state.pending) cancelRef.current?.focus();
   }, [state.confirming, state.pending]);
+  // Focus never falls to the page: while an action runs and when it ends it rests on the status
+  // (or alert) line; after a confirmation is cancelled it returns to that row's Withdraw.
+  const resultRef = useRef<HTMLParagraphElement | null>(null);
+  const rowActs = useRef(new Map<string, HTMLSpanElement>());
+  const [focusReq, setFocusReq] = useState<{ to: 'result' | 'row'; participationId: string | null; n: number } | null>(null);
+  const requestFocus = (to: 'result' | 'row', participationId: string | null = null) => setFocusReq((f) => ({ to, participationId, n: (f?.n ?? 0) + 1 }));
+  useEffect(() => {
+    if (!focusReq) return;
+    if (focusReq.to === 'result') resultRef.current?.focus();
+    else if (focusReq.participationId) rowActs.current.get(focusReq.participationId)?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
+  }, [focusReq]);
 
   const rows = sectionRows(idx, projectId, canWrite);
   const options = attachOptions(idx, projectId, canWrite);
@@ -42,6 +54,7 @@ export function WorkspacesSection({ projectId }: { projectId: string }) {
     if (!next) return;
     running.current = true;
     setState(next);
+    requestFocus('result');
     const r = await call();
     running.current = false;
     // Refresh every screen even when this section has gone (the sheet closed mid-call).
@@ -49,7 +62,24 @@ export function WorkspacesSection({ projectId }: { projectId: string }) {
     if (!alive.current) return;
     if (r.ok) setState((s) => succeeded(s, okText));
     else setState((s) => failed(s, failText(r)));
+    requestFocus('result');
   };
+
+  /** Cancel (button or Escape) closes the confirmation while nothing runs; focus returns to that row's Withdraw. */
+  const cancelWithdraw = (participationId: string) => {
+    if (state.pending) return;
+    setState((s) => cancelConfirm(s));
+    requestFocus('row', participationId);
+  };
+  const onConfirmKey = (participationId: string) => (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Escape' || state.pending) return;
+    e.preventDefault();
+    e.stopPropagation();
+    cancelWithdraw(participationId);
+  };
+  const pendingLine = state.pending === null ? null
+    : state.pending.kind === 'attach' ? addingMessage(viewOf(state.pending.workspaceId).label)
+    : withdrawingMessage(rows.find((r) => r.participationId === (state.pending as { participationId: string }).participationId)?.label ?? 'the workspace');
 
   const attach = (workspaceId: string, label: string) =>
     run({ kind: 'attach', workspaceId }, () => nexusClient.participationAttach(projectId, workspaceId), addedMessage(label), attachFailureText);
@@ -69,18 +99,18 @@ export function WorkspacesSection({ projectId }: { projectId: string }) {
             <span className="nx-pws__name">{r.label}</span>
             {r.isPrimary ? <Badge>Primary</Badge> : <Badge>Attached</Badge>}
             {r.canWithdraw && state.confirming !== r.participationId && (
-              <span className="nx-pws__act">
+              <span className="nx-pws__act" ref={(el) => { if (el) rowActs.current.set(r.participationId, el); else rowActs.current.delete(r.participationId); }}>
                 <Button variant="quiet" disabled={pending !== null} onClick={() => setState((s) => askConfirm(s, r.participationId))}>Withdraw</Button>
               </span>
             )}
             {r.canWithdraw && state.confirming === r.participationId && (
-              <div className="nx-pws__confirm" role="group" aria-label={`Withdraw from ${r.label}`}>
+              <div className="nx-pws__confirm" role="group" aria-label={`Withdraw from ${r.label}`} onKeyDown={onConfirmKey(r.participationId)}>
                 <p>{confirmQuestion(r.label)}</p>
                 <div className="nx-pws__confirm-actions">
                   <Button variant="primary" disabled={pending !== null} onClick={() => { void withdraw(r.participationId, r.label); }}>
                     {pending?.kind === 'withdraw' && pending.participationId === r.participationId ? 'Withdrawing…' : 'Withdraw'}
                   </Button>
-                  <button ref={cancelRef} type="button" className="nx-btn" disabled={pending !== null} onClick={() => setState((s) => cancelConfirm(s))}><span>Cancel</span></button>
+                  <button ref={cancelRef} type="button" className="nx-btn" disabled={pending !== null} onClick={() => cancelWithdraw(r.participationId)}><span>Cancel</span></button>
                 </div>
               </div>
             )}
@@ -105,8 +135,9 @@ export function WorkspacesSection({ projectId }: { projectId: string }) {
           )}
         </div>
       )}
-      {state.announce && <p className="nx-pws__status" role="status">{state.announce}</p>}
-      {state.error && <p className="nx-passport__note" role="alert">{state.error}</p>}
+      {pendingLine && <p ref={resultRef} tabIndex={-1} className="nx-pws__status" role="status">{pendingLine}</p>}
+      {!pendingLine && state.announce && <p ref={resultRef} tabIndex={-1} className="nx-pws__status" role="status">{state.announce}</p>}
+      {!pendingLine && state.error && <p ref={resultRef} tabIndex={-1} className="nx-passport__note" role="alert">{state.error}</p>}
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import type { ArtifactDetail, LineageView, NexusFail, NexusResult, VersionContent, VersionView } from '@shared/nexus/ipc';
 import { nexusClient } from '../data/nexusClient';
 import { usePlatform, selectCanWrite } from '../data/platformStore';
@@ -9,7 +9,7 @@ import { Button } from '../ui/Button';
 import { Popover } from '../ui/Sheet';
 import type { ArtifactNode, ArtifactSummary } from './spineModel';
 import {
-  IDLE_ACTIONS, LINK_CANDIDATE_ARTIFACTS, actionDoneText, actionFailed, actionFailureText, actionLabel, actionSucceeded, artifactPassportView,
+  IDLE_ACTIONS, LINK_CANDIDATE_ARTIFACTS, actionDoneText, actionPendingText, actionFailed, actionFailureText, actionLabel, actionSucceeded, artifactPassportView,
   askActionConfirm, beginAction, canLinkSources, candidateArtifactIds, cancelActionConfirm, confirmText, passportActionsFor,
   shouldReloadAfterAction, sourceChoices, type ActionState, type PassportActionKind, type PassportLink, type SourceChoice
 } from './artifactModel';
@@ -71,10 +71,12 @@ function useArtifactPassport(artifactId: string, shownVersionNo: number, rootPat
   return state;
 }
 
-type Candidates = { details: ArtifactDetail[]; loading: boolean; error: string | null };
-const NO_CANDIDATES: Candidates = { details: [], loading: false, error: null };
+type Candidates = { details: ArtifactDetail[]; loaded: boolean; error: string | null };
+const NO_CANDIDATES: Candidates = { details: [], loaded: false, error: null };
 
-/** The project's other artifacts with every version, read only while sources may be linked: the picker's choices come from these answers. */
+/** The project's other artifacts with every version: the picker's choices come from these answers.
+ *  `enabled` turns true only once the picker was first opened (and linking is allowed); from then on
+ *  the choices refresh on every rev while the Passport stays mounted. */
 function useLinkCandidates(enabled: boolean, artifactId: string, artifacts: ArtifactSummary[]): Candidates & { capped: boolean } {
   const rev = usePlatform((s) => s.rev);
   const { ids, capped } = useMemo(() => candidateArtifactIds(artifactId, artifacts), [artifactId, artifacts]);
@@ -83,15 +85,14 @@ function useLinkCandidates(enabled: boolean, artifactId: string, artifacts: Arti
   useEffect(() => {
     if (!enabled) { setState(NO_CANDIDATES); return; }
     let alive = true;
-    setState((s) => ({ ...s, loading: s.details.length === 0 }));
     void (async () => {
       try {
         const reads = await Promise.all(key ? key.split(',').map((id) => nexusClient.artifactGet(id)) : []);
         if (!alive) return;
         const details = reads.flatMap((r) => (r.ok ? [r.data] : []));
-        setState({ details, loading: false, error: reads.some((r) => !r.ok) ? 'Some versions could not be read, so they are not offered.' : null });
+        setState({ details, loaded: true, error: reads.some((r) => !r.ok) ? 'Some versions could not be read, so they are not offered.' : null });
       } catch {
-        if (alive) setState((s) => ({ details: s.details, loading: false, error: errorCopy('internal').text }));
+        if (alive) setState((s) => ({ details: s.details, loaded: true, error: errorCopy('internal').text }));
       }
     })();
     return () => { alive = false; };
@@ -135,6 +136,19 @@ export function ArtifactPassport({ project, node, artifacts }: { project: { id: 
   useEffect(() => {
     if (acts.confirming && !acts.pending) cancelRef.current?.focus();
   }, [acts.confirming, acts.pending]);
+  // Focus never falls to the page: while an action runs and when it ends it rests on the status
+  // (or alert) line; after a confirmation is cancelled it returns to that version's actions.
+  const resultRef = useRef<HTMLParagraphElement | null>(null);
+  const rowActs = useRef(new Map<string, HTMLSpanElement>());
+  const [focusReq, setFocusReq] = useState<{ to: 'result' | 'row'; versionId: string | null; n: number } | null>(null);
+  const requestFocus = (to: 'result' | 'row', versionId: string | null = null) => setFocusReq((f) => ({ to, versionId, n: (f?.n ?? 0) + 1 }));
+  useEffect(() => {
+    if (!focusReq) return;
+    if (focusReq.to === 'result') resultRef.current?.focus();
+    else if (focusReq.versionId) rowActs.current.get(focusReq.versionId)?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
+  }, [focusReq]);
+  // The picker's choices are read only once it was first opened.
+  const [pickerOpened, setPickerOpened] = useState(false);
 
   const artifact = loaded ? loaded.detail.artifact : null;
   const ownerRow = artifact && artifact.ownerParticipationId
@@ -145,7 +159,7 @@ export function ArtifactPassport({ project, node, artifacts }: { project: { id: 
   const versionsById = useMemo(() => new Map((loaded?.detail.versions ?? []).map((v) => [v.id, v])), [loaded]);
   const shownVersion = loaded ? loaded.detail.versions.find((v) => v.versionNo === node.versionNo) ?? null : null;
   const linkable = artifact !== null && shownVersion !== null && canLinkSources(artifact, ownerActive, canWrite);
-  const candidates = useLinkCandidates(linkable, node.artifactId, artifacts);
+  const candidates = useLinkCandidates(linkable && pickerOpened, node.artifactId, artifacts);
   const choices = useMemo(() => {
     if (!linkable || !loaded) return [];
     const linked = new Set((loaded.up?.nodes ?? []).map((n) => n.versionId));
@@ -176,6 +190,7 @@ export function ArtifactPassport({ project, node, artifacts }: { project: { id: 
     if (!next) return;
     running.current = true;
     setActs(next);
+    requestFocus('result');
     const r = await send(kind, v, source).catch((): NexusResult<unknown> => INTERNAL);
     running.current = false;
     // Refresh every reader even when this Passport has gone (the node changed mid-call).
@@ -187,6 +202,20 @@ export function ArtifactPassport({ project, node, artifacts }: { project: { id: 
     } else {
       setActs((s) => actionFailed(s, actionFailureText(kind, r)));
     }
+    requestFocus('result');
+  };
+
+  /** Cancel (button or Escape) closes the confirmation while nothing runs; focus returns to that version's actions. */
+  const cancelConfirm = (versionId: string) => {
+    if (acts.pending) return;
+    setActs((s) => cancelActionConfirm(s));
+    requestFocus('row', versionId);
+  };
+  const onConfirmKey = (versionId: string) => (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Escape' || acts.pending) return;
+    e.preventDefault();
+    e.stopPropagation();
+    cancelConfirm(versionId);
   };
 
   if (!view || !loaded || !artifact) {
@@ -228,7 +257,7 @@ export function ArtifactPassport({ project, node, artifacts }: { project: { id: 
                   {row.content && <span className="nx-apx__content">{row.content}</span>}
                   {row.subject && <span className="nx-muted">{row.subject}</span>}
                   {v && allowed.length > 0 && !confirming && (
-                    <span className="nx-apx__acts">
+                    <span className="nx-apx__acts" ref={(el) => { if (el) rowActs.current.set(v.id, el); else rowActs.current.delete(v.id); }}>
                       {allowed.map((a) => {
                         const mine = pending !== null && pending.kind === a.kind && pending.versionId === v.id;
                         const onClick = a.kind === 'discard' || a.kind === 'rollback'
@@ -244,13 +273,13 @@ export function ArtifactPassport({ project, node, artifacts }: { project: { id: 
                     </span>
                   )}
                   {v && confirming && (
-                    <div className="nx-apx__confirm" role="group" aria-label={`${actionLabel(confirming.kind, false)} version ${v.versionNo}`}>
+                    <div className="nx-apx__confirm" role="group" aria-label={`${actionLabel(confirming.kind, false)} version ${v.versionNo}`} onKeyDown={onConfirmKey(v.id)}>
                       <p>{confirmText(confirming.kind, v.versionNo, current ? current.versionNo : null)}</p>
                       <div className="nx-apx__confirm-actions">
                         <Button variant="primary" disabled={pending !== null} onClick={() => { void act(confirming.kind, v); }}>
                           {actionLabel(confirming.kind, pending !== null && pending.versionId === v.id)}
                         </Button>
-                        <button ref={cancelRef} type="button" className="nx-btn" disabled={pending !== null} onClick={() => setActs((s) => cancelActionConfirm(s))}><span>Cancel</span></button>
+                        <button ref={cancelRef} type="button" className="nx-btn" disabled={pending !== null} onClick={() => cancelConfirm(v.id)}><span>Cancel</span></button>
                       </div>
                     </div>
                   )}
@@ -263,15 +292,16 @@ export function ArtifactPassport({ project, node, artifacts }: { project: { id: 
       <Links title="Sources" links={view.upstream} truncated={view.upstreamTruncated} empty="No sources recorded for this version.">
         {linkable && shownVersion && (
           <div className="nx-apx__link">
-            {candidates.loading ? (
-              <p className="nx-muted" role="status">Reading versions to link…</p>
-            ) : choices.length === 0 ? (
-              <p className="nx-muted">No ready or active version of another artifact is available to link.</p>
-            ) : pending !== null ? (
+            {pending !== null ? (
               <Button disabled>{actionLabel('link', pending.kind === 'link')}</Button>
             ) : (
-              <Popover kind="listbox" label={`Versions to link as sources of version ${shownVersion.versionNo}`} triggerClassName="nx-btn" trigger={<span>{actionLabel('link', false)}</span>}>
-                {(close) => choices.map((c) => (
+              <Popover kind="listbox" label={`Versions to link as sources of version ${shownVersion.versionNo}`} triggerClassName="nx-btn" trigger={<span>{actionLabel('link', false)}</span>}
+                onOpen={() => setPickerOpened(true)} itemsKey={`${candidates.loaded}:${choices.map((c) => c.versionId).join(',')}`}>
+                {(close) => !candidates.loaded ? (
+                  <p className="nx-muted nx-apx__pick-note" role="status">Reading versions to link…</p>
+                ) : choices.length === 0 ? (
+                  <p className="nx-muted nx-apx__pick-note">No ready or active version of another artifact is available to link.</p>
+                ) : choices.map((c) => (
                   <button key={c.versionId} type="button" role="option" tabIndex={-1} aria-selected={false} className="nx-menu__item"
                     disabled={pending !== null} onClick={() => { close(); void act('link', shownVersion, c); }}>
                     <span className="nx-menu__text">{c.label}</span>
@@ -280,14 +310,15 @@ export function ArtifactPassport({ project, node, artifacts }: { project: { id: 
                 ))}
               </Popover>
             )}
-            {candidates.error && <p className="nx-muted">{candidates.error}</p>}
-            {candidates.capped && <p className="nx-muted">Only the {LINK_CANDIDATE_ARTIFACTS} most recently changed artifacts are offered.</p>}
+            {pickerOpened && candidates.error && <p className="nx-muted">{candidates.error}</p>}
+            {pickerOpened && candidates.capped && <p className="nx-muted">Only the {LINK_CANDIDATE_ARTIFACTS} most recently changed artifacts are offered.</p>}
           </div>
         )}
       </Links>
       <Links title="Used by" links={view.downstream} truncated={view.downstreamTruncated} empty="Nothing uses this version yet." />
-      {acts.announce && <p className="nx-apx__status" role="status">{acts.announce}</p>}
-      {acts.error && <p className="nx-passport__note" role="alert">{acts.error}</p>}
+      {pending && <p ref={resultRef} tabIndex={-1} className="nx-apx__status" role="status">{actionPendingText(pending.kind, versionsById.get(pending.versionId)?.versionNo ?? 0)}</p>}
+      {!pending && acts.announce && <p ref={resultRef} tabIndex={-1} className="nx-apx__status" role="status">{acts.announce}</p>}
+      {!pending && acts.error && <p ref={resultRef} tabIndex={-1} className="nx-passport__note" role="alert">{acts.error}</p>}
       {error && <p className="nx-passport__note" role="alert">{error}</p>}
     </aside>
   );

@@ -42,7 +42,7 @@ const ITEM_SELECTOR = '[role="menuitem"]:not([disabled]):not([aria-disabled="tru
  *  returns focus to the trigger; Tab or a click outside closes.
  *  `children(close)` renders the items: buttons with role "menuitem" (kind
  *  "menu") or role "option" plus aria-selected (kind "listbox"). */
-export function Popover({ kind, label, trigger, triggerLabel, triggerClassName = '', align = 'start', children }: {
+export function Popover({ kind, label, trigger, triggerLabel, triggerClassName = '', align = 'start', onOpen, itemsKey, children }: {
   kind: 'menu' | 'listbox';
   /** Accessible name of the popup. */
   label: string;
@@ -50,6 +50,10 @@ export function Popover({ kind, label, trigger, triggerLabel, triggerClassName =
   triggerLabel?: string;
   triggerClassName?: string;
   align?: 'start' | 'end';
+  /** Called each time the popup opens (for example to start reading its items). */
+  onOpen?: () => void;
+  /** Changes when the items change while open (items that arrive after opening): focus then moves to them if it is not inside yet. */
+  itemsKey?: string;
   children: (close: (refocus?: boolean) => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -79,6 +83,13 @@ export function Popover({ kind, label, trigger, triggerLabel, triggerClassName =
     return () => { document.removeEventListener('mousedown', onDown); window.removeEventListener('resize', onResize); };
   }, [open, close]);
 
+  // Items that arrive after the popup opened (read on open) receive focus once they are drawn.
+  useEffect(() => {
+    if (!open || pop.current?.contains(document.activeElement)) return;
+    const all = items();
+    (all.find((el) => el.getAttribute('aria-selected') === 'true') ?? all[0])?.focus();
+  }, [open, itemsKey]);
+
   const onPopKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); return; }
     if (e.key === 'Tab') { close(false); return; }
@@ -97,10 +108,13 @@ export function Popover({ kind, label, trigger, triggerLabel, triggerClassName =
     const r = btn.current?.getBoundingClientRect();
     if (r) setPos(align === 'end' ? { top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) } : { top: r.bottom + 4, left: Math.max(8, r.left) });
     setOpen(true);
+    onOpen?.();
   };
 
   const onTriggerKey = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
     if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !open) { e.preventDefault(); show(); }
+    // While nothing inside can take focus yet (items still loading), Escape on the trigger closes.
+    else if (e.key === 'Escape' && open) { e.preventDefault(); e.stopPropagation(); close(); }
   };
 
   return (
