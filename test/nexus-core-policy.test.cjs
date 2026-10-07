@@ -29,3 +29,15 @@ test('system-only actions refuse users, even owners; the system principal may ru
     assert.equal(P.decide({ principal: system, roles: ['admin'], action: a }).allowed, true, a);
   }
 });
+test('B1 handoff actions: classified exactly once, read for viewers, the three writes need a member', () => {
+  const NEW = ['handoff.read', 'handoff.send', 'handoff.respond', 'handoff.withdraw'];
+  for (const a of NEW) assert.equal(ALL.filter((x) => x === a).length, 1, a);
+  assert.ok(P.READ_ACTIONS.includes('handoff.read'));
+  assert.equal(P.decide({ principal: user, roles: ['viewer'], action: 'handoff.read' }).allowed, true);
+  for (const a of ['handoff.send', 'handoff.respond', 'handoff.withdraw']) {
+    assert.ok(P.MEMBER_ACTIONS.includes(a), a);
+    assert.deepEqual(P.decide({ principal: user, roles: ['viewer'], action: a }), { allowed: false, reason: 'role', needed: 'member' }, a);
+    assert.equal(P.decide({ principal: user, roles: ['member'], action: a }).allowed, true, a);
+  }
+  assert.ok(P.SYSTEM_ONLY_ACTIONS.includes('version.finalize'), 'finalize stays system only');
+});

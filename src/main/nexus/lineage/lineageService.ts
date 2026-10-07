@@ -38,6 +38,9 @@
  *   version the caller cannot read is dropped from the result and the walk does
  *   NOT expand through it, so nothing beyond it is revealed either (no redacted
  *   markers). A version reachable by another, readable path still appears there.
+ * - linkSources (B1). A user links one version to up to 20 sources in one
+ *   transaction (derived_from, user_action), every endpoint authorized first; all or
+ *   nothing.
  * - Node cap. A walk returns at most MAX_LINEAGE_NODES versions. When more
  *   readable versions were reachable, the walk stops and reports
  *   `truncated: true`; the nodes returned are the shallowest ones, in result order.
@@ -61,6 +64,8 @@ export interface RecordEdgeInput {
 export const DEFAULT_LINEAGE_DEPTH = 6;
 export const MAX_LINEAGE_DEPTH = 32;
 export const MAX_LINEAGE_NODES = 5000;
+/** Most source versions one linkSources call may name. */
+export const MAX_LINK_SOURCES = 20;
 export interface LineageWalk { nodes: LineageNode[]; truncated: boolean }
 const IN_CHUNK = 500;
 /** The node cap in force; only the test hook below lowers it. */
@@ -127,6 +132,51 @@ export class LineageService {
           details: { relation: e.relation, source, toVersionId: to.id } }, now);
       }
       return r.edge;
+    });
+  }
+
+  /**
+   * Links one version to 1..MAX_LINK_SOURCES distinct source versions in ONE transaction: relation
+   * 'derived_from', source 'user_action', a user principal only. Every endpoint is authorized ('lineage.write',
+   * the STORED owner workspace) before the transaction. Inside it, each target is re-checked to be out of draft and
+   * each edge goes through writeEdge (dedupe and cycle check); one 'lineage.write' row per created edge. Any
+   * failure (a draft target, another project, a cycle) writes nothing: all or nothing.
+   */
+  linkSources(p: Principal, fromVersionId: VersionId, toVersionIds: VersionId[]): { edges: ArtifactEdge[]; created: number } {
+    if (p?.kind !== 'user') throw new PlatformError('invalid', 'source links are recorded by a user principal');
+    if (!isStr(fromVersionId)) throw new PlatformError('invalid', 'fromVersionId is required');
+    if (!Array.isArray(toVersionIds) || toVersionIds.length < 1 || toVersionIds.length > MAX_LINK_SOURCES
+      || !toVersionIds.every((x) => isStr(x))) {
+      throw new PlatformError('invalid', `toVersionIds must list 1 to ${MAX_LINK_SOURCES} version ids`);
+    }
+    if (new Set(toVersionIds).size !== toVersionIds.length) throw new PlatformError('invalid', 'toVersionIds must be distinct');
+    if (toVersionIds.includes(fromVersionId)) throw new PlatformError('cycle', 'a version cannot be its own lineage source');
+
+    const from = this.loadEndpoint(p, fromVersionId, 'lineage.write');
+    const targets = toVersionIds.map((id) => this.loadEndpoint(p, id, 'lineage.write', from));
+    for (const to of targets) {
+      if (to.project_id !== from.project_id) throw new PlatformError('invalid', 'lineage edges stay inside one project');
+      if (to.status === 'draft') throw new PlatformError('invalid', 'a draft cannot be a lineage source');
+    }
+    const now = this.deps.now();
+    return immediateTx(this.db, () => {
+      const status = this.db.prepare('SELECT status FROM artifact_versions WHERE id = ?');
+      const edges: ArtifactEdge[] = [];
+      let created = 0;
+      for (const to of targets) {
+        if ((status.get(to.id) as { status: VersionStatus }).status === 'draft') throw new PlatformError('invalid', 'a draft cannot be a lineage source');
+        const r = writeEdge(this.db, { fromVersionId: from.id, toVersionId: to.id, relation: 'derived_from', source: 'user_action',
+          jobId: null, createdBy: p.id }, now);
+        if (r.created) {
+          created++;
+          appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, jobId: null, projectId: from.project_id,
+            workspaceId: from.owner_workspace_id, artifactId: from.artifact_id, versionId: from.id, entityType: 'artifact_edge',
+            entityId: r.edge.id, action: 'lineage.write', status: 'succeeded',
+            details: { relation: 'derived_from', source: 'user_action', toVersionId: to.id } }, now);
+        }
+        edges.push(r.edge);
+      }
+      return { edges, created };
     });
   }
 

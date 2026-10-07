@@ -16,7 +16,8 @@ export type PlatformAction =
   | 'lineage.read' | 'lineage.write'
   | 'job.read' | 'job.create' | 'job.cancel' | 'job.transition'
   | 'session.read' | 'session.open' | 'session.cancel' | 'session.transition'
-  | 'activity.read' | 'system.reconcile';
+  | 'activity.read' | 'system.reconcile'
+  | 'handoff.read' | 'handoff.send' | 'handoff.respond' | 'handoff.withdraw';
 export type AuthDenyReason = 'unknown_principal' | 'disabled_principal' | 'no_membership' | 'role' | 'agent_requires_token' | 'system_only';
 export type AuthDecision = { allowed: true; role: Role | 'system' } | { allowed: false; reason: AuthDenyReason; needed?: Role };
 export type ParticipationStatus = 'active' | 'withdrawn' | 'complete';
@@ -27,6 +28,10 @@ export interface Artifact { id: ArtifactId; projectId: ProjectId; kind: string; 
   createdBy: PrincipalId; status: 'active' | 'archived'; currentVersionId: VersionId | null; metadata: Record<string, unknown>;
   createdAt: number; updatedAt: number }
 export type VersionStatus = 'draft' | 'candidate' | 'active' | 'failed' | 'deprecated';
+/** One artifact with its version count, its newest version and its current (active) version. */
+export interface ArtifactSummary { artifact: Artifact; versionCount: number;
+  latest: { id: VersionId; versionNo: number; status: VersionStatus } | null;
+  current: { id: VersionId; versionNo: number } | null }
 export type StorageRef =
   | { kind: 'git'; commit: string; ref?: string; paths?: string[] }
   | { kind: 'blob'; sha256: string; bytes: number; mediaType: string }
@@ -78,3 +83,19 @@ export interface ActivityEntry { seq: number; id: ActivityId; ts: number; actorK
   status: ActivityStatus; details: Record<string, unknown>; prevHash: string; hash: string }
 export type PlatformErrorCode = 'denied' | 'not_found' | 'invalid' | 'conflict' | 'immutable' | 'cycle' | 'not_owner'
   | 'not_participating' | 'participation_inactive' | 'input_not_granted' | 'storage_unavailable' | 'illegal_transition' | 'platform_unavailable';
+// Handoffs (schema v8): artifact versions sent by reference between two participations of one project.
+export type HandoffId = string;
+export type HandoffStatus = 'sent' | 'accepted' | 'declined' | 'withdrawn';
+export interface Handoff { id: HandoffId; projectId: ProjectId;
+  fromParticipationId: ParticipationId; fromWorkspaceId: WorkspaceId; toParticipationId: ParticipationId; toWorkspaceId: WorkspaceId;
+  title: string; note: string | null; subjectCount: number; status: HandoffStatus; createdBy: PrincipalId;
+  respondedBy: PrincipalId | null; respondedAt: number | null; responseNote: string | null; receiptVersionId: VersionId | null;
+  createdAt: number; updatedAt: number; statusChangedAt: number }
+/** One version a handoff carries, by reference; contentHash is evidence of what was sent, never the content. */
+export interface HandoffSubject { handoffId: HandoffId; versionId: VersionId; position: number; contentHash: string }
+/** A row of a handoff list. */
+export type HandoffSummary = Handoff;
+/** A handoff with its subjects joined to their versions and artifacts. */
+export interface HandoffDetail extends Handoff {
+  subjects: (HandoffSubject & { artifactId: ArtifactId; artifactName: string; kind: string; versionNo: number;
+    status: VersionStatus; newerVersionNo: number | null })[] }

@@ -45,7 +45,11 @@ const PLATFORM = { type: 'platform' } as const;
 export class WorkspaceService {
   private readonly access: ProjectAccess;
 
-  constructor(private readonly db: Database.Database, private readonly deps: { auth: AuthService; now: () => number; log?: (line: string) => void }) {
+  constructor(private readonly db: Database.Database, private readonly deps: {
+    auth: AuthService; now: () => number; log?: (line: string) => void;
+    /** Open ('sent') handoffs in either direction of a participation; absent below schema v8. Read-only. */
+    openHandoffs?: (participationId: string) => number;
+  }) {
     this.access = new ProjectAccess(db, { auth: deps.auth });
   }
 
@@ -83,6 +87,27 @@ export class WorkspaceService {
     const r = this.db.prepare(`SELECT ${PW_COLUMNS} FROM project_workspaces WHERE project_id = ? AND is_primary = 1`)
       .get(projectId) as PwDbRow | undefined;
     return r ? toParticipation(r) : null;
+  }
+
+  /**
+   * Every participation of every project the caller may read, for the cross-project screens: ordered by project,
+   * the primary first, then by workspace id. Each row is kept only when a read-only
+   * auth.authorize('project.read', project scope + the row's STORED workspace) allows it, cached per (project,
+   * workspace), like lineage walks. No audit row is written; an unreadable row is simply absent.
+   */
+  listForReader(p: Principal): ProjectWorkspace[] {
+    const readable = new Map<string, boolean>();
+    const rows = this.db.prepare(`SELECT ${PW_COLUMNS} FROM project_workspaces ORDER BY project_id, is_primary DESC, workspace_id`)
+      .all() as PwDbRow[];
+    return rows.filter((r) => {
+      const key = `${r.project_id}\u0000${r.workspace_id}`;
+      let ok = readable.get(key);
+      if (ok === undefined) {
+        ok = this.deps.auth.authorize(p, 'project.read', { type: 'project', projectId: r.project_id, workspaceId: r.workspace_id }).allowed;
+        readable.set(key, ok);
+      }
+      return ok;
+    }).map(toParticipation);
   }
 
   /** Projects actively taking part in the workspace (ix_pw_workspace). */
@@ -131,7 +156,8 @@ export class WorkspaceService {
 
   /**
    * Marks a non-primary participation withdrawn (the row is kept). Refuses the primary ('invalid'), and refuses
-   * with 'conflict' while the participation has any non-terminal job or agent session.
+   * with 'conflict' while the participation has any non-terminal job or agent session, or (schema v8) any open
+   * handoff in either direction (`detail.openHandoffs`, from the injected `openHandoffs`).
    */
   withdraw(p: Principal, participationId: ParticipationId): ProjectWorkspace {
     const stored = typeof participationId === 'string' && participationId.length > 0 ? this.rowById(participationId) : null;
@@ -157,6 +183,11 @@ export class WorkspaceService {
         WHERE a.participation_id = ? AND s.terminal = 0`).get(row.id) as { n: number }).n;
       if (liveJobs > 0 || liveSessions > 0) {
         throw new PlatformError('conflict', 'the participation has unfinished jobs or agent sessions', { participationId: row.id, liveJobs, liveSessions });
+      }
+      // An open handoff (sent, unanswered) in either direction keeps both participations (schema v8).
+      const openHandoffs = this.deps.openHandoffs?.(row.id) ?? 0;
+      if (openHandoffs > 0) {
+        throw new PlatformError('conflict', 'the participation has open handoffs; answer or withdraw them first', { participationId: row.id, openHandoffs });
       }
       this.db.prepare("UPDATE project_workspaces SET status = 'withdrawn', updated_at = ? WHERE id = ?").run(now, row.id);
       appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, projectId: row.project_id, workspaceId: row.workspace_id,

@@ -21,13 +21,15 @@ import type { AuthDecision, PlatformAction, Principal, Role } from '../../../sha
 export const ROLE_RANK: Record<Role, number> = { viewer: 1, member: 2, admin: 3, owner: 4 };
 
 export const READ_ACTIONS: readonly PlatformAction[] = Object.freeze([
-  'project.read', 'workspace.read', 'artifact.read', 'lineage.read', 'job.read', 'session.read', 'activity.read'
+  'project.read', 'workspace.read', 'artifact.read', 'lineage.read', 'job.read', 'session.read', 'activity.read',
+  'handoff.read'
 ] as PlatformAction[]);
 
 export const MEMBER_ACTIONS: readonly PlatformAction[] = Object.freeze([
   'participation.attach', 'participation.withdraw', 'artifact.create',
   'version.register', 'version.update_draft', 'version.discard', 'version.promote',
-  'lineage.write', 'job.create', 'job.cancel', 'session.open', 'session.cancel'
+  'lineage.write', 'job.create', 'job.cancel', 'session.open', 'session.cancel',
+  'handoff.send', 'handoff.respond', 'handoff.withdraw'
 ] as PlatformAction[]);
 
 export const ADMIN_ACTIONS: readonly PlatformAction[] = Object.freeze(['artifact.archive'] as PlatformAction[]);

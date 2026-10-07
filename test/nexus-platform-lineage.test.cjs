@@ -222,7 +222,7 @@ test('the lineage service takes ids and a vocabulary relation only: no free-text
   const { s, nx } = setup();
   const proto = Object.getPrototypeOf(nx.lineage);
   assert.deepEqual(Object.getOwnPropertyNames(proto).filter((k) => k !== 'constructor' && typeof proto[k] === 'function' && !['walk', 'loadEndpoint', 'checkJobSource'].includes(k)).sort(),
-    ['downstream', 'record', 'upstream']);
+    ['downstream', 'linkSources', 'record', 'upstream']);   // B1 Task 3: linkSources takes version ids only
   s.close();
 });
 
