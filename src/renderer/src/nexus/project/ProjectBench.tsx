@@ -15,7 +15,7 @@ import { Sheet } from '../ui/Sheet';
 import { useMedia } from '../ui/useMedia';
 import { withViewTransition } from '../ui/viewTransition';
 import { MobileRuns } from './MobileRuns';
-import { buildSpine, nodeLabel } from './spineModel';
+import { buildSpine, nodeLabel, spineLine } from './spineModel';
 import type { SpineNode } from './spineModel';
 import { useProjectGit } from './useProjectGit';
 import { Spine } from './Spine';
@@ -70,10 +70,11 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   const setSelection = useNexusUi((s) => s.setSelection);
   const { git, refresh } = useProjectGit(project.rootPath);
   const idx = useParticipationIndex();
-  const { artifacts } = useProjectArtifacts(project.id);
+  const { artifacts, loaded: artifactsLoaded, error: artifactsError, retry: artifactsRetry, reload: reloadArtifacts } = useProjectArtifacts(project.id);
   const canWrite = usePlatform(selectCanWrite);
   const groups = useMemo(() => buildSpine({ idx, projectId: project.id, git, artifacts }), [idx, project.id, git, artifacts]);
   const nodes = groups.flatMap((g) => g.nodes);
+  const line = spineLine({ loaded: artifactsLoaded, error: artifactsError, retry: artifactsRetry }, groups);
   const [selected, setSelected] = useState<string>(tool === 'changes' ? 'changes' : 'source');
 
   // The project opened successfully: remember it for the launcher.
@@ -150,11 +151,15 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   }, [refreshProject]);
   // The Save sheet lives at the bench, so it outlives the Details sheet that may open it.
   const [saveSource, setSaveSource] = useState<SaveSource | null>(null);
+  const [focusRequest, setFocusRequest] = useState<string | null>(null);
+  const focused = useCallback(() => setFocusRequest(null), []);
   const openSave = useCallback((s: SaveSource) => setSaveSource(s), []);
   const closeSave = useCallback(() => setSaveSource(null), []);
   const onSaved = useCallback((artifactId: string) => {
     setSaveSource(null);
     setSelected(`artifact:${artifactId}`);
+    // Focus the new node once the reload draws it (the sheet that had focus is gone).
+    setFocusRequest(`artifact:${artifactId}`);
     navigate({ name: 'project', id: project.id, tool: 'bench' });
   }, [project.id]);
   const onSave = canWrite ? openSave : undefined;
@@ -164,7 +169,8 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   return (
     <div className="nx-workbench">
       {mobile && <MobileRuns projectId={project.id} />}
-      <Spine groups={groups} selectedId={tool === 'completion' || tool === 'runs' ? '' : node.id} onSelect={onSelect} />
+      <Spine groups={groups} selectedId={tool === 'completion' || tool === 'runs' ? '' : node.id} onSelect={onSelect}
+        line={line} onRetryLine={reloadArtifacts} focusRequest={focusRequest} onFocused={focused} />
       <div className="nx-bench">
         <ToolRail projectId={project.id} rootPath={project.rootPath} tool={tool} hasChanges={hasChanges} onOpenTerminal={openTerminal}
           extra={!wide && (

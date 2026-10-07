@@ -1,13 +1,27 @@
-import { useRef, type KeyboardEvent } from 'react';
-import type { SpineGroup } from './spineModel';
-import { hasArtifactNodes, nodeLabel, tabStopId } from './spineModel';
+import { useEffect, useRef, type KeyboardEvent } from 'react';
+import type { SpineGroup, SpineLine } from './spineModel';
+import { nodeLabel, tabStopId } from './spineModel';
 import { kindLabel, statusLabel } from './artifactModel';
 import { provenanceStyle } from '../ui/ProvenanceMark';
 
-export function Spine({ groups, selectedId, onSelect }: { groups: SpineGroup[]; selectedId: string; onSelect: (id: string, el?: HTMLElement) => void }) {
+export function Spine({ groups, selectedId, onSelect, line, onRetryLine, focusRequest, onFocused }: {
+  groups: SpineGroup[]; selectedId: string; onSelect: (id: string, el?: HTMLElement) => void;
+  /** What the line under the nodes says about artifacts (see spineLine). */
+  line: SpineLine;
+  onRetryLine: () => void;
+  /** A node to focus once it renders (a freshly saved artifact); cleared through onFocused. */
+  focusRequest?: string | null;
+  onFocused?: () => void;
+}) {
   const flat = groups.flatMap((g) => g.nodes.map((n) => n.id));
   const active = tabStopId(flat, selectedId);
   const refs = useRef(new Map<string, HTMLButtonElement>());
+  const flatKey = flat.join('|');
+  useEffect(() => {
+    if (!focusRequest) return;
+    const el = refs.current.get(focusRequest);
+    if (el && el.isConnected) { el.focus(); onFocused?.(); }
+  }, [focusRequest, flatKey, onFocused]);
   const focusAt = (i: number) => { const id = flat[Math.max(0, Math.min(flat.length - 1, i))]; refs.current.get(id)?.focus(); };
   const onKey = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); focusAt(i + 1); }
@@ -16,7 +30,6 @@ export function Spine({ groups, selectedId, onSelect }: { groups: SpineGroup[]; 
     else if (e.key === 'End') { e.preventDefault(); focusAt(flat.length - 1); }
   };
   let i = -1;
-  const anyArtifact = hasArtifactNodes(groups);
   return (
     <nav className="nx-spine" aria-label="Project spine">
       {groups.map((g) => (
@@ -57,7 +70,14 @@ export function Spine({ groups, selectedId, onSelect }: { groups: SpineGroup[]; 
           </ol>
         </div>
       ))}
-      {!anyArtifact && <p className="nx-spine__future">Artifacts this project produces will appear on this line.</p>}
+      {line?.kind === 'empty' && <p className="nx-spine__future">Artifacts this project produces will appear on this line.</p>}
+      {line?.kind === 'loading' && <p className="nx-spine__future" role="status">Reading artifacts…</p>}
+      {line?.kind === 'error' && (
+        <p className="nx-spine__future nx-spx-line" role="status">
+          <span>{line.text}</span>
+          {line.retry && <button type="button" className="nx-btn nx-btn--quiet" onClick={onRetryLine}><span>Try again</span></button>}
+        </p>
+      )}
     </nav>
   );
 }

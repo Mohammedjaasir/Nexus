@@ -75,20 +75,22 @@ export interface ArtifactsState {
   loaded: boolean;
   /** A passing failure worth a sentence; null on success and while the platform is off (its notice says so). */
   error: string | null;
+  /** True when sending the same read again may help (a busy database, an unexpected failure). */
+  retry: boolean;
 }
 
-export const NO_ARTIFACTS: ArtifactsState = { artifacts: [], loaded: false, error: null };
+export const NO_ARTIFACTS: ArtifactsState = { artifacts: [], loaded: false, error: null, retry: false };
 
 /** The next state after a nexus:artifacts:byProject answer. */
 export function nextArtifacts(prev: ArtifactsState, r: NexusResult<ArtifactSummaryView[]>): ArtifactsState {
-  if (r.ok) return { artifacts: Array.isArray(r.data) ? r.data : [], loaded: true, error: null };
+  if (r.ok) return { artifacts: Array.isArray(r.data) ? r.data : [], loaded: true, error: null, retry: false };
   const copy = errorCopy(r.code, r.reason, r.subReason);
   // The platform is off: there is nothing to show, and the platform notice explains why.
-  if (copy.kind === 'unavailable') return { artifacts: [], loaded: true, error: null };
+  if (copy.kind === 'unavailable') return { artifacts: [], loaded: true, error: null, retry: false };
   // The project is gone or unreadable: show nothing rather than stale nodes.
-  if (r.code === 'not_found' || r.code === 'denied') return { artifacts: [], loaded: true, error: copy.text };
+  if (r.code === 'not_found' || r.code === 'denied') return { artifacts: [], loaded: true, error: copy.text, retry: false };
   // A passing failure: keep what was last read.
-  return { artifacts: prev.artifacts, loaded: true, error: copy.text };
+  return { artifacts: prev.artifacts, loaded: true, error: copy.text, retry: copy.retry };
 }
 
 // ---------- the artifact Passport (read-only) ----------

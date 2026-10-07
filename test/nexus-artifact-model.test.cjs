@@ -70,13 +70,16 @@ test('nextArtifacts: success replaces; unavailable empties quietly; busy keeps t
   const s1 = A.nextArtifacts(A.NO_ARTIFACTS, { ok: true, data: [{ artifact: { id: 'x' } }] });
   assert.deepEqual([s1.artifacts.length, s1.loaded, s1.error], [1, true, null]);
   const off = A.nextArtifacts(s1, fail('platform_unavailable', { reason: 'held' }));
-  assert.deepEqual(off, { artifacts: [], loaded: true, error: null });
+  assert.deepEqual(off, { artifacts: [], loaded: true, error: null, retry: false });
+  assert.equal(s1.retry, false);
   const busy = A.nextArtifacts(s1, fail('platform_unavailable', { reason: 'busy' }));
   assert.equal(busy.artifacts, s1.artifacts);
   assert.equal(busy.error, errorCopy('platform_unavailable', 'busy').text);
+  assert.equal(busy.retry, true);
   const gone = A.nextArtifacts(s1, fail('not_found'));
   assert.deepEqual(gone.artifacts, []);
   assert.equal(gone.error, errorCopy('not_found').text);
+  assert.equal(gone.retry, false);
 });
 
 // ---------- the Passport view ----------

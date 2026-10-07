@@ -47,3 +47,4 @@ li.nx-svx-commit { grid-template-columns: 64px minmax(0, 1fr) auto; align-items:
 .nx-svx__steer { display: grid; gap: var(--nx-s2); padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line); border-left: 3px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-sunken); }
 .nx-svx__steer p { margin: 0; color: var(--nx-text-2); }
 .nx-svx__actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
+.nx-spx-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); white-space: normal; }

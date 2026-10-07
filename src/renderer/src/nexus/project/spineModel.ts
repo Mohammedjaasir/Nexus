@@ -87,6 +87,19 @@ export function buildSpine(input: { idx: ParticipationIndex; projectId: string; 
   return groups;
 }
 
+/** What the line under the spine says about artifacts:
+ *  - loading: before the first answer (a neutral line, never the placeholder);
+ *  - error: the read failed (the errorCopy sentence, with "Try again" when a retry can help);
+ *  - empty: the read succeeded and the project has no artifact node (the placeholder);
+ *  - null: artifact nodes are on the spine. */
+export type SpineLine = { kind: 'loading' } | { kind: 'error'; text: string; retry: boolean } | { kind: 'empty' } | null;
+
+export function spineLine(a: { loaded: boolean; error: string | null; retry: boolean }, groups: SpineGroup[]): SpineLine {
+  if (a.error) return { kind: 'error', text: a.error, retry: a.retry };
+  if (!a.loaded) return { kind: 'loading' };
+  return hasArtifactNodes(groups) ? null : { kind: 'empty' };
+}
+
 /** True when any artifact node is on the spine (the placeholder line shows only while there is none). */
 export function hasArtifactNodes(groups: SpineGroup[]): boolean {
   return groups.some((g) => g.nodes.some((n) => n.kind === 'artifact'));

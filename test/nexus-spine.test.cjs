@@ -177,8 +177,8 @@ const read = (p) => fs.readFileSync(path.join(NEXUS, p), 'utf8');
 
 test('pin: the Spine renders artifact nodes from the model, drafts dashed, status in words, the placeholder only while empty', () => {
   const s = read('project/Spine.tsx');
-  assert.match(s, /\{!anyArtifact && <p className="nx-spine__future">Artifacts this project produces will appear on this line\.<\/p>\}/);
-  assert.match(s, /const anyArtifact = hasArtifactNodes\(groups\);/);
+  assert.match(s, /\{line\?\.kind === 'empty' && <p className="nx-spine__future">Artifacts this project produces will appear on this line\.<\/p>\}/);
+  assert.equal((s.match(/will appear on this line/g) || []).length, 1, 'the placeholder renders in one branch only');
   assert.match(s, /n\.status === 'draft' \? ' nx-node--draft' : ''/);
   assert.match(s, /\{kindLabel\(n\.artifactKind\)\} · \{statusLabel\(n\.status\)\}/);
   assert.match(s, /v\{n\.versionNo\}/);
@@ -191,7 +191,7 @@ test('pin: the Spine renders artifact nodes from the model, drafts dashed, statu
 
 test('pin: the bench loads the project artifacts and keeps an artifact selection on the bench tool', () => {
   const bench = read('project/ProjectBench.tsx');
-  assert.match(bench, /const \{ artifacts \} = useProjectArtifacts\(project\.id\);/);
+  assert.match(bench, /const \{ artifacts, loaded: artifactsLoaded, error: artifactsError, retry: artifactsRetry, reload: reloadArtifacts \} = useProjectArtifacts\(project\.id\);/);
   assert.match(bench, /buildSpine\(\{ idx, projectId: project\.id, git, artifacts \}\)/);
   assert.match(bench, /setSelected\(\(s\) => \(s === 'changes' \? 'source' : s\)\)/);
   assert.match(bench, /setSelected\(`artifact:\$\{artifactId\}`\)/);
@@ -199,6 +199,66 @@ test('pin: the bench loads the project artifacts and keeps an artifact selection
   assert.match(bench, /const onSave = canWrite \? openSave : undefined;/);
   const hook = read('data/useProjectArtifacts.ts');
   assert.match(hook, /nexusClient\.artifactsByProject\(projectId\)/);
-  assert.match(hook, /\[projectId, rev, mode\]/);
   assert.match(hook, /if \(mine !== seq\.current\) return;/);
+});
+
+// ---------- Fix round 1: the line under the spine follows the artifacts read ----------
+
+const { spineLine } = loadTs('src/renderer/src/nexus/project/spineModel.ts');
+
+test('spineLine: before the first answer a neutral loading line, never the placeholder', () => {
+  const g = buildSpine({ idx: DBX, projectId: 'p', git: ready({}), artifacts: [] });
+  assert.deepEqual(spineLine({ loaded: false, error: null, retry: false }, g), { kind: 'loading' });
+});
+
+test('spineLine: the placeholder only once loaded, with no error and no artifact node', () => {
+  const empty = buildSpine({ idx: DBX, projectId: 'p', git: ready({}), artifacts: [] });
+  assert.deepEqual(spineLine({ loaded: true, error: null, retry: false }, empty), { kind: 'empty' });
+  const full = buildSpine({ idx: DBX, projectId: 'p', git: ready({}), artifacts: [summary({ id: 'F1' })] });
+  assert.equal(spineLine({ loaded: true, error: null, retry: false }, full), null);
+});
+
+test('spineLine: a failed read shows its sentence (with retry when it can help), never the placeholder', () => {
+  const empty = buildSpine({ idx: DBX, projectId: 'p', git: ready({}), artifacts: [] });
+  assert.deepEqual(spineLine({ loaded: true, error: 'The database is busy.', retry: true }, empty), { kind: 'error', text: 'The database is busy.', retry: true });
+  // not_found / denied emptied the list: still the error, not "no artifacts".
+  assert.deepEqual(spineLine({ loaded: true, error: 'gone', retry: false }, empty), { kind: 'error', text: 'gone', retry: false });
+  // A busy re-read that kept the old nodes still says the read failed.
+  const full = buildSpine({ idx: DBX, projectId: 'p', git: ready({}), artifacts: [summary({ id: 'F2' })] });
+  assert.equal(spineLine({ loaded: true, error: 'busy', retry: true }, full).kind, 'error');
+});
+
+test('spineLine end to end with nextArtifacts: initial, busy, internal, not_found, denied, unavailable, ok', () => {
+  const { nextArtifacts, NO_ARTIFACTS } = loadTs('src/renderer/src/nexus/project/artifactModel.ts');
+  const { errorCopy } = loadTs('src/renderer/src/nexus/data/errorCopy.ts');
+  const lineFor = (st) => spineLine(st, buildSpine({ idx: DBX, projectId: 'p', git: ready({}), artifacts: st.artifacts }));
+  const f = (code, extra = {}) => ({ ok: false, code, message: 'm', ...extra });
+  assert.deepEqual(lineFor(NO_ARTIFACTS), { kind: 'loading' });
+  assert.deepEqual(lineFor(nextArtifacts(NO_ARTIFACTS, f('platform_unavailable', { reason: 'busy' }))), { kind: 'error', text: errorCopy('platform_unavailable', 'busy').text, retry: true });
+  assert.deepEqual(lineFor(nextArtifacts(NO_ARTIFACTS, f('internal'))), { kind: 'error', text: errorCopy('internal').text, retry: true });
+  assert.deepEqual(lineFor(nextArtifacts(NO_ARTIFACTS, f('not_found'))), { kind: 'error', text: errorCopy('not_found').text, retry: false });
+  assert.deepEqual(lineFor(nextArtifacts(NO_ARTIFACTS, f('denied'))), { kind: 'error', text: errorCopy('denied').text, retry: false });
+  assert.deepEqual(lineFor(nextArtifacts(NO_ARTIFACTS, { ok: true, data: [] })), { kind: 'empty' });
+  assert.equal(lineFor(nextArtifacts(NO_ARTIFACTS, { ok: true, data: [summary({ id: 'F3' })] })), null);
+});
+
+test('pin: the Spine draws the loading and error lines, Try again re-runs the read, and a saved node gets focus', () => {
+  const s = read('project/Spine.tsx');
+  assert.match(s, /\{line\?\.kind === 'loading' && <p className="nx-spine__future" role="status">Reading artifacts…<\/p>\}/);
+  assert.match(s, /line\?\.kind === 'error' && \(\s*<p className="nx-spine__future nx-spx-line" role="status">\s*<span>\{line\.text\}<\/span>/);
+  assert.match(s, /\{line\.retry && <button type="button" className="nx-btn nx-btn--quiet" onClick=\{onRetryLine\}><span>Try again<\/span><\/button>\}/);
+  assert.match(s, /const el = refs\.current\.get\(focusRequest\);\s*if \(el && el\.isConnected\) \{ el\.focus\(\); onFocused\?\.\(\); \}/);
+  const bench = read('project/ProjectBench.tsx');
+  assert.match(bench, /const line = spineLine\(\{ loaded: artifactsLoaded, error: artifactsError, retry: artifactsRetry \}, groups\);/);
+  assert.match(bench, /line=\{line\} onRetryLine=\{reloadArtifacts\} focusRequest=\{focusRequest\} onFocused=\{focused\}/);
+  assert.match(bench, /setSelected\(`artifact:\$\{artifactId\}`\);[\s\S]*?setFocusRequest\(`artifact:\$\{artifactId\}`\);/);
+  const hook = read('data/useProjectArtifacts.ts');
+  assert.match(hook, /\[projectId, rev, mode, attempt\]/);
+  assert.match(hook, /return \{ \.\.\.state, reload \};/);
+});
+
+test('pin: the artifact Passport loader catches a throw and shows the internal sentence while mounted', () => {
+  const s = read('project/ArtifactPassport.tsx');
+  assert.match(s, /void \(async \(\) => \{\s*try \{/);
+  assert.match(s, /\} catch \{[\s\S]*?if \(alive\) setState\(\(s\) => \(\{ loaded: s\.loaded, error: errorCopy\('internal'\)\.text \}\)\);/);
 });

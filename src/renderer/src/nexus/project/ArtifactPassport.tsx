@@ -27,31 +27,36 @@ function useArtifactPassport(artifactId: string, shownVersionNo: number, rootPat
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const d = await nexusClient.artifactGet(artifactId);
-      if (!alive) return;
-      if (!d.ok) { setState((s) => ({ loaded: d.code === 'not_found' ? null : s.loaded, error: errorCopy(d.code, d.reason, d.subReason).text })); return; }
-      const detail = d.data;
-      const newest = [...detail.versions].sort((a, b) => b.versionNo - a.versionNo).slice(0, CONTENT_READS);
-      const shown = detail.versions.find((v) => v.versionNo === shownVersionNo) ?? null;
-      const [reads, up, down] = await Promise.all([
-        Promise.all(newest.map((v) => nexusClient.versionGet(v.id))),
-        shown ? nexusClient.lineageGet(shown.id, { direction: 'up', depth: 1 }) : Promise.resolve(null),
-        shown ? nexusClient.lineageGet(shown.id, { direction: 'down', depth: 1 }) : Promise.resolve(null)
-      ]);
-      if (!alive) return;
-      const contents = new Map<string, VersionContent>();
-      for (const r of reads) if (r.ok) contents.set(r.data.id, r.data.content);
-      // Commit subjects come only from the project's own git log: the allow-list for that text.
-      const subjects = new Map<string, string>();
-      if ([...contents.values()].some((c) => c.type === 'git')) {
-        const log = await window.cth.gitLog(rootPath, 200).catch(() => null);
+      try {
+        const d = await nexusClient.artifactGet(artifactId);
         if (!alive) return;
-        if (Array.isArray(log)) for (const c of log) subjects.set(c.sha, c.subject);
+        if (!d.ok) { setState((s) => ({ loaded: d.code === 'not_found' ? null : s.loaded, error: errorCopy(d.code, d.reason, d.subReason).text })); return; }
+        const detail = d.data;
+        const newest = [...detail.versions].sort((a, b) => b.versionNo - a.versionNo).slice(0, CONTENT_READS);
+        const shown = detail.versions.find((v) => v.versionNo === shownVersionNo) ?? null;
+        const [reads, up, down] = await Promise.all([
+          Promise.all(newest.map((v) => nexusClient.versionGet(v.id))),
+          shown ? nexusClient.lineageGet(shown.id, { direction: 'up', depth: 1 }) : Promise.resolve(null),
+          shown ? nexusClient.lineageGet(shown.id, { direction: 'down', depth: 1 }) : Promise.resolve(null)
+        ]);
+        if (!alive) return;
+        const contents = new Map<string, VersionContent>();
+        for (const r of reads) if (r.ok) contents.set(r.data.id, r.data.content);
+        // Commit subjects come only from the project's own git log: the allow-list for that text.
+        const subjects = new Map<string, string>();
+        if ([...contents.values()].some((c) => c.type === 'git')) {
+          const log = await window.cth.gitLog(rootPath, 200).catch(() => null);
+          if (!alive) return;
+          if (Array.isArray(log)) for (const c of log) subjects.set(c.sha, c.subject);
+        }
+        setState({
+          loaded: { detail, contents, subjects, up: up && up.ok ? up.data : null, down: down && down.ok ? down.data : null },
+          error: (up && !up.ok) || (down && !down.ok) ? 'Some links of this version could not be read.' : null
+        });
+      } catch {
+        // An unexpected throw (for example from the git log read): never an unhandled rejection.
+        if (alive) setState((s) => ({ loaded: s.loaded, error: errorCopy('internal').text }));
       }
-      setState({
-        loaded: { detail, contents, subjects, up: up && up.ok ? up.data : null, down: down && down.ok ? down.data : null },
-        error: (up && !up.ok) || (down && !down.ok) ? 'Some links of this version could not be read.' : null
-      });
     })();
     return () => { alive = false; };
   }, [artifactId, shownVersionNo, rootPath, rev]);
