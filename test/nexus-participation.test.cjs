@@ -62,6 +62,21 @@ test('R3 attached projects appear in their workspace as attached; withdrawn rows
   assert.deepEqual(M.projectsInWorkspace(two, P, 'qa').map((x) => [x.project.id, x.role]), [['c', 'primary'], ['a', 'attached']]);
 });
 
+test('attachChoices offers catalogue workspaces only: active, complete and retired (off-catalogue) ones are excluded; withdrawn ones are offered again', () => {
+  const idx = M.fromRows([
+    row('1', 'a', 'ml', true), row('2', 'a', 'qa', false), row('3', 'a', 'dl', false, 'complete'),
+    row('4', 'a', 'devops', false, 'withdrawn'), row('5', 'a', 'old-retired', false, 'active')
+  ]);
+  const ids = M.attachChoices(idx, 'a').map((w) => w.id);
+  for (const gone of ['ml', 'qa', 'dl']) assert.equal(ids.includes(gone), false, gone);
+  assert.equal(ids.includes('old-retired'), false, 'a workspace the catalogue no longer lists is never offered');
+  assert.equal(ids.includes('devops'), true, 'a withdrawn participation can be attached again');
+  // Catalogue order, and every choice is a registry entry.
+  assert.deepEqual(ids, WORKSPACES.map((w) => w.id).filter((id) => !['ml', 'qa', 'dl'].includes(id)));
+  // A project with no rows may join any catalogue workspace.
+  assert.deepEqual(M.attachChoices(idx, 'zz').map((w) => w.id), WORKSPACES.map((w) => w.id));
+});
+
 test('R4 an unknown workspace id keeps its id as its label, has no hue, and is not counted in the registry rows', () => {
   const idx = M.fromRows([row('1', 'a', 'archive-lab', true), row('2', 'c', 'sde', true)]);
   assert.equal(M.primaryOf(idx, 'a'), null, 'no registry config for an unknown id');

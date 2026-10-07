@@ -3,3 +3,16 @@
 .nx-platform-notice { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2) var(--nx-s3); margin: 0; padding: var(--nx-s3) var(--nx-s4); border: 1px solid var(--nx-line); border-left: 3px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-surface); font: 400 13px/1.5 var(--nx-font); color: var(--nx-text-2); }
 .nx-platform-notice__text { flex: 1 1 280px; min-width: 0; }
 .nx-row__title .nx-badge { margin-left: var(--nx-s2); vertical-align: middle; }
+
+/* The project's Workspaces section (project/WorkspacesSection.tsx). Status is text
+   ("Primary", "Attached"); the mark beside each name is provenance only. */
+.nx-wsx__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--nx-s1); }
+.nx-wsx__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); min-height: 30px; }
+.nx-wsx__name { font-weight: 550; color: var(--nx-ink); }
+.nx-wsx__act { margin-left: auto; }
+.nx-wsx__confirm { flex: 1 1 100%; display: grid; gap: var(--nx-s2); padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line); border-left: 3px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-sunken); }
+.nx-wsx__confirm p { margin: 0; color: var(--nx-text-2); }
+.nx-wsx__confirm-actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
+.nx-wsx__hint { margin: var(--nx-s2) 0 0; }
+.nx-wsx__add { margin-top: var(--nx-s2); }
+.nx-wsx__status { margin: var(--nx-s2) 0 0; color: var(--nx-text-2); }

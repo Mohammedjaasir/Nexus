@@ -6,6 +6,7 @@ import { useShellActions } from '../shellActions';
 import { useParticipationIndex } from '../data/useParticipations';
 import { useNexusUi } from '../state/uiStore';
 import { Button } from '../ui/Button';
+import { WorkspacesSection } from './WorkspacesSection';
 import type { NexusIconName } from '../icons';
 
 type Commit = { shortSha: string; subject: string; time: number };
@@ -76,6 +77,7 @@ export function Passport({ project, node, headSha, onRefreshProject, onOpenTermi
           <dl>{s.rows.map((r) => <Fragment key={r.label}><dt>{r.label}</dt><dd>{r.value}</dd></Fragment>)}</dl>
         </section>
       ))}
+      {node.kind === 'source' && <WorkspacesSection key={project.id} projectId={project.id} />}
       {p.versions.length > 0 && (
         <section>
           <h2>Versions</h2>

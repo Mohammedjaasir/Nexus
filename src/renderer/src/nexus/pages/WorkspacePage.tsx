@@ -6,6 +6,7 @@ import { getWorkspace } from '../workspaces/registry';
 import { workspaceTabs } from '../workspaces/mapping';
 import { projectsInWorkspace } from '../workspaces/participation';
 import { useParticipationIndex } from '../data/useParticipations';
+import { usePlatform, selectCanWrite } from '../data/platformStore';
 import { recentProjects } from '../data/selectors';
 import { useProjectsLoader } from '../data/useProjects';
 import { navigate } from '../router/useRoute';
@@ -26,6 +27,9 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
   const setLast = useNexusUi((s) => s.setLastWorkspace);
   useEffect(() => { setLast(id); }, [id, setLast]);
   const idx = useParticipationIndex();
+  // Attaching from a project's own page exists only while the database is the authority.
+  const canWrite = usePlatform(selectCanWrite);
+  const addHint = canWrite ? ` A project can also be added to ${ws.label} from its own page.` : '';
   // Primary projects first, then attached ones; each newest first.
   const here = projectsInWorkspace(idx, projects, id);
   const roleOf = new Map(here.map((x) => [x.project.id, x.role]));
@@ -72,10 +76,10 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
           : mine.length > 0 ? <div className="nx-rows">{mine.map((p) => <ProjectRow key={p.id} project={p} idx={idx} role={roleOf.get(p.id)} onOpen={() => navigate({ name: 'project', id: p.id, tool: 'bench' })} />)}</div>
           : unmappable ? (
             <EmptyState level={2} icon={ws.icon} title={`No ${ws.label} projects yet`}
-              body={<>No project takes part in {ws.label} yet. New projects join a workspace through the domain the analyzer detects, and none map to {ws.label} today.</>}
+              body={<>No project takes part in {ws.label} yet. New projects join a workspace through the domain the analyzer detects, and none map to {ws.label} today.{addHint}</>}
               actions={<Button onClick={() => navigate({ name: 'projects' })}>See all projects</Button>} />
           ) : (
-            <EmptyState level={2} icon={ws.icon} title={`No ${ws.label} projects yet`} body="Create one here, or import a folder; it joins this workspace when its domain matches."
+            <EmptyState level={2} icon={ws.icon} title={`No ${ws.label} projects yet`} body={`Create one here, or import a folder; it joins this workspace when its domain matches.${addHint}`}
               actions={<><Button variant="primary" icon="plus" onClick={() => actions.openNewProject(ws.defaultDomainId)}>New project</Button><Button icon="import" onClick={actions.openImport}>Import</Button></>} />
           )}
       </section>
