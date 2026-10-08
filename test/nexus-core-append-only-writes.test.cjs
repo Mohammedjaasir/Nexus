@@ -113,3 +113,9 @@ test('no OR REPLACE or DO UPDATE aimed at an append-only or immutable platform t
   }
   assert.deepEqual(bad, []);
 });
+
+test('B2a Task 4 fix round 1: every append-only or immutable v9 table is protected, version_attempts included', () => {
+  for (const t of ['job_attempts', 'image_builds', 'job_events', 'blobs', 'version_blobs', 'version_attempts', 'validations', 'approvals', 'deployments']) {
+    assert.ok(PROTECTED.has(t), t);
+  }
+});

@@ -16,11 +16,11 @@ function v8db() {
 }
 const names = (db, type) => db.prepare("SELECT name FROM sqlite_master WHERE type = ? AND name NOT LIKE 'sqlite_%'").all(type).map((r) => r.name);
 
-test('v9 objects: 14 tables, the parsed index and trigger lists, seeds, clean shape, +4 relations', () => {
+test('v9 objects: 15 tables, the parsed index and trigger lists, seeds, clean shape, +4 relations', () => {
   const db = v8db();
   db.transaction(() => applyV9(db, ctx()))();
-  assert.equal(Object.keys(V9_EXPECTED.tables).length, 14);
-  assert.equal(V9_EXPECTED.indexes.length, 23); assert.equal(V9_EXPECTED.triggers.length, 27);
+  assert.equal(Object.keys(V9_EXPECTED.tables).length, 15);
+  assert.equal(V9_EXPECTED.indexes.length, 23); assert.equal(V9_EXPECTED.triggers.length, 32);
   for (const t of Object.keys(V9_EXPECTED.tables)) assert.ok(names(db, 'table').includes(t), t);
   for (const i of V9_EXPECTED.indexes) assert.ok(names(db, 'index').includes(i), i);
   for (const t of V9_EXPECTED.triggers) assert.ok(names(db, 'trigger').includes(t), t);
@@ -60,13 +60,14 @@ test('the generic parser finds exactly the v9 objects; the DDL is additive and k
   for (const n of ['ix_jobs_sched', 'ix_jobs_retry_due', 'ix_jobs_parent']) assert.equal(on(n), 'jobs', n);
   for (const n of ['ux_versions_job_path', 'ix_versions_job', 'ix_versions_hash']) assert.equal(on(n), 'artifact_versions', n);
   assert.equal(on('ux_repository_per_project'), 'artifacts');
+  for (const n of ['tr_jobs_completed_needs_attempt', 'tr_jobs_end_after_attempts']) assert.equal(on(n), 'jobs', n);
   assert.match(objs.find((o) => o.name === 'ux_attempts_live').sql, /WHERE state IN\('starting','running'\)$/);
   assert.match(objs.find((o) => o.name === 'ux_deployments_port_live').sql, /WHERE host_port IS NOT NULL AND status IN\('starting','healthy','unhealthy'\)$/);
   assert.match(objs.find((o) => o.name === 'ux_versions_job_path').sql, /WHERE output_path IS NOT NULL$/);
   for (const o of objs.filter((x) => x.type === 'trigger')) assert.match(o.sql, /END$/, o.name);
   assert.doesNotMatch(V9_DDL, /\b(DROP|ALTER)\b/i);
   assert.doesNotMatch(V9_DDL, /OR\s+REPLACE/i);
-  assert.equal((V9_DDL.match(/NOT LIKE '%\\%'/g) || []).length, 2, 'both backslash LIKE patterns survive the template literal');
+  assert.equal((V9_DDL.match(/NOT LIKE '%\\%'/g) || []).length, 3, 'the three backslash LIKE patterns survive the template literal');
   // Every statement is CREATE ... IF NOT EXISTS: no CREATE without it.
   assert.equal((V9_DDL.match(/\bCREATE\b/g) || []).length, (V9_DDL.match(/\bCREATE\s+(?:UNIQUE\s+)?(?:TABLE|INDEX|TRIGGER)\s+IF\s+NOT\s+EXISTS\b/g) || []).length);
 });
@@ -200,6 +201,11 @@ function insAttempt(db, over = {}) {
   return id;
 }
 const setAttempt = (db, id, sql, ...args) => db.prepare(`UPDATE job_attempts SET ${sql} WHERE id = ?`).run(...args, id);
+const SANDBOX = "sandbox_json = '{\"network\":\"none\"}', environment_json = '{\"profile\":\"sde-node\"}'";
+/** starting -> running with the facts constraint 4 requires. */
+const runAttempt = (db, id) => setAttempt(db, id, `state = 'running', started_at = ?, ${SANDBOX}`, T0 + 1);
+/** running -> succeeded with an exit code and an outcome. */
+const succeedAttempt = (db, id) => setAttempt(db, id, "state = 'succeeded', finished_at = ?, exit_code = 0, outcome = 'ok'", T0 + 2);
 const insEvent = (db, over = {}) => insert(db, 'job_events', { ts: T0, project_id: 'p-ledger', job_id: 'j-1', type: 'job.transition',
   summary: 'queued to leased', ...over });
 function insApproval(db, over = {}) {
@@ -212,7 +218,10 @@ function insApproval(db, over = {}) {
 const approve = (db, id, by = 'user:local', decision = 'once') => db.prepare(
   "UPDATE approvals SET status = 'approved', decided_by = ?, decided_at = ?, decision = ?, status_changed_at = ? WHERE id = ?")
   .run(by, T0 + 1, decision, T0 + 1, id);
-const consume = (db, id, at = T0 + 2) => db.prepare('UPDATE approvals SET consumed_at = ? WHERE id = ?').run(at, id);
+/** Consumption records the consuming attempt (attempt 1 of the approval's job); a jobless approval names none. */
+const consume = (db, id, at = T0 + 2, n = 1) => db.prepare(
+  'UPDATE approvals SET consumed_at = ?, consumed_by_job_id = job_id, consumed_by_attempt_n = CASE WHEN job_id IS NULL THEN NULL ELSE ? END WHERE id = ?')
+  .run(at, n, id);
 const prepareApproval = (db, profileId = 'sde-node', contextSha256 = CTX, over = {}) => insApproval(db, { project_id: null, job_id: null,
   reason: 'image.prepare', summary: 'Prepare the image', request_json: JSON.stringify({ profileId, contextSha256 }), ...over });
 const insBuild = (db, approvalId, over = {}) => insert(db, 'image_builds', { id: over.id ?? `ib-${++seq}`, profile_id: 'sde-node',
@@ -223,9 +232,9 @@ function insDeployment(db, w, over = {}) {
     environment: 'local-preview', status: 'starting', created_by: 'user:local', started_at: T0, status_changed_at: T0, updated_at: T0, ...over });
   return id;
 }
-const stopDeployment = (db, id, reason = 'user') => db.prepare(
-  "UPDATE deployments SET status = 'stopped', stop_reason = ?, stopped_at = ?, status_changed_at = ?, updated_at = ? WHERE id = ?")
-  .run(reason, T0 + 1, T0 + 1, T0 + 1, id);
+const stopDeployment = (db, id, reason = 'user', by = 'user:local') => db.prepare(
+  "UPDATE deployments SET status = 'stopped', stop_reason = ?, stopped_by = ?, stopped_at = ?, status_changed_at = ?, updated_at = ? WHERE id = ?")
+  .run(reason, by, T0 + 1, T0 + 1, T0 + 1, id);
 const insValidation = (db, over = {}) => insert(db, 'validations', { id: over.id ?? `val-${++seq}`, version_id: 'v-app-draft',
   validator_id: 'app.manifest', validator_version: '1', stage: 'candidate', status: 'passed', blocking: 1, advisory: 0,
   summary: 'Manifest is valid', evidence_json: '[]', job_id: 'j-1', created_by: 'system', started_at: T0, finished_at: T0 + 1, ...over });
@@ -251,9 +260,9 @@ test('T3: attempt transitions follow the seeded table', () => {
   const { db } = world();
   lease(db, 'j-1', 1); const a = insAttempt(db);
   assert.throws(() => setAttempt(db, a, "state = 'timed_out', finished_at = ?", T0 + 1), /illegal attempt transition/);
-  assert.throws(() => setAttempt(db, a, "state = 'running'"), /CHECK constraint failed/, 'running needs started_at');
-  setAttempt(db, a, "state = 'running', started_at = ?", T0 + 1);
-  setAttempt(db, a, "state = 'succeeded', finished_at = ?, exit_code = 0", T0 + 2);
+  assert.throws(() => setAttempt(db, a, `state = 'running', ${SANDBOX}`), /CHECK constraint failed/, 'running needs started_at');
+  runAttempt(db, a);
+  succeedAttempt(db, a);
   assert.throws(() => setAttempt(db, a, "state = 'running', finished_at = NULL"), /illegal attempt transition|a finished attempt is immutable/);
 });
 test('T4: container id is set once; boot id never changes', () => {
@@ -270,8 +279,8 @@ test('T4: container id is set once; boot id never changes', () => {
 test('T5: a succeeded attempt is frozen and attempts are never deleted', () => {
   const { db } = world();
   lease(db, 'j-1', 1); const a = insAttempt(db);
-  setAttempt(db, a, "state = 'running', started_at = ?", T0 + 1);
-  setAttempt(db, a, "state = 'succeeded', finished_at = ?, exit_code = 0", T0 + 2);
+  runAttempt(db, a);
+  succeedAttempt(db, a);
   assert.throws(() => setAttempt(db, a, 'heartbeat_at = ?', T0 + 3), /a finished attempt is immutable/);
   assert.throws(() => setAttempt(db, a, 'log_bytes = 10'), /a finished attempt is immutable/);
   assert.throws(() => db.prepare('DELETE FROM job_attempts WHERE id = ?').run(a), /attempts are never deleted/);
@@ -353,6 +362,7 @@ test('T12: expiry carries no decision; an approved approval cannot be denied', (
 });
 test('T13: consumed_at only on an approved approval, and only once', () => {
   const { db } = world();
+  lease(db, 'j-1', 1); insAttempt(db);
   const a = insApproval(db);
   assert.throws(() => consume(db, a), /CHECK constraint failed/);
   approve(db, a);
@@ -368,7 +378,7 @@ test('T14: one pending approval per job', () => {
 });
 test('T15: an image build needs an approved, consumed image.prepare approval for its profile and context; a finished build is frozen', () => {
   const { db } = world();
-  const re = /an image build needs an approved, unconsumed image.prepare approval for this profile/;
+  const re = /an image build needs an approved, consumed image.prepare approval for this profile and context/;
   const pending = prepareApproval(db);
   assert.throws(() => insBuild(db, pending), re, 'pending');
   const unconsumed = prepareApproval(db); approve(db, unconsumed);
@@ -377,6 +387,7 @@ test('T15: an image build needs an approved, consumed image.prepare approval for
   assert.throws(() => insBuild(db, otherProfile), re, 'another profile');
   const otherContext = prepareApproval(db, 'sde-node', HEX('9')); approve(db, otherContext); consume(db, otherContext);
   assert.throws(() => insBuild(db, otherContext), re, 'another context');
+  lease(db, 'j-1', 1); insAttempt(db);
   const egress = insApproval(db); approve(db, egress); consume(db, egress);
   assert.throws(() => insBuild(db, egress), re, 'not an image.prepare approval');
   const good = prepareApproval(db); approve(db, good); consume(db, good);
@@ -439,4 +450,202 @@ test('T20: two versions from one job never share an output path (ux_versions_job
     /UNIQUE constraint failed: artifact_versions\.produced_by_job_id, artifact_versions\.output_path/);
   insVersion(db, 'v-out-3', 'a-app', 4, w.p1, { produced_by_job_id: 'j-1', output_path: 'out/other' });
   insVersion(db, 'v-out-4', 'a-app', 5, w.p1, { output_path: 'out/app' });   // no producing job: NULLs are distinct
+});
+
+// ---------- fix round 1: gaps found in review of the plan's DDL ----------
+
+const insSession = (db, w, id = 's-1') => insert(db, 'agent_sessions', { id, project_id: 'p-ledger', workspace_id: 'sde', participation_id: w.p1,
+  principal_id: 'user:local', idempotency_key: `k-${id}`, created_at: T0, updated_at: T0, status_changed_at: T0 });
+const jobTo = (db, id, state) => db.prepare('UPDATE jobs SET state = ? WHERE id = ?').run(state, id);
+
+test('F1: decided fields are set exactly on approved or denied approvals', () => {
+  const { db } = world();
+  const a = insApproval(db);
+  assert.throws(() => db.prepare("UPDATE approvals SET decided_by = 'user:local', decided_at = ?, decision = 'once' WHERE id = ?").run(T0 + 1, a),
+    /CHECK constraint failed/, 'a decision on a still-pending approval');
+  approve(db, a);
+  assert.deepEqual({ ...db.prepare('SELECT status, decided_by, decision FROM approvals WHERE id = ?').get(a) },
+    { status: 'approved', decided_by: 'user:local', decision: 'once' });
+  const d = insApproval(db, { job_id: null, reason: 'repo.write_refs' });
+  db.prepare("UPDATE approvals SET status = 'denied', decided_by = 'user:local', decided_at = ?, decision = 'deny' WHERE id = ?").run(T0 + 1, d);
+  const x = insApproval(db, { job_id: null, reason: 'repo.write_refs' });
+  db.prepare("UPDATE approvals SET status = 'withdrawn', status_changed_at = ? WHERE id = ?").run(T0 + 1, x);
+});
+test('F2: validations and job events name a real attempt of their job; a NULL attempt_n is allowed', () => {
+  const { db } = world();
+  assert.throws(() => insValidation(db, { attempt_n: 1 }), /FOREIGN KEY constraint failed/, 'no attempt 1 yet');
+  assert.throws(() => insEvent(db, { attempt_n: 1 }), /FOREIGN KEY constraint failed/, 'no attempt 1 yet');
+  insValidation(db, { attempt_n: null });
+  insEvent(db, { attempt_n: null });
+  lease(db, 'j-1', 1); insAttempt(db);
+  insValidation(db, { attempt_n: 1 });
+  insEvent(db, { attempt_n: 1 });
+  assert.throws(() => insValidation(db, { attempt_n: 2 }), /FOREIGN KEY constraint failed/);
+  assert.throws(() => insEvent(db, { attempt_n: 2 }), /FOREIGN KEY constraint failed/);
+  const ap = insApproval(db);
+  assert.throws(() => insEvent(db, { job_id: null, approval_id: ap, attempt_n: 1, type: 'approval' }), /CHECK constraint failed/, 'attempt without a job');
+  assert.deepEqual(db.pragma('foreign_key_check'), []);
+});
+test('F3: a job event names the project of its approval and deployment, and an existing project', () => {
+  const { db, ...w } = world();
+  const ap = insApproval(db);
+  const dep = insDeployment(db, w);
+  assert.throws(() => insEvent(db, { job_id: null, approval_id: ap, project_id: 'p-invoice', type: 'approval' }), /a job event names the project of its approval/);
+  assert.throws(() => insEvent(db, { job_id: null, approval_id: ap, project_id: null, type: 'approval' }), /a job event names the project of its approval/);
+  const other = db.prepare("SELECT id FROM project_workspaces WHERE project_id = 'p-invoice' AND workspace_id = 'dl'").get().id;
+  insert(db, 'jobs', { id: 'j-inv', kind: 'tool.run', project_id: 'p-invoice', workspace_id: 'dl', participation_id: other, idempotency_key: 'k-j-inv',
+    requested_by: 'user:local', on_behalf_of: 'user:local', created_at: T0, updated_at: T0, state_changed_at: T0 });
+  assert.throws(() => insEvent(db, { job_id: 'j-inv', deployment_id: dep, project_id: 'p-invoice', type: 'deployment' }),
+    /a job event names the project of its deployment/);
+  insEvent(db, { job_id: null, approval_id: ap, type: 'approval', summary: 'approval requested' });
+  insEvent(db, { deployment_id: dep, approval_id: ap, type: 'deployment', summary: 'deployment starting' });
+  const build = prepareApproval(db);
+  assert.throws(() => insEvent(db, { job_id: null, approval_id: build, project_id: 'p-ledger', type: 'approval' }), /a job event names the project of its approval/);
+  assert.throws(() => insEvent(db, { job_id: null, approval_id: 'ap-none', project_id: null, type: 'approval' }), /FOREIGN KEY constraint failed/);
+  // An image build has no project; a made-up project id is refused by the projects FK.
+  approve(db, build); consume(db, build); insBuild(db, build, { id: 'ib-f3' });
+  assert.throws(() => insEvent(db, { job_id: null, image_build_id: 'ib-f3', project_id: 'p-nope', type: 'image_build' }), /FOREIGN KEY constraint failed/);
+  insEvent(db, { job_id: null, image_build_id: 'ib-f3', project_id: null, type: 'image_build', summary: 'image prepared' });
+  assert.deepEqual(db.pragma('foreign_key_check'), []);
+});
+test('F4: an approval session belongs to the approval project', () => {
+  const { db, ...w } = world();
+  insSession(db, w);
+  assert.throws(() => insApproval(db, { job_id: null, project_id: 'p-invoice', reason: 'repo.write_refs', session_id: 's-1' }),
+    /an approval session belongs to its project/);
+  assert.throws(() => prepareApproval(db, 'sde-node', CTX, { session_id: 's-1' }), /an approval session belongs to its project/);
+  insApproval(db, { session_id: 's-1' });
+  insApproval(db, { job_id: null, reason: 'repo.write_refs', session_id: 's-1' });
+});
+test('F5: an image build refuses a backslash log path and a requester other than the approval names', () => {
+  const { db } = world();
+  const ap = prepareApproval(db); approve(db, ap); consume(db, ap);
+  assert.throws(() => insBuild(db, ap, { requested_by: 'system' }), /an image build is requested by the principal its approval was requested for/);
+  insBuild(db, ap, { id: 'ib-f5' });
+  assert.throws(() => db.prepare("UPDATE image_builds SET log_path = 'logs\\b.log' WHERE id = 'ib-f5'").run(), /CHECK constraint failed/);
+  db.prepare("UPDATE image_builds SET log_path = 'logs/b.log' WHERE id = 'ib-f5'").run();
+});
+test('F6: each guard alone: approval transitions without tr_approvals_once, no delete, log path once, a stopped deployment frozen', () => {
+  const { db, ...w } = world();
+  db.exec('DROP TRIGGER tr_approvals_once');   // temp copy only
+  const a = insApproval(db); approve(db, a);
+  assert.throws(() => db.prepare("UPDATE approvals SET status = 'denied', decision = 'deny' WHERE id = ?").run(a), /illegal approval transition/);
+  assert.throws(() => db.prepare('DELETE FROM approvals WHERE id = ?').run(a), /approvals are never deleted/);
+  lease(db, 'j-1', 1); const at = insAttempt(db);
+  setAttempt(db, at, "log_path = 'logs/j-1-1.log'");
+  assert.throws(() => setAttempt(db, at, "log_path = 'logs/other.log'"), /attempt identity, container and log path are immutable once set/);
+  const d = insDeployment(db, w); stopDeployment(db, d);
+  assert.throws(() => db.prepare("UPDATE deployments SET health_json = '[{\"ok\":true}]' WHERE id = ?").run(d),
+    /deployment identity is immutable and a finished deployment is frozen/);
+  assert.throws(() => db.prepare('UPDATE deployments SET updated_at = ? WHERE id = ?').run(T0 + 9, d), /a finished deployment is frozen/);
+});
+test('F7: a succeeded attempt records its exit code and outcome', () => {
+  const { db } = world();
+  lease(db, 'j-1', 1); const a = insAttempt(db); runAttempt(db, a);
+  assert.throws(() => setAttempt(db, a, "state = 'succeeded', finished_at = ?, outcome = 'ok'", T0 + 2), /CHECK constraint failed/, 'no exit code');
+  assert.throws(() => setAttempt(db, a, "state = 'succeeded', finished_at = ?, exit_code = 0", T0 + 2), /CHECK constraint failed/, 'no outcome');
+  succeedAttempt(db, a);
+  // A failed attempt needs neither.
+  db.prepare('UPDATE jobs SET attempts = 2 WHERE id = ?').run('j-1');
+  const b = insAttempt(db, { n: 2 });
+  setAttempt(db, b, "state = 'failed', finished_at = ?", T0 + 3);
+});
+test('F8: running or succeeded attempts record their sandbox and environment', () => {
+  const { db } = world();
+  lease(db, 'j-1', 1); const a = insAttempt(db);
+  assert.throws(() => setAttempt(db, a, "state = 'running', started_at = ?, environment_json = '{}'", T0 + 1), /CHECK constraint failed/, 'no sandbox');
+  assert.throws(() => setAttempt(db, a, "state = 'running', started_at = ?, sandbox_json = '{}'", T0 + 1), /CHECK constraint failed/, 'no environment');
+  assert.throws(() => setAttempt(db, a, "state = 'succeeded', finished_at = ?, exit_code = 0, outcome = 'ok'", T0 + 1), /CHECK constraint failed/,
+    'an engine recipe finishing in one report still records both');
+  setAttempt(db, a, `state = 'succeeded', finished_at = ?, exit_code = 0, outcome = 'ok', ${SANDBOX}`, T0 + 1);
+});
+test('F9: a tool.run or validate job completes only with a succeeded attempt; agent.run and ingest jobs are unaffected', () => {
+  const { db, ...w } = world();
+  const re = /a tool or validate job completes only with a succeeded attempt/;
+  jobTo(db, 'j-1', 'leased'); jobTo(db, 'j-1', 'running');
+  assert.throws(() => jobTo(db, 'j-1', 'completed'), re, 'no attempt');
+  insJob(db, w, 'j-ok'); lease(db, 'j-ok', 1);
+  const a = insAttempt(db, { job_id: 'j-ok' }); runAttempt(db, a);
+  jobTo(db, 'j-ok', 'running');
+  setAttempt(db, a, "state = 'failed', finished_at = ?", T0 + 2);
+  assert.throws(() => jobTo(db, 'j-ok', 'completed'), re, 'only a failed attempt');
+  insJob(db, w, 'j-good'); lease(db, 'j-good', 1);
+  const g = insAttempt(db, { job_id: 'j-good' }); runAttempt(db, g); jobTo(db, 'j-good', 'running'); succeedAttempt(db, g);
+  jobTo(db, 'j-good', 'completed');
+  insJob(db, w, 'j-val', { kind: 'validate' }); jobTo(db, 'j-val', 'leased'); jobTo(db, 'j-val', 'running');
+  assert.throws(() => jobTo(db, 'j-val', 'completed'), re, 'validate job without an attempt');
+  jobTo(db, 'j-val', 'failed');
+  // agent.run and ingest complete without attempts, as in B0b and B1.
+  insSession(db, w);
+  insJob(db, w, 'j-agent', { kind: 'agent.run', session_id: 's-1' });
+  for (const st of ['leased', 'running', 'completed']) jobTo(db, 'j-agent', st);
+  insJob(db, w, 'j-ingest', { kind: 'ingest' });
+  for (const st of ['leased', 'running', 'completed']) jobTo(db, 'j-ingest', st);
+  // a tool job may still end partial, failed or cancelled without a succeeded attempt.
+  insJob(db, w, 'j-partial'); for (const st of ['leased', 'running', 'partial']) jobTo(db, 'j-partial', st);
+  assert.deepEqual(db.prepare("SELECT id, state FROM jobs WHERE id IN ('j-good','j-agent','j-ingest','j-partial') ORDER BY id").all().map((r) => `${r.id}:${r.state}`),
+    ['j-agent:completed', 'j-good:completed', 'j-ingest:completed', 'j-partial:partial']);
+});
+test('F10: no job reaches a terminal state while one of its attempts is live', () => {
+  const { db, ...w } = world();
+  const re = /a job ends only after its live attempt has ended/;
+  lease(db, 'j-1', 1); const a = insAttempt(db);
+  assert.throws(() => jobTo(db, 'j-1', 'cancelled'), re, 'starting attempt');
+  assert.throws(() => jobTo(db, 'j-1', 'interrupted'), re, 'starting attempt');
+  runAttempt(db, a); jobTo(db, 'j-1', 'running');
+  for (const st of ['failed', 'timed_out', 'partial', 'cancelled', 'interrupted']) assert.throws(() => jobTo(db, 'j-1', st), re, st);
+  setAttempt(db, a, "state = 'abandoned', finished_at = ?", T0 + 3);
+  jobTo(db, 'j-1', 'interrupted');
+  // non-terminal moves are not affected
+  insJob(db, w, 'j-2'); lease(db, 'j-2', 1); const b = insAttempt(db, { job_id: 'j-2' }); runAttempt(db, b);
+  jobTo(db, 'j-2', 'running'); jobTo(db, 'j-2', 'awaiting_approval'); jobTo(db, 'j-2', 'running');
+});
+test('F11: version_attempts binds a version to an attempt of the job that produced it, and is append-only', () => {
+  const { db, ...w } = world();
+  lease(db, 'j-1', 1); insAttempt(db);
+  insJob(db, w, 'j-2'); lease(db, 'j-2', 1); insAttempt(db, { job_id: 'j-2' });
+  insVersion(db, 'v-prod', 'a-app', 3, w.p1, { produced_by_job_id: 'j-1', output_path: 'out/app' });
+  const va = (version, job, n) => insert(db, 'version_attempts', { version_id: version, job_id: job, attempt_n: n });
+  assert.throws(() => va('v-prod', 'j-2', 1), /a version is bound to an attempt of the job that produced it/);
+  assert.throws(() => va('v-app-draft', 'j-1', 1), /a version is bound to an attempt of the job that produced it/, 'no producing job');
+  assert.throws(() => va('v-prod', 'j-1', 2), /FOREIGN KEY constraint failed/);
+  va('v-prod', 'j-1', 1);
+  assert.throws(() => va('v-prod', 'j-1', 1), /UNIQUE constraint failed: version_attempts\.version_id/);
+  assert.throws(() => db.prepare("UPDATE version_attempts SET attempt_n = 1 WHERE version_id = 'v-prod'").run(), /version attempts are append-only/);
+  assert.throws(() => db.prepare("DELETE FROM version_attempts WHERE version_id = 'v-prod'").run(), /version attempts are append-only/);
+  assert.deepEqual(db.pragma('foreign_key_check'), []);
+});
+test('F12: consumption names an attempt of the approval job (none for a jobless approval), once', () => {
+  const { db, ...w } = world();
+  lease(db, 'j-1', 1); insAttempt(db);
+  insJob(db, w, 'j-2'); lease(db, 'j-2', 1); insAttempt(db, { job_id: 'j-2' });
+  const a = insApproval(db); approve(db, a);
+  const set = (sql, ...args) => db.prepare(`UPDATE approvals SET ${sql} WHERE id = ?`).run(...args, a);
+  assert.throws(() => set('consumed_at = ?', T0 + 2), /CHECK constraint failed/, 'a job approval names its consuming attempt');
+  assert.throws(() => set("consumed_at = ?, consumed_by_job_id = 'j-2', consumed_by_attempt_n = 1", T0 + 2), /CHECK constraint failed/, 'another job');
+  assert.throws(() => set("consumed_at = ?, consumed_by_job_id = 'j-1'", T0 + 2), /CHECK constraint failed/, 'job without attempt number');
+  assert.throws(() => set("consumed_by_job_id = 'j-1', consumed_by_attempt_n = 1"), /CHECK constraint failed/, 'consumer without consumed_at');
+  assert.throws(() => set("consumed_at = ?, consumed_by_job_id = 'j-1', consumed_by_attempt_n = 7", T0 + 2), /FOREIGN KEY constraint failed/);
+  consume(db, a);
+  assert.deepEqual({ ...db.prepare('SELECT consumed_by_job_id j, consumed_by_attempt_n n FROM approvals WHERE id = ?').get(a) }, { j: 'j-1', n: 1 });
+  assert.throws(() => set('consumed_by_attempt_n = 2'), /an approval request is immutable; its decision and its consumption are recorded once/);
+  const img = prepareApproval(db); approve(db, img);
+  assert.throws(() => db.prepare("UPDATE approvals SET consumed_at = ?, consumed_by_job_id = 'j-1', consumed_by_attempt_n = 1 WHERE id = ?").run(T0 + 2, img),
+    /CHECK constraint failed/, 'a jobless approval names no attempt');
+  consume(db, img);
+  assert.deepEqual(db.pragma('foreign_key_check'), []);
+});
+test('F13: stopped_by is recorded exactly when a deployment is stopped', () => {
+  const { db, ...w } = world();
+  insJob(db, w, 'j-2');
+  const d = insDeployment(db, w);
+  assert.throws(() => db.prepare("UPDATE deployments SET status = 'stopped', stop_reason = 'user', stopped_at = ? WHERE id = ?").run(T0 + 1, d),
+    /CHECK constraint failed/, 'stopped without who');
+  assert.throws(() => insDeployment(db, w, { job_id: 'j-2', stopped_by: 'user:local' }), /CHECK constraint failed/, 'live with a stopper');
+  stopDeployment(db, d, 'app_quit', 'system');
+  const f = insDeployment(db, w, { job_id: 'j-2' });
+  assert.throws(() => db.prepare("UPDATE deployments SET status = 'failed', stop_reason = 'exited', stopped_at = ?, stopped_by = 'system' WHERE id = ?").run(T0 + 1, f),
+    /CHECK constraint failed/, 'a failure is not a stop');
+  db.prepare("UPDATE deployments SET status = 'failed', stop_reason = 'exited', stopped_at = ? WHERE id = ?").run(T0 + 1, f);
+  assert.equal(db.prepare('SELECT stopped_by FROM deployments WHERE id = ?').get(d).stopped_by, 'system');
 });

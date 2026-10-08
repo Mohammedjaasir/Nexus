@@ -1,10 +1,13 @@
 /**
  * Schema v9: execution records (job attempts, job events), the content-addressed blob
- * index (blobs, version_blobs), validator results, approvals, image builds, local dev
- * deployments, their state vocabularies as lookup tables, four lineage relation rows
- * (D12) and seven indexes on v7 tables used by the execution core. Additive only:
- * every statement is CREATE ... IF NOT EXISTS or INSERT OR IGNORE; nothing in v1-v8 is
- * altered and no FK is added to a v1-v8 table.
+ * index (blobs, version_blobs), the producing attempt of each ingested version
+ * (version_attempts), validator results, approvals, image builds, local dev deployments,
+ * their state vocabularies as lookup tables, four lineage relation rows (D12), seven
+ * indexes on v7 tables used by the execution core, and two backstop triggers on the v7
+ * jobs table (constraint 4: a tool or validate job completes only with a succeeded
+ * attempt; no job ends while an attempt is live). Additive only: every statement is
+ * CREATE ... IF NOT EXISTS or INSERT OR IGNORE; nothing in v1-v8 is altered and no FK
+ * is added to a v1-v8 table.
  *
  * V9_DDL is copied verbatim from the approved B2a plan ("Schema v9 / Full DDL").
  * It is shipped migration text: never edit it - later changes go in a new migration.
@@ -80,7 +83,9 @@ CREATE TABLE IF NOT EXISTS job_attempts (
   updated_at       INTEGER NOT NULL,
   UNIQUE (job_id, n),
   CHECK ((state IN ('starting','running')) = (finished_at IS NULL)),
-  CHECK (state <> 'running' OR started_at IS NOT NULL)
+  CHECK (state <> 'running' OR started_at IS NOT NULL),
+  CHECK (state <> 'succeeded' OR (exit_code IS NOT NULL AND outcome IS NOT NULL)),
+  CHECK (state NOT IN ('running','succeeded') OR (sandbox_json IS NOT NULL AND environment_json IS NOT NULL))
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_attempts_live      ON job_attempts(job_id) WHERE state IN ('starting','running');
 CREATE INDEX        IF NOT EXISTS ix_attempts_lease     ON job_attempts(state, lease_expires_at) WHERE state IN ('starting','running');
@@ -122,7 +127,8 @@ CREATE TABLE IF NOT EXISTS image_builds (
   base_digest    TEXT NOT NULL CHECK (base_digest GLOB 'sha256:*' AND length(base_digest) = 71),
   image_id       TEXT CHECK (image_id IS NULL OR (image_id GLOB 'sha256:*' AND length(image_id) = 71)),
   size_bytes     INTEGER CHECK (size_bytes IS NULL OR size_bytes >= 0),
-  log_path       TEXT CHECK (log_path IS NULL OR (length(log_path) <= 200 AND log_path NOT LIKE '/%' AND log_path NOT LIKE '%..%' AND log_path NOT LIKE '%:%')),
+  log_path       TEXT CHECK (log_path IS NULL OR (length(log_path) <= 200 AND log_path NOT LIKE '/%' AND log_path NOT LIKE '%..%' AND log_path NOT LIKE '%:%'
+                   AND log_path NOT LIKE '%\\%')),
   error_json     TEXT CHECK (error_json IS NULL OR json_valid(error_json)),
   requested_by   TEXT NOT NULL REFERENCES principals(id),
   started_at     INTEGER NOT NULL,
@@ -134,11 +140,13 @@ CREATE INDEX IF NOT EXISTS ix_image_builds_profile ON image_builds(profile_id, s
 CREATE TRIGGER IF NOT EXISTS tr_image_builds_insert BEFORE INSERT ON image_builds
 BEGIN
   SELECT RAISE(ABORT, 'an image build starts running') WHERE NEW.status <> 'running' OR NEW.image_id IS NOT NULL;
-  SELECT RAISE(ABORT, 'an image build needs an approved, unconsumed image.prepare approval for this profile')
+  SELECT RAISE(ABORT, 'an image build needs an approved, consumed image.prepare approval for this profile and context')
     WHERE NOT EXISTS (SELECT 1 FROM approvals a WHERE a.id = NEW.approval_id AND a.reason = 'image.prepare'
       AND a.status = 'approved' AND a.consumed_at IS NOT NULL
       AND json_extract(a.request_json, '$.profileId') = NEW.profile_id
       AND json_extract(a.request_json, '$.contextSha256') = NEW.context_sha256);
+  SELECT RAISE(ABORT, 'an image build is requested by the principal its approval was requested for')
+    WHERE NEW.requested_by IS NOT (SELECT a.on_behalf_of FROM approvals a WHERE a.id = NEW.approval_id);
 END;
 CREATE TRIGGER IF NOT EXISTS tr_image_builds_update BEFORE UPDATE ON image_builds
 BEGIN
@@ -155,17 +163,19 @@ BEGIN SELECT RAISE(ABORT, 'image builds are never deleted'); END;
 CREATE TABLE IF NOT EXISTS job_events (
   seq            INTEGER PRIMARY KEY AUTOINCREMENT,
   ts             INTEGER NOT NULL,
-  project_id     TEXT,
+  project_id     TEXT REFERENCES projects(id),
   job_id         TEXT REFERENCES jobs(id),
   attempt_n      INTEGER CHECK (attempt_n IS NULL OR attempt_n >= 1),
   image_build_id TEXT REFERENCES image_builds(id),
-  approval_id    TEXT,
-  deployment_id  TEXT,
+  approval_id    TEXT REFERENCES approvals(id),
+  deployment_id  TEXT REFERENCES deployments(id),
   type           TEXT NOT NULL CHECK (type IN ('job.transition','attempt.transition','attempt.provisioned','attempt.progress',
                    'attempt.output','attempt.heartbeat_gap','approval','deployment','validation','image_build','recovery','preflight')),
   summary        TEXT NOT NULL CHECK (length(summary) BETWEEN 1 AND 200),
   data_json      TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(data_json) AND length(data_json) <= 4096),
-  CHECK (job_id IS NOT NULL OR image_build_id IS NOT NULL OR approval_id IS NOT NULL)
+  CHECK (job_id IS NOT NULL OR image_build_id IS NOT NULL OR approval_id IS NOT NULL),
+  CHECK (attempt_n IS NULL OR job_id IS NOT NULL),
+  FOREIGN KEY (job_id, attempt_n) REFERENCES job_attempts(job_id, n)
 );
 CREATE INDEX IF NOT EXISTS ix_job_events_job     ON job_events(job_id, seq) WHERE job_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_job_events_project ON job_events(project_id, seq) WHERE project_id IS NOT NULL;
@@ -173,6 +183,10 @@ CREATE TRIGGER IF NOT EXISTS tr_job_events_insert BEFORE INSERT ON job_events
 BEGIN
   SELECT RAISE(ABORT, 'a job event names the project of its job')
     WHERE NEW.job_id IS NOT NULL AND (SELECT project_id FROM jobs WHERE id = NEW.job_id) IS NOT NEW.project_id;
+  SELECT RAISE(ABORT, 'a job event names the project of its approval')
+    WHERE NEW.approval_id IS NOT NULL AND (SELECT project_id FROM approvals WHERE id = NEW.approval_id) IS NOT NEW.project_id;
+  SELECT RAISE(ABORT, 'a job event names the project of its deployment')
+    WHERE NEW.deployment_id IS NOT NULL AND (SELECT project_id FROM deployments WHERE id = NEW.deployment_id) IS NOT NEW.project_id;
 END;
 CREATE TRIGGER IF NOT EXISTS tr_job_events_no_update BEFORE UPDATE ON job_events
 BEGIN SELECT RAISE(ABORT, 'job events are append-only'); END;
@@ -214,6 +228,23 @@ BEGIN SELECT RAISE(ABORT, 'version blobs are immutable'); END;
 CREATE TRIGGER IF NOT EXISTS tr_version_blobs_no_delete BEFORE DELETE ON version_blobs
 BEGIN SELECT RAISE(ABORT, 'version blobs are immutable'); END;
 
+-- ===== version attempts: the attempt that produced each ingested version (written by ingest) =====
+CREATE TABLE IF NOT EXISTS version_attempts (
+  version_id TEXT PRIMARY KEY REFERENCES artifact_versions(id),
+  job_id     TEXT NOT NULL,
+  attempt_n  INTEGER NOT NULL,
+  FOREIGN KEY (job_id, attempt_n) REFERENCES job_attempts(job_id, n)
+);
+CREATE TRIGGER IF NOT EXISTS tr_version_attempts_insert BEFORE INSERT ON version_attempts
+BEGIN
+  SELECT RAISE(ABORT, 'a version is bound to an attempt of the job that produced it')
+    WHERE (SELECT produced_by_job_id FROM artifact_versions WHERE id = NEW.version_id) IS NOT NEW.job_id;
+END;
+CREATE TRIGGER IF NOT EXISTS tr_version_attempts_no_update BEFORE UPDATE ON version_attempts
+BEGIN SELECT RAISE(ABORT, 'version attempts are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS tr_version_attempts_no_delete BEFORE DELETE ON version_attempts
+BEGIN SELECT RAISE(ABORT, 'version attempts are append-only'); END;
+
 -- ===== validations: append-only validator results with their evidence =====
 CREATE TABLE IF NOT EXISTS validations (
   id                TEXT PRIMARY KEY,
@@ -233,7 +264,8 @@ CREATE TABLE IF NOT EXISTS validations (
   finished_at       INTEGER NOT NULL,
   CHECK (finished_at >= started_at),
   CHECK (NOT (blocking = 1 AND advisory = 1)),
-  CHECK (attempt_n IS NULL OR job_id IS NOT NULL)
+  CHECK (attempt_n IS NULL OR job_id IS NOT NULL),
+  FOREIGN KEY (job_id, attempt_n) REFERENCES job_attempts(job_id, n)
 );
 CREATE INDEX IF NOT EXISTS ix_validations_version ON validations(version_id, validator_id, finished_at);
 CREATE INDEX IF NOT EXISTS ix_validations_job     ON validations(job_id) WHERE job_id IS NOT NULL;
@@ -281,13 +313,20 @@ CREATE TABLE IF NOT EXISTS approvals (
   decided_at        INTEGER,
   decision          TEXT CHECK (decision IS NULL OR decision IN ('once','deny')),
   consumed_at       INTEGER,
+  consumed_by_job_id    TEXT,
+  consumed_by_attempt_n INTEGER,
   status_changed_at INTEGER NOT NULL,
   CHECK (expires_at > requested_at),
   CHECK ((decided_by IS NULL) = (decided_at IS NULL)),
   CHECK ((decision IS NULL) = (decided_at IS NULL)),
   CHECK (consumed_at IS NULL OR status = 'approved'),
   CHECK (reason NOT IN ('egress.deps','egress.weights') OR (job_id IS NOT NULL AND project_id IS NOT NULL)),
-  CHECK (reason <> 'image.prepare' OR (job_id IS NULL AND project_id IS NULL))
+  CHECK (reason <> 'image.prepare' OR (job_id IS NULL AND project_id IS NULL)),
+  CHECK ((decided_at IS NOT NULL) = (status IN ('approved','denied'))),
+  CHECK ((consumed_by_job_id IS NULL) = (consumed_by_attempt_n IS NULL)),
+  CHECK (consumed_by_job_id IS NULL OR consumed_at IS NOT NULL),
+  CHECK (consumed_at IS NULL OR consumed_by_job_id IS job_id),
+  FOREIGN KEY (consumed_by_job_id, consumed_by_attempt_n) REFERENCES job_attempts(job_id, n)
 );
 CREATE INDEX IF NOT EXISTS ix_approvals_status ON approvals(status, expires_at);
 CREATE INDEX IF NOT EXISTS ix_approvals_project ON approvals(project_id, requested_at DESC) WHERE project_id IS NOT NULL;
@@ -298,6 +337,8 @@ BEGIN
     WHERE NEW.status <> 'pending' OR NEW.decided_at IS NOT NULL OR NEW.consumed_at IS NOT NULL;
   SELECT RAISE(ABORT, 'an approval job belongs to its project')
     WHERE NEW.job_id IS NOT NULL AND (SELECT project_id FROM jobs WHERE id = NEW.job_id) IS NOT NEW.project_id;
+  SELECT RAISE(ABORT, 'an approval session belongs to its project')
+    WHERE NEW.session_id IS NOT NULL AND (SELECT project_id FROM agent_sessions WHERE id = NEW.session_id) IS NOT NEW.project_id;
 END;
 CREATE TRIGGER IF NOT EXISTS tr_approvals_transition BEFORE UPDATE OF status ON approvals
 WHEN NEW.status IS NOT OLD.status
@@ -318,7 +359,8 @@ WHEN NEW.id IS NOT OLD.id OR NEW.project_id IS NOT OLD.project_id OR NEW.job_id 
   OR NEW.requested_by IS NOT OLD.requested_by OR NEW.on_behalf_of IS NOT OLD.on_behalf_of
   OR NEW.requested_at IS NOT OLD.requested_at OR NEW.expires_at IS NOT OLD.expires_at
   OR (OLD.decided_at IS NOT NULL AND (NEW.decided_by IS NOT OLD.decided_by OR NEW.decided_at IS NOT OLD.decided_at OR NEW.decision IS NOT OLD.decision))
-  OR (OLD.consumed_at IS NOT NULL AND NEW.consumed_at IS NOT OLD.consumed_at)
+  OR (OLD.consumed_at IS NOT NULL AND (NEW.consumed_at IS NOT OLD.consumed_at
+    OR NEW.consumed_by_job_id IS NOT OLD.consumed_by_job_id OR NEW.consumed_by_attempt_n IS NOT OLD.consumed_by_attempt_n))
   OR (OLD.status <> 'pending' AND NEW.status IS NOT OLD.status)
 BEGIN SELECT RAISE(ABORT, 'an approval request is immutable; its decision and its consumption are recorded once'); END;
 CREATE TRIGGER IF NOT EXISTS tr_approvals_no_delete BEFORE DELETE ON approvals
@@ -348,13 +390,15 @@ CREATE TABLE IF NOT EXISTS deployments (
   status             TEXT NOT NULL REFERENCES deployment_states(state),
   health_json        TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(health_json) AND json_type(health_json) = 'array' AND length(health_json) <= 16384),
   stop_reason        TEXT CHECK (stop_reason IS NULL OR stop_reason IN ('user','idle','cancel','app_quit','recovery','exited','probe_failed','start_timeout')),
+  stopped_by         TEXT REFERENCES principals(id),
   created_by         TEXT NOT NULL REFERENCES principals(id),
   started_at         INTEGER NOT NULL,
   stopped_at         INTEGER,
   status_changed_at  INTEGER NOT NULL,
   updated_at         INTEGER NOT NULL,
   CHECK ((status IN ('stopped','failed')) = (stopped_at IS NOT NULL)),
-  CHECK ((status IN ('stopped','failed')) = (stop_reason IS NOT NULL))
+  CHECK ((status IN ('stopped','failed')) = (stop_reason IS NOT NULL)),
+  CHECK ((status = 'stopped') = (stopped_by IS NOT NULL))
 );
 CREATE INDEX IF NOT EXISTS ix_deployments_project ON deployments(project_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS ix_deployments_live    ON deployments(status) WHERE status IN ('starting','healthy','unhealthy');
@@ -390,6 +434,20 @@ BEGIN SELECT RAISE(ABORT, 'deployment identity is immutable and a finished deplo
 CREATE TRIGGER IF NOT EXISTS tr_deployments_no_delete BEFORE DELETE ON deployments
 BEGIN SELECT RAISE(ABORT, 'deployments are never deleted'); END;
 
+-- ===== execution backstops on the v7 jobs table (additive triggers; constraint 4) =====
+CREATE TRIGGER IF NOT EXISTS tr_jobs_completed_needs_attempt BEFORE UPDATE OF state ON jobs
+WHEN NEW.state IS NOT OLD.state AND NEW.state = 'completed' AND NEW.kind IN ('tool.run','validate')
+BEGIN
+  SELECT RAISE(ABORT, 'a tool or validate job completes only with a succeeded attempt')
+    WHERE NOT EXISTS (SELECT 1 FROM job_attempts a WHERE a.job_id = NEW.id AND a.state = 'succeeded');
+END;
+CREATE TRIGGER IF NOT EXISTS tr_jobs_end_after_attempts BEFORE UPDATE OF state ON jobs
+WHEN NEW.state IS NOT OLD.state AND NEW.state IN ('completed','partial','failed','cancelled','timed_out','interrupted')
+BEGIN
+  SELECT RAISE(ABORT, 'a job ends only after its live attempt has ended')
+    WHERE EXISTS (SELECT 1 FROM job_attempts a WHERE a.job_id = NEW.id AND a.state IN ('starting','running'));
+END;
+
 -- ===== indexes on v7 tables used by the execution core (additive) =====
 CREATE INDEX IF NOT EXISTS ix_jobs_sched       ON jobs(state, priority, created_at);
 CREATE INDEX IF NOT EXISTS ix_jobs_retry_due   ON jobs(next_attempt_at) WHERE state = 'retry_scheduled';
@@ -415,17 +473,18 @@ export const V9_EXPECTED: { tables: Record<string, string[]>; indexes: string[];
       'data_json'],
     blobs: ['sha256', 'bytes', 'media_type', 'created_at', 'last_referenced_at', 'verified_at'],
     version_blobs: ['version_id', 'sha256', 'role', 'path'],
+    version_attempts: ['version_id', 'job_id', 'attempt_n'],
     validations: ['id', 'version_id', 'validator_id', 'validator_version', 'stage', 'status', 'blocking', 'advisory', 'summary',
       'evidence_json', 'job_id', 'attempt_n', 'created_by', 'started_at', 'finished_at'],
     approval_states: ['state', 'terminal', 'description'],
     approval_transitions: ['from_state', 'to_state'],
     approvals: ['id', 'project_id', 'job_id', 'session_id', 'reason', 'summary', 'request_json', 'request_sha256', 'status',
       'requested_by', 'on_behalf_of', 'requested_at', 'expires_at', 'decided_by', 'decided_at', 'decision', 'consumed_at',
-      'status_changed_at'],
+      'consumed_by_job_id', 'consumed_by_attempt_n', 'status_changed_at'],
     deployment_states: ['state', 'terminal', 'description'],
     deployment_transitions: ['from_state', 'to_state'],
     deployments: ['id', 'project_id', 'participation_id', 'subject_version_id', 'job_id', 'environment', 'bind_address', 'host_port',
-      'status', 'health_json', 'stop_reason', 'created_by', 'started_at', 'stopped_at', 'status_changed_at', 'updated_at']
+      'status', 'health_json', 'stop_reason', 'stopped_by', 'created_by', 'started_at', 'stopped_at', 'status_changed_at', 'updated_at']
   },
   indexes: [
     'ux_attempts_live', 'ix_attempts_lease', 'ix_attempts_container', 'ix_image_builds_profile', 'ix_job_events_job',
@@ -441,9 +500,11 @@ export const V9_EXPECTED: { tables: Record<string, string[]>; indexes: string[];
     'tr_job_events_insert', 'tr_job_events_no_update', 'tr_job_events_no_delete',
     'tr_blobs_identity', 'tr_blobs_delete',
     'tr_version_blobs_insert', 'tr_version_blobs_no_update', 'tr_version_blobs_no_delete',
+    'tr_version_attempts_insert', 'tr_version_attempts_no_update', 'tr_version_attempts_no_delete',
     'tr_validations_insert', 'tr_validations_no_update', 'tr_validations_no_delete',
     'tr_approvals_insert', 'tr_approvals_transition', 'tr_approvals_once', 'tr_approvals_no_delete',
-    'tr_deployments_insert', 'tr_deployments_transition', 'tr_deployments_identity', 'tr_deployments_no_delete'
+    'tr_deployments_insert', 'tr_deployments_transition', 'tr_deployments_identity', 'tr_deployments_no_delete',
+    'tr_jobs_completed_needs_attempt', 'tr_jobs_end_after_attempts'
   ]
 };
 
