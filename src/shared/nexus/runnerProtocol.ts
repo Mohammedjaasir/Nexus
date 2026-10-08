@@ -1,0 +1,338 @@
+// The protocol between main and the runner utilityProcess (over a MessagePort).
+// The runner holds no authority: every RunnerToMain message is a report that
+// main validates here first (exact keys, types and bounds), then against its
+// own state (known attempt, lease owner = current boot, monotonic seq).
+// Anything that does not parse is dropped. Pure; no I/O.
+
+import {
+  OUTPUT_ERROR_CODES, PARSER_IDS, SANDBOX_PROFILE_IDS,
+  type AttemptPlan, type ExitInfo, type ImageStatus, type OutputErrorCode, type ParsedOutput, type PreflightObserved,
+  type SandboxProbe, type SandboxProfile, type SandboxProfileId, type StagedOutput
+} from './execution';
+import type { RuntimeHealth, RuntimeKind } from './runtime';
+
+// ----- main → runner (main builds these; the runner trusts their origin, not their paths' safety) -----
+
+export type CancelReason = 'user' | 'timeout' | 'parent' | 'shutdown';
+
+export type MainToRunner =
+  | { op: 'hello'; bootId: string; dataHome: string; profiles: SandboxProfile[] }
+  | { op: 'probe' }
+  | { op: 'attempt.start'; attemptId: string; plan: AttemptPlan }
+  | { op: 'attempt.cancel'; attemptId: string; graceMs: number; reason: CancelReason }
+  | { op: 'attempt.adopt'; attemptId: string; containerId: string; logPath: string }      // recovery
+  | { op: 'attempt.release'; attemptId: string }                                         // sent only after ingest commits
+  | { op: 'reconcile.list'; attempts: { attemptId: string; containerId: string; kind: 'tool' | 'service' }[] }
+  | { op: 'image.build.start'; buildId: string; profile: SandboxProfileId; approvalId: string; contextSha256: string }
+  | { op: 'image.build.cancel'; buildId: string }
+  | { op: 'blob.verify'; sha256: string }
+  | { op: 'gc.scan'; scanId: string; olderThanMs: number }
+  | { op: 'gc.apply'; scanId: string; objects: string[]; workDirs: { jobId: string; attemptN: number }[] };
+
+// ----- runner → main (reports; parsed by `parseRunnerMessage`) -----
+
+export type RefusalReason =
+  | 'docker_missing' | 'docker_stopped' | 'image_missing' | 'image_mismatch' | 'disk_low'
+  | 'network_not_approved' | 'bad_plan' | 'busy' | 'unknown_attempt';
+export const REFUSAL_REASONS: readonly RefusalReason[] = ['docker_missing', 'docker_stopped', 'image_missing', 'image_mismatch',
+  'disk_low', 'network_not_approved', 'bad_plan', 'busy', 'unknown_attempt'];
+
+export type AttemptPhase = 'staging' | 'creating' | 'preflight' | 'starting' | 'running' | 'collecting' | 'hashing' | 'parsing' | 'cleanup';
+export const ATTEMPT_PHASES: readonly AttemptPhase[] =
+  ['staging', 'creating', 'preflight', 'starting', 'running', 'collecting', 'hashing', 'parsing', 'cleanup'];
+
+/** Progress facts from the runner. No percentages: only what was observed. */
+export type ProgressEvent =
+  | { t: 'phase'; phase: AttemptPhase; at: number }
+  | { t: 'guard'; guard: 'output_too_large' | 'workspace_too_large'; bytes: number; limitBytes: number; at: number };
+
+/** A preflight report as carried over the wire: the runner may omit observed fields it could not read. */
+export interface ReportedPreflight { ok: boolean; observed: Partial<PreflightObserved>; problems: string[] }
+
+export type ContainerState = 'running' | 'exited' | 'created' | 'missing';
+
+export interface ReconciledAttempt {
+  attemptId: string; container: ContainerState; containerId?: string; exit?: ExitInfo; staged?: StagedOutput[];
+}
+export interface LabelledResource { kind: 'container' | 'volume' | 'network'; id: string; labels: Record<string, string> }
+
+export type ImageBuildOutcome = 'succeeded' | 'failed' | 'cancelled';
+
+export type RunnerToMain =
+  | { op: 'ready'; bootId: string }
+  | { op: 'probe.result'; probe: SandboxProbe; images: ImageStatus[]; freeBytes: number | null;
+      runtimes: { kind: RuntimeKind; health: RuntimeHealth }[] }
+  | { op: 'attempt.provisioned'; attemptId: string; containerId?: string; imageDigest?: string; preflight?: ReportedPreflight }
+  | { op: 'attempt.refused'; attemptId: string; reason: RefusalReason; detail?: string }
+  | { op: 'attempt.event'; attemptId: string; seq: number; event: ProgressEvent }
+  | { op: 'attempt.heartbeat'; attemptId: string; at: number; logBytes: number; outBytes: number; container?: 'running' | 'exited' | 'missing' }
+  | { op: 'attempt.exited'; attemptId: string; exit: ExitInfo; outputs: StagedOutput[]; parsed: ParsedOutput[]; logBytes: number;
+      outputError?: OutputErrorCode }
+  | { op: 'reconcile.result'; docker: 'running' | 'stopped' | 'missing'; attempts: ReconciledAttempt[]; labelled: LabelledResource[] }
+  | { op: 'service.health'; attemptId: string; at: number; status: number | null; ms: number | null; bodySha256?: string;
+      container: 'running' | 'exited' | 'missing' }
+  | { op: 'image.build.progress'; buildId: string; at: number; phase: string; bytes?: number }
+  | { op: 'image.build.done'; buildId: string; outcome: ImageBuildOutcome; imageId?: string; sizeBytes?: number; error?: string }
+  | { op: 'blob.verified'; sha256: string; ok: boolean }
+  | { op: 'gc.result'; scanId: string; objects: { sha256: string; bytes: number }[];
+      workDirs: { jobId: string; attemptN: number; mtime: number }[]; truncated: boolean }
+  | { op: 'fault'; message: string };
+
+export type RunnerOp = RunnerToMain['op'];
+
+// ----- bounds -----
+
+export const MAX_STRING_BYTES = 4096;
+export const MAX_ARRAY_ITEMS = 20_000;
+export const MAX_NORMALIZED_DEPTH = 16;
+export const MAX_NORMALIZED_NODES = 500_000;
+export const MAX_RECORD_KEYS = 256;
+
+// ----- a small validating copier: each check returns a fresh value or NO -----
+
+const NO: unique symbol = Symbol('invalid');
+type NoT = typeof NO;
+type Check<T> = (x: unknown) => T | NoT;
+
+function utf8Bytes(s: string): number {
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) n += 1;
+    else if (c < 0x800) n += 2;
+    else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length && (s.charCodeAt(i + 1) & 0xfc00) === 0xdc00) { n += 4; i++; }
+    else n += 3;
+    if (n > MAX_STRING_BYTES) return n;
+  }
+  return n;
+}
+
+/** A plain data object: Object.prototype or null prototype, only own data properties. */
+function plainKeys(x: unknown): string[] | null {
+  if (typeof x !== 'object' || x === null || Array.isArray(x)) return null;
+  const proto = Object.getPrototypeOf(x);
+  if (proto !== Object.prototype && proto !== null) return null;
+  if (Object.getOwnPropertySymbols(x).length > 0) return null;
+  const keys = Object.getOwnPropertyNames(x);
+  for (const k of keys) {
+    const d = Object.getOwnPropertyDescriptor(x, k);
+    if (!d || !('value' in d) || !d.enumerable) return null;
+  }
+  return keys;
+}
+function plainArray(x: unknown): unknown[] | null {
+  if (!Array.isArray(x) || Object.getPrototypeOf(x) !== Array.prototype) return null;
+  if (x.length > MAX_ARRAY_ITEMS) return null;
+  const own = Object.getOwnPropertyNames(x);
+  if (own.length !== x.length + 1) return null;                 // indices + length: no holes, no extra props
+  for (let i = 0; i < x.length; i++) {
+    const d = Object.getOwnPropertyDescriptor(x, i);
+    if (!d || !('value' in d)) return null;
+  }
+  return x;
+}
+function setProp(o: Record<string, unknown>, k: string, v: unknown): void {
+  Object.defineProperty(o, k, { value: v, enumerable: true, writable: true, configurable: true });
+}
+
+const str = (opts: { min?: number; re?: RegExp } = {}): Check<string> => (x) =>
+  typeof x === 'string' && x.length >= (opts.min ?? 0) && utf8Bytes(x) <= MAX_STRING_BYTES && (!opts.re || opts.re.test(x)) ? x : NO;
+const oneOf = <T extends string>(values: readonly T[]): Check<T> => (x) => (typeof x === 'string' && (values as readonly string[]).includes(x) ? x as T : NO);
+const lit = <T>(v: T): Check<T> => (x) => (x === v ? v : NO);
+const bool: Check<boolean> = (x) => (typeof x === 'boolean' ? x : NO);
+/** A non-negative safe integer (counts, byte sizes, timestamps, seq). */
+const count: Check<number> = (x) => (typeof x === 'number' && Number.isSafeInteger(x) && x >= 0 ? x : NO);
+const intIn = (lo: number, hi: number): Check<number> => (x) => (typeof x === 'number' && Number.isSafeInteger(x) && x >= lo && x <= hi ? x : NO);
+const nullable = <T>(c: Check<T>): Check<T | null> => (x) => (x === null ? null : c(x));
+function arr<T>(c: Check<T>): Check<T[]> {
+  return (x) => {
+    const a = plainArray(x); if (!a) return NO;
+    const out: T[] = [];
+    for (const item of a) { const v = c(item); if (v === NO) return NO; out.push(v); }
+    return out;
+  };
+}
+function obj<T>(req: { [k: string]: Check<unknown> }, opt: { [k: string]: Check<unknown> } = {}): Check<T> {
+  return (x) => {
+    const keys = plainKeys(x); if (!keys) return NO;
+    const src = x as Record<string, unknown>;
+    for (const k of keys) if (!Object.prototype.hasOwnProperty.call(req, k) && !Object.prototype.hasOwnProperty.call(opt, k)) return NO;
+    const out: Record<string, unknown> = {};
+    for (const [k, c] of Object.entries(req)) {
+      if (!keys.includes(k)) return NO;
+      const v = c(src[k]); if (v === NO) return NO; setProp(out, k, v);
+    }
+    for (const [k, c] of Object.entries(opt)) {
+      if (!keys.includes(k)) continue;
+      const v = c(src[k]); if (v === NO) return NO; setProp(out, k, v);
+    }
+    return out as T;
+  };
+}
+
+// ----- shapes -----
+
+/** ULID: 26 Crockford base32 characters (no I, L, O, U). */
+export const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+const SHA256_RE = /^[0-9a-f]{64}$/;
+const DIGEST_RE = /^sha256:[0-9a-f]{64}$/;
+const CONTAINER_ID_RE = /^[0-9a-f]{64}$/;
+const RESOURCE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,254}$/;
+const LABEL_KEY_RE = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+const RUNTIME_KIND_RE = /^[a-z][a-z0-9-]{0,31}$/;
+const MEDIA_TYPE_RE = /^[a-z0-9][a-z0-9!#$&^_.+-]{0,126}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,126}$/;
+
+const ulid = str({ re: ULID_RE });
+const sha256 = str({ re: SHA256_RE });
+const text = str();
+const nonEmpty = str({ min: 1 });
+
+/** A relative output path: forward slashes, no empty, `.` or `..` segment, no NUL, no drive or leading slash. */
+const relPath: Check<string> = (x) => {
+  const s = str({ min: 1 })(x);
+  if (s === NO) return NO;
+  if (s.includes('\0') || s.includes('\\') || s.startsWith('/') || /^[A-Za-z]:/.test(s)) return NO;
+  return s.split('/').every((seg) => seg !== '' && seg !== '.' && seg !== '..') ? s : NO;
+};
+
+const labels: Check<Record<string, string>> = (x) => {
+  const keys = plainKeys(x); if (!keys || keys.length > MAX_RECORD_KEYS) return NO;
+  const out: Record<string, string> = {};
+  for (const k of keys) {
+    if (!LABEL_KEY_RE.test(k)) return NO;
+    const v = text((x as Record<string, unknown>)[k]); if (v === NO) return NO;
+    setProp(out, k, v);
+  }
+  return out;
+};
+
+const exitInfo = obj<ExitInfo>({ code: nullable(intIn(-(2 ** 31), 2 ** 32)), oomKilled: bool, finishedAt: count },
+  { signal: str({ min: 1, re: /^[A-Z0-9_+-]{1,32}$/ }) });
+
+const stagedOutput = obj<StagedOutput>({ relPath, sha256, bytes: count, mediaType: str({ re: MEDIA_TYPE_RE }) });
+
+/** Any JSON-like value within bounds, deep-copied. No functions, symbols, NaN/Infinity, class instances or `__proto__` keys. */
+function boundedJson(x: unknown): unknown | NoT {
+  let nodes = 0;
+  const walk = (v: unknown, depth: number): unknown | NoT => {
+    if (++nodes > MAX_NORMALIZED_NODES || depth > MAX_NORMALIZED_DEPTH) return NO;
+    if (v === null || typeof v === 'boolean') return v;
+    if (typeof v === 'number') return Number.isFinite(v) ? v : NO;
+    if (typeof v === 'string') return text(v);
+    if (Array.isArray(v)) {
+      const a = plainArray(v); if (!a) return NO;
+      const out: unknown[] = [];
+      for (const item of a) { const c = walk(item, depth + 1); if (c === NO) return NO; out.push(c); }
+      return out;
+    }
+    const keys = plainKeys(v); if (!keys || keys.length > MAX_RECORD_KEYS) return NO;
+    const out: Record<string, unknown> = {};
+    for (const k of keys) {
+      if (k === '__proto__' || utf8Bytes(k) > MAX_STRING_BYTES) return NO;
+      const c = walk((v as Record<string, unknown>)[k], depth + 1); if (c === NO) return NO;
+      setProp(out, k, c);
+    }
+    return out;
+  };
+  return walk(x, 0);
+}
+
+const parsedOutput = obj<ParsedOutput>({ parser: oneOf(PARSER_IDS), sourceSha256: sha256, normalized: boundedJson });
+
+const runtimeHealth: Check<RuntimeHealth> = (x) => {
+  const ok = obj<RuntimeHealth>({ ok: lit(true), version: text })(x);
+  if (ok !== NO) return ok;
+  return obj<RuntimeHealth>({ ok: lit(false), reason: oneOf(['not_installed', 'not_authenticated', 'version_unsupported', 'error'] as const), detail: text })(x);
+};
+const runtimeKind: Check<RuntimeKind> = (x) => (typeof x === 'string' && RUNTIME_KIND_RE.test(x) ? x as RuntimeKind : NO);
+
+const probe = obj<SandboxProbe>(
+  { docker: oneOf(['missing', 'stopped', 'running'] as const),
+    gpu: obj({ detected: bool, usableInContainers: lit(false) }, { model: text }) },
+  { version: text, os: text, wsl2: bool, cpus: count, memoryBytes: count });
+
+const imageStatus = obj<ImageStatus>({ profile: oneOf(SANDBOX_PROFILE_IDS), present: bool, digestMatches: bool },
+  { sizeBytes: count, imageId: str({ re: DIGEST_RE }), contextSha256: sha256 });
+
+const observed = obj<Partial<PreflightObserved>>({}, {
+  nanoCpus: count, memory: intIn(-1, Number.MAX_SAFE_INTEGER), memorySwap: intIn(-1, Number.MAX_SAFE_INTEGER),
+  pidsLimit: intIn(-1, Number.MAX_SAFE_INTEGER), networkMode: text, readonlyRootfs: bool,
+  capDrop: arr(text), capAdd: arr(text), privileged: bool, user: text, securityOpt: arr(text),
+  mounts: arr(obj({ dst: text, rw: bool, type: text })), portBindings: arr(text), tmpfs: arr(text), devices: arr(text)
+});
+const preflight: Check<ReportedPreflight> = (x) => {
+  const r = obj<ReportedPreflight>({ ok: bool, observed, problems: arr(text) })(x);
+  if (r === NO) return NO;
+  return r.ok === (r.problems.length === 0) ? r : NO;              // ok is exactly "no problems"
+};
+
+const progressEvent: Check<ProgressEvent> = (x) => {
+  const p = obj<ProgressEvent>({ t: lit('phase'), phase: oneOf(ATTEMPT_PHASES), at: count })(x);
+  if (p !== NO) return p;
+  return obj<ProgressEvent>({ t: lit('guard'), guard: oneOf(['output_too_large', 'workspace_too_large'] as const),
+    bytes: count, limitBytes: count, at: count })(x);
+};
+
+const reconciled = obj<ReconciledAttempt>({ attemptId: ulid, container: oneOf(['running', 'exited', 'created', 'missing'] as const) },
+  { containerId: str({ re: CONTAINER_ID_RE }), exit: exitInfo, staged: arr(stagedOutput) });
+const labelled = obj<LabelledResource>({ kind: oneOf(['container', 'volume', 'network'] as const), id: str({ re: RESOURCE_ID_RE }), labels });
+const liveState = oneOf(['running', 'exited', 'missing'] as const);
+
+const imageBuildDone: Check<RunnerToMain> = (x) => {
+  const m = obj<Extract<RunnerToMain, { op: 'image.build.done' }>>(
+    { op: lit('image.build.done'), buildId: ulid, outcome: oneOf(['succeeded', 'failed', 'cancelled'] as const) },
+    { imageId: str({ re: DIGEST_RE }), sizeBytes: count, error: nonEmpty })(x);
+  if (m === NO) return NO;
+  if (m.outcome === 'succeeded') return m.imageId !== undefined && m.sizeBytes !== undefined && m.error === undefined ? m : NO;
+  if (m.imageId !== undefined || m.sizeBytes !== undefined) return NO;
+  return m.outcome === 'failed' ? (m.error !== undefined ? m : NO) : m;
+};
+
+const msg = (req: { [k: string]: Check<unknown> }, opt: { [k: string]: Check<unknown> } = {}): Check<RunnerToMain> =>
+  obj<RunnerToMain>(req, opt);
+
+const PARSERS: Record<RunnerOp, Check<RunnerToMain>> = {
+  'ready': msg({ op: lit('ready'), bootId: ulid }),
+  'probe.result': msg({ op: lit('probe.result'), probe, images: arr(imageStatus), freeBytes: nullable(count),
+    runtimes: arr(obj({ kind: runtimeKind, health: runtimeHealth })) }),
+  'attempt.provisioned': msg({ op: lit('attempt.provisioned'), attemptId: ulid },
+    { containerId: str({ re: CONTAINER_ID_RE }), imageDigest: str({ re: DIGEST_RE }), preflight }),
+  'attempt.refused': msg({ op: lit('attempt.refused'), attemptId: ulid, reason: oneOf(REFUSAL_REASONS) }, { detail: text }),
+  'attempt.event': msg({ op: lit('attempt.event'), attemptId: ulid, seq: count, event: progressEvent }),
+  'attempt.heartbeat': msg({ op: lit('attempt.heartbeat'), attemptId: ulid, at: count, logBytes: count, outBytes: count },
+    { container: liveState }),
+  'attempt.exited': msg({ op: lit('attempt.exited'), attemptId: ulid, exit: exitInfo, outputs: arr(stagedOutput),
+    parsed: arr(parsedOutput), logBytes: count }, { outputError: oneOf(OUTPUT_ERROR_CODES) }),
+  'reconcile.result': msg({ op: lit('reconcile.result'), docker: oneOf(['running', 'stopped', 'missing'] as const),
+    attempts: arr(reconciled), labelled: arr(labelled) }),
+  'service.health': msg({ op: lit('service.health'), attemptId: ulid, at: count, status: nullable(intIn(100, 599)),
+    ms: nullable(count), container: liveState }, { bodySha256: sha256 }),
+  'image.build.progress': msg({ op: lit('image.build.progress'), buildId: ulid, at: count, phase: nonEmpty }, { bytes: count }),
+  'image.build.done': imageBuildDone,
+  'blob.verified': msg({ op: lit('blob.verified'), sha256, ok: bool }),
+  'gc.result': msg({ op: lit('gc.result'), scanId: ulid, objects: arr(obj({ sha256, bytes: count })),
+    workDirs: arr(obj({ jobId: ulid, attemptN: intIn(1, Number.MAX_SAFE_INTEGER), mtime: count })), truncated: bool }),
+  'fault': msg({ op: lit('fault'), message: text })
+};
+
+export const RUNNER_OPS: readonly RunnerOp[] = Object.keys(PARSERS) as RunnerOp[];
+
+/**
+ * Validates one message from the runner. Returns a fresh copy on success (never
+ * the input object) and `null` for anything else: an unknown op, a missing or
+ * extra key, an inherited or accessor property, a string over 4 KiB (UTF-8), an
+ * array over 20,000 items, an id that is not ULID-shaped, or a count that is not
+ * a non-negative safe integer.
+ */
+export function parseRunnerMessage(raw: unknown): RunnerToMain | null {
+  try {
+    const keys = plainKeys(raw);
+    if (!keys || !keys.includes('op')) return null;
+    const op = (raw as { op: unknown }).op;
+    if (typeof op !== 'string' || !Object.prototype.hasOwnProperty.call(PARSERS, op)) return null;
+    const v = PARSERS[op as RunnerOp](raw);
+    return v === NO ? null : v;
+  } catch {
+    return null;                                                    // e.g. a proxy that throws: never trusted
+  }
+}
