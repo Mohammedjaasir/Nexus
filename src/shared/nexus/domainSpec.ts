@@ -72,8 +72,9 @@ export interface DomainSpec {
   specVersion: 3;
   id: string; label: string; shortLabel: string; description: string;
   tier: DomainTier; hueSlot: number; icon: string; order: number;
-  /** The sub-phase from which a project can take part in this domain (DS: B4, when its workspace row exists). */
-  availableFromSubPhase: SubPhase;
+  /** The sub-phase from which a project can take part in this domain (DS: B4, when its workspace row exists).
+   *  It says nothing about which steps run: that is each step's status. Before it, no step runs and no action exists. */
+  participationFromSubPhase: SubPhase;
   /** One plain sentence on what works in this build. Never claims the domain is finished. */
   statusNote: string;
   /** The live legacy-domain map used by the primary projection (B0b D4). Unchanged in B2a. */
@@ -81,7 +82,7 @@ export interface DomainSpec {
   vocabulary: Partial<Record<KindId, { singular: string; plural: string }>>;
   kindsProduced: KindId[]; kindsAccepted: KindId[];
   /** The capability ceiling an agent token can be granted in this domain (tokens arrive in B2b). */
-  capabilities: { id: CapabilityId; scope?: { paths?: string[]; recipes?: RecipeId[]; kinds?: KindId[] } }[];
+  capabilities: { id: CapabilityId; scope?: { paths?: string[]; recipes?: RecipeId[]; kinds?: KindId[]; note?: string } }[];
   recipes: RecipeId[]; skills: SkillId[]; actions: UserActionId[];
   lifecycle: LifecycleStep[];
   handoffRoutes: { to: string; kinds: KindId[]; action: HandoffAction; acceptance?: CompletionRule[]; subPhase: SubPhase }[];
@@ -116,7 +117,7 @@ export interface LifecycleStep {
 /** True only when every step of every completion rule is REAL or PARTIAL and delivered at `at`. */
 export function isExecutableEndToEnd(spec: DomainSpec, at: SubPhase = CURRENT_SUB_PHASE): boolean {
   if (spec.tier !== 'first-class' || spec.lifecycle.length === 0 || spec.completionRules.length === 0) return false;
-  if (!isAtOrBefore(spec.availableFromSubPhase, at)) return false;
+  if (!isAtOrBefore(spec.participationFromSubPhase, at)) return false;
   return spec.completionRules.every((rule) => rule.steps.every((id) => {
     const step = spec.lifecycle.find((s) => s.id === id);
     return !!step && step.status !== 'FUTURE' && isAtOrBefore(step.subPhase, at);

@@ -15,7 +15,7 @@ export const DL: DomainSpec = {
   id: 'dl', label: 'DL Engineer', shortLabel: 'DL',
   description: 'Train, compare, export, optimize and serve neural networks, with checkpoints and parity evidence.',
   tier: 'first-class', hueSlot: 2, icon: 'dl', order: 3,
-  availableFromSubPhase: 'B1',
+  participationFromSubPhase: 'B1',
   statusNote: 'You can write problem statements in this release. Training, checkpoints, export and serving arrive in B6.',
   legacyDomainIds: ['computer-vision'],
   vocabulary: {
@@ -59,7 +59,8 @@ export const DL: DomainSpec = {
     later('comparison', 'Experiment comparison', ['training_run', 'evaluation'], ['experiment'], { record: 'selection' }, []),
     later('model-version', 'Model version', ['checkpoint'], ['model'], kind('model'), []),
     later('export', 'Export', ['model'], ['model_export'], kind('model_export')),
-    later('inference', 'Inference', ['model_export'], ['benchmark'], kind('benchmark')),
+    later('inference', 'Inference', ['model_export'], ['benchmark'], kind('benchmark'), RUNS,
+      'Arrives in B6, benchmarked on the CPU only.'),
     later('optimization', 'Optimization', ['model_export'], ['model_export', 'benchmark', 'evaluation'], kind('model_export'), RUNS,
       'Arrives in B6 as dynamic int8 quantization only; pruning, distillation and static quantization are not in the planned phases.'),
     later('serving', 'Serving', ['model_export'], ['inference_service'], kind('inference_service'), [...RUNS, 'image:nexus-fwd'],
@@ -70,7 +71,7 @@ export const DL: DomainSpec = {
     { to: 'ml', kinds: ['model_export', 'model', 'evaluation', 'benchmark'], action: 'package', subPhase: 'B6' },
     { to: 'sde', kinds: ['model_export'], action: 'create-api', subPhase: 'B6' }
   ],
-  completionRules: [{ id: 'dl.end-to-end', label: 'Executable end to end',
+  completionRules: [{ id: 'dl.end-to-end', label: 'End-to-end flow',
     steps: ['problem', 'dataset', 'dataset-prep', 'preprocessing', 'architecture', 'training', 'checkpoint', 'evaluation',
       'comparison', 'model-version', 'export', 'inference', 'optimization', 'serving', 'iteration'], subPhase: 'B6' }],
   modules: [

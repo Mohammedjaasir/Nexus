@@ -3,6 +3,7 @@
 // boot check refuses a REAL step that produces a kind from a later sub-phase.
 
 import type { KindId, SubPhase, ViewerId } from './domainSpec';
+import { deepFreeze } from './freeze';
 
 export type StorageForm = 'inline' | 'git' | 'blob' | 'tree' | 'external';
 
@@ -24,7 +25,7 @@ const k = (id: KindId, label: string, plural: string, storage: StorageForm[], av
   ({ id, label, plural, storage, singleActive: o.singleActive ?? true, userAuthorable: o.userAuthorable ?? false,
     viewer: `viewer.${id}`, availableFrom });
 
-export const KINDS: readonly KindDef[] = [
+export const KINDS: readonly KindDef[] = deepFreeze([
   // B1 kinds, unchanged.
   k('git_commit', 'Commit', 'Commits', ['git'], 'B1', { userAuthorable: true }),
   k('text_file', 'Text file', 'Text files', ['inline'], 'B1', { userAuthorable: true }),
@@ -46,7 +47,7 @@ export const KINDS: readonly KindDef[] = [
   k('defect', 'Defect', 'Defects', ['inline'], 'B2c', { userAuthorable: true }),
   k('regression_report', 'Regression report', 'Regression reports', ['inline'], 'B2c'),
   k('quality_report', 'Quality report', 'Quality reports', ['inline', 'blob'], 'B2c'),
-  k('release_recommendation', 'Release recommendation', 'Release recommendations', ['inline'], 'B2c', { userAuthorable: true }),
+  k('release_recommendation', 'Release recommendation', 'Release recommendations', ['inline'], 'B2c'),
   // B3: Data Analyst.
   k('dataset', 'Dataset', 'Datasets', ['blob', 'tree', 'external'], 'B3'),
   k('query', 'Query', 'Queries', ['inline', 'blob'], 'B3', { userAuthorable: true }),
@@ -72,9 +73,9 @@ export const KINDS: readonly KindDef[] = [
   k('architecture', 'Architecture', 'Architectures', ['git'], 'B6'),
   k('model_export', 'Model export', 'Model exports', ['blob'], 'B6'),
   k('benchmark', 'Benchmark', 'Benchmarks', ['inline'], 'B6')
-];
+]);
 
-export const KIND_IDS: readonly KindId[] = KINDS.map((x) => x.id);
+export const KIND_IDS: readonly KindId[] = deepFreeze(KINDS.map((x) => x.id));
 
 export function getKind(id: string): KindDef | null {
   return KINDS.find((x) => x.id === id) ?? null;

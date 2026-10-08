@@ -6,7 +6,7 @@ import type { DomainSpec } from '../domainSpec';
 const entry = (id: string, label: string, shortLabel: string, description: string, hueSlot: number, order: number,
   legacyDomainIds: string[]): DomainSpec => ({
   specVersion: 3, id, label, shortLabel, description, tier: 'registry-only', hueSlot, icon: id, order,
-  availableFromSubPhase: 'B1', statusNote: 'Not yet a supported workflow.', legacyDomainIds,
+  participationFromSubPhase: 'B1', statusNote: 'Not yet a supported workflow.', legacyDomainIds,
   vocabulary: {}, kindsProduced: [], kindsAccepted: [], capabilities: [], recipes: [], skills: [], actions: [],
   lifecycle: [], handoffRoutes: [], completionRules: [], modules: []
 });

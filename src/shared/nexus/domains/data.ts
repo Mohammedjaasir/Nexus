@@ -14,7 +14,7 @@ export const DATA: DomainSpec = {
   id: 'data', label: 'Data Analyst', shortLabel: 'DA',
   description: 'Answer a business question with reproducible queries over versioned data, and publish the answer.',
   tier: 'first-class', hueSlot: 3, icon: 'data', order: 4,
-  availableFromSubPhase: 'B1',
+  participationFromSubPhase: 'B1',
   statusNote: 'You can write business questions in this release. Data sources, queries, analyses, charts and reports arrive in B3.',
   legacyDomainIds: ['data-analytics', 'data-science', 'gis-geospatial'],
   vocabulary: {
@@ -59,7 +59,7 @@ export const DATA: DomainSpec = {
     { to: 'ml', kinds: ['dataset', 'insight'], action: 'use-as-input', subPhase: 'B5' },
     { to: 'ml', kinds: ['dataset', 'insight'], action: 'feature-idea', subPhase: 'B5' }
   ],
-  completionRules: [{ id: 'data.end-to-end', label: 'Executable end to end',
+  completionRules: [{ id: 'data.end-to-end', label: 'End-to-end flow',
     steps: ['business-question', 'data-source', 'inspection', 'cleaning', 'query', 'analysis', 'visualization', 'dashboard-report',
       'insight', 'publish'], subPhase: 'B3' }],
   modules: [

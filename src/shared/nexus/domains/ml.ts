@@ -15,7 +15,7 @@ export const ML: DomainSpec = {
   id: 'ml', label: 'ML Engineer', shortLabel: 'ML',
   description: 'Turn data and a problem into a validated, packaged, served and monitored model, with a reproducible record of every run.',
   tier: 'first-class', hueSlot: 1, icon: 'ml', order: 2,
-  availableFromSubPhase: 'B1',
+  participationFromSubPhase: 'B1',
   statusNote: 'You can write problem statements in this release. Datasets, training, evaluation, packaging and serving arrive in B5.',
   legacyDomainIds: ['ai-ml'],
   vocabulary: {
@@ -68,7 +68,7 @@ export const ML: DomainSpec = {
     { to: 'qa', kinds: ['inference_service'], action: 'test-api', subPhase: 'B5' },
     { to: 'data', kinds: ['dataset'], action: 'inform', subPhase: 'B5' }
   ],
-  completionRules: [{ id: 'ml.end-to-end', label: 'Executable end to end',
+  completionRules: [{ id: 'ml.end-to-end', label: 'End-to-end flow',
     steps: ['problem', 'dataset', 'data-validation', 'data-prep', 'experiment', 'training', 'evaluation', 'model-version',
       'validation', 'packaging', 'serving', 'monitoring', 'iteration'], subPhase: 'B5' }],
   modules: [

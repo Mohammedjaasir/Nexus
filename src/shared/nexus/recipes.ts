@@ -6,6 +6,7 @@
 
 import type { ParserId, SandboxProfileId } from './execution';
 import type { KindId, ParamsSchema, RecipeId, SubPhase } from './domainSpec';
+import { deepFreeze } from './freeze';
 
 export type RecipeExecutor = 'engine' | 'tool' | 'service';
 /** `not-applicable`: an engine-side recipe runs no container. Egress happens only behind approval A1. */
@@ -33,13 +34,13 @@ export interface RecipeDef {
   subPhase: SubPhase;
 }
 
-export const NO_PARAMS: ParamsSchema = { type: 'object', properties: {}, required: [], additionalProperties: false };
+export const NO_PARAMS: ParamsSchema = deepFreeze({ type: 'object', properties: {}, required: [], additionalProperties: false });
 const MIN = 60_000;
 const MIB = 2 ** 20;
 const engine = { executor: 'engine' as const, profiles: [] as SandboxProfileId[], network: 'not-applicable' as const, limits: null };
 const NODE_OR_PY: SandboxProfileId[] = ['sde-node', 'sde-python'];
 
-export const RECIPES: readonly RecipeDef[] = [
+export const RECIPES: readonly RecipeDef[] = deepFreeze([
   { id: 'repo.snapshot', version: '1', ...engine,
     argvTemplates: ['git.rev-parse-head-commit', 'git.symbolic-ref-short', 'git.status-porcelain-z', 'git.rev-parse-head-tree'],
     params: NO_PARAMS, retry: { idempotent: true, maxAttempts: 3 }, wallClockMs: 60_000,
@@ -95,13 +96,13 @@ export const RECIPES: readonly RecipeDef[] = [
     wallClockMs: 60_000,
     outputContract: { required: ['report'], description: 'A report whose every field comes from inspect, a probe or a log range.' },
     parsers: ['diagnostic'], produces: ['diagnostic_report'], subPhase: 'B2a' }
-];
+]);
 
 /** How long an idle dev deployment lives before it is stopped. */
 export const PREVIEW_IDLE_TTL_MS = 2 * 60 * MIN;
-export const RETRY_BACKOFF_MS: readonly number[] = [10_000, 60_000, 300_000];
+export const RETRY_BACKOFF_MS: readonly number[] = deepFreeze([10_000, 60_000, 300_000]);
 
-export const RECIPE_IDS: readonly RecipeId[] = RECIPES.map((r) => r.id);
+export const RECIPE_IDS: readonly RecipeId[] = deepFreeze(RECIPES.map((r) => r.id));
 
 export function getRecipe(id: string): RecipeDef | null {
   return RECIPES.find((r) => r.id === id) ?? null;

@@ -12,7 +12,7 @@ export const SDE: DomainSpec = {
   id: 'sde', label: 'Software Development Engineer', shortLabel: 'SDE',
   description: 'Turn a requirement into tested, built and running code, with every claim backed by commits, test reports, build manifests and health checks.',
   tier: 'first-class', hueSlot: 0, icon: 'sde', order: 1,
-  availableFromSubPhase: 'B1',
+  participationFromSubPhase: 'B1',
   statusNote: 'Requirements, repository snapshots, tests, builds, applications, dev deployments and diagnostics run in this release. AI-assisted implementation, review and iteration arrive in B2b.',
   legacyDomainIds: ['software-engineering', 'web-app-dev', 'mobile-dev', 'game-dev', 'embedded-systems', 'robotics-iot', 'blockchain-web3', 'automation-rpa'],
   vocabulary: {
@@ -78,7 +78,7 @@ export const SDE: DomainSpec = {
     { id: 'application', label: 'Application', consumes: ['build'], produces: ['application'],
       via: [{ userAction: 'sde.app.assemble' }],
       doneWhen: { kind: 'application', statuses: ['candidate', 'active'], validators: ['app.manifest_schema', 'app.preview_health'] },
-      status: 'REAL', subPhase: 'B2a', prerequisites: ['git'], e2eTestId: 'e2e.sde.application',
+      status: 'REAL', subPhase: 'B2a', prerequisites: ['git', 'docker', 'image:nexus-fwd'], e2eTestId: 'e2e.sde.application',
       scopeNote: 'Needs a nexus.app.json in the repository.' },
     { id: 'dev-deployment', label: 'Dev deployment', consumes: ['application'], produces: [],
       via: [{ userAction: 'sde.preview.start' }, { userAction: 'sde.preview.stop' }],
@@ -98,7 +98,7 @@ export const SDE: DomainSpec = {
     { to: 'qa', kinds: ['application', 'build', 'requirement', 'test_suite'], action: 'test', subPhase: 'B2c' },
     { to: 'qa', kinds: ['diagnostic_report'], action: 'inform', subPhase: 'B2c' }
   ],
-  completionRules: [{ id: 'sde.end-to-end', label: 'Executable end to end',
+  completionRules: [{ id: 'sde.end-to-end', label: 'End-to-end flow',
     steps: ['requirement', 'project', 'repository', 'code', 'ai-implementation', 'tests', 'review', 'build', 'application',
       'dev-deployment', 'diagnostics', 'iteration'], subPhase: 'B2b' }],
   modules: [

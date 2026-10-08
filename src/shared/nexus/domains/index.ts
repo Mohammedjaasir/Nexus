@@ -9,14 +9,7 @@ import { DATA_SCIENTIST } from './dataScientist';
 import { ML } from './ml';
 import { DL } from './dl';
 import { DEVOPS, RESEARCH, UIUX } from './registryOnly';
-
-function deepFreeze<T>(value: T): T {
-  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    for (const v of Object.values(value as Record<string, unknown>)) deepFreeze(v);
-  }
-  return value;
-}
+import { deepFreeze } from '../freeze';
 
 /** In display order. */
 export const DOMAINS: readonly DomainSpec[] = deepFreeze(

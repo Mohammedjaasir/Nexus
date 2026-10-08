@@ -1,8 +1,8 @@
 'use strict';
 // The execution model is vendor-neutral: agent engines sit behind the AgentRuntime
-// interface, and no shared type, schema or job kind is named after one. Later
-// B2a tasks extend LATER as their files appear; a listed file that exists is
-// always scanned, and the required ones must exist.
+// interface, and no shared type, schema or job kind is named after one. V1 scans
+// every file under src/shared/nexus (runtime.ts through V2) plus the files in
+// LATER that exist; the required ones must exist.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -14,7 +14,10 @@ const ROOT = path.resolve(__dirname, '..');
 const VENDOR = /claude|anthropic|hermes|sonnet|opus|haiku|openai|gpt-/i;
 const REQUIRED = ['src/shared/nexus/execution.ts', 'src/shared/nexus/runnerProtocol.ts', 'src/shared/nexus/evidence.ts',
   'src/shared/nexus/resourceGate.ts', 'src/shared/nexus/preflightCheck.ts', 'src/shared/nexus/secretShape.ts', 'src/shared/nexus/ipc.ts'];
-const LATER = ['src/shared/nexus/domainSpec.ts', 'src/shared/nexus/recipes.ts', 'src/main/nexus/db/schemaV9.ts'];
+const LATER = ['src/main/nexus/db/schemaV9.ts'];
+/** Every file under src/shared/nexus (fix round 1 of B2a Task 2): new contract files are scanned without editing this list. */
+const walkShared = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
+  e.isDirectory() ? walkShared(dir + '/' + e.name) : /\.(ts|cjs|js)$/.test(e.name) ? [dir + '/' + e.name] : []);
 const RUNTIME = 'src/shared/nexus/runtime.ts';
 
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -32,7 +35,10 @@ function codeOnly(text) {
 
 test('V1 no engine or vendor name anywhere in the shared execution contracts (code or comments)', () => {
   for (const rel of REQUIRED) assert.ok(fs.existsSync(path.join(ROOT, rel)), `${rel} exists`);
-  const scanned = [...REQUIRED, ...LATER.filter((rel) => fs.existsSync(path.join(ROOT, rel)))];
+  // runtime.ts may name engines in comments only; V2 scans its code. Everything else is scanned whole.
+  const shared = walkShared('src/shared/nexus').filter((rel) => rel !== RUNTIME);
+  assert.ok(shared.length >= REQUIRED.length + 10, 'the walk sees the shared contracts');
+  const scanned = [...new Set([...REQUIRED, ...shared, ...LATER.filter((rel) => fs.existsSync(path.join(ROOT, rel)))])];
   const found = scanned.flatMap((rel) => hits(read(rel)).map(([n, l]) => `${rel}:${n}: ${l.trim()}`));
   assert.deepEqual(found, []);
 });

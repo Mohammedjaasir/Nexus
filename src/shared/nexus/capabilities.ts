@@ -3,10 +3,11 @@
 // means not planned in B2–B6. Host execution is never a capability.
 
 import type { CapabilityId, SkillId, SubPhase } from './domainSpec';
+import { deepFreeze } from './freeze';
 
 export interface CapabilityDef { id: CapabilityId; label: string; availableFrom: SubPhase | null }
 
-export const CAPABILITIES: readonly CapabilityDef[] = [
+export const CAPABILITIES: readonly CapabilityDef[] = deepFreeze([
   { id: 'code.read', label: 'Read code', availableFrom: 'B2b' },
   { id: 'code.edit', label: 'Edit code within a path scope', availableFrom: 'B2b' },
   { id: 'git.commit', label: 'Commit on a job branch', availableFrom: 'B2b' },
@@ -35,10 +36,10 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   { id: 'model.optimize', label: 'Optimize model exports', availableFrom: 'B6' },
   { id: 'gpu.train', label: 'Train on a GPU', availableFrom: null },
   { id: 'connector.read', label: 'Read external data connectors', availableFrom: null }
-];
+]);
 
-export const CAPABILITY_IDS: readonly CapabilityId[] = CAPABILITIES.map((c) => c.id);
+export const CAPABILITY_IDS: readonly CapabilityId[] = deepFreeze(CAPABILITIES.map((c) => c.id));
 
 /** Agent skills arrive in B2b; none is registered in B2a, so no spec can name one. */
 export interface SkillDef { id: SkillId; label: string; availableFrom: SubPhase }
-export const SKILLS: readonly SkillDef[] = [];
+export const SKILLS: readonly SkillDef[] = deepFreeze([]);

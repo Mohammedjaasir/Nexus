@@ -15,7 +15,7 @@ const { checkRegistry, projectWorkspaceCatalog, B2A_IMPL, BANNED_PARAM_FIELD, E2
 const { KINDS } = loadTs('src/shared/nexus/kinds.ts');
 const { RECIPES } = loadTs('src/shared/nexus/recipes.ts');
 const { VALIDATORS } = loadTs('src/shared/nexus/validators.ts');
-const { USER_ACTIONS } = loadTs('src/shared/nexus/actions.ts');
+const { USER_ACTIONS, PLATFORM_FLOWS } = loadTs('src/shared/nexus/actions.ts');
 const { CAPABILITIES } = loadTs('src/shared/nexus/capabilities.ts');
 const { PLATFORM_WORKSPACE_IDS, LEGACY_DOMAIN_TO_WORKSPACE } = loadTs('src/shared/nexus/workspaceCatalog.ts');
 const { WORKSPACES } = loadTs('src/renderer/src/nexus/workspaces/registry.ts');
@@ -38,6 +38,10 @@ test('DR0 the registry holds six first-class domains and three registry-only ent
   assert.equal(getDomain('sde').label, 'Software Development Engineer');
   assert.equal(getDomain('nope'), null);
   assert.ok(Object.isFrozen(DOMAINS) && Object.isFrozen(getDomain('sde').lifecycle[0]), 'the registry is frozen');
+  for (const [name, table] of Object.entries({ KINDS, RECIPES, VALIDATORS, USER_ACTIONS, CAPABILITIES, PLATFORM_FLOWS, DOMAINS }))
+    assert.ok(Object.isFrozen(table) && table.every((row) => Object.isFrozen(row)), name + ' is frozen');
+  assert.ok(Object.isFrozen(RECIPES[1].limits) && Object.isFrozen(USER_ACTIONS[0].params.properties), 'nested rows are frozen');
+  assert.throws(() => { 'use strict'; KINDS[0].label = 'x'; });
 });
 
 test('DR1 ids unique; hue slots unique and equal to the renderer registry for the eight live ids; DS takes slot 8', () => {
@@ -49,7 +53,7 @@ test('DR1 ids unique; hue slots unique and equal to the renderer registry for th
   for (const w of WORKSPACES) assert.equal(getDomain(w.id).hueSlot, w.hueSlot, w.id);
   for (const w of WORKSPACES) assert.equal(getDomain(w.id).order, w.order, `${w.id} order`);
   assert.equal(getDomain('data-scientist').hueSlot, 8);
-  assert.equal(getDomain('data-scientist').availableFromSubPhase, 'B4');
+  assert.equal(getDomain('data-scientist').participationFromSubPhase, 'B4');
 });
 
 test('DR2 checkRegistry(DOMAINS, B2A_IMPL) is clean; every REAL step names a well-formed e2e test id', () => {
@@ -89,13 +93,13 @@ test('DR3 a step is REAL only at or after its sub-phase; SDE matches the B2a sta
     ['Build', 'REAL', 'B2a'], ['Application', 'REAL', 'B2a'], ['Dev deployment', 'REAL', 'B2a'],
     ['Logs and diagnostics', 'REAL', 'B2a'], ['Iteration', 'FUTURE', 'B2b']]);
   assert.equal(sde.lifecycle.filter((s) => s.status === 'REAL').length, 9);
-  // Every other first-class domain: only its problem statement step is REAL; QA has none.
+  // DA, ML and DL: only the problem statement step is REAL. QA and DS (no participation before B4) have none.
   const counts = { qa: 11, data: 10, 'data-scientist': 12, ml: 13, dl: 15 };
   for (const [id, n] of Object.entries(counts)) {
     const d = getDomain(id);
     assert.equal(d.lifecycle.length, n, `${id} has ${n} steps`);
     const real = d.lifecycle.filter((s) => s.status !== 'FUTURE');
-    if (id === 'qa') assert.deepEqual(real, []);
+    if (id === 'qa' || id === 'data-scientist') assert.deepEqual(real, [], id);
     else {
       assert.equal(real.length, 1, id);
       assert.deepEqual(real[0].produces, ['problem_statement']);
@@ -211,7 +215,7 @@ test('DR7 actions: SDE actions map to REAL steps; no action for a FUTURE step; p
   assert.ok(checkRegistry(a, B2A_IMPL).some((p) => /sde\/review.*action/.test(p)));
   const actions = loadTs('src/shared/nexus/actions.ts');
   const original = actions.USER_ACTIONS.find((x) => x.id === 'sde.diagnose');
-  const { checkActionParams } = loadTs('src/shared/nexus/registryCheck.ts');
+
   assert.deepEqual(checkActionParams(original), []);
   const bad = JSON.parse(JSON.stringify(original)); bad.params.properties.logPath = { type: 'string', maxLength: 10 };
   assert.ok(checkActionParams(bad).some((p) => /logPath/.test(p)));
@@ -235,4 +239,76 @@ test('DR8 the recipe and validator tables match the B2a plan', () => {
     'build.exit_zero', 'build.manifest_present', 'build.output_hashed', 'blob.integrity', 'app.manifest_schema', 'app.preview_health', 'diag.schema']);
   for (const v of VALIDATORS) assert.equal(v.blocking, true, v.id);
   assert.deepEqual(VALIDATORS.find((v) => v.id === 'sde.tests_pass').recipes, ['sde.test.node', 'sde.test.pytest']);
+});
+
+// ----- fix round 1 -----
+const { REGISTRY_TABLES, checkActionParams } = loadTs('src/shared/nexus/registryCheck.ts');
+const tablesCopy = () => JSON.parse(JSON.stringify(REGISTRY_TABLES));
+const has = (problems, re) => problems.some((p) => re.test(p));
+
+test('DR9 before a domain takes part (participationFromSubPhase), it has no running step, no action and no earlier module', () => {
+  assert.equal(getDomain('data-scientist').actions.length, 0);
+  assert.ok(!USER_ACTIONS.some((a) => a.domain === 'data-scientist'));
+  const s = step(getDomain('data-scientist'), 'business-problem');
+  assert.deepEqual([s.status, s.subPhase, s.via, s.e2eTestId], ['FUTURE', 'B4', [], undefined]);
+  // Negative fixture: DS with a REAL step, an action and a B2a module.
+  const a = clone(); const ds = byId(a, 'data-scientist');
+  Object.assign(step(ds, 'business-problem'), { status: 'REAL', subPhase: 'B2a', via: [{ userAction: 'ml.problem.write' }], e2eTestId: 'e2e.data-scientist.business-problem' });
+  ds.actions.push('ml.problem.write');
+  ds.modules[0].subPhase = 'B2a';
+  const p = checkRegistry(a, B2A_IMPL);
+  assert.ok(has(p, /data-scientist\/business-problem: REAL before projects can take part/), JSON.stringify(p));
+  assert.ok(has(p, /data-scientist: action ml\.problem\.write exists before projects can take part/));
+  assert.ok(has(p, /data-scientist module problems: B2a is before projects can take part/));
+});
+
+test('DR10 checkRegistry is total: malformed input is a problem, never an exception', () => {
+  const nullSpec = [...clone(), null];
+  assert.doesNotThrow(() => checkRegistry(nullSpec, B2A_IMPL));
+  assert.ok(has(checkRegistry(nullSpec, B2A_IMPL), /spec #9: not an object/));
+  const noLifecycle = clone(); delete byId(noLifecycle, 'ml').lifecycle;
+  assert.ok(has(checkRegistry(noLifecycle, B2A_IMPL), /ml: lifecycle must be a list/));
+  const noVia = clone(); delete step(byId(noVia, 'sde'), 'build').via;
+  assert.ok(has(checkRegistry(noVia, B2A_IMPL), /sde: step build: via must be a list/));
+  const badStep = clone(); byId(badStep, 'qa').lifecycle.push(7);
+  assert.ok(has(checkRegistry(badStep, B2A_IMPL), /qa: step #11 is not an object/));
+  for (const input of [null, undefined, 'x', {}, [undefined], [{}]])
+    assert.ok(checkRegistry(input, B2A_IMPL).length > 0, String(JSON.stringify(input)));
+  for (const impl of [null, {}, { ...B2A_IMPL, viewers: 'x' }]) assert.ok(has(checkRegistry(DOMAINS, impl), /implementation: malformed/));
+  assert.ok(checkRegistry(DOMAINS, B2A_IMPL, { kinds: null }).length > 0);
+  assert.ok(checkActionParams(null).length > 0);
+});
+
+test('DR11 table integrity: duplicate ids, recipe shape per executor, child-job validators, unknown viewers, duplicate e2e ids', () => {
+  for (const name of ['kinds', 'recipes', 'validators', 'actions', 'capabilities']) {
+    const t = tablesCopy(); t[name].push({ ...t[name][0] });
+    assert.ok(has(checkRegistry(DOMAINS, B2A_IMPL, { [name]: t[name] }), new RegExp(`table ${name}: duplicate id ${t[name][0].id.replace(/\./g, '\.')}`)), name);
+  }
+  const rcases = [
+    ['no executor', (r) => { delete r[0].executor; }, /recipe repo\.snapshot: bad or missing executor/],
+    ['engine with a profile', (r) => { r[0].profiles = ['sde-node']; }, /recipe repo\.snapshot: an engine recipe has no profiles/],
+    ['engine with limits', (r) => { r[0].limits = { cpus: 1, memoryMb: 1, outputMaxBytes: 1 }; }, /repo\.snapshot: an engine recipe has no container limits/],
+    ['tool without a profile', (r) => { r[1].profiles = []; }, /sde\.deps\.node: a tool recipe needs a profile/],
+    ['tool without limits', (r) => { r[1].limits = null; }, /sde\.deps\.node: a tool recipe needs limits/],
+    ['service without limits', (r) => { r[9].limits = null; }, /sde\.preview\.start: a service recipe needs limits/],
+    ['tool with no network mode', (r) => { r[4].network = 'not-applicable'; }, /sde\.test\.node: a tool recipe needs a container network mode/]
+  ];
+  for (const [name, mutate, re] of rcases) {
+    const t = tablesCopy(); mutate(t.recipes);
+    assert.ok(has(checkRegistry(DOMAINS, B2A_IMPL, { recipes: t.recipes }), re), name);
+  }
+  const v = tablesCopy(); delete v.validators.find((x) => x.id === 'sde.tests_pass').recipes;
+  assert.ok(has(checkRegistry(DOMAINS, B2A_IMPL, { validators: v.validators }), /sde\.tests_pass: a child-job validator names its recipes/));
+  assert.ok(has(checkRegistry(DOMAINS, { ...B2A_IMPL, viewers: [...B2A_IMPL.viewers, 'viewer.hologram'] }), /unknown viewer viewer\.hologram/));
+  const dup = clone(); step(byId(dup, 'sde'), 'build').e2eTestId = 'e2e.sde.tests';
+  assert.ok(has(checkRegistry(dup, B2A_IMPL), /sde\/build: e2eTestId e2e\.sde\.tests is already used by sde\/tests/));
+});
+
+test('DR12 wording and small rules from review: no over-claiming names, sign-only release decisions, scope notes', () => {
+  for (const d of DOMAINS) for (const c of d.completionRules) assert.equal(c.label, 'End-to-end flow', d.id);
+  assert.ok(DOMAINS.every((d) => !('availableFromSubPhase' in d)));
+  assert.equal(KINDS.find((k) => k.id === 'release_recommendation').userAuthorable, false);
+  assert.deepEqual(step(getDomain('sde'), 'application').prerequisites, ['git', 'docker', 'image:nexus-fwd']);
+  assert.match(step(getDomain('dl'), 'inference').scopeNote, /CPU only/);
+  assert.match(getDomain('data-scientist').capabilities.find((c) => c.id === 'model.train.cpu').scope.note, /[Bb]aseline estimators only/);
 });

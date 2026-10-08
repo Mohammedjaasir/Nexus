@@ -16,7 +16,7 @@ export const QA: DomainSpec = {
   id: 'qa', label: 'QA/Test Engineer', shortLabel: 'QA',
   description: 'Decide, with computed evidence, whether a specific build is fit to release.',
   tier: 'first-class', hueSlot: 5, icon: 'qa', order: 6,
-  availableFromSubPhase: 'B1',
+  participationFromSubPhase: 'B1',
   statusNote: 'The QA lifecycle is shown so you can see what is coming; none of its steps runs in this release. QA workflows arrive in B2c.',
   legacyDomainIds: [],
   vocabulary: {
@@ -57,7 +57,7 @@ export const QA: DomainSpec = {
     { to: 'sde', kinds: ['defect', 'test_run'], action: 'fix', subPhase: 'B2c' },
     { to: 'sde', kinds: ['release_recommendation', 'quality_report'], action: 'release-gate', subPhase: 'B2c' }
   ],
-  completionRules: [{ id: 'qa.end-to-end', label: 'Executable end to end',
+  completionRules: [{ id: 'qa.end-to-end', label: 'End-to-end flow',
     steps: ['intake', 'test-plan', 'strategy', 'test-cases', 'execution', 'automation', 'defect', 'retest', 'regression',
       'quality-report', 'release-recommendation'], subPhase: 'B2c' }],
   modules: [

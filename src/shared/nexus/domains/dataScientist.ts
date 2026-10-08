@@ -15,8 +15,8 @@ export const DATA_SCIENTIST: DomainSpec = {
   id: 'data-scientist', label: 'Data Scientist', shortLabel: 'DS',
   description: 'Establish what is true in the data and what a baseline model can predict, reproducibly, and hand results on to ML.',
   tier: 'first-class', hueSlot: 8, icon: 'data', order: 9,
-  availableFromSubPhase: 'B4',
-  statusNote: 'Shown with its lifecycle in this release. A project can take part in Data Scientist work from B4.',
+  participationFromSubPhase: 'B4',
+  statusNote: 'Shown with its lifecycle in this release; none of its steps runs yet. A project can take part in Data Scientist work from B4.',
   legacyDomainIds: [],
   vocabulary: {
     problem_statement: { singular: 'Business problem', plural: 'Business problems' },
@@ -35,15 +35,15 @@ export const DATA_SCIENTIST: DomainSpec = {
     { id: 'code.read' }, { id: 'code.edit', scope: { paths: ['notebooks/**', 'ds/**'] } }, { id: 'git.commit' }, { id: 'sandbox.exec' },
     { id: 'artifact.read' }, { id: 'artifact.register' }, { id: 'job.request' }, { id: 'handoff.create' }, { id: 'review.request' },
     { id: 'data.read' }, { id: 'data.register' }, { id: 'sql.query' }, { id: 'notebook.run' }, { id: 'stats.run' },
-    { id: 'model.train.cpu' }, { id: 'model.evaluate' }
+    { id: 'model.train.cpu', scope: { note: 'Baseline estimators only.' } }, { id: 'model.evaluate' }
   ],
-  recipes: [], skills: [], actions: ['data-scientist.problem.write'],
+  recipes: [], skills: [], actions: [],
   lifecycle: [
     { id: 'business-problem', label: 'Business problem', consumes: [], produces: ['problem_statement'],
-      via: [{ userAction: 'data-scientist.problem.write' }],
+      via: [],
       doneWhen: { kind: 'problem_statement', statuses: ['candidate', 'active'], validators: ['problem.schema'] },
-      status: 'REAL', subPhase: 'B2a', prerequisites: [], e2eTestId: 'e2e.data-scientist.business-problem',
-      scopeNote: 'Problem statements are real in this release; a project can take part in Data Scientist work from B4.' },
+      status: 'FUTURE', subPhase: 'B4', prerequisites: [],
+      scopeNote: 'Arrives in B4, when a project can take part in Data Scientist work.' },
     later('acquisition', 'Acquisition', [], ['dataset'], kind('dataset'), ['disk:5GiB'],
       'Arrives in B4 for local files and handoffs; external connectors are not in the planned phases.'),
     later('exploration', 'Exploration', ['dataset'], ['analysis'], kind('analysis')),
@@ -61,7 +61,7 @@ export const DATA_SCIENTIST: DomainSpec = {
     { to: 'ml', kinds: ['model', 'evaluation', 'feature_set', 'dataset', 'report'], action: 'productionize', subPhase: 'B5' },
     { to: 'data', kinds: ['report', 'insight'], action: 'inform', subPhase: 'B4' }
   ],
-  completionRules: [{ id: 'data-scientist.end-to-end', label: 'Executable end to end',
+  completionRules: [{ id: 'data-scientist.end-to-end', label: 'End-to-end flow',
     steps: ['business-problem', 'acquisition', 'exploration', 'cleaning', 'features', 'statistics', 'experiment', 'modeling',
       'evaluation', 'insight-model', 'report', 'handoff'], subPhase: 'B4' }],
   modules: [

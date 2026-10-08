@@ -6,6 +6,7 @@
 
 import type { KindId, ParamsSchema, PlatformFlowId, PrerequisiteId, RecipeId, SubPhase, UserActionId } from './domainSpec';
 import { NO_PARAMS } from './recipes';
+import { deepFreeze } from './freeze';
 
 /** One recipe job (main picks among `recipes`), an inline save of a user-authored kind, or a control on a live record. */
 export type ActionRun =
@@ -30,7 +31,7 @@ export interface UserActionDef {
 }
 
 /** Existing platform flows (B0b/B1) a step can name; they are not jobs. */
-export const PLATFORM_FLOWS: readonly PlatformFlowId[] = ['project.import', 'project.attach', 'user.save_commit', 'user.save_file'];
+export const PLATFORM_FLOWS: readonly PlatformFlowId[] = deepFreeze(['project.import', 'project.attach', 'user.save_commit', 'user.save_file']);
 
 const ID = '^[A-Za-z0-9_-]{1,64}$';
 const one = (slot: string, kind: KindId): InputSlot => ({ slot, kinds: [kind], min: 1, max: 1 });
@@ -38,7 +39,7 @@ const a = (id: UserActionId, domain: string, label: string, run: ActionRun, inpu
   prerequisites: PrerequisiteId[], params: ParamsSchema = NO_PARAMS): UserActionDef =>
   ({ id, domain, labelKey: `action.${id}`, label, run, inputs, params, prerequisites, subPhase: 'B2a' });
 
-export const USER_ACTIONS: readonly UserActionDef[] = [
+export const USER_ACTIONS: readonly UserActionDef[] = deepFreeze([
   a('sde.requirement.write', 'sde', 'Write a requirement', { inlineKind: 'requirement' }, [], []),
   a('sde.repository.snapshot', 'sde', 'Take a repository snapshot', { recipes: ['repo.snapshot'] }, [], ['git']),
   a('sde.deps.install', 'sde', 'Install dependencies', { recipes: ['sde.deps.node', 'sde.deps.python'] },
@@ -60,12 +61,11 @@ export const USER_ACTIONS: readonly UserActionDef[] = [
     { type: 'object', properties: { target: { type: 'string', maxLength: 16, enum: ['deployment', 'job'] },
       targetId: { type: 'string', maxLength: 64, pattern: ID } }, required: ['target', 'targetId'], additionalProperties: false }),
   a('data.problem.write', 'data', 'Write a business question', { inlineKind: 'problem_statement' }, [], []),
-  a('data-scientist.problem.write', 'data-scientist', 'Write a business problem', { inlineKind: 'problem_statement' }, [], []),
   a('ml.problem.write', 'ml', 'Write a problem statement', { inlineKind: 'problem_statement' }, [], []),
   a('dl.problem.write', 'dl', 'Write a problem statement', { inlineKind: 'problem_statement' }, [], [])
-];
+]);
 
-export const USER_ACTION_IDS: readonly UserActionId[] = USER_ACTIONS.map((x) => x.id);
+export const USER_ACTION_IDS: readonly UserActionId[] = deepFreeze(USER_ACTIONS.map((x) => x.id));
 
 export function getUserAction(id: string): UserActionDef | null {
   return USER_ACTIONS.find((x) => x.id === id) ?? null;

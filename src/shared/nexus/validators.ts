@@ -5,6 +5,7 @@
 
 import type { EvidenceType, ValidatorId, ValidatorStage } from './evidence';
 import type { KindId, RecipeId, SubPhase } from './domainSpec';
+import { deepFreeze } from './freeze';
 
 /** Where the check runs: main itself, the runner (re-hash), a child job of a recipe, or the version's dev deployment. */
 export type ValidatorExecutor = 'main' | 'runner' | 'child-job' | 'deployment';
@@ -27,7 +28,7 @@ const v = (id: ValidatorId, kinds: KindId[], stage: ValidatorStage, executes: Va
   failsWhen: string, recipes?: RecipeId[]): ValidatorDef =>
   ({ id, version: 1, kinds, stage, executes, ...(recipes ? { recipes } : {}), blocking: true, evidence, failsWhen, subPhase: 'B2a' });
 
-export const VALIDATORS: readonly ValidatorDef[] = [
+export const VALIDATORS: readonly ValidatorDef[] = deepFreeze([
   v('git.head_resolves', ['repository'], 'register', 'main', ['git'],
     'The commit does not resolve in the project folder, or its full hash differs.'),
   v('req.schema', ['requirement'], 'register', 'main', ['schema'],
@@ -50,9 +51,9 @@ export const VALIDATORS: readonly ValidatorDef[] = [
     'No 200 answer on the health path within 60 s, the container exited, or the port is bound anywhere but 127.0.0.1.'),
   v('diag.schema', ['diagnostic_report'], 'register', 'main', ['schema'],
     'A field of the report has no inspect, probe or log source.')
-];
+]);
 
-export const VALIDATOR_IDS: readonly ValidatorId[] = VALIDATORS.map((x) => x.id);
+export const VALIDATOR_IDS: readonly ValidatorId[] = deepFreeze(VALIDATORS.map((x) => x.id));
 
 export function getValidator(id: string): ValidatorDef | null {
   return VALIDATORS.find((x) => x.id === id) ?? null;
