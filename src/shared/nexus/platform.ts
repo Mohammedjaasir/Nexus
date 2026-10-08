@@ -53,7 +53,9 @@ export type LineageRelation =
   | 'contains' | 'extracted_from' | 'queried_from' | 'visualizes' | 'cites' | 'analyzes' | 'tested_on' | 'run_of'
   | 'produced_by' | 'resumed_from' | 'selected_from' | 'evaluates' | 'packages' | 'exported_from' | 'fixes'
   | 'assembled_from' | 'tests' | 'executes' | 'found_in' | 'evidenced_by' | 'verified_by' | 'summarizes'
-  | 'recommends' | 'based_on';
+  | 'recommends' | 'based_on'
+  // Schema v9 (D12): vocabulary only in B2a; first written in the phase named by each row.
+  | 'covers' | 'transformed_by' | 'configured_by' | 'monitors';
 export type EdgeSource = 'job_input' | 'ingest' | 'user_action' | 'handoff_convert';
 export interface ArtifactEdge { id: string; fromVersionId: VersionId; toVersionId: VersionId; relation: LineageRelation;
   source: EdgeSource; jobId: JobId | null; createdBy: PrincipalId; createdAt: number }
@@ -83,6 +85,10 @@ export interface ActivityEntry { seq: number; id: ActivityId; ts: number; actorK
   status: ActivityStatus; details: Record<string, unknown>; prevHash: string; hash: string }
 export type PlatformErrorCode = 'denied' | 'not_found' | 'invalid' | 'conflict' | 'immutable' | 'cycle' | 'not_owner'
   | 'not_participating' | 'participation_inactive' | 'input_not_granted' | 'storage_unavailable' | 'illegal_transition' | 'platform_unavailable';
+// Execution (schema v9): the vocabularies seeded in attempt_states, approval_states and deployment_states.
+export type AttemptState = 'starting' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'timed_out' | 'abandoned';
+export type ApprovalStatus = 'pending' | 'approved' | 'denied' | 'expired' | 'withdrawn';
+export type DeploymentStatus = 'starting' | 'healthy' | 'unhealthy' | 'stopped' | 'failed';
 // Handoffs (schema v8): artifact versions sent by reference between two participations of one project.
 export type HandoffId = string;
 export type HandoffStatus = 'sent' | 'accepted' | 'declined' | 'withdrawn';

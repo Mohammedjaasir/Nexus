@@ -33,7 +33,7 @@ function guardedTables(ddl) {
 }
 // Derived from V7_DDL and V8_DDL, so a newly guarded table is protected without editing a list.
 // nexus_migrations has no trigger but is an append-only record by policy, so it is named here.
-const GUARDED = new Set([...guardedTables(ddlText('schemaV7.ts', 'V7_DDL')), ...guardedTables(ddlText('schemaV8.ts', 'V8_DDL'))]);
+const GUARDED = new Set([...guardedTables(ddlText('schemaV7.ts', 'V7_DDL')), ...guardedTables(ddlText('schemaV8.ts', 'V8_DDL')), ...guardedTables(ddlText('schemaV9.ts', 'V9_DDL'))]);
 const PROTECTED = new Set([...GUARDED, 'nexus_migrations']);
 // "<file relative to src/main/nexus>:<table>" entries that are allowed, each with a reason.
 // Empty: at e2fceec plus Task 1 no platform code uses OR REPLACE or DO UPDATE at all.

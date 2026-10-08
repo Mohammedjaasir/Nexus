@@ -64,3 +64,35 @@ test('the session table in code equals the seeded table (8 states, 14 transition
   assert.deepEqual(flat(SESSION_TRANSITIONS), seed.V7_SESSION_TRANSITIONS.map(([a, b]) => `${a}>${b}`).sort());
   for (const t of TERMINAL_SESSION_STATES) assert.deepEqual([...SESSION_TRANSITIONS[t]], [], t);
 });
+// B2a Task 4: the v9 vocabularies in code equal the v9 seed.
+const v9 = loadTs('src/main/nexus/db/v9Seed.ts');
+const { ATTEMPT_TRANSITIONS, ATTEMPT_STATES, TERMINAL_ATTEMPT_STATES, canTransitionAttempt } = loadTs('src/main/nexus/exec/attemptRules.ts');
+const { APPROVAL_TRANSITIONS, APPROVAL_STATUSES, TERMINAL_APPROVAL_STATUSES, canTransitionApproval } = loadTs('src/main/nexus/approvals/approvalRules.ts');
+const { DEPLOYMENT_TRANSITIONS, DEPLOYMENT_STATUSES, TERMINAL_DEPLOYMENT_STATUSES, canTransitionDeployment } = loadTs('src/main/nexus/deployments/deploymentRules.ts');
+function sameAsSeed(table, states, terminal, seedStates, seedMoves) {
+  assert.deepEqual(flat(table), seedMoves.map(([a, b]) => `${a}>${b}`).sort());
+  assert.deepEqual(Object.keys(table).sort(), seedStates.map((s) => s.state).sort());
+  assert.deepEqual([...states].sort(), seedStates.map((s) => s.state).sort());
+  assert.deepEqual([...terminal].sort(), seedStates.filter((s) => s.terminal === 1).map((s) => s.state).sort());
+  for (const s of seedStates.filter((x) => x.terminal === 1)) assert.deepEqual([...table[s.state]], [], s.state);
+}
+test('the attempt table in code equals the v9 seed (7 states, 10 transitions)', () => {
+  assert.equal(v9.V9_ATTEMPT_TRANSITIONS.length, 10);
+  sameAsSeed(ATTEMPT_TRANSITIONS, ATTEMPT_STATES, TERMINAL_ATTEMPT_STATES, v9.V9_ATTEMPT_STATES, v9.V9_ATTEMPT_TRANSITIONS);
+  assert.equal(canTransitionAttempt('starting', 'running'), true);
+  assert.equal(canTransitionAttempt('starting', 'timed_out'), false);
+  assert.equal(canTransitionAttempt('succeeded', 'running'), false);
+});
+test('the approval table in code equals the v9 seed (5 states, 4 transitions)', () => {
+  assert.equal(v9.V9_APPROVAL_TRANSITIONS.length, 4);
+  sameAsSeed(APPROVAL_TRANSITIONS, APPROVAL_STATUSES, TERMINAL_APPROVAL_STATUSES, v9.V9_APPROVAL_STATES, v9.V9_APPROVAL_TRANSITIONS);
+  assert.equal(canTransitionApproval('pending', 'approved'), true);
+  assert.equal(canTransitionApproval('approved', 'denied'), false);
+});
+test('the deployment table in code equals the v9 seed (5 states, 9 transitions)', () => {
+  assert.equal(v9.V9_DEPLOYMENT_TRANSITIONS.length, 9);
+  sameAsSeed(DEPLOYMENT_TRANSITIONS, DEPLOYMENT_STATUSES, TERMINAL_DEPLOYMENT_STATUSES, v9.V9_DEPLOYMENT_STATES, v9.V9_DEPLOYMENT_TRANSITIONS);
+  assert.equal(canTransitionDeployment('starting', 'stopped'), true);
+  assert.equal(canTransitionDeployment('starting', 'unhealthy'), false);
+  assert.equal(canTransitionDeployment('stopped', 'healthy'), false);
+});
