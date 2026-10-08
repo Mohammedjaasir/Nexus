@@ -2,15 +2,19 @@ import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, ty
 
 /** Modal side/bottom sheet: Esc closes, focus moves in on open and returns on
  *  close, Tab is trapped inside. */
-export function Sheet({ open, onClose, side = 'right', labelledBy, children }: {
+export function Sheet({ open, onClose, side = 'right', labelledBy, focusHeading = false, children }: {
   open: boolean; onClose: () => void; side?: 'right' | 'bottom'; labelledBy: string; children: ReactNode;
+  /** Initial focus goes to the sheet's heading (the labelledBy element), never to a control inside it. */
+  focusHeading?: boolean;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
     const el = ref.current;
-    el?.querySelector<HTMLElement>('textarea, input, button, [tabindex="0"]')?.focus();
+    const heading = focusHeading ? el?.querySelector<HTMLElement>(`[id="${labelledBy}"]`) ?? null : null;
+    if (heading) { heading.setAttribute('tabindex', '-1'); heading.focus(); }
+    else el?.querySelector<HTMLElement>('textarea, input, button, [tabindex="0"]')?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
       if (e.key !== 'Tab' || !el) return;
@@ -22,7 +26,7 @@ export function Sheet({ open, onClose, side = 'right', labelledBy, children }: {
     };
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('keydown', onKey); prev?.focus?.(); };
-  }, [open, onClose]);
+  }, [open, onClose, focusHeading, labelledBy]);
   if (!open) return null;
   return (
     <div className="nx-sheet-layer">

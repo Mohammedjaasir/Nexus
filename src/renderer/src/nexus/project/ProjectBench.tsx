@@ -188,7 +188,7 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
         {wide && <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshProject} onOpenTerminal={openTerminal} notice={notice} artifacts={artifacts} onSave={onSave} onHandOff={onHandOff} />}
       </div>
       {!wide && (
-        <Sheet open={detailsOpen} onClose={closeDetails} side={mobile ? 'bottom' : 'right'} labelledBy="nx-passport-title">
+        <Sheet open={detailsOpen} onClose={closeDetails} side={mobile ? 'bottom' : 'right'} labelledBy="nx-passport-title" focusHeading>
           <Passport project={project} node={node} headSha={head?.sha ?? null} onRefreshProject={refreshFromSheet} onOpenTerminal={openTerminal} notice={null} onBeforeAction={closeDetails} artifacts={artifacts} onSave={onSave} onHandOff={onHandOff} />
         </Sheet>
       )}

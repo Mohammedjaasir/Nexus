@@ -78,6 +78,8 @@ export function SendHandoffSheet({ start, artifacts, onClose }: {
 
   const running = useRef(false);
   const alive = useRef(true);
+  // The prefilled title is selected the first time the field takes focus, so typing replaces it.
+  const titleSelected = useRef(false);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const pendingRef = useRef(false);
   pendingRef.current = state.pending;
@@ -192,6 +194,7 @@ export function SendHandoffSheet({ start, artifacts, onClose }: {
           <label className="nx-shx__field">
             <span className="nx-shx__label">Title</span>
             <input className="nx-input nx-shx__control" maxLength={TITLE_MAX} value={state.title} disabled={pending || done}
+              onFocus={(e) => { if (!titleSelected.current) { titleSelected.current = true; e.currentTarget.select(); } }}
               onChange={(e) => { const title = e.target.value; setState((s) => (s.pending || s.sent ? s : { ...s, title, error: null })); }} />
           </label>
         )}

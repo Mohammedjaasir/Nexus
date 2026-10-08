@@ -33,6 +33,7 @@ function writtenActions() {
   for (const f of walk(path.join(ROOT, 'src', 'main')).filter((f) => f.endsWith('.ts'))) {
     const s = fs.readFileSync(f, 'utf8');
     for (const m of s.matchAll(/appendActivityRow\([\s\S]*?\}, *now\)/g)) for (const a of m[0].matchAll(/action: '([a-z_.]+)'/g)) out.add(a[1]);
+    for (const m of s.matchAll(/const [A-Z_]*ACTION[A-Z_]* = '([a-z_.]+)'/g)) out.add(m[1]);
     for (const m of s.matchAll(/applyTransition\([^;]*?action: '([a-z_.]+)'/g)) out.add(m[1]);
   }
   return out;
@@ -204,4 +205,24 @@ test('pin: the activity styles use a unique prefix and existing tokens only', ()
   }
   const tokens = fs.readFileSync(path.join(NEXUS, 'styles', 'tokens.css'), 'utf8');
   for (const v of new Set(css.match(/var\(--nx-[a-z0-9-]+\)/g) || [])) assert.ok(tokens.includes(`${v.slice(4, -1)}:`), v);
+});
+
+test('every written action (including the legacy primary sync) reads as a plain sentence', () => {
+  const written = writtenActions();
+  assert.ok(written.has('project_workspace.primary_synced'), 'the scan sees the constant-named action');
+  for (const a of written) {
+    const t = M.activityText(row({ action: a, workspaceId: null, details: {} }), ctx());
+    assert.ok(!t.startsWith('Recorded') && !t.includes(a), `${a} → ${t}`);
+  }
+  assert.equal(M.activityText(row({ action: 'project_workspace.primary_synced', details: { workspaceId: 'qa', result: 'x' } }), ctx()), "Main workspace set to Quality, from the project's domain");
+  assert.equal(M.activityText(row({ action: 'project_workspace.primary_synced', details: { workspaceId: null } }), ctx()), "Main workspace set from the project's domain");
+});
+
+test('source pins: the Details sheet focuses its heading; the handoff title is selected on first focus', () => {
+  const sheet = src('ui/Sheet.tsx');
+  assert.match(sheet, /focusHeading/);
+  assert.match(sheet, /heading\.focus\(\)/);
+  assert.match(src('project/ProjectBench.tsx'), /<Sheet open=\{detailsOpen\}[^>]*\bfocusHeading\b/);
+  const send = src('handoffs/SendHandoffSheet.tsx');
+  assert.match(send, /value=\{state\.title\}[\s\S]{0,200}onFocus=\{\(e\) => \{[^}]*e\.currentTarget\.select\(\)/);
 });

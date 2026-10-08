@@ -13,7 +13,7 @@ export const ACTIVITY_PAGE = 20;
 
 /** The only detail keys a sentence ever reads. Everything else in `details` is never looked at. */
 export const ACTIVITY_DETAIL_ALLOW: readonly string[] = Object.freeze([
-  'versionNo', 'to', 'rollback', 'source', 'reactivated', 'subjects', 'toWorkspaceId', 'withNote', 'kind'
+  'versionNo', 'to', 'rollback', 'source', 'reactivated', 'subjects', 'toWorkspaceId', 'withNote', 'kind', 'workspaceId'
 ]);
 
 /** Every action the platform services write to the activity log. */
@@ -25,7 +25,7 @@ export const ACTIVITY_ACTIONS: readonly string[] = Object.freeze([
   'handoff.send', 'handoff.accept', 'handoff.decline', 'handoff.withdraw',
   'job.create', 'job.cancel', 'job.recover', 'job.transition',
   'session.open', 'session.cancel', 'session.recover', 'session.transition',
-  'db.migrated', 'workspace.catalog_ensured'
+  'db.migrated', 'workspace.catalog_ensured', 'project_workspace.primary_synced'
 ]);
 
 /** Plain words for an action a person may be refused (every platform action). */
@@ -63,7 +63,8 @@ const ACTION_WORDS: Record<string, string> = {
   'handoff.accept': 'accept a handoff',
   'handoff.decline': 'decline a handoff',
   'db.migrated': 'upgrade the database',
-  'workspace.catalog_ensured': 'update the workspace list'
+  'workspace.catalog_ensured': 'update the workspace list',
+  'project_workspace.primary_synced': 'set the main workspace'
 };
 
 const ACTION_SHAPE = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/;
@@ -204,6 +205,10 @@ function sentence(row: ActivityView, ctx: ActivityContext): string | null {
     case 'session.transition': return stateMove('Agent session', detail(row, 'to'));
     case 'db.migrated': return 'Database upgraded';
     case 'workspace.catalog_ensured': return 'Workspace list updated';
+    case 'project_workspace.primary_synced': {
+      const ws = workspacePhrase(detail(row, 'workspaceId'), ctx);
+      return ws ? `Main workspace set to ${ws}, from the project's domain` : "Main workspace set from the project's domain";
+    }
     default: return null;
   }
 }
