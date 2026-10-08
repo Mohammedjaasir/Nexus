@@ -22,6 +22,10 @@ export interface SandboxProfile {
   image: { repository: string; digest: `sha256:${string}` };   // pinned; recorded per attempt
   user: { uid: 10001; gid: 10001 };                              // non-root
   defaults: ResourceLimits;
+  /** The Nexus-owned entry (`nexus-entry <wallSeconds> … --`); the recipe argv follows it as `Cmd`. */
+  entrypoint: string[];
+  /** ENV names the image itself sets (PATH, HOME, LANG, NODE_VERSION, …). Any other name in a container is refused. */
+  imageEnv: string[];
 }
 
 export interface ResourceLimits {
@@ -57,7 +61,15 @@ export interface ContainerSpec {
   name: `nexus-${string}`;
   labels: ContainerLabels;
   profile: SandboxProfileId;
-  argv: string[];                       // filled from the recipe template; never a shell string
+  /**
+   * The image to run, digest-pinned: `ref` is `<repository>@sha256:<64 hex>` or the local image id itself
+   * (`sha256:<64 hex>`, for an image Nexus built); `id` is the local image id. Main fills it from the
+   * profile and the latest succeeded image build.
+   */
+  image: { ref: string; id: `sha256:${string}` };
+  entrypoint: string[];                 // the profile's entry, exactly (Config.Entrypoint)
+  argv: string[];                       // filled from the recipe template; never a shell string (Config.Cmd)
+  imageEnv: string[];                   // copied from the profile: ENV names the image may set
   env: Record<string, string>;          // non-secret, recipe-declared, validated
   mounts: MountSpec[];
   network: NetworkMode;

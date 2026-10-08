@@ -11,9 +11,9 @@ const ts = require('typescript');
 const loadTs = require('./load-ts.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
-const VENDOR = /claude|anthropic|hermes|sonnet/i;
+const VENDOR = /claude|anthropic|hermes|sonnet|opus|haiku|openai|gpt-/i;
 const REQUIRED = ['src/shared/nexus/execution.ts', 'src/shared/nexus/runnerProtocol.ts', 'src/shared/nexus/evidence.ts',
-  'src/shared/nexus/resourceGate.ts', 'src/shared/nexus/preflightCheck.ts', 'src/shared/nexus/ipc.ts'];
+  'src/shared/nexus/resourceGate.ts', 'src/shared/nexus/preflightCheck.ts', 'src/shared/nexus/secretShape.ts', 'src/shared/nexus/ipc.ts'];
 const LATER = ['src/shared/nexus/domainSpec.ts', 'src/shared/nexus/recipes.ts', 'src/main/nexus/db/schemaV9.ts'];
 const RUNTIME = 'src/shared/nexus/runtime.ts';
 

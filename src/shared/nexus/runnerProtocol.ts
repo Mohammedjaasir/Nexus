@@ -135,8 +135,21 @@ function setProp(o: Record<string, unknown>, k: string, v: unknown): void {
   Object.defineProperty(o, k, { value: v, enumerable: true, writable: true, configurable: true });
 }
 
+/** No NUL and no lone surrogate (text that cannot round-trip through UTF-8). */
+function wellFormed(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c === 0) return false;
+    if (c >= 0xd800 && c <= 0xdbff) {
+      if (i + 1 >= s.length || (s.charCodeAt(i + 1) & 0xfc00) !== 0xdc00) return false;
+      i++;
+    } else if (c >= 0xdc00 && c <= 0xdfff) return false;
+  }
+  return true;
+}
 const str = (opts: { min?: number; re?: RegExp } = {}): Check<string> => (x) =>
-  typeof x === 'string' && x.length >= (opts.min ?? 0) && utf8Bytes(x) <= MAX_STRING_BYTES && (!opts.re || opts.re.test(x)) ? x : NO;
+  typeof x === 'string' && x.length >= (opts.min ?? 0) && utf8Bytes(x) <= MAX_STRING_BYTES && wellFormed(x)
+    && (!opts.re || opts.re.test(x)) ? x : NO;
 const oneOf = <T extends string>(values: readonly T[]): Check<T> => (x) => (typeof x === 'string' && (values as readonly string[]).includes(x) ? x as T : NO);
 const lit = <T>(v: T): Check<T> => (x) => (x === v ? v : NO);
 const bool: Check<boolean> = (x) => (typeof x === 'boolean' ? x : NO);
@@ -187,12 +200,17 @@ const sha256 = str({ re: SHA256_RE });
 const text = str();
 const nonEmpty = str({ min: 1 });
 
-/** A relative output path: forward slashes, no empty, `.` or `..` segment, no NUL, no drive or leading slash. */
+const RESERVED_NAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
+/**
+ * A relative output path that is safe on Windows and POSIX: forward slashes only; no empty segment;
+ * no `:` (drives, NTFS streams), backslash or control character; no Windows device name (CON, NUL,
+ * COM1, LPT1, … with or without an extension); no segment ending in `.` or a space (so no `.`/`..`).
+ */
 const relPath: Check<string> = (x) => {
   const s = str({ min: 1 })(x);
   if (s === NO) return NO;
-  if (s.includes('\0') || s.includes('\\') || s.startsWith('/') || /^[A-Za-z]:/.test(s)) return NO;
-  return s.split('/').every((seg) => seg !== '' && seg !== '.' && seg !== '..') ? s : NO;
+  if (/[\x00-\x1f\x7f:\\]/.test(s) || s.startsWith('/')) return NO;
+  return s.split('/').every((seg) => seg !== '' && !RESERVED_NAME.test(seg) && !/[. ]$/.test(seg)) ? s : NO;
 };
 
 const labels: Check<Record<string, string>> = (x) => {
@@ -228,7 +246,7 @@ function boundedJson(x: unknown): unknown | NoT {
     const keys = plainKeys(v); if (!keys || keys.length > MAX_RECORD_KEYS) return NO;
     const out: Record<string, unknown> = {};
     for (const k of keys) {
-      if (k === '__proto__' || utf8Bytes(k) > MAX_STRING_BYTES) return NO;
+      if (k === '__proto__' || text(k) === NO) return NO;
       const c = walk((v as Record<string, unknown>)[k], depth + 1); if (c === NO) return NO;
       setProp(out, k, c);
     }
@@ -260,10 +278,21 @@ const observed = obj<Partial<PreflightObserved>>({}, {
   capDrop: arr(text), capAdd: arr(text), privileged: bool, user: text, securityOpt: arr(text),
   mounts: arr(obj({ dst: text, rw: bool, type: text })), portBindings: arr(text), tmpfs: arr(text), devices: arr(text)
 });
+const OBSERVED_KEYS: (keyof PreflightObserved)[] = ['nanoCpus', 'memory', 'memorySwap', 'pidsLimit', 'networkMode', 'readonlyRootfs',
+  'capDrop', 'capAdd', 'privileged', 'user', 'securityOpt', 'mounts', 'portBindings', 'tmpfs', 'devices'];
 const preflight: Check<ReportedPreflight> = (x) => {
   const r = obj<ReportedPreflight>({ ok: bool, observed, problems: arr(text) })(x);
   if (r === NO) return NO;
-  return r.ok === (r.problems.length === 0) ? r : NO;              // ok is exactly "no problems"
+  if (r.ok !== (r.problems.length === 0)) return NO;              // ok is exactly "no problems"
+  if (r.ok && !OBSERVED_KEYS.every((k) => Object.prototype.hasOwnProperty.call(r.observed, k))) return NO;   // a pass shows all it saw
+  return r;
+};
+/** A container exists only with its preflight report, and a report exists only for a container. */
+const provisioned: Check<RunnerToMain> = (x) => {
+  const m = obj<Extract<RunnerToMain, { op: 'attempt.provisioned' }>>({ op: lit('attempt.provisioned'), attemptId: ulid },
+    { containerId: str({ re: CONTAINER_ID_RE }), imageDigest: str({ re: DIGEST_RE }), preflight })(x);
+  if (m === NO) return NO;
+  return (m.containerId === undefined) === (m.preflight === undefined) ? m : NO;
 };
 
 const progressEvent: Check<ProgressEvent> = (x) => {
@@ -295,8 +324,7 @@ const PARSERS: Record<RunnerOp, Check<RunnerToMain>> = {
   'ready': msg({ op: lit('ready'), bootId: ulid }),
   'probe.result': msg({ op: lit('probe.result'), probe, images: arr(imageStatus), freeBytes: nullable(count),
     runtimes: arr(obj({ kind: runtimeKind, health: runtimeHealth })) }),
-  'attempt.provisioned': msg({ op: lit('attempt.provisioned'), attemptId: ulid },
-    { containerId: str({ re: CONTAINER_ID_RE }), imageDigest: str({ re: DIGEST_RE }), preflight }),
+  'attempt.provisioned': provisioned,
   'attempt.refused': msg({ op: lit('attempt.refused'), attemptId: ulid, reason: oneOf(REFUSAL_REASONS) }, { detail: text }),
   'attempt.event': msg({ op: lit('attempt.event'), attemptId: ulid, seq: count, event: progressEvent }),
   'attempt.heartbeat': msg({ op: lit('attempt.heartbeat'), attemptId: ulid, at: count, logBytes: count, outBytes: count },
