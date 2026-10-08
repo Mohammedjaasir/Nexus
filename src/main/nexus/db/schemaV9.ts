@@ -3,9 +3,10 @@
  * index (blobs, version_blobs), the producing attempt of each ingested version
  * (version_attempts), validator results, approvals, image builds, local dev deployments,
  * their state vocabularies as lookup tables, four lineage relation rows (D12), seven
- * indexes on v7 tables used by the execution core, and two backstop triggers on the v7
- * jobs table (constraint 4: a tool or validate job completes only with a succeeded
- * attempt; no job ends while an attempt is live). Additive only: every statement is
+ * indexes on v7 tables used by the execution core, and three backstop triggers on the v7
+ * jobs table (constraint 4: a tool or validate job completes only when its current
+ * attempt succeeded; the attempt count never decreases; no job ends or goes back to
+ * waiting while an attempt is live). Additive only: every statement is
  * CREATE ... IF NOT EXISTS or INSERT OR IGNORE; nothing in v1-v8 is altered and no FK
  * is added to a v1-v8 table.
  *
@@ -187,6 +188,8 @@ BEGIN
     WHERE NEW.approval_id IS NOT NULL AND (SELECT project_id FROM approvals WHERE id = NEW.approval_id) IS NOT NEW.project_id;
   SELECT RAISE(ABORT, 'a job event names the project of its deployment')
     WHERE NEW.deployment_id IS NOT NULL AND (SELECT project_id FROM deployments WHERE id = NEW.deployment_id) IS NOT NEW.project_id;
+  SELECT RAISE(ABORT, 'an event without a job, approval or deployment names no project')
+    WHERE NEW.project_id IS NOT NULL AND NEW.job_id IS NULL AND NEW.approval_id IS NULL AND NEW.deployment_id IS NULL;
 END;
 CREATE TRIGGER IF NOT EXISTS tr_job_events_no_update BEFORE UPDATE ON job_events
 BEGIN SELECT RAISE(ABORT, 'job events are append-only'); END;
@@ -436,15 +439,22 @@ BEGIN SELECT RAISE(ABORT, 'deployments are never deleted'); END;
 
 -- ===== execution backstops on the v7 jobs table (additive triggers; constraint 4) =====
 CREATE TRIGGER IF NOT EXISTS tr_jobs_completed_needs_attempt BEFORE UPDATE OF state ON jobs
-WHEN NEW.state IS NOT OLD.state AND NEW.state = 'completed' AND NEW.kind IN ('tool.run','validate')
+WHEN NEW.state IS NOT OLD.state AND NEW.state IN ('completed','partial') AND NEW.kind IN ('tool.run','validate')
 BEGIN
-  SELECT RAISE(ABORT, 'a tool or validate job completes only with a succeeded attempt')
-    WHERE NOT EXISTS (SELECT 1 FROM job_attempts a WHERE a.job_id = NEW.id AND a.state = 'succeeded');
+  SELECT RAISE(ABORT, 'a tool or validate job completes only when its current attempt succeeded')
+    WHERE NEW.state = 'completed' AND NOT EXISTS (SELECT 1 FROM job_attempts a
+      WHERE a.job_id = NEW.id AND a.n = NEW.attempts AND a.state = 'succeeded');
+  SELECT RAISE(ABORT, 'a tool or validate job ends partial only when its current attempt finished')
+    WHERE NEW.state = 'partial' AND NOT EXISTS (SELECT 1 FROM job_attempts a
+      WHERE a.job_id = NEW.id AND a.n = NEW.attempts AND a.state IN ('succeeded','failed'));
 END;
+CREATE TRIGGER IF NOT EXISTS tr_jobs_attempts_monotonic BEFORE UPDATE OF attempts ON jobs
+WHEN NEW.attempts < OLD.attempts
+BEGIN SELECT RAISE(ABORT, 'a job attempt count never decreases'); END;
 CREATE TRIGGER IF NOT EXISTS tr_jobs_end_after_attempts BEFORE UPDATE OF state ON jobs
-WHEN NEW.state IS NOT OLD.state AND NEW.state IN ('completed','partial','failed','cancelled','timed_out','interrupted')
+WHEN NEW.state IS NOT OLD.state AND NEW.state IN ('queued','retry_scheduled','completed','partial','failed','cancelled','timed_out','interrupted')
 BEGIN
-  SELECT RAISE(ABORT, 'a job ends only after its live attempt has ended')
+  SELECT RAISE(ABORT, 'a job ends or goes back to waiting only after its live attempt has ended')
     WHERE EXISTS (SELECT 1 FROM job_attempts a WHERE a.job_id = NEW.id AND a.state IN ('starting','running'));
 END;
 
@@ -504,7 +514,7 @@ export const V9_EXPECTED: { tables: Record<string, string[]>; indexes: string[];
     'tr_validations_insert', 'tr_validations_no_update', 'tr_validations_no_delete',
     'tr_approvals_insert', 'tr_approvals_transition', 'tr_approvals_once', 'tr_approvals_no_delete',
     'tr_deployments_insert', 'tr_deployments_transition', 'tr_deployments_identity', 'tr_deployments_no_delete',
-    'tr_jobs_completed_needs_attempt', 'tr_jobs_end_after_attempts'
+    'tr_jobs_completed_needs_attempt', 'tr_jobs_attempts_monotonic', 'tr_jobs_end_after_attempts'
   ]
 };
 

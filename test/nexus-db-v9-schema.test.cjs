@@ -20,7 +20,7 @@ test('v9 objects: 15 tables, the parsed index and trigger lists, seeds, clean sh
   const db = v8db();
   db.transaction(() => applyV9(db, ctx()))();
   assert.equal(Object.keys(V9_EXPECTED.tables).length, 15);
-  assert.equal(V9_EXPECTED.indexes.length, 23); assert.equal(V9_EXPECTED.triggers.length, 32);
+  assert.equal(V9_EXPECTED.indexes.length, 23); assert.equal(V9_EXPECTED.triggers.length, 33);
   for (const t of Object.keys(V9_EXPECTED.tables)) assert.ok(names(db, 'table').includes(t), t);
   for (const i of V9_EXPECTED.indexes) assert.ok(names(db, 'index').includes(i), i);
   for (const t of V9_EXPECTED.triggers) assert.ok(names(db, 'trigger').includes(t), t);
@@ -60,7 +60,7 @@ test('the generic parser finds exactly the v9 objects; the DDL is additive and k
   for (const n of ['ix_jobs_sched', 'ix_jobs_retry_due', 'ix_jobs_parent']) assert.equal(on(n), 'jobs', n);
   for (const n of ['ux_versions_job_path', 'ix_versions_job', 'ix_versions_hash']) assert.equal(on(n), 'artifact_versions', n);
   assert.equal(on('ux_repository_per_project'), 'artifacts');
-  for (const n of ['tr_jobs_completed_needs_attempt', 'tr_jobs_end_after_attempts']) assert.equal(on(n), 'jobs', n);
+  for (const n of ['tr_jobs_completed_needs_attempt', 'tr_jobs_attempts_monotonic', 'tr_jobs_end_after_attempts']) assert.equal(on(n), 'jobs', n);
   assert.match(objs.find((o) => o.name === 'ux_attempts_live').sql, /WHERE state IN\('starting','running'\)$/);
   assert.match(objs.find((o) => o.name === 'ux_deployments_port_live').sql, /WHERE host_port IS NOT NULL AND status IN\('starting','healthy','unhealthy'\)$/);
   assert.match(objs.find((o) => o.name === 'ux_versions_job_path').sql, /WHERE output_path IS NOT NULL$/);
@@ -502,8 +502,14 @@ test('F3: a job event names the project of its approval and deployment, and an e
   const build = prepareApproval(db);
   assert.throws(() => insEvent(db, { job_id: null, approval_id: build, project_id: 'p-ledger', type: 'approval' }), /a job event names the project of its approval/);
   assert.throws(() => insEvent(db, { job_id: null, approval_id: 'ap-none', project_id: null, type: 'approval' }), /FOREIGN KEY constraint failed/);
-  // An image build has no project; a made-up project id is refused by the projects FK.
+  // An image build has no project: an event naming only the build names no project (fix round 2, N3).
   approve(db, build); consume(db, build); insBuild(db, build, { id: 'ib-f3' });
+  for (const p of ['p-nope', 'p-ledger']) {
+    assert.throws(() => insEvent(db, { job_id: null, image_build_id: 'ib-f3', project_id: p, type: 'image_build' }),
+      /an event without a job, approval or deployment names no project/, p);
+  }
+  // The projects FK stays as the backstop beneath the triggers.
+  db.exec('DROP TRIGGER tr_job_events_insert');   // temp copy only
   assert.throws(() => insEvent(db, { job_id: null, image_build_id: 'ib-f3', project_id: 'p-nope', type: 'image_build' }), /FOREIGN KEY constraint failed/);
   insEvent(db, { job_id: null, image_build_id: 'ib-f3', project_id: null, type: 'image_build', summary: 'image prepared' });
   assert.deepEqual(db.pragma('foreign_key_check'), []);
@@ -561,7 +567,7 @@ test('F8: running or succeeded attempts record their sandbox and environment', (
 });
 test('F9: a tool.run or validate job completes only with a succeeded attempt; agent.run and ingest jobs are unaffected', () => {
   const { db, ...w } = world();
-  const re = /a tool or validate job completes only with a succeeded attempt/;
+  const re = /a tool or validate job completes only when its current attempt succeeded/;
   jobTo(db, 'j-1', 'leased'); jobTo(db, 'j-1', 'running');
   assert.throws(() => jobTo(db, 'j-1', 'completed'), re, 'no attempt');
   insJob(db, w, 'j-ok'); lease(db, 'j-ok', 1);
@@ -581,19 +587,23 @@ test('F9: a tool.run or validate job completes only with a succeeded attempt; ag
   for (const st of ['leased', 'running', 'completed']) jobTo(db, 'j-agent', st);
   insJob(db, w, 'j-ingest', { kind: 'ingest' });
   for (const st of ['leased', 'running', 'completed']) jobTo(db, 'j-ingest', st);
-  // a tool job may still end partial, failed or cancelled without a succeeded attempt.
-  insJob(db, w, 'j-partial'); for (const st of ['leased', 'running', 'partial']) jobTo(db, 'j-partial', st);
+  // a tool job may still end partial after a failed current attempt.
+  insJob(db, w, 'j-partial'); lease(db, 'j-partial', 1);
+  const pa = insAttempt(db, { job_id: 'j-partial' }); runAttempt(db, pa); jobTo(db, 'j-partial', 'running');
+  setAttempt(db, pa, "state = 'failed', finished_at = ?", T0 + 2);
+  jobTo(db, 'j-partial', 'partial');
   assert.deepEqual(db.prepare("SELECT id, state FROM jobs WHERE id IN ('j-good','j-agent','j-ingest','j-partial') ORDER BY id").all().map((r) => `${r.id}:${r.state}`),
     ['j-agent:completed', 'j-good:completed', 'j-ingest:completed', 'j-partial:partial']);
 });
 test('F10: no job reaches a terminal state while one of its attempts is live', () => {
   const { db, ...w } = world();
-  const re = /a job ends only after its live attempt has ended/;
+  const re = /a job ends or goes back to waiting only after its live attempt has ended/;
   lease(db, 'j-1', 1); const a = insAttempt(db);
   assert.throws(() => jobTo(db, 'j-1', 'cancelled'), re, 'starting attempt');
   assert.throws(() => jobTo(db, 'j-1', 'interrupted'), re, 'starting attempt');
   runAttempt(db, a); jobTo(db, 'j-1', 'running');
-  for (const st of ['failed', 'timed_out', 'partial', 'cancelled', 'interrupted']) assert.throws(() => jobTo(db, 'j-1', st), re, st);
+  for (const st of ['failed', 'timed_out', 'cancelled', 'interrupted']) assert.throws(() => jobTo(db, 'j-1', st), re, st);
+  assert.throws(() => jobTo(db, 'j-1', 'partial'), /only after its live attempt has ended|ends partial only when its current attempt finished/);
   setAttempt(db, a, "state = 'abandoned', finished_at = ?", T0 + 3);
   jobTo(db, 'j-1', 'interrupted');
   // non-terminal moves are not affected
@@ -648,4 +658,70 @@ test('F13: stopped_by is recorded exactly when a deployment is stopped', () => {
     /CHECK constraint failed/, 'a failure is not a stop');
   db.prepare("UPDATE deployments SET status = 'failed', stop_reason = 'exited', stopped_at = ? WHERE id = ?").run(T0 + 1, f);
   assert.equal(db.prepare('SELECT stopped_by FROM deployments WHERE id = ?').get(d).stopped_by, 'system');
+});
+
+// ---------- fix round 2: the backstop counts only the current attempt ----------
+
+test('G1: after a retry, an old succeeded attempt does not let the job complete (reviewer probe)', () => {
+  const { db } = world();
+  const re = /a tool or validate job completes only when its current attempt succeeded/;
+  lease(db, 'j-1', 1); const a = insAttempt(db); runAttempt(db, a); jobTo(db, 'j-1', 'running'); succeedAttempt(db, a);
+  jobTo(db, 'j-1', 'failed'); jobTo(db, 'j-1', 'retry_scheduled'); jobTo(db, 'j-1', 'queued');
+  lease(db, 'j-1', 2); jobTo(db, 'j-1', 'running');               // attempt 2 never inserted
+  assert.throws(() => jobTo(db, 'j-1', 'completed'), re);
+  assert.throws(() => db.prepare("UPDATE jobs SET state = 'completed', attempts = 1 WHERE id = 'j-1'").run(),
+    /a job attempt count never decreases|completes only when its current attempt succeeded/);
+  assert.throws(() => db.prepare("UPDATE jobs SET attempts = 1 WHERE id = 'j-1'").run(), /a job attempt count never decreases/);
+  assert.throws(() => db.prepare("UPDATE jobs SET state = 'completed', attempts = 3 WHERE id = 'j-1'").run(), re, 'a count with no attempt behind it');
+  assert.throws(() => jobTo(db, 'j-1', 'partial'), /a tool or validate job ends partial only when its current attempt finished/);
+  assert.equal(db.prepare("SELECT state, attempts FROM jobs WHERE id = 'j-1'").get().state, 'running');
+});
+test('G2: the retry path completes once its current attempt succeeds', () => {
+  const { db } = world();
+  lease(db, 'j-1', 1); const a = insAttempt(db); runAttempt(db, a); jobTo(db, 'j-1', 'running');
+  setAttempt(db, a, "state = 'failed', finished_at = ?", T0 + 2);
+  jobTo(db, 'j-1', 'failed'); jobTo(db, 'j-1', 'retry_scheduled'); jobTo(db, 'j-1', 'queued');
+  db.prepare("UPDATE jobs SET state = 'leased', attempts = attempts + 1 WHERE id = 'j-1'").run();
+  const b = insAttempt(db, { n: 2 }); runAttempt(db, b); jobTo(db, 'j-1', 'running');
+  assert.throws(() => jobTo(db, 'j-1', 'completed'), /only after its live attempt has ended|current attempt succeeded/, 'attempt 2 still running');
+  succeedAttempt(db, b);
+  jobTo(db, 'j-1', 'completed');
+  assert.deepEqual({ ...db.prepare("SELECT state, attempts FROM jobs WHERE id = 'j-1'").get() }, { state: 'completed', attempts: 2 });
+});
+test('G3: partial needs a finished current attempt (succeeded or failed); agent.run and ingest can still end partial', () => {
+  const { db, ...w } = world();
+  const re = /a tool or validate job ends partial only when its current attempt finished/;
+  jobTo(db, 'j-1', 'leased'); jobTo(db, 'j-1', 'running');
+  assert.throws(() => jobTo(db, 'j-1', 'partial'), re, 'no attempt');
+  insJob(db, w, 'j-ab'); lease(db, 'j-ab', 1); const ab = insAttempt(db, { job_id: 'j-ab' }); runAttempt(db, ab); jobTo(db, 'j-ab', 'running');
+  setAttempt(db, ab, "state = 'abandoned', finished_at = ?", T0 + 2);
+  assert.throws(() => jobTo(db, 'j-ab', 'partial'), re, 'an abandoned attempt is not a finished one');
+  insJob(db, w, 'j-ok'); lease(db, 'j-ok', 1); const ok = insAttempt(db, { job_id: 'j-ok' }); runAttempt(db, ok); jobTo(db, 'j-ok', 'running');
+  succeedAttempt(db, ok); jobTo(db, 'j-ok', 'partial');
+  insJob(db, w, 'j-val', { kind: 'validate' }); jobTo(db, 'j-val', 'leased'); jobTo(db, 'j-val', 'running');
+  assert.throws(() => jobTo(db, 'j-val', 'partial'), re, 'validate job');
+  insSession(db, w);
+  insJob(db, w, 'j-agent', { kind: 'agent.run', session_id: 's-1' });
+  for (const st of ['leased', 'running', 'partial']) jobTo(db, 'j-agent', st);
+  insJob(db, w, 'j-ingest', { kind: 'ingest' });
+  for (const st of ['leased', 'running', 'partial']) jobTo(db, 'j-ingest', st);
+});
+test('G4: a live attempt blocks a move back to queued or retry_scheduled; cancel from queued still works', () => {
+  const { db, ...w } = world();
+  const re = /a job ends or goes back to waiting only after its live attempt has ended/;
+  lease(db, 'j-1', 1); const a = insAttempt(db);
+  assert.throws(() => jobTo(db, 'j-1', 'queued'), re, 'leased -> queued with a starting attempt');
+  runAttempt(db, a); jobTo(db, 'j-1', 'running');
+  setAttempt(db, a, "state = 'failed', finished_at = ?", T0 + 2);
+  jobTo(db, 'j-1', 'failed');
+  jobTo(db, 'j-1', 'retry_scheduled');
+  // A job released before any attempt goes back to queued as in B0b.
+  insJob(db, w, 'j-rel'); jobTo(db, 'j-rel', 'leased'); jobTo(db, 'j-rel', 'queued');
+  // cancel from queued, with and without earlier attempts.
+  insJob(db, w, 'j-q'); jobTo(db, 'j-q', 'cancelled');
+  jobTo(db, 'j-1', 'queued'); jobTo(db, 'j-1', 'cancelled');
+  insSession(db, w);
+  insJob(db, w, 'j-agent', { kind: 'agent.run', session_id: 's-1' }); jobTo(db, 'j-agent', 'cancelled');
+  assert.deepEqual(db.prepare("SELECT id, state FROM jobs WHERE id IN ('j-1','j-rel','j-q','j-agent') ORDER BY id").all().map((r) => `${r.id}:${r.state}`),
+    ['j-1:cancelled', 'j-agent:cancelled', 'j-q:cancelled', 'j-rel:queued']);
 });
