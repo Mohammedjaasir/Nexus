@@ -148,7 +148,6 @@ export class TaskRouter {
       roleId: winner.role.roleId,
       domainId: winner.role.domainId,
       title: winner.role.title,
-      character: winner.role.character,
       systemPromptPreamble: winner.role.contextStrategy.systemPromptPreamble,
       recommendedSkills: winner.role.recommendedSkills,
       recommendedTools: winner.role.recommendedTools,

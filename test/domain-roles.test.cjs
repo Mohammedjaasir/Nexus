@@ -73,7 +73,7 @@ test('2. Role Schema data-driven validation', () => {
     assert.ok(role.domainId, 'Role must have domainId');
     assert.ok(role.title, 'Role must have title');
     assert.ok(role.description, 'Role must have description');
-    assert.ok(role.character, 'Role must have character representation');
+    assert.ok(!('character' in role), 'Role must not carry a character field');
     assert.ok(role.preferredProvider, 'Role must have preferredProvider');
     assert.ok(Array.isArray(role.recommendedSkills), 'Role must have recommendedSkills array');
     assert.ok(Array.isArray(role.recommendedTools), 'Role must have recommendedTools array');

@@ -37,24 +37,18 @@ test('HQ Domain Registry: All 12 initial domains exist with complete metadata', 
     assert.ok(dom, `Domain ${id} must exist`);
     assert.equal(dom.id, id);
     assert.ok(dom.name, `Domain ${id} must have a name`);
-    assert.ok(dom.departmentName, `Domain ${id} must have a departmentName`);
-    assert.ok(dom.departmentRoom, `Domain ${id} must have a departmentRoom`);
+    assert.ok(!('departmentName' in dom), `Domain ${id} must not carry a departmentName`);
+    assert.ok(!('departmentRoom' in dom), `Domain ${id} must not carry a departmentRoom`);
     assert.ok(dom.badgeColor, `Domain ${id} must have a badgeColor`);
-    assert.ok(dom.leadCharacter, `Domain ${id} must have a leadCharacter`);
+    assert.ok(!('leadCharacter' in dom), `Domain ${id} must not carry a leadCharacter`);
     assert.ok(dom.agentRoles.length > 0, `Domain ${id} must have specialist roles`);
   }
 });
 
-test('HQ Specialist Character Mapping: All roles map to valid Office characters', () => {
-  const validCast = [
-    'michael', 'jim', 'pam', 'dwight', 'kevin', 'angela',
-    'oscar', 'stanley', 'phyllis', 'andy', 'kelly', 'ryan',
-    'toby', 'creed', 'meredith'
-  ];
-
+test('HQ Specialist Roles: roles carry no persona field', () => {
   for (const [domId, dom] of Object.entries(INITIAL_DOMAINS)) {
     for (const role of dom.agentRoles) {
-      assert.ok(validCast.includes(role.character), `Role ${role.roleId} has invalid character: ${role.character}`);
+      assert.ok(!('character' in role), `Role ${role.roleId} must not carry a character`);
       assert.ok(role.title, `Role ${role.roleId} must have a title`);
       assert.ok(role.capabilities.length > 0, `Role ${role.roleId} must have capabilities`);
       assert.ok(role.verificationRules.length > 0, `Role ${role.roleId} must have verification rules`);

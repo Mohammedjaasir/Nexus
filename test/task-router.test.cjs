@@ -177,7 +177,7 @@ test('8. Role contextStrategy & preparedConfig are returned', () => {
 
   assert.ok(res.preparedConfig);
   assert.equal(res.preparedConfig.roleId, 'sde-planner');
-  assert.equal(res.preparedConfig.character, 'michael');
+  assert.equal('character' in res.preparedConfig, false);
   assert.ok(res.preparedConfig.recommendedTools.includes('Read'));
 });
 

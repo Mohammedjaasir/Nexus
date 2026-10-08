@@ -15,7 +15,6 @@ export interface PreparedAgentConfig {
   roleId: string;
   domainId: string;
   title: string;
-  character: string;
   systemPromptPreamble: string;
   recommendedSkills: string[];
   recommendedTools: string[];
