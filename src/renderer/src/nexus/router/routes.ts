@@ -6,6 +6,7 @@ export type ProjectTool = (typeof PROJECT_TOOLS)[number];
 
 export type Route =
   | { name: 'home' }
+  | { name: 'welcome' }
   | { name: 'browse' }
   | { name: 'workspaces' }
   | { name: 'workspace'; id: WorkspaceId }
@@ -17,7 +18,7 @@ export type Route =
   | { name: 'agents' }
   | { name: 'not-found'; path: string };
 
-const SIMPLE = ['browse', 'workspaces', 'projects', 'artifacts', 'handoffs', 'deployments', 'agents'] as const;
+const SIMPLE = ['welcome', 'browse', 'workspaces', 'projects', 'artifacts', 'handoffs', 'deployments', 'agents'] as const;
 
 /** Pages with an optional record id: `#/artifacts/<id>`, `#/handoffs/<id>`. */
 const WITH_ID = ['artifacts', 'handoffs'] as const;
@@ -73,7 +74,7 @@ export function formatRoute(r: Route): string {
 }
 
 const TITLES: Record<string, string> = {
-  home: 'Home', browse: 'Environments', workspaces: 'Workspaces', projects: 'Projects', project: 'Project',
+  home: 'Home', welcome: 'Welcome', browse: 'Environments', workspaces: 'Workspaces', projects: 'Projects', project: 'Project',
   artifacts: 'Artifacts', handoffs: 'Handoffs', deployments: 'Deployments', agents: 'Agents', 'not-found': 'Not found'
 };
 

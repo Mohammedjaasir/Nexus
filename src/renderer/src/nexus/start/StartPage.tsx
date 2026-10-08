@@ -36,7 +36,12 @@ export function StartPage() {
   const setLast = useNexusUi((s) => s.setLastWorkspace);
   const port = useAssistant();
 
-  const [text, setText] = useState('');
+  // A request carried over from Welcome is taken once, then cleared.
+  const [text, setText] = useState(() => {
+    const carried = useNexusUi.getState().startPrefill;
+    if (carried) useNexusUi.getState().setStartPrefill(null);
+    return carried ?? '';
+  });
   const [picked, setPicked] = useState<string | null>(null);
   const [pick, setPick] = useState<ProjectPick>({ kind: 'auto' });
   const [busy, setBusy] = useState(false);

@@ -17,6 +17,9 @@ interface NexusUi {
   setupDismissed: boolean;
   dismissSetup: () => void;
   draft: string;
+  /** A request carried over to Start (from Welcome); Start takes it once (not persisted). */
+  startPrefill: string | null;
+  setStartPrefill: (s: string | null) => void;
   setDraft: (s: string) => void;
   /** Requests sent from the intent line this session (not persisted). */
   requests: SentRequest[];
@@ -50,6 +53,8 @@ export const useNexusUi = create<NexusUi>((set) => ({
   setupDismissed: readPref(storage, 'setupDismissed') === '1',
   dismissSetup: () => { writePref(storage, 'setupDismissed', '1'); set({ setupDismissed: true }); },
   draft: '',
+  startPrefill: null,
+  setStartPrefill: (s) => set({ startPrefill: s }),
   setDraft: (s) => set({ draft: s }),
   requests: [],
   addRequest: (r) => set((s) => ({ requests: [...s.requests, r] })),

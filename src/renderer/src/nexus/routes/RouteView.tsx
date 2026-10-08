@@ -11,6 +11,7 @@ import { ProjectBench } from '../project/ProjectBench';
 import { PlannedPage } from '../pages/PlannedPage';
 import { ArtifactsPage } from '../pages/ArtifactsPage';
 import { HandoffsPage } from '../pages/HandoffsPage';
+import { WelcomePage } from '../pages/WelcomePage';
 import { LauncherPage } from '../launcher/LauncherPage';
 import { StartPage } from '../start/StartPage';
 
@@ -36,6 +37,7 @@ export function RouteView({ config }: { config: HarnessConfig }) {
     case 'handoffs': page = <HandoffsPage id={route.id ?? null} />; break;
     case 'deployments': page = <PlannedPage which="deployments" />; break;
     case 'home': page = <StartPage />; break;
+    case 'welcome': page = <WelcomePage />; break;
     case 'browse': page = <LauncherPage />; break;
   }
   return <main ref={mainRef} className={`nx-main${route.name === 'agents' || route.name === 'project' ? ' nx-main--flush' : ''}`} id="nx-main" tabIndex={-1}>{page}</main>;

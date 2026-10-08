@@ -16,6 +16,7 @@ test('parseHash: every route', () => {
   assert.deepEqual(parseHash('#/handoffs'), { name: 'handoffs' });
   assert.deepEqual(parseHash('#/deployments'), { name: 'deployments' });
   assert.deepEqual(parseHash('#/agents'), { name: 'agents' });
+  assert.deepEqual(parseHash('#/welcome'), { name: 'welcome' });
 });
 
 test('parseHash: tolerant of trailing slashes and missing leading slash', () => {
@@ -34,7 +35,7 @@ test('ids are URL-decoded and round-trip through formatRoute', () => {
   assert.deepEqual(parseHash('#/p/a%2Fb%20c'), { name: 'project', id: 'a/b c', tool: 'bench' });
   const routes = [
     { name: 'home' }, { name: 'workspaces' }, { name: 'workspace', id: 'uiux' }, { name: 'projects' },
-    { name: 'project', id: 'a/b c', tool: 'bench' }, { name: 'artifacts' }, { name: 'handoffs' }, { name: 'deployments' }, { name: 'agents' }
+    { name: 'project', id: 'a/b c', tool: 'bench' }, { name: 'artifacts' }, { name: 'handoffs' }, { name: 'deployments' }, { name: 'agents' }, { name: 'welcome' }
   ];
   for (const r of routes) assert.deepEqual(parseHash(formatRoute(r)), r);
   assert.equal(formatRoute({ name: 'home' }), '#/');
