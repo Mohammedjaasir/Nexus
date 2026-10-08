@@ -528,9 +528,12 @@ export interface HandoffStart {
   versionNo: number;
 }
 
-/** Whether a "Hand off…" control renders: platform writes on, handoffs known to be on, and the version allows it. */
-export function canHandOff(allowed: readonly { kind: string }[], canWrite: boolean, handoffsAvailable: boolean | null): boolean {
-  return canWrite && handoffsAvailable === true && allowed.some((a) => a.kind === 'handoff');
+/**
+ * Whether a "Hand off…" control renders: platform writes on, handoffs known to be on, the version allows it, and
+ * the project has at least one other active participation to receive it (`hasReceiver`, from `toChoices`).
+ */
+export function canHandOff(allowed: readonly { kind: string }[], canWrite: boolean, handoffsAvailable: boolean | null, hasReceiver: boolean): boolean {
+  return canWrite && handoffsAvailable === true && hasReceiver && allowed.some((a) => a.kind === 'handoff');
 }
 
 export interface ParticipationChoice { participationId: string; workspaceId: string; label: string; hueSlot: number | null }
@@ -553,6 +556,11 @@ export function toChoices(idx: ParticipationIndex, projectId: string, fromPartic
   return activeWorkspacesOf(idx, projectId).map((x) => x.row)
     .filter((r) => r.id !== fromParticipationId && r.projectId === projectId)
     .map(choiceOf);
+}
+
+/** Whether a send from this participation has anyone to go to: the same `toChoices` the send sheet offers. */
+export function hasReceiver(idx: ParticipationIndex, projectId: string, fromParticipationId: string): boolean {
+  return toChoices(idx, projectId, fromParticipationId).length > 0;
 }
 
 /** The sender's artifacts whose versions the sheet reads: owned by the sending participation, not archived, with versions. */

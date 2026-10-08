@@ -223,7 +223,7 @@ export class HandoffService {
     const now = this.deps.now();
     return immediateTx(this.db, () => {
       const h = this.row(stored.id)!;
-      if (h.status !== 'sent') throw new PlatformError('illegal_transition', `cannot accept a ${h.status} handoff`, { handoffId: h.id });
+      if (h.status !== 'sent') throw new PlatformError('illegal_transition', `cannot accept a handoff that is already ${h.status}`, { handoffId: h.id });
       const to = this.participation(h.to_participation_id)!;
       if (to.status !== 'active') throw new PlatformError('participation_inactive', 'the receiving participation is not active');
       const subjects = this.subjects(h.id);
@@ -270,7 +270,7 @@ export class HandoffService {
     const now = this.deps.now();
     return immediateTx(this.db, () => {
       const h = this.row(stored.id)!;
-      if (h.status !== 'sent') throw new PlatformError('illegal_transition', `cannot decline a ${h.status} handoff`, { handoffId: h.id });
+      if (h.status !== 'sent') throw new PlatformError('illegal_transition', `cannot decline a handoff that is already ${h.status}`, { handoffId: h.id });
       const moved = this.db.prepare(`UPDATE handoffs SET status = 'declined', responded_by = ?, responded_at = ?, response_note = ?,
           updated_at = ?, status_changed_at = ? WHERE id = ? AND status = 'sent'`).run(p.id, now, responseNote, now, now, h.id);
       if (moved.changes !== 1) throw new PlatformError('conflict', 'the handoff changed during decline', { handoffId: h.id });
@@ -288,7 +288,7 @@ export class HandoffService {
     const now = this.deps.now();
     return immediateTx(this.db, () => {
       const h = this.row(stored.id)!;
-      if (h.status !== 'sent') throw new PlatformError('illegal_transition', `cannot withdraw a ${h.status} handoff`, { handoffId: h.id });
+      if (h.status !== 'sent') throw new PlatformError('illegal_transition', `cannot withdraw a handoff that is already ${h.status}`, { handoffId: h.id });
       // No one answered: the answer fields stay empty.
       const moved = this.db.prepare(`UPDATE handoffs SET status = 'withdrawn', updated_at = ?, status_changed_at = ?
           WHERE id = ? AND status = 'sent'`).run(now, now, h.id);

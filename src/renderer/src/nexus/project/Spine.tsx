@@ -1,14 +1,16 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react';
 import type { SpineGroup, SpineLine } from './spineModel';
 import { nodeLabel, tabStopId } from './spineModel';
-import { kindLabel, statusLabel } from './artifactModel';
+import { SPINE_TRUNCATED_TEXT, kindLabel, statusLabel } from './artifactModel';
 import { provenanceStyle } from '../ui/ProvenanceMark';
 
-export function Spine({ groups, selectedId, onSelect, line, onRetryLine, focusRequest, onFocused }: {
+export function Spine({ groups, selectedId, onSelect, line, onRetryLine, truncated = false, focusRequest, onFocused }: {
   groups: SpineGroup[]; selectedId: string; onSelect: (id: string, el?: HTMLElement) => void;
   /** What the line under the nodes says about artifacts (see spineLine). */
   line: SpineLine;
   onRetryLine: () => void;
+  /** The project has more artifacts than the read returned: a note says which are drawn. */
+  truncated?: boolean;
   /** A node to focus once it renders (a freshly saved artifact); cleared through onFocused. */
   focusRequest?: string | null;
   onFocused?: () => void;
@@ -70,6 +72,7 @@ export function Spine({ groups, selectedId, onSelect, line, onRetryLine, focusRe
           </ol>
         </div>
       ))}
+      {truncated && <p className="nx-spine__future" role="status">{SPINE_TRUNCATED_TEXT}</p>}
       {line?.kind === 'empty' && <p className="nx-spine__future">Artifacts this project produces will appear on this line.</p>}
       {line?.kind === 'loading' && <p className="nx-spine__future" role="status">Reading artifacts…</p>}
       {line?.kind === 'error' && (

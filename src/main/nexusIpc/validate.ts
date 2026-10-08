@@ -102,10 +102,6 @@ export const V = {
     if (new Set(out).size !== out.length) throw new RequestError(f, 'must not repeat an id');
     return out;
   },
-  /**
-   * A plain object with exactly these keys: every key not in `optional` is required, and an unknown key
-   * is refused. Returns a null-prototype copy holding only the declared keys.
-   */
   /** Either `{ artifactId }` (append to that artifact) or `{ name }` (a new artifact), never both. */
   saveTarget(x: unknown): { artifactId: string } | { name: string } {
     const o = V.object(x, ['artifactId', 'name'] as const, ['artifactId', 'name'] as const);
@@ -116,6 +112,10 @@ export const V = {
   idOrNull(x: unknown, f: string): string | null {
     return x === null ? null : V.platformId(x, f);
   },
+  /**
+   * A plain object with exactly these keys: every key not in `optional` is required, and an unknown key
+   * is refused. Returns a null-prototype copy holding only the declared keys.
+   */
   object<K extends string>(x: unknown, keys: readonly K[], optional: readonly K[] = []): Record<K, unknown> {
     if (!isPlain(x)) throw new RequestError('request', 'must be an object');
     const own = Reflect.ownKeys(x);

@@ -394,6 +394,19 @@ test('the hint names the matching hold switch: v7 -> NEXUS_DB_HOLD_V8, v6 -> NEX
   assert.match(holdHint(null), /could not be read/);
 });
 
+test('a negative user_version (top bit set in the header) reads like an unreadable one: no schema claimed', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-restore-neg-'));
+  try {
+    const neg = path.join(dir, 'neg.db');
+    fs.writeFileSync(neg, sqliteLike(-1));
+    assert.equal(readUserVersion(neg), -1, 'the header is read as stored (signed, big-endian)');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  for (const v of [-1, -7, -2147483648]) {
+    assert.equal(holdHint(v), holdHint(null), `v=${v}`);
+    assert.doesNotMatch(holdHint(v), /schema v-/);
+  }
+});
+
 for (const [v, want, other] of [[7, 'NEXUS_DB_HOLD_V8', 'NEXUS_DB_HOLD_V7'], [6, 'NEXUS_DB_HOLD_V7', 'NEXUS_DB_HOLD_V8']]) {
   test(`the CLI restores a v${v} backup and prints ${want}=1 (dry run and apply)`, () => {
     const { dir, db, backup, bytes, hash } = versionScene(v);

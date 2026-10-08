@@ -271,7 +271,9 @@ test('pin: the page reads through its hooks only and reuses the artifact Passpor
 test('pin: empty, unavailable, error and not-found states', () => {
   assert.match(page, /<EmptyState level=\{2\} icon="artifacts" title=\{EMPTY_TITLE\} body=\{EMPTY_BODY\}\s*actions=\{<Button variant="primary" icon="projects" onClick=\{\(\) => navigate\(\{ name: 'projects' \}\)\}>Open Projects<\/Button>\} \/>/);
   assert.match(page, /<PlatformNotice \/>/);
-  assert.match(page, /notice\?\.kind === 'unavailable' && <p className="nx-muted" role="status">\{UNAVAILABLE_LIST_TEXT\}<\/p>/);
+  // The PlatformNotice alone explains an unavailable platform: no second sentence under it.
+  assert.doesNotMatch(page, /UNAVAILABLE_LIST_TEXT|notice\?\.kind === 'unavailable' &&/);
+  assert.equal(M.UNAVAILABLE_LIST_TEXT, undefined);
   assert.match(page, /\{notice\.retry && <Button variant="quiet" icon="refresh" onClick=\{list\.reload\}>Try again<\/Button>\}/);
   assert.match(page, /\{stale\.retry && <Button variant="quiet" icon="refresh" onClick=\{list\.reload\}>Try again<\/Button>\}/);
   assert.match(page, /\{d\.retry && <Button variant="quiet" icon="refresh" onClick=\{d\.reload\}>Try again<\/Button>\}/);

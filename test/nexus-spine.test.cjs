@@ -191,7 +191,7 @@ test('pin: the Spine renders artifact nodes from the model, drafts dashed, statu
 
 test('pin: the bench loads the project artifacts and keeps an artifact selection on the bench tool', () => {
   const bench = read('project/ProjectBench.tsx');
-  assert.match(bench, /const \{ artifacts, loaded: artifactsLoaded, error: artifactsError, retry: artifactsRetry, reload: reloadArtifacts \} = useProjectArtifacts\(project\.id\);/);
+  assert.match(bench, /const \{ artifacts, loaded: artifactsLoaded, error: artifactsError, retry: artifactsRetry, truncated: artifactsTruncated, reload: reloadArtifacts \} = useProjectArtifacts\(project\.id\);/);
   assert.match(bench, /buildSpine\(\{ idx, projectId: project\.id, git, artifacts \}\)/);
   assert.match(bench, /setSelected\(\(s\) => \(s === 'changes' \? 'source' : s\)\)/);
   assert.match(bench, /setSelected\(`artifact:\$\{artifactId\}`\)/);
@@ -250,7 +250,8 @@ test('pin: the Spine draws the loading and error lines, Try again re-runs the re
   assert.match(s, /const el = refs\.current\.get\(focusRequest\);\s*if \(el && el\.isConnected\) \{ el\.focus\(\); onFocused\?\.\(\); \}/);
   const bench = read('project/ProjectBench.tsx');
   assert.match(bench, /const line = spineLine\(\{ loaded: artifactsLoaded, error: artifactsError, retry: artifactsRetry \}, groups\);/);
-  assert.match(bench, /line=\{line\} onRetryLine=\{reloadArtifacts\} focusRequest=\{focusRequest\} onFocused=\{focused\}/);
+  assert.match(bench, /line=\{line\} onRetryLine=\{reloadArtifacts\} truncated=\{artifactsTruncated\} focusRequest=\{focusRequest\} onFocused=\{focused\}/);
+  assert.match(s, /\{truncated && <p className="nx-spine__future" role="status">\{SPINE_TRUNCATED_TEXT\}<\/p>\}/);
   assert.match(bench, /setSelected\(`artifact:\$\{artifactId\}`\);[\s\S]*?setFocusRequest\(`artifact:\$\{artifactId\}`\);/);
   const hook = read('data/useProjectArtifacts.ts');
   assert.match(hook, /\[projectId, rev, mode, attempt\]/);

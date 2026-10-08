@@ -566,7 +566,7 @@ A session is the durable record of one agent conversation in a project's workspa
 3. Main then calls `startup()`. It resolves the seeded principals, ensures the workspace catalogue, reconciles the legacy primaries, recovers sessions and then jobs, and logs one `[nexus] platform ready` line.
 4. Any throw leaves `nexusPlatform = null` and logs `[nexus] platform startup failed error=<name> code=<code>; platform disabled, legacy features unaffected`.
 
-No IPC channel and no preload change are registered. Nothing reads `nexusPlatform` in B0b.
+In B0b, no IPC channel and no preload change were registered; nothing read `nexusPlatform`.
 
 **Since B1:**
 - Step 1 also passes `holdV8: process.env.NEXUS_DB_HOLD_V8 === '1'`.
@@ -820,7 +820,7 @@ To check a restore without launching the app: open the restored `harness.db` wit
     - **False positives:** a long base64 or base64url blob with many `+` or `-`; table-of-contents dot leaders (`Chapter 1 .......... 12`); minified SVG path data (`M10.5-3.2-4.1...`); and long kebab-case or dotted chains. Workaround: split the run with whitespace, or shorten it. Refusing is the safe direction.
     - **Residual cost:** about 40 ms on a crafted 64 KiB input with compiled regexes. With V8's regex interpreter forced (`--regexp-interpret-all`), the measured worst case was **3.4 s** in `containsSecret` (1.7 s in `redactSecretText`). V8 was not observed to fall back to the interpreter in normal use.
     - **Deferred:** a linear rewrite of the four slow patterns, with byte-identical output.
-18. **The `summariesByProject` cap.** `nexus:artifacts:byProject` returns at most 1000 artifacts per project, in creation order, and sets `truncated: true` only when more exist. The Spine then shows only those 1000. Other list answers also carry `truncated` when more rows exist than were returned. Lineage walks keep their own `truncated` (item 8).
+18. **The `summariesByProject` cap.** `nexus:artifacts:byProject` returns at most 1000 artifacts per project, in creation order, and sets `truncated: true` only when more exist. The Spine then draws only those 1000 (the oldest, since the order is creation order) and says so under the nodes: "Only the first 1000 artifacts of this project are shown, oldest first." (`SPINE_TRUNCATED_TEXT`; `nextArtifacts` carries `truncated` into the state, and a passing failure keeps the last value). Other list answers also carry `truncated` when more rows exist than were returned. Lineage walks keep their own `truncated` (item 8).
 19. **Lists are paged by limit, not by cursor.**
     - `nexus:artifacts:list` and `nexus:handoffs:list` have no offset or cursor. "Show more" re-reads with a limit 100 rows larger, up to 500. The page then asks the person to narrow the filters.
     - Sorting by name happens in the renderer, over the rows returned.
@@ -833,7 +833,7 @@ To check a restore without launching the app: open the restored `harness.db` wit
     - Commit subjects come from the project's own git log (the last 200 commits). An older commit shows its sha alone.
     - The link picker offers versions of at most 30 other artifacts (the most recently changed), one source per pick. Versions downstream of this one are offered; the service refuses a cycle.
     - Archived artifacts are not drawn on the Spine. They stay on the Artifacts page.
-    - "Hand off…" appears only after a handoff channel has answered successfully, and only on active versions.
+    - "Hand off…" appears only after a handoff channel has answered successfully, only on active versions, and only when the project has at least one other active participation to receive it (the send sheet's "To" choices, `toChoices`). A project with a single active participation shows no "Hand off…", because no send could succeed.
     - In this single-user app, the handoff side shown (receiving or sending) follows the page view. The services enforce the real rule.
     - Complete participations are not listed in the Workspaces section.
 24. **Unchanged by B1, and still true:** the terminal session transition does not cascade (item 4), and the activity chain cannot detect tail deletion (item 1).
@@ -842,6 +842,7 @@ Further operational notes:
 - **Backups accumulate.** Every migration attempt that reaches the backup step writes a new file. Since B1 that includes the `harness-v7-<UTC>.db` backups of the v8 step. Nothing prunes `userData/backups`.
 - **No minimum-version guard.** Nothing stops a pre-B0b build from opening a v7 database (D1). That is by design, and the downgrade test covers it.
 - **Workspace rows are never retired or deleted in B0b.** `retired_at` exists for later phases.
+- **Test B1 flows on a scratch userData only.** Try saves and handoffs only on a scratch userData folder, for example by launching with `--user-data-dir=<temp>`, never on the userData you work in. B1 artifacts (receipts included), versions and handoffs are never deleted, and a project that has any of them cannot be deleted (the delete guard, `hasPlatformRecords`). A trial save or handoff on a real project stays for good and blocks deleting that project.
 - **Busy database.** A lock held past `busy_timeout` (5 s) surfaces from every service, workspaces included, as `platform_unavailable` (`immediateTx`). The transaction has rolled back. Since B1, the IPC layer answers it with reason `busy` and a fixed message, and the screens offer "Try again" instead of the degraded mode.
 
 ---
@@ -1345,6 +1346,14 @@ The parenthesis reads `(NEXUS_DB_HOLD_V7=1)` when only the v7 hold is set on a v
 
 **Platform composed without handoffs:** `[nexus] handoffs unavailable: schema v8 not in place`.
 
+**A held launch, in order** (a v7 database with `NEXUS_DB_HOLD_V8=1` set; the hold line names `NEXUS_DB_HOLD_V7=1` when only that switch is set):
+```
+[db] schema version 7
+[db] v8 migration: skipped reason=held (NEXUS_DB_HOLD_V8=1); database stays at v7
+[nexus] handoffs unavailable: schema v8 not in place
+[nexus] platform ready: principals ok, workspaces added=0, primaries set=<n> cleared=<n>, sessions interrupted=0, jobs interrupted=0 requeued=0
+```
+
 ### 22.4 The hold switch, the failure marker and auto-hold
 
 | What | Where and how |
@@ -1369,7 +1378,7 @@ The handoff channels (#15 to #20) answer `{ ok: false, code: 'platform_unavailab
 | `shape` | The database is at v8, but the v8 shape check failed on reopen | "Handoffs are not available because the handoff tables do not have the expected layout." |
 | (none) | An unknown or missing sub-reason | "Handoffs are not available on this database." |
 
-The sentence appears on the Handoffs page, as an `nx-hfx__off` status line, and in the Passport's handoffs section. Elsewhere, "Hand off…" is never rendered: it needs a handoff channel to have answered successfully first. Everything else (artifacts, versions, lineage, workspaces and activity) keeps working.
+The sentence appears on the Handoffs page, as an `nx-hfx__off` status line, and in the Passport's handoffs section. Elsewhere, "Hand off…" is never rendered: it needs a handoff channel to have answered successfully first. Even with handoffs on, it renders only when the project has another active participation to receive the handoff (`canHandOff(…, hasReceiver)`, where `hasReceiver` uses the send sheet's `toChoices`). Everything else (artifacts, versions, lineage, workspaces and activity) keeps working.
 
 When the whole platform is off, the reason is one of `held`, `migration_failed`, `newer_schema`, `shape_mismatch`, `startup_failed` or `not_open`. [Section 28](#28-the-renderer) shows what the UI does then.
 
@@ -1613,7 +1622,7 @@ A handoff sends one or more artifact versions, by reference, from one participat
   - otherwise inserts the handoff, its subjects (positions 1 to n, with each hash copied) and one `handoff.send` activity row with `{ subjects, toWorkspaceId }`.
 
 **Accept** creates the **receipt** (rulings C1 and C18, confirmed by the user). In one `immediateTx`, in this order:
-1. The handoff is re-read. Any status other than `sent` is `illegal_transition` with `detail.handoffId`. The receiving participation must be active.
+1. The handoff is re-read. Any status other than `sent` is `illegal_transition` with `detail.handoffId` and the message "cannot accept a handoff that is already <status>". The receiving participation must be active.
 2. A new artifact is created with kind `handoff_receipt` (shown as "Received"). It is owned by the receiving participation and named after the handoff title.
 3. Its version 1 is created. It is inline, and holds **references only**: `{ handoffId, subjects: [{ versionId, contentHash }] }`. Its `inputs_json` lists the subjects with role `received`, and its `produced_by_action` is `user.accept_handoff`.
 4. The system finalizes the version to `candidate` on the user's behalf (`via: 'accept_handoff'`).
@@ -1630,9 +1639,9 @@ No content is copied: the receipt never holds the subject's text or commit. A fa
 
 **Subjects are accepted as sent.** The copied `content_hash` is the evidence of what was sent. A subject that was discarded or deprecated after the send is still accepted, and its edge points at the now-deprecated version (test H19). `nexus:handoff:get` shows each subject's CURRENT status, and the UI notes when a newer version exists (`newerVersionNo`).
 
-**Decline** requires `handoff.respond` on the receiving side. A compare-and-set moves `sent → declined` and records `responded_by`, `responded_at` and the optional validated note. The `handoff.decline` activity row holds `{ withNote }`, never the note text. No receipt is created.
+**Decline** requires `handoff.respond` on the receiving side. A compare-and-set moves `sent → declined` and records `responded_by`, `responded_at` and the optional validated note. The `handoff.decline` activity row holds `{ withNote }`, never the note text. No receipt is created. Any other status is `illegal_transition`: "cannot decline a handoff that is already <status>".
 
-**Withdraw** requires `handoff.withdraw` on the sending side. It works only before an answer. A compare-and-set moves `sent → withdrawn`. The answer fields stay NULL, because a withdrawal is not an answer (the trigger refuses them); the withdrawing principal is in the activity row. `withdrawn` is terminal.
+**Withdraw** requires `handoff.withdraw` on the sending side. It works only before an answer. A compare-and-set moves `sent → withdrawn`. The answer fields stay NULL, because a withdrawal is not an answer (the trigger refuses them); the withdrawing principal is in the activity row. `withdrawn` is terminal. Any other status is `illegal_transition`: "cannot withdraw a handoff that is already <status>".
 
 **Races.** An accept that loses to a withdraw, which can be a second connection between accept's checks and its transaction, fails cleanly with `illegal_transition` and writes nothing (test H17). A double accept, or a double answer, is refused the same way.
 
@@ -1714,7 +1723,7 @@ A file swapped away and back during the read is refused.
 - **Metadata** is `{ source: 'project_file', path, bytes }`.
 
 **Commit rules.**
-- The caller must send a **full 40-character lowercase sha**. Anything else is `not_a_commit`.
+- The caller must send a **full 40-character lowercase sha**. Through IPC a malformed sha is `invalid`/`bad_request` (field `commit`). The service itself answers `not_a_commit` for a malformed or unknown sha.
 - `git.resolveCommit` runs `rev-parse --verify --quiet <sha>^{commit}` in the project folder, then `show -s` on git's own full sha, never on the caller's text. The `%H` git prints must equal it. So a sha can never be read as an option, a ref or a range.
 - **Annotated tags are peeled:** the stored commit is the tag's commit, and the hash is `git:<commit>`.
 - **Parent-repository commits are allowed.** A project folder inside a larger repository (a monorepo sub-folder) resolves commits of that repository. This is a ruling: such projects are legitimate.
@@ -1775,11 +1784,11 @@ Before the first answer, or after a `busy` or `internal` first read, the screens
 | Workspaces index | Each workspace's count is its active participations, primary plus attached. A tooltip names the primary domains and the number of attached projects. The page also shows the Unassigned count. |
 | Workspace page | Primary projects first, then attached ones with an "Attached" tag. The empty state says no project takes part yet. While writes are on, it adds that a project can be added from its own page. |
 | Projects page | The workspace filter matches any active participation. "Unassigned" means no primary. Each row shows the primary's label and hue, plus "+N" for attached workspaces. |
-| Project bench: the Spine | One group per active participation (primary first, then registry order). A withdrawn or complete participation that owns artifacts gets a muted group labelled with its state. Source and changes stay in the lead group. Artifact nodes show the kind label, the status in words, the name and `v<n>`. Drafts are dashed. Archived artifacts are not drawn. Further lines:<br>- "Reading artifacts…" while loading;<br>- an error line, with "Try again" when it can help;<br>- the "nothing yet" sentence only after a successful read that found nothing. |
+| Project bench: the Spine | One group per active participation (primary first, then registry order). A withdrawn or complete participation that owns artifacts gets a muted group labelled with its state. Source and changes stay in the lead group. Artifact nodes show the kind label, the status in words, the name and `v<n>`. Drafts are dashed. Archived artifacts are not drawn. Further lines:<br>- "Reading artifacts…" while loading;<br>- an error line, with "Try again" when it can help;<br>- the "nothing yet" sentence only after a successful read that found nothing;<br>- "Only the first 1000 artifacts of this project are shown, oldest first." when `nexus:artifacts:byProject` answered `truncated`. |
 | Passport, source node | Identity (the primary workspace). A **Workspaces** section: "Add to workspace" (registry workspaces that are not active or complete) and "Withdraw" on each non-primary row, with an inline confirmation. "Save as artifact" on each commit row and "Save a file…". **Recent activity:** 20 rows as sentences ("Version 2 of API notes marked ready"), shown as "You", "Nexus", "Nexus, for you" or "An agent", with "Show older activity". |
 | Save sheet | Commit mode (the last 30 commits, with the full sha) or file mode (a folder browser over the project root; files over 64 KiB are disabled). The workspace is chosen from the project's active participations. The target is "New artifact" by name, or "New version of" an existing artifact of the same kind owned there. |
-| Passport, artifact node | Real versions, with the current one marked. The newest 12 show their content as text: a commit sha, a file path, or "Received through a handoff". Allowed actions only: Mark ready, Make current, Roll back and Discard. Roll back and Discard have an inline confirmation. "Link a source" offers a picker over at most 30 other artifacts. Sources and Used by are shown at depth 1. "Handoffs" lists the handoffs carrying this artifact's versions, from the project's first 20 handoffs (open first, then newest). "Hand off…" appears on active versions once handoffs are known to be on. |
-| Artifacts page (`#/artifacts`, `#/artifacts/<id>`) | Filters: project, workspace, kind, status (active, archived, or both) and sort (recently changed, or name). "Show more" asks for 100 more rows, up to 500, then asks the person to narrow the filters. The empty state reads "No artifacts yet. Save a commit or a file from a project's passport." The detail view reuses the artifact Passport. |
+| Passport, artifact node | Real versions, with the current one marked. The newest 12 show their content as text: a commit sha, a file path, or "Received through a handoff". Allowed actions only: Mark ready, Make current, Roll back and Discard. Roll back and Discard have an inline confirmation. "Link a source" offers a picker over at most 30 other artifacts. Sources and Used by are shown at depth 1. "Handoffs" lists the handoffs carrying this artifact's versions, from the project's first 20 handoffs (open first, then newest). "Hand off…" appears on active versions once handoffs are known to be on, and only when the project has another active participation to receive it (the send sheet's `toChoices`). |
+| Artifacts page (`#/artifacts`, `#/artifacts/<id>`) | Filters: project, workspace, kind, status (active, archived, or both) and sort (recently changed, or name). "Show more" asks for 100 more rows, up to 500, then asks the person to narrow the filters. The empty state reads "No artifacts yet. Save a commit or a file from a project's passport." While the platform is unavailable, the `PlatformNotice` alone explains why; the list adds no second sentence. The detail view reuses the artifact Passport. |
 | Handoffs page (`#/handoffs`, `#/handoffs/<id>`) | Inbox, Sent and All, with workspace and status filters, grouped by workspace ("To QA", "From SDE"). The detail shows:<br>- From and To, the project, the times, the note and the answer note;<br>- the subjects by reference: "Version n, status · hash prefix", with a note when a newer version exists;<br>- after an accept, a Received section that links to the receipt artifact and the project.<br>The answers follow the page view: Accept and Decline (with an optional note) on the receiving side, and Withdraw on the sending side, with inline confirmations. Statuses are always words. |
 | Send sheet | From is the artifact's owner participation. To is another active participation of the same project. Versions are the candidate and active versions of the sender's own artifacts, preselected from the version in view, at most 20. Then a title and an optional note. |
 | Navigation and palette | "Go to": home, workspaces, projects, artifacts, handoffs, agents. "Planned" holds only Deployments. |
@@ -1812,4 +1821,4 @@ The code wins. Each item says what the code does.
 15. **The platform only builds `HandoffService`** when `opts.handoffs` (default true) AND the v8 shape check passes, so a forced `true` on a v7 shape builds none.
 16. **The restore-tool hint** names a switch only for v6 (`NEXUS_DB_HOLD_V7`) and v7 (`NEXUS_DB_HOLD_V8`) backups. Any other version, or an unreadable header, gets a plain sentence, because no `NEXUS_DB_HOLD_V9` or older switch exists.
 17. **Two more v7 test files** needed the mechanical C8 `holdV8: true` edit: `nexus-db-phase-a` and `nexus-platform-activity`.
-18. **The renderer.** Artifacts and Handoffs lists page by a larger limit, because the channels have no cursor. Sorting by name is done in the renderer. The Passport's handoff list reads at most 20 handoffs and their details. "Hand off…" appears only on active versions, though the send sheet offers candidate versions too.
+18. **The renderer.** Artifacts and Handoffs lists page by a larger limit, because the channels have no cursor. Sorting by name is done in the renderer. The Passport's handoff list reads at most 20 handoffs and their details. "Hand off…" appears only on active versions, though the send sheet offers candidate versions too, and only when another active participation of the project can receive it.

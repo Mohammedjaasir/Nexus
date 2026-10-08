@@ -90,3 +90,16 @@ test('R8 every service reason in the IPC table has a sentence; internal may be r
   plain(E.errorCopy('some_future_code').text, 'unknown code');
   plain(E.errorCopy('invalid', 'some_future_reason').text, 'unknown reason falls back to the code');
 });
+
+test('R8b every reason main words (REASON_MESSAGES) reads the same in the renderer (REASON_TEXT)', () => {
+  const { REASON_MESSAGES, BUSY_MESSAGE } = loadTs('src/main/nexusIpc/envelope.ts');
+  const shared = Object.keys(REASON_MESSAGES).filter((k) => Object.prototype.hasOwnProperty.call(E.REASON_TEXT, k));
+  assert.deepEqual(shared.sort(), Object.keys(REASON_MESSAGES).sort(), 'every main reason has a renderer sentence');
+  for (const k of shared) {
+    assert.equal(E.REASON_TEXT[k], REASON_MESSAGES[k], k);
+    assert.equal(E.errorCopy('invalid', k).text, REASON_MESSAGES[k], k);
+  }
+  assert.match(E.REASON_TEXT.path_refused, /outside the project folder/);
+  assert.match(E.REASON_TEXT.path_refused, /hard links/);
+  assert.equal(E.BUSY_TEXT, BUSY_MESSAGE);
+});

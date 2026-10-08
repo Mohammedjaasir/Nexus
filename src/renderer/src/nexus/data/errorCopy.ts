@@ -60,7 +60,8 @@ const HANDOFFS_WHY: Record<string, string> = {
 export const HANDOFFS_SUB_REASONS: readonly string[] = Object.freeze(Object.keys(HANDOFFS_WHY));
 
 /** Service reasons a refusal may carry, with a sentence a person can act on. */
-const REASON_TEXT: Record<string, string> = {
+/** The sentence per service reason. Every key main also words (REASON_MESSAGES in nexusIpc/envelope.ts) reads the same. */
+export const REASON_TEXT: Readonly<Record<string, string>> = Object.freeze({
   bad_request: 'That request could not be accepted. Check the values and send it again.',
   not_a_repository: 'The project folder is not a git repository.',
   not_a_commit: 'That commit was not found in the project repository.',
@@ -68,13 +69,14 @@ const REASON_TEXT: Record<string, string> = {
   kind_mismatch: 'That artifact holds a different kind of content.',
   secret_in_metadata: 'The name or details look like they hold a secret, so nothing was saved.',
   file_not_found: 'That file was not found in the project folder.',
-  path_refused: 'That file cannot be saved from where it is.',
+  path_refused: 'That file cannot be saved. Paths outside the project folder are refused, and so are files with several '
+    + 'hard links (as pnpm stores and some backup tools create them).',
   too_large: 'That file is too large to save as an artifact.',
   not_text: 'That file is not plain text, so it cannot be saved as a text artifact.',
   secret_in_content: 'That file looks like it holds a secret, so it was not saved.',
   sensitive_name: 'Files of that kind (keys, credentials, environment files, anything under .git) are never saved.',
   produced_by_job: 'A draft made by a job or an agent session is finished by the engine, not marked ready by hand.'
-};
+});
 export const SERVICE_REASONS: readonly string[] = Object.freeze(Object.keys(REASON_TEXT));
 
 export const BUSY_TEXT = 'The database is busy. Try again in a moment.';

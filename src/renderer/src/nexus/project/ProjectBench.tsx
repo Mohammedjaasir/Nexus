@@ -72,7 +72,7 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   const setSelection = useNexusUi((s) => s.setSelection);
   const { git, refresh } = useProjectGit(project.rootPath);
   const idx = useParticipationIndex();
-  const { artifacts, loaded: artifactsLoaded, error: artifactsError, retry: artifactsRetry, reload: reloadArtifacts } = useProjectArtifacts(project.id);
+  const { artifacts, loaded: artifactsLoaded, error: artifactsError, retry: artifactsRetry, truncated: artifactsTruncated, reload: reloadArtifacts } = useProjectArtifacts(project.id);
   const canWrite = usePlatform(selectCanWrite);
   const groups = useMemo(() => buildSpine({ idx, projectId: project.id, git, artifacts }), [idx, project.id, git, artifacts]);
   const nodes = groups.flatMap((g) => g.nodes);
@@ -177,7 +177,7 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
     <div className="nx-workbench">
       {mobile && <MobileRuns projectId={project.id} />}
       <Spine groups={groups} selectedId={tool === 'completion' || tool === 'runs' ? '' : node.id} onSelect={onSelect}
-        line={line} onRetryLine={reloadArtifacts} focusRequest={focusRequest} onFocused={focused} />
+        line={line} onRetryLine={reloadArtifacts} truncated={artifactsTruncated} focusRequest={focusRequest} onFocused={focused} />
       <div className="nx-bench">
         <ToolRail projectId={project.id} rootPath={project.rootPath} tool={tool} hasChanges={hasChanges} onOpenTerminal={openTerminal}
           extra={!wide && (

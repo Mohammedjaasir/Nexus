@@ -7,7 +7,7 @@ import { useArtifactHandoffs } from '../data/useHandoffs';
 import { errorCopy } from '../data/errorCopy';
 import { viewOf } from '../workspaces/participation';
 import { navigate } from '../router/useRoute';
-import { PASSPORT_HANDOFF_READS, canHandOff, type HandoffStart } from '../handoffs/handoffModel';
+import { PASSPORT_HANDOFF_READS, canHandOff, hasReceiver, type HandoffStart } from '../handoffs/handoffModel';
 import { Button } from '../ui/Button';
 import { Popover } from '../ui/Sheet';
 import type { ArtifactNode, ArtifactSummary } from './spineModel';
@@ -169,6 +169,8 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
     : null;
   // Writes need the owner participation known to be active; an unknown owner offers nothing.
   const ownerActive = ownerRow !== null && ownerRow.status === 'active';
+  // Hand off needs someone to receive it: another active participation of this project (the send sheet's choices).
+  const receiver = ownerRow !== null && hasReceiver(idx, project.id, ownerRow.id);
   const versionsById = useMemo(() => new Map((loaded?.detail.versions ?? []).map((v) => [v.id, v])), [loaded]);
   const shownVersion = loaded ? loaded.detail.versions.find((v) => v.versionNo === node.versionNo) ?? null : null;
   const linkable = artifact !== null && shownVersion !== null && canLinkSources(artifact, ownerActive, canWrite);
@@ -261,8 +263,8 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
           {view.versions.map((row) => {
             const v = versionsById.get(row.id) ?? null;
             const allowed = v ? passportActionsFor(v, artifact, ownerActive, canWrite) : [];
-            // Hand off: exactly where actionsFor allows it, with writes on and handoffs known to be on.
-            const handOff = v !== null && onHandOff !== undefined && ownerRow !== null && canHandOff(actionsFor(v, artifact, ownerActive), canWrite, handoffsAvailable);
+            // Hand off: exactly where actionsFor allows it, with writes on, handoffs known to be on, and a receiver.
+            const handOff = v !== null && onHandOff !== undefined && ownerRow !== null && canHandOff(actionsFor(v, artifact, ownerActive), canWrite, handoffsAvailable, receiver);
             const confirming = acts.confirming && acts.confirming.versionId === row.id ? acts.confirming : null;
             return (
               <li key={row.id} aria-current={row.current ? 'true' : undefined}>

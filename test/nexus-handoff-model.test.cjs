@@ -386,11 +386,31 @@ test('send-sheet validation: a target, 1 to 20 offered versions, a title, an opt
 
 test('Hand off renders only with writes on, handoffs known to be on, and actionsFor allowing it', () => {
   const allowed = [{ kind: 'handoff' }];
-  assert.equal(M.canHandOff(allowed, true, true), true);
-  assert.equal(M.canHandOff(allowed, false, true), false);
-  assert.equal(M.canHandOff(allowed, true, false), false, 'handoffs off (v8 held): no Hand off anywhere');
-  assert.equal(M.canHandOff(allowed, true, null), false, 'not yet known');
-  assert.equal(M.canHandOff([{ kind: 'promote' }], true, true), false);
+  assert.equal(M.canHandOff(allowed, true, true, true), true);
+  assert.equal(M.canHandOff(allowed, false, true, true), false);
+  assert.equal(M.canHandOff(allowed, true, false, true), false, 'handoffs off (v8 held): no Hand off anywhere');
+  assert.equal(M.canHandOff(allowed, true, null, true), false, 'not yet known');
+  assert.equal(M.canHandOff([{ kind: 'promote' }], true, true, true), false);
+  assert.equal(M.canHandOff(allowed, true, true, false), false, 'no receiving participation: no Hand off');
+});
+
+test('Hand off needs a receiver: one active participation offers no button, two do', () => {
+  const allowed = [{ kind: 'handoff' }];
+  const one = fromRows([
+    { id: P_SDE, projectId: 'p1', workspaceId: 'sde', status: 'active', isPrimary: true, source: 'backfill' },
+    { id: P_OLD, projectId: 'p1', workspaceId: 'devops', status: 'withdrawn', isPrimary: false, source: 'user' }
+  ]);
+  assert.equal(M.hasReceiver(one, 'p1', P_SDE), false, 'a withdrawn participation never receives');
+  assert.equal(M.canHandOff(allowed, true, true, M.hasReceiver(one, 'p1', P_SDE)), false);
+  const two = fromRows([
+    { id: P_SDE, projectId: 'p1', workspaceId: 'sde', status: 'active', isPrimary: true, source: 'backfill' },
+    { id: P_QA, projectId: 'p1', workspaceId: 'qa', status: 'active', isPrimary: false, source: 'user' }
+  ]);
+  assert.equal(M.hasReceiver(two, 'p1', P_SDE), true);
+  assert.equal(M.canHandOff(allowed, true, true, M.hasReceiver(two, 'p1', P_SDE)), true);
+  // The same choices the send sheet offers: none in legacy mode, so no button either.
+  assert.equal(M.hasReceiver({ ...two, mode: 'legacy' }, 'p1', P_SDE), false);
+  assert.equal(M.hasReceiver(two, 'p1', P_SDE), M.toChoices(two, 'p1', P_SDE).length > 0);
 });
 
 test('the Passport lists only handoffs that carry a version of this artifact', () => {
@@ -499,7 +519,8 @@ test('pin: the send sheet: writes and handoffs on, From is the owner, To the oth
 });
 
 test('pin: the Passport renders Hand off only through canHandOff and onHandOff, and lists the handoffs carrying its versions', () => {
-  assert.match(passport, /const handOff = v !== null && onHandOff !== undefined && ownerRow !== null && canHandOff\(actionsFor\(v, artifact, ownerActive\), canWrite, handoffsAvailable\);/);
+  assert.match(passport, /const handOff = v !== null && onHandOff !== undefined && ownerRow !== null && canHandOff\(actionsFor\(v, artifact, ownerActive\), canWrite, handoffsAvailable, receiver\);/);
+  assert.match(passport, /const receiver = ownerRow !== null && hasReceiver\(idx, project\.id, ownerRow\.id\);/);
   assert.match(passport, /\{handOff && ownerRow && \(/);
   assert.match(passport, /ariaLabel=\{`Hand off version \$\{v\.versionNo\}`\}/);
   assert.match(passport, />\s*Hand off…\s*<\/Button>/);

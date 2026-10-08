@@ -194,14 +194,18 @@ function readUserVersion(file) {
   }
 }
 
-/** The "what next" sentence for a backup at schema `userVersion` (null: not read). */
+/**
+ * The "what next" sentence for a backup at schema `userVersion` (null: not read). A negative value (the
+ * header's signed int with its top bit set) is no schema version, so it reads like null.
+ */
 function holdHint(userVersion) {
-  const name = Number.isInteger(userVersion) ? HOLD_SWITCHES[userVersion] : undefined;
+  const known = Number.isInteger(userVersion) && userVersion >= 0;
+  const name = known ? HOLD_SWITCHES[userVersion] : undefined;
   if (name) {
     return `Next: launch with ${name}=1 to stay on schema v${userVersion}, `
       + 'or launch normally to migrate again (a new backup is taken first).';
   }
-  if (Number.isInteger(userVersion)) {
+  if (known) {
     return `Next: the backup is at schema v${userVersion}, and no hold switch keeps the app on it; `
       + 'launching normally opens it and migrates it forward if it is older than the build (a backup is taken first).';
   }

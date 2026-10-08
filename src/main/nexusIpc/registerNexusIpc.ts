@@ -24,13 +24,11 @@ import type {
   HandoffsUnavailableSubReason, NexusOk, NexusResult, PlatformUnavailableReason
 } from '../../shared/nexus/ipc';
 import type { NexusPlatform } from '../nexus/platform';
-import type { SourcePorts } from '../nexus/commands/userSaves';
 import { MAX_LIST_LIMIT } from '../nexus/artifact/artifactService';
-import { UserSaves, type SaveResult } from '../nexus/commands/userSaves';
+import { UserSaves, type SaveResult, type SourcePorts } from '../nexus/commands/userSaves';
 import { PlatformError } from '../nexus/errors';
-import { MAX_SUBJECTS } from '../nexus/handoff/handoffRules';
+import { HANDOFF_STATUSES, MAX_SUBJECTS } from '../nexus/handoff/handoffRules';
 import { MAX_LINK_SOURCES } from '../nexus/lineage/lineageService';
-import { HANDOFF_STATUSES } from '../nexus/handoff/handoffRules';
 import { fail, ok, unavailable } from './envelope';
 import { V } from './validate';
 import {

@@ -141,7 +141,6 @@ export function staleError(s: ArtifactListState): { text: string; retry: boolean
 export const EMPTY_TITLE = 'No artifacts yet';
 export const EMPTY_BODY = "Save a commit or a file from a project's passport.";
 export const NO_MATCH_TEXT = 'No artifacts match these filters.';
-export const UNAVAILABLE_LIST_TEXT = 'Artifacts are read from workspace data, so none can be listed right now.';
 
 // ---------- rows ----------
 

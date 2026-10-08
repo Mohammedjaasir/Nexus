@@ -90,6 +90,8 @@ function healthy(db) {
 const count = (db, sql, ...a) => db.prepare(`SELECT COUNT(*) AS n FROM ${sql}`).get(...a).n;
 const TABLES = ['project_workspaces', 'artifacts', 'artifact_versions', 'artifact_edges', 'handoffs', 'handoff_subjects', 'activity'];
 const counts = (db) => Object.fromEntries(TABLES.map((t) => [t, count(db, t)]));
+/** Lets a deferred denial audit row land: it is queued with queueMicrotask, so one macrotask turn drains it (no transaction stays open here). */
+const settleDenials = () => new Promise((r) => setImmediate(r));
 const snapshot = (db) => Object.fromEntries(TABLES.map((t) => [t, db.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all()]));
 function addViewer(db) {
   db.prepare("INSERT INTO principals VALUES ('user:viewer','user','viewer',NULL,?)").run(h.NOW);
@@ -408,8 +410,19 @@ test('every write channel error path answers its code through the envelope and w
   await e.ok('nexus:version:promote', rel.id, null);                                            // rel: active
   const notes = await e.saveText('README.md', { name: 'Notes' });                                // notes: draft
   const before = () => counts(db);
-  const unchanged = async (fn) => { const b = before(); await fn(); const a = before(); assert.deepEqual(
-    { ...a, activity: undefined }, { ...b, activity: undefined }, 'no platform rows written'); };
+  const deniedRows = () => count(db, "activity WHERE status = 'denied'");
+  const otherActivity = () => count(db, "activity WHERE status <> 'denied'");
+  // A refused call writes no platform row. Its only allowed trace is a denial audit row (status 'denied'); a
+  // denial raised inside a transaction is queued (queueMicrotask), so let it land first.
+  const unchanged = async (fn) => {
+    const b = before(); const bOther = otherActivity(); const bDenied = deniedRows();
+    await fn();
+    await settleDenials();
+    const a = before();
+    assert.deepEqual({ ...a, activity: undefined }, { ...b, activity: undefined }, 'no platform rows written');
+    assert.equal(otherActivity(), bOther, 'no activity row other than a denial');
+    assert.equal(a.activity - b.activity, deniedRows() - bDenied, 'every new activity row is a denial');
+  };
   const bad = (ch, args, field) => unchanged(() => e.refused(ch, args, 'invalid', { reason: 'bad_request', ...(field ? { field } : {}) }));
   const why = (ch, args, code, reason) => unchanged(() => e.refused(ch, args, code, reason ? { reason } : {}));
   const textArgs = (relPath, target = { name: 'x' }, workspaceId = 'sde', projectId = P) => [{ projectId, workspaceId, relPath, target }];
@@ -544,9 +557,13 @@ test('every write channel error path answers its code through the envelope and w
     ['nexus:handoff:send', [{ projectId: P, fromParticipationId: sde.id, toParticipationId: qa.id, versionIds: [rel.id], title: 't' }]],
     ['nexus:handoff:accept', [h3.id]], ['nexus:handoff:decline', [h3.id]], ['nexus:handoff:withdraw', [h3.id]]
   ];
+  const viewerDenials = () => count(db, "activity WHERE status = 'denied' AND actor_id = 'user:viewer'");
+  const deniedBefore = viewerDenials();
   for (const [ch, args] of deniedCalls) await why(ch, args, 'denied');
   nx.principals.localUser = realLocal;
-  assert.ok(count(db, "activity WHERE status = 'denied' AND actor_id = 'user:viewer'") >= deniedCalls.length - 2);
+  await settleDenials();
+  // Exactly one denial row per refused call: every one of these channels audits its denial.
+  assert.equal(viewerDenials() - deniedBefore, deniedCalls.length);
 
   assert.deepEqual(e.logs, [], 'no internal error on any path');
   healthy(db);

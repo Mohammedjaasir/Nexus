@@ -78,20 +78,28 @@ export interface ArtifactsState {
   error: string | null;
   /** True when sending the same read again may help (a busy database, an unexpected failure). */
   retry: boolean;
+  /** True when the project has more artifacts than nexus:artifacts:byProject returns (its 1000-row cap). */
+  truncated: boolean;
 }
 
-export const NO_ARTIFACTS: ArtifactsState = { artifacts: [], loaded: false, error: null, retry: false };
+export const NO_ARTIFACTS: ArtifactsState = { artifacts: [], loaded: false, error: null, retry: false, truncated: false };
+
+/**
+ * The Spine's note when the project has more artifacts than the read returns. The read is capped at 1000
+ * artifacts in creation order (oldest first), so the note says which ones are shown.
+ */
+export const SPINE_TRUNCATED_TEXT = 'Only the first 1000 artifacts of this project are shown, oldest first.';
 
 /** The next state after a nexus:artifacts:byProject answer. */
 export function nextArtifacts(prev: ArtifactsState, r: NexusResult<ArtifactSummaryView[]>): ArtifactsState {
-  if (r.ok) return { artifacts: Array.isArray(r.data) ? r.data : [], loaded: true, error: null, retry: false };
+  if (r.ok) return { artifacts: Array.isArray(r.data) ? r.data : [], loaded: true, error: null, retry: false, truncated: r.truncated === true };
   const copy = errorCopy(r.code, r.reason, r.subReason);
   // The platform is off: there is nothing to show, and the platform notice explains why.
-  if (copy.kind === 'unavailable') return { artifacts: [], loaded: true, error: null, retry: false };
+  if (copy.kind === 'unavailable') return { artifacts: [], loaded: true, error: null, retry: false, truncated: false };
   // The project is gone or unreadable: show nothing rather than stale nodes.
-  if (r.code === 'not_found' || r.code === 'denied') return { artifacts: [], loaded: true, error: copy.text, retry: false };
-  // A passing failure: keep what was last read.
-  return { artifacts: prev.artifacts, loaded: true, error: copy.text, retry: copy.retry };
+  if (r.code === 'not_found' || r.code === 'denied') return { artifacts: [], loaded: true, error: copy.text, retry: false, truncated: false };
+  // A passing failure: keep what was last read, and whether it was capped.
+  return { artifacts: prev.artifacts, loaded: true, error: copy.text, retry: copy.retry, truncated: prev.truncated };
 }
 
 // ---------- the artifact Passport (read-only) ----------

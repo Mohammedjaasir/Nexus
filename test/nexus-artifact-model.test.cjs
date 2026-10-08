@@ -70,7 +70,7 @@ test('nextArtifacts: success replaces; unavailable empties quietly; busy keeps t
   const s1 = A.nextArtifacts(A.NO_ARTIFACTS, { ok: true, data: [{ artifact: { id: 'x' } }] });
   assert.deepEqual([s1.artifacts.length, s1.loaded, s1.error], [1, true, null]);
   const off = A.nextArtifacts(s1, fail('platform_unavailable', { reason: 'held' }));
-  assert.deepEqual(off, { artifacts: [], loaded: true, error: null, retry: false });
+  assert.deepEqual(off, { artifacts: [], loaded: true, error: null, retry: false, truncated: false });
   assert.equal(s1.retry, false);
   const busy = A.nextArtifacts(s1, fail('platform_unavailable', { reason: 'busy' }));
   assert.equal(busy.artifacts, s1.artifacts);
@@ -80,6 +80,21 @@ test('nextArtifacts: success replaces; unavailable empties quietly; busy keeps t
   assert.deepEqual(gone.artifacts, []);
   assert.equal(gone.error, errorCopy('not_found').text);
   assert.equal(gone.retry, false);
+});
+
+test('nextArtifacts carries truncated from nexus:artifacts:byProject; the Spine says which artifacts are drawn', () => {
+  assert.equal(A.NO_ARTIFACTS.truncated, false);
+  const capped = A.nextArtifacts(A.NO_ARTIFACTS, { ok: true, data: [{ artifact: { id: 'x' } }], truncated: true });
+  assert.equal(capped.truncated, true);
+  assert.equal(A.nextArtifacts(A.NO_ARTIFACTS, { ok: true, data: [] }).truncated, false, 'no flag: not truncated');
+  assert.equal(A.nextArtifacts(capped, { ok: true, data: [], truncated: false }).truncated, false);
+  // A passing failure keeps the last read and its cap; unavailable and not_found clear both.
+  assert.equal(A.nextArtifacts(capped, fail('platform_unavailable', { reason: 'busy' })).truncated, true);
+  assert.equal(A.nextArtifacts(capped, fail('internal')).truncated, true);
+  assert.equal(A.nextArtifacts(capped, fail('platform_unavailable', { reason: 'held' })).truncated, false);
+  assert.equal(A.nextArtifacts(capped, fail('not_found')).truncated, false);
+  assert.equal(A.nextArtifacts(capped, fail('denied')).truncated, false);
+  assert.match(A.SPINE_TRUNCATED_TEXT, /first 1000/);
 });
 
 // ---------- the Passport view ----------
@@ -262,7 +277,7 @@ test('save: every refusal reads through errorCopy, each with its own sentence', 
     seen.add(text);
   }
   assert.equal(seen.size, reasons.length);
-  assert.match(S.saveFailureText(fail('invalid', { reason: 'path_refused' })), /cannot be saved from where it is/);
+  assert.match(S.saveFailureText(fail('invalid', { reason: 'path_refused' })), /outside the project folder are refused, and so are files with several hard links/);
   for (const code of ['not_participating', 'participation_inactive', 'conflict', 'not_found', 'denied', 'internal'])
     assert.equal(S.saveFailureText(fail(code)), errorCopy(code).text, code);
   assert.equal(S.saveFailureText(fail('platform_unavailable', { reason: 'busy' })), errorCopy('platform_unavailable', 'busy').text);

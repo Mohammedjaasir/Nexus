@@ -18,7 +18,7 @@ import { EmptyState } from '../ui/EmptyState';
 import { ProvenanceMark } from '../ui/ProvenanceMark';
 import { WORKSPACES } from '../workspaces/registry';
 import {
-  ARTIFACT_KINDS, CAPPED_TEXT, EMPTY_BODY, EMPTY_TITLE, MISSING_BODY, MISSING_TITLE, NO_FILTERS, NO_MATCH_TEXT, UNAVAILABLE_LIST_TEXT,
+  ARTIFACT_KINDS, CAPPED_TEXT, EMPTY_BODY, EMPTY_TITLE, MISSING_BODY, MISSING_TITLE, NO_FILTERS, NO_MATCH_TEXT,
   detailNode, listNotice, pagingOf, projectChoices, sortedRows, staleError, type ArtifactFilters, type ArtifactSort
 } from './artifactsPageModel';
 
@@ -85,7 +85,7 @@ export function ArtifactsPage({ id }: { id: string | null }) {
       <div className="nx-afx" data-detail={id ? 'open' : undefined}>
         <section className="nx-afx__list" aria-label="Artifact list">
           {notice?.kind === 'loading' && <p className="nx-muted" role="status">Reading artifacts…</p>}
-          {notice?.kind === 'unavailable' && <p className="nx-muted" role="status">{UNAVAILABLE_LIST_TEXT}</p>}
+          {/* While the platform is off the PlatformNotice above says why; the list adds nothing (notice kind 'unavailable'). */}
           {notice?.kind === 'error' && (
             <div className="nx-afx__line" role="alert">
               <span>{notice.text}</span>
