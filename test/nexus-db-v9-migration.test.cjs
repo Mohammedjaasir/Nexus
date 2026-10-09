@@ -387,6 +387,23 @@ test('M16 executionUnavailableReason: null when execution is on or the whole pla
   v8failed.s.close();
 });
 
+test('M16b with v9 off, v8 not in place reports the v8 reason before not_enabled', () => {
+  // A v7 file held at v7 (NEXUS_DB_HOLD_V8): the reason is the v8 hold, not not_enabled.
+  const v7 = h.v6Fixture().file; open(v7, { holdV8: true }).s.close();
+  const held = open(v7, { holdV8: true });
+  assert.equal(held.s.schemaVersion, 7); assert.equal(held.s.lastMigrationV9.reason, 'v8_unavailable');
+  assert.equal(held.s.executionUnavailableReason, 'held'); held.s.close();
+  // A v8 shape problem with v9 off: shape, not not_enabled.
+  const file = v8File();
+  const pre = h.openRaw(file);
+  pre.exec('DROP TRIGGER tr_handoffs_no_delete; CREATE TRIGGER tr_handoffs_no_delete BEFORE DELETE ON handoffs BEGIN SELECT 1; END;');
+  pre.close();
+  const shape = open(file);
+  assert.equal(shape.s.handoffsAvailable, false); assert.equal(shape.s.executionUnavailableReason, 'shape'); shape.s.close();
+  // v8 in place with v9 off: not_enabled.
+  const ok = open(v8File()); assert.equal(ok.s.executionUnavailableReason, 'not_enabled'); ok.s.close();
+});
+
 test('M17 createNexusPlatform: execution is off unless the caller turns it on, and on only at v9 with the v9 shape', () => {
   const at8 = open(v8File());
   const p8 = createNexusPlatform(at8.s.platformDatabase(), { handoffs: at8.s.handoffsAvailable, execution: true });

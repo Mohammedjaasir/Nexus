@@ -1,11 +1,11 @@
 import type Database from 'better-sqlite3';
 import type { BackupRecord } from './backup';
 
-/** Test seams around the v7 transaction. Production code never sets these. */
+/** Test seams around the v7, v8 and v9 transactions. Production code never sets these. */
 export interface MigrationHooks {
-  /** Runs inside the v7 (or v8) transaction after every write and `user_version = toVersion`, just before COMMIT. */
+  /** Runs inside the v7, v8 or v9 transaction after every write and `user_version = toVersion`, just before COMMIT. */
   beforeCommit?: (db: Database.Database, toVersion: number) => void;
-  /** Runs just before the v7 (or v8) transaction begins (the crash test lowers cache_size here). The v7 step passes no version. */
+  /** Runs just before the v7, v8 or v9 transaction begins (the crash test lowers cache_size here). The v7 step passes no version. */
   beforeTransaction?: (db: Database.Database, toVersion?: number) => void;
   /** Replaces the free-space probe of the backup directory (insufficient_disk test). */
   freeBytes?: () => number | null;

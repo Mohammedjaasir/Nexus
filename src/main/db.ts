@@ -826,22 +826,25 @@ export class PersistStore {
   /**
    * Why execution alone is off while the platform is on. null when execution is available, and also
    * when the whole platform is off (that reason is the v7 side's).
-   *   not_enabled   v9 was not enabled for this open() (PersistOpenOptions.enableV9; the default until verified)
+   *   not_enabled   v9 was not enabled for this open() (PersistOpenOptions.enableV9; the default until verified),
+   *                 and v8 is in place
    *   held          NEXUS_DB_HOLD_V9=1 (or the v8 or v7 hold) kept the database at v8; also when v8 itself is held
    *   auto_held     the v9 failure marker reached V9_FAILURE_LIMIT (or v8 is auto-held)
    *   backup_failed the harness-v8 backup could not be written or verified (or the harness-v7 one, for v8)
    *   failed        the v9 transaction rolled back, the v9 post-check failed, a pre-check or the disk
    *                 check skipped v9, or the v9 step threw unexpectedly (or v8 failed)
    *   shape         the database is at v9 but the v9 shape check failed on reopen (or the v8 one did)
-   * When v8 is not in place, the reason is handoffsUnavailableReason (execution needs handoffs).
+   * When v8 is not in place, the reason is handoffsUnavailableReason (execution needs handoffs), checked
+   * before not_enabled.
    */
   get executionUnavailableReason(): ExecutionUnavailableReason | null {
     if (!this.platformAvailable || this.executionAvailable) return null;
-    if (!this.v9Enabled) return 'not_enabled';
     const o = this.outcomeV9;
+    // v8 not in place comes first: execution needs handoffs, whether or not v9 is enabled.
+    if (o && o.state === 'skipped' && o.reason === 'v8_unavailable') return this.handoffsUnavailableReason ?? 'failed';
+    if (!this.v9Enabled) return 'not_enabled';
     if (!o) return 'failed';
     if (o.state === 'skipped') {
-      if (o.reason === 'v8_unavailable') return this.handoffsUnavailableReason ?? 'failed';
       if (o.reason === 'held') return o.detail.startsWith('repeated_failure') ? 'auto_held' : 'held';
       if (o.reason === 'backup_failed') return 'backup_failed';
       return 'failed';

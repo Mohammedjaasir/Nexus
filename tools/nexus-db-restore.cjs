@@ -201,6 +201,10 @@ function readUserVersion(file) {
 function holdHint(userVersion) {
   const known = Number.isInteger(userVersion) && userVersion >= 0;
   const name = known ? HOLD_SWITCHES[userVersion] : undefined;
+  if (name && userVersion === 8) {
+    return 'Next: launch with NEXUS_DB_HOLD_V9=1 to stay on schema v8, or launch normally: a build with schema v9 enabled '
+      + 'migrates it again (a new backup is taken first); a build without it stays on v8.';
+  }
   if (name) {
     return `Next: launch with ${name}=1 to stay on schema v${userVersion}, `
       + 'or launch normally to migrate again (a new backup is taken first).';
@@ -210,7 +214,8 @@ function holdHint(userVersion) {
       + 'launching normally opens it and migrates it forward if it is older than the build (a backup is taken first).';
   }
   return "Next: the backup's schema version could not be read from its header. To stay on the backup's schema, launch with "
-    + 'NEXUS_DB_HOLD_V7=1 for a v6 backup or NEXUS_DB_HOLD_V8=1 for a v7 backup (NEXUS_DB_HOLD_V9=1 for a v8 backup); launching normally migrates it again (a new backup is taken first).';
+    + 'NEXUS_DB_HOLD_V7=1 for a v6 backup or NEXUS_DB_HOLD_V8=1 for a v7 backup (NEXUS_DB_HOLD_V9=1 for a v8 backup); '
+    + "launching normally migrates an older backup forward when this build's schema steps are enabled (a new backup is taken first).";
 }
 
 const isLockError = (e) => e && (e.code === 'EBUSY' || e.code === 'EPERM');

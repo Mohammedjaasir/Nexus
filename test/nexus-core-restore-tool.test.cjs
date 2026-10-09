@@ -454,3 +454,13 @@ test('the hint for a v8 backup names NEXUS_DB_HOLD_V9 only; the CLI prints it on
 test('a backup without a readable header names the v9 switch for a v8 backup too', () => {
   assert.match(holdHint(null), /NEXUS_DB_HOLD_V9=1 for a v8 backup/);
 });
+
+test('fix round 1: a v8 backup gets its own sentence; v6 and v7 keep the generic one; the unreadable sentence is conditional', () => {
+  assert.equal(holdHint(8), 'Next: launch with NEXUS_DB_HOLD_V9=1 to stay on schema v8, or launch normally: a build with schema v9 enabled '
+    + 'migrates it again (a new backup is taken first); a build without it stays on v8.');
+  for (const [v, name] of [[6, 'NEXUS_DB_HOLD_V7'], [7, 'NEXUS_DB_HOLD_V8']]) {
+    assert.equal(holdHint(v), `Next: launch with ${name}=1 to stay on schema v${v}, or launch normally to migrate again (a new backup is taken first).`);
+  }
+  assert.ok(holdHint(null).endsWith("(NEXUS_DB_HOLD_V9=1 for a v8 backup); launching normally migrates an older backup forward "
+    + "when this build's schema steps are enabled (a new backup is taken first)."), holdHint(null));
+});
