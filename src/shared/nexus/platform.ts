@@ -17,7 +17,8 @@ export type PlatformAction =
   | 'job.read' | 'job.create' | 'job.cancel' | 'job.transition'
   | 'session.read' | 'session.open' | 'session.cancel' | 'session.transition'
   | 'activity.read' | 'system.reconcile'
-  | 'handoff.read' | 'handoff.send' | 'handoff.respond' | 'handoff.withdraw';
+  | 'handoff.read' | 'handoff.send' | 'handoff.respond' | 'handoff.withdraw'
+  | 'blob.gc';
 export type AuthDenyReason = 'unknown_principal' | 'disabled_principal' | 'no_membership' | 'role' | 'agent_requires_token' | 'system_only';
 export type AuthDecision = { allowed: true; role: Role | 'system' } | { allowed: false; reason: AuthDenyReason; needed?: Role };
 export type ParticipationStatus = 'active' | 'withdrawn' | 'complete';

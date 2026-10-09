@@ -1,7 +1,7 @@
 /**
  * The content-addressed blob store's index (schema v9: `blobs`, `version_blobs`). DB only:
- * the bytes live under `<dataHome>/objects` (src/main/nexusExec/dataHome.ts) and are written,
- * hashed and deleted by the runner; this module never touches the file system.
+ * the bytes live under `<dataHome>/objects` (src/main/nexusExec/dataHome.ts); this module never
+ * touches the file system itself.
  *
  * - Record. `recordBlobsTx` is upsert-free: `INSERT OR IGNORE` the row, then move
  *   `last_referenced_at` forward. The same bytes recorded twice are one row. A known sha256
@@ -11,26 +11,39 @@
  *   authority (tr_version_blobs_insert); the service maps its refusal to `immutable`. An
  *   unknown version is `not_found`; an unknown blob is `invalid` (record it first). Attaching
  *   touches `last_referenced_at` of each blob.
- * - Lock. One in-process reader/writer lock per BlobIndex. Ingest takes it SHARED for the whole
- *   of "bytes land in objects/ -> rows recorded -> rows attached" (`withIngestLock`); the
- *   class's writes refuse to run outside it. GC apply takes it EXCLUSIVE without waiting: a
- *   held shared lock (an ingest in flight) or a second GC is a `conflict`. While GC holds it,
- *   a new ingest waits.
+ * - Lock and token. One in-process reader/writer lock per BlobIndex. `withIngestLock(fn)` takes it
+ *   SHARED and hands `fn` an ingest token that is live only until `fn` settles. The only blob
+ *   writes (`recordBlobsTx`, `attachTx`) are methods that require a LIVE token of THIS index, so
+ *   nothing writes blob rows outside its own ingest lock (the row-writing helpers are private to
+ *   this module). GC apply takes the lock EXCLUSIVE without waiting: a held shared lock (an ingest
+ *   in flight) or a second GC is a `conflict`. While GC holds it, a new ingest waits.
+ * - CONTRACT for the execution core (enforced by Task 7 and Task 11, exposed here): starting or
+ *   leasing an attempt, and landing any object under `objects/` (the runner's rename out of
+ *   `objects/tmp`), must either run inside `withIngestLock` or refuse while `isExclusiveHeld()`
+ *   is true. GC therefore never deletes a file that a live attempt or a landing object relies on.
  * - GC is two-step (A6). `gcCandidates` is a dry run: the unreferenced blobs whose last
- *   reference is older than 24 h, and `candidatesHash` over them. `gcApply(expectedHash)`
- *   recomputes the list under the exclusive lock in one IMMEDIATE transaction and deletes the
- *   rows only when the hash is the same (else `conflict`, reason `stale`). It refuses while any
- *   attempt is live (`starting` or `running`), checked under the lock. A blob held by a version
- *   is never a candidate, and tr_blobs_delete refuses its delete anyway. The removed shas are
- *   returned (and passed to `deleteObjects`, still under the lock) so the runner deletes the
- *   files; a file left behind by a failed delete is an unindexed object that recovery phase B
- *   sweeps. GC writes one activity row (`blobs.gc`); record and attach are part of the ingest
- *   that calls them and write none of their own.
+ *   reference is older than 24 h, and `candidatesHash` over them. `gcApply(by, expectedHash,
+ *   deleteObjects)` first authorizes `by` for `blob.gc` at platform scope (a denial is audited),
+ *   then, under the exclusive lock and in one IMMEDIATE transaction, refuses while any attempt is
+ *   live (`starting` or `running`), recomputes the list and deletes the rows only when the hash is
+ *   the same (else `conflict`, reason `stale`). A blob held by a version is never a candidate, and
+ *   tr_blobs_delete refuses its delete anyway. `deleteObjects` is REQUIRED and is awaited while
+ *   the exclusive lock is still held; it must delete through confined paths (dataHome's
+ *   `deleteObjectFiles`). The shas are never handed out for deletion outside the lock.
+ * - Activity, truthful about files. The transaction writes `blob.gc` with status `started`
+ *   ({removed, bytes}). After the file delete a second `blob.gc` row says `succeeded`
+ *   ({removed, fileDeleteFailed: 0}) or `failed` ({removed, fileDeleteFailed: n}) when the delete
+ *   threw or reported failures. A file left behind is an unindexed object: recovery (Task 10)
+ *   sweeps `objects/tmp` and also unindexed `objects/<2>/<62>` files older than 24 h.
+ * - Names. The PlatformAction and the activity action are both `blob.gc`. The schema's
+ *   `approvals.reason` vocabulary keeps `blobs.gc` (V9_DDL is frozen); B2a writes no approval
+ *   for GC (the dry-run hash is the user's consent, A6).
  * - Every write runs in `immediateTx` (a savepoint inside a caller's transaction).
  */
 import { createHash } from 'node:crypto';
 import type Database from 'better-sqlite3';
-import type { Principal, VersionId } from '../../../shared/nexus/platform';
+import type { Principal, ScopeRef, VersionId } from '../../../shared/nexus/platform';
+import type { AuthService } from '../auth/authService';
 import { appendActivityRow } from '../activity/writer';
 import { immediateTx } from '../db/tx';
 import { PlatformError } from '../errors';
@@ -83,7 +96,7 @@ function validRecords(blobs: readonly BlobRecord[]): BlobRecord[] {
  * Record blobs (INSERT OR IGNORE) and move their `last_referenced_at` to `now`. Returns how many
  * rows were new. Runs in the caller's transaction as a savepoint, or in its own IMMEDIATE one.
  */
-export function recordBlobsTx(db: Database.Database, blobs: readonly BlobRecord[], now: number): { inserted: number; touched: number } {
+function writeBlobRows(db: Database.Database, blobs: readonly BlobRecord[], now: number): { inserted: number; touched: number } {
   const list = validRecords(blobs);
   return immediateTx(db, () => {
     const ins = db.prepare('INSERT OR IGNORE INTO blobs (sha256, bytes, media_type, created_at, last_referenced_at) VALUES (?, ?, ?, ?, ?)');
@@ -104,7 +117,7 @@ export function recordBlobsTx(db: Database.Database, blobs: readonly BlobRecord[
  * Attach recorded blobs to a DRAFT version. Idempotent per (version, sha256, role, path).
  * The draft rule is the database's (tr_version_blobs_insert), surfaced as `immutable`.
  */
-export function attachBlobsTx(db: Database.Database, versionId: VersionId, items: readonly BlobAttachItem[], now: number): { attached: number } {
+function writeVersionBlobRows(db: Database.Database, versionId: VersionId, items: readonly BlobAttachItem[], now: number): { attached: number } {
   if (typeof versionId !== 'string' || versionId.length === 0 || versionId.length > 64) throw new PlatformError('invalid', 'versionId is required');
   if (!Array.isArray(items) || items.length === 0 || items.length > MAX_BLOBS_PER_CALL) throw new PlatformError('invalid', 'items must be a non-empty bounded list');
   const list = items.map((it) => {
@@ -191,33 +204,49 @@ export class BlobGcLock {
   }
 }
 
+/** An opaque proof that the caller holds the shared ingest lock; live only while its `withIngestLock` callback runs. */
+export interface IngestToken { readonly ingest: true }
+
+/** What the file delete reports: the shas whose files could not be deleted (an empty list when all went). */
+export type DeleteObjects = (shas: readonly string[]) => Promise<{ failed: readonly string[] }>;
+
+export interface BlobGcResult { removedShas: string[]; fileDeleteFailed: string[] }
+
+const PLATFORM: ScopeRef = { type: 'platform' };
+
 export class BlobIndex {
   readonly lock: BlobGcLock;
+  private readonly live = new WeakSet<IngestToken>();
 
-  constructor(private readonly db: Database.Database, private readonly deps: { now: () => number; lock?: BlobGcLock }) {
+  constructor(private readonly db: Database.Database, private readonly deps: { auth: AuthService; now: () => number; lock?: BlobGcLock }) {
     this.lock = deps.lock ?? new BlobGcLock();
   }
 
-  /** Run an ingest step holding the lock shared (released when `fn` settles). */
-  async withIngestLock<T>(fn: () => Promise<T> | T): Promise<T> {
+  /** Run an ingest step holding the lock shared; `fn` gets the token the blob writes require (dead once `fn` settles). */
+  async withIngestLock<T>(fn: (token: IngestToken) => Promise<T> | T): Promise<T> {
     const release = await this.lock.acquireShared();
-    try { return await fn(); } finally { release(); }
+    const token: IngestToken = Object.freeze({ ingest: true as const });
+    this.live.add(token);
+    try { return await fn(token); } finally { this.live.delete(token); release(); }
   }
 
-  private requireShared(): void {
-    if (this.lock.sharedHolders < 1 || this.lock.exclusiveHeld) {
-      throw new PlatformError('conflict', 'blob writes run under the ingest lock', { reason: 'lock_not_held' });
+  /** True while a GC apply holds the lock (see the CONTRACT in the module header). */
+  isExclusiveHeld(): boolean { return this.lock.exclusiveHeld; }
+
+  private requireToken(token: IngestToken): void {
+    if (!token || typeof token !== 'object' || !this.live.has(token) || this.lock.exclusiveHeld) {
+      throw new PlatformError('conflict', 'blob writes run under the caller\'s own ingest lock', { reason: 'lock_not_held' });
     }
   }
 
-  recordBlobsTx(blobs: readonly BlobRecord[]): { inserted: number; touched: number } {
-    this.requireShared();
-    return recordBlobsTx(this.db, blobs, this.deps.now());
+  recordBlobsTx(token: IngestToken, blobs: readonly BlobRecord[]): { inserted: number; touched: number } {
+    this.requireToken(token);
+    return writeBlobRows(this.db, blobs, this.deps.now());
   }
 
-  attachTx(versionId: VersionId, items: readonly BlobAttachItem[]): { attached: number } {
-    this.requireShared();
-    return attachBlobsTx(this.db, versionId, items, this.deps.now());
+  attachTx(token: IngestToken, versionId: VersionId, items: readonly BlobAttachItem[]): { attached: number } {
+    this.requireToken(token);
+    return writeVersionBlobRows(this.db, versionId, items, this.deps.now());
   }
 
   isReferenced(sha256: string): boolean { return isBlobReferenced(this.db, sha256); }
@@ -232,12 +261,14 @@ export class BlobIndex {
   candidatesHash(candidates: readonly BlobGcCandidate[]): string { return candidatesHash(candidates); }
 
   /**
-   * Step two of GC: under the exclusive lock, delete the candidate rows only when the list still hashes
-   * to `expectedHash` and no attempt is live. Returns the removed shas; `deleteObjects` (the runner's
-   * file delete) is awaited while the lock is still held.
+   * Step two of GC (see the module header): authorize, take the exclusive lock, delete the candidate rows
+   * when the list still hashes to `expectedHash` and no attempt is live, then delete the files through
+   * `deleteObjects` while the lock is still held. Never throws for a failed file delete: the result and the
+   * second activity row report it.
    */
-  async gcApply(by: Principal, expectedHash: string, deleteObjects?: (shas: readonly string[]) => Promise<void>): Promise<{ removedShas: string[] }> {
-    if (!by || (by.kind !== 'user' && by.kind !== 'system')) throw new PlatformError('denied', 'blob GC is run by a user or the system');
+  async gcApply(by: Principal, expectedHash: string, deleteObjects: DeleteObjects): Promise<BlobGcResult> {
+    this.deps.auth.require(by, 'blob.gc', PLATFORM, { entityType: 'blob' });
+    if (typeof deleteObjects !== 'function') throw new PlatformError('invalid', 'GC deletes its files under the lock', { field: 'deleteObjects' });
     checkSha(expectedHash, 'expectedHash');
     const release = this.lock.tryExclusive();
     if (!release) throw new PlatformError('conflict', 'an ingest or another GC holds the blob store', { reason: 'busy' });
@@ -250,12 +281,26 @@ export class BlobIndex {
         const del = this.db.prepare('DELETE FROM blobs WHERE sha256 = ? AND NOT EXISTS (SELECT 1 FROM version_blobs vb WHERE vb.sha256 = ?)');
         const out: string[] = [];
         for (const c of current) if (del.run(c.sha256, c.sha256).changes === 1) out.push(c.sha256);
-        appendActivityRow(this.db, { actorKind: by.kind, actorId: by.id, entityType: 'blob', action: 'blobs.gc', status: 'succeeded',
+        appendActivityRow(this.db, { actorKind: by.kind, actorId: by.id, entityType: 'blob', action: 'blob.gc', status: 'started',
           details: { removed: out.length, bytes: current.reduce((s, c) => s + c.bytes, 0) } }, now);
         return out;
       });
-      if (deleteObjects && removedShas.length > 0) await deleteObjects(removedShas);
-      return { removedShas };
+      let failed: string[] = [];
+      if (removedShas.length > 0) {
+        try {
+          const r = await deleteObjects(removedShas);
+          const list = Array.isArray(r?.failed) ? r.failed : null;
+          failed = list === null ? [...removedShas] : removedShas.filter((s) => list.includes(s));
+        } catch {
+          failed = [...removedShas];
+        }
+      }
+      {
+        const now = this.deps.now();
+        appendActivityRow(this.db, { actorKind: by.kind, actorId: by.id, entityType: 'blob', action: 'blob.gc',
+          status: failed.length === 0 ? 'succeeded' : 'failed', details: { removed: removedShas.length, fileDeleteFailed: failed.length } }, now);
+      }
+      return { removedShas, fileDeleteFailed: failed };
     } finally {
       release();
     }

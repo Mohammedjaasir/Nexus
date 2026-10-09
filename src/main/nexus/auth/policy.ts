@@ -32,7 +32,8 @@ export const MEMBER_ACTIONS: readonly PlatformAction[] = Object.freeze([
   'handoff.send', 'handoff.respond', 'handoff.withdraw'
 ] as PlatformAction[]);
 
-export const ADMIN_ACTIONS: readonly PlatformAction[] = Object.freeze(['artifact.archive'] as PlatformAction[]);
+// blob.gc: apply a blob GC (B2a, A6) at platform scope; the local owner and the system principal (admin) may.
+export const ADMIN_ACTIONS: readonly PlatformAction[] = Object.freeze(['artifact.archive', 'blob.gc'] as PlatformAction[]);
 
 export const SYSTEM_ONLY_ACTIONS: readonly PlatformAction[] = Object.freeze([
   'version.finalize', 'job.transition', 'session.transition', 'system.reconcile'

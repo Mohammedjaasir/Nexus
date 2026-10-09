@@ -52,7 +52,9 @@ export function relSegments(rel: unknown, platform: NodeJS.Platform = process.pl
   if (platform === 'win32' && parts.some((x) => x.includes(':'))) return null;
   // Windows drops trailing dots and spaces (`.env.` opens `.env`) and maps reserved device names (CON, NUL,
   // COM1, `nul.txt`, ...) to devices in any folder: both are aliases, never project files.
-  if (platform === 'win32' && parts.some((x) => /[. ]$/.test(x) || WIN_DEVICE.test(x.replace(/[. ]+$/, '')))) return null;
+  // The stem before the first dot is tested with its trailing spaces removed too: Windows maps `con .txt` to CON.
+  if (platform === 'win32' && parts.some((x) => /[. ]$/.test(x) || WIN_DEVICE.test(x.replace(/[. ]+$/, ''))
+    || WIN_DEVICE.test(x.split('.')[0].replace(/ +$/, '')))) return null;
   return parts;
 }
 

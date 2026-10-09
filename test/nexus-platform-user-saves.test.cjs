@@ -449,7 +449,7 @@ test('U19 Windows aliases: trailing dots and spaces, long-path and device-namesp
     assert.deepEqual(await reasonOf(saves.saveTextFile(me, fileSave(bad))), ['invalid', 'path_refused'], bad);
   }
   // The win32 rules, checked on the pure segment function on any platform.
-  for (const bad of ['notes.txt.', 'notes.txt ', 'notes.txt. .', 'sub./x', 'CON', 'nul', 'NUL.txt', 'aux.md', 'com1', 'LPT9.log', 'a/CON/b', 'conin$', 'COM\u00b9']) {
+  for (const bad of ['notes.txt.', 'notes.txt ', 'notes.txt. .', 'sub./x', 'CON', 'nul', 'NUL.txt', 'aux.md', 'com1', 'LPT9.log', 'a/CON/b', 'conin$', 'COM\u00b9', 'con .txt', 'nul .txt', 'CON  .log', 'a/aux .md']) {
     assert.equal(relSegments(bad, 'win32'), null, JSON.stringify(bad));
   }
   assert.deepEqual(relSegments('console.txt', 'win32'), ['console.txt']);

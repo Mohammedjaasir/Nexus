@@ -13,11 +13,16 @@
  * (`:`), ends a segment in a dot or a space, or names a reserved device. Each existing step is
  * then checked with lstat: any link (a symlink or a junction) is refused, wherever it points, and
  * the real path of every step must stay under the real data home (fsRoots.isUnderRoot). The data
- * home itself must not be a link.
+ * home itself must not be a link. A final non-directory step with more than one hard link is
+ * refused (B1's rule for sources and outputs).
+ *
+ * Every absolute path main hands out (`objectPath`, `attemptWorkDir`) is confined first, and
+ * `ensure()` creates the layout one folder at a time, refusing a link or non-directory at any
+ * step, so nothing is created outside the data home.
  *
  * Async only (fs.promises): no synchronous file-system call here (the main posture ratchet).
  */
-import { lstat, mkdir, realpath, statfs } from 'node:fs/promises';
+import { lstat, mkdir, realpath, statfs, unlink } from 'node:fs/promises';
 import * as path from 'node:path';
 import { isUnderRoot } from '../fsRoots';
 import { relSegments } from '../nexusIpc/sources';
@@ -38,15 +43,24 @@ export interface DataHome {
   readonly objectsTmpDir: string;
   readonly logsDir: string;
   readonly workDir: string;
-  /** Absolute path of a blob's bytes. */
-  objectPath(sha256: string): string;
-  /** Absolute staging folder of one attempt (`in/` and `out/` live under it). */
-  attemptWorkDir(jobId: string, n: number): string;
+  /** RELATIVE path of a blob's bytes (`objects/<2>/<62>`). */
+  objectRel(sha256: string): string;
+  /** Absolute, confined path of a blob's bytes, or null when confinement refuses it. */
+  objectPath(sha256: string): Promise<string | null>;
+  /** RELATIVE staging folder of one attempt (`work/<jobId>/<n>`). */
+  attemptWorkRel(jobId: string, n: number): string;
+  /** Absolute, confined staging folder of one attempt (`in/` and `out/` live under it), or null when refused. */
+  attemptWorkDir(jobId: string, n: number): Promise<string | null>;
   /** RELATIVE log path of one attempt, as stored in `job_attempts.log_path` (forward slashes). */
   attemptLogPath(jobId: string, n: number): string;
   /** RELATIVE log path of one image build, as stored in `image_builds.log_path`. */
   imageLogPath(buildId: string): string;
-  /** The absolute, confined location of `rel` under the data home, or null when it is refused. */
+  /**
+   * The absolute, confined location of `rel` under the data home, or null when it is refused.
+   * TOCTOU: the answer holds only at the moment it is computed. Callers confine immediately before
+   * each use and never cache the result; folders a container can write (`work/<job>/<n>/out`) are
+   * re-checked by the runner's own lstat walk when it reads them.
+   */
   confineToDataHome(rel: string): Promise<string | null>;
   /** Free bytes for an unprivileged writer at `dir` (default: the data home), or null when unknown. */
   freeBytesAt(dir?: string): Promise<number | null>;
@@ -113,12 +127,39 @@ export async function confineUnder(root: string, rel: string): Promise<string | 
     }
     if (st.isSymbolicLink()) return null;             // a symlink or a junction, wherever it points
     if (k < parts.length - 1 && !st.isDirectory()) return null;
+    if (!st.isDirectory() && st.nlink > 1) return null;   // a hard link: a second name for bytes that may live elsewhere
     let real: string;
     try { real = await realpath(next); } catch { return null; }
     if (!isUnderRoot(realRoot, real)) return null;
     cur = real;
   }
   return cur;
+}
+
+const LAYOUT: readonly (readonly string[])[] = Object.freeze([['objects', 'tmp'], ['logs', 'jobs'], ['logs', 'images'], ['work']]);
+
+function objectRel(sha256: string): string {
+  if (typeof sha256 !== 'string' || !SHA_RE.test(sha256)) throw new PlatformError('invalid', 'not a lowercase sha256', { field: 'sha256' });
+  return `objects/${sha256.slice(0, 2)}/${sha256.slice(2)}`;
+}
+function attemptWorkRel(jobId: string, n: number): string {
+  return `work/${checkId(jobId, 'jobId')}/${checkN(n)}`;
+}
+
+/**
+ * The GC file delete (BlobIndex.gcApply's `deleteObjects`): each object is confined immediately before
+ * its unlink. A path that confinement refuses (a link, a hard link, outside) or an unlink that fails is
+ * reported in `failed`; a file already gone counts as deleted.
+ */
+export async function deleteObjectFiles(home: DataHome, shas: readonly string[]): Promise<{ failed: string[] }> {
+  const failed: string[] = [];
+  for (const sha of shas) {
+    let p: string | null;
+    try { p = await home.objectPath(sha); } catch { p = null; }
+    if (!p) { failed.push(sha); continue; }
+    try { await unlink(p); } catch (e) { if (errCode(e) !== 'ENOENT') failed.push(sha); }
+  }
+  return { failed };
 }
 
 export function resolveDataHome(userData: string): DataHome {
@@ -132,13 +173,10 @@ export function resolveDataHome(userData: string): DataHome {
   const workDir = path.join(root, 'work');
   return Object.freeze({
     root, objectsDir, objectsTmpDir, logsDir, workDir,
-    objectPath(sha256: string): string {
-      if (typeof sha256 !== 'string' || !SHA_RE.test(sha256)) throw new PlatformError('invalid', 'not a lowercase sha256', { field: 'sha256' });
-      return path.join(objectsDir, sha256.slice(0, 2), sha256.slice(2));
-    },
-    attemptWorkDir(jobId: string, n: number): string {
-      return path.join(workDir, checkId(jobId, 'jobId'), String(checkN(n)));
-    },
+    objectRel,
+    objectPath(sha256: string): Promise<string | null> { return confineUnder(root, objectRel(sha256)); },
+    attemptWorkRel,
+    attemptWorkDir(jobId: string, n: number): Promise<string | null> { return confineUnder(root, attemptWorkRel(jobId, n)); },
     attemptLogPath(jobId: string, n: number): string {
       return relLog(['logs', 'jobs', checkId(jobId, 'jobId'), `${checkN(n)}.log`]);
     },
@@ -148,8 +186,33 @@ export function resolveDataHome(userData: string): DataHome {
     confineToDataHome(rel: string): Promise<string | null> { return confineUnder(root, rel); },
     freeBytesAt(dir?: string): Promise<number | null> { return freeBytesAt(dir ?? root); },
     async ensure(): Promise<void> {
-      for (const d of [objectsTmpDir, path.join(logsDir, 'jobs'), path.join(logsDir, 'images'), workDir]) await mkdir(d, { recursive: true });
-      if ((await lstat(root)).isSymbolicLink()) throw new PlatformError('invalid', 'the data home must not be a link');
+      const refuse = (why: string): never => { throw new PlatformError('invalid', `the data home layout is refused: ${why}`); };
+      // The root first, before anything is created: an existing link or non-directory is refused.
+      try {
+        const st = await lstat(root);
+        if (st.isSymbolicLink() || !st.isDirectory()) refuse('the data home is a link or not a folder');
+      } catch (e) {
+        if (e instanceof PlatformError) throw e;
+        if (errCode(e) !== 'ENOENT') throw e;
+        await mkdir(path.dirname(root), { recursive: true });
+        await mkdir(root);
+      }
+      const realRoot = await realpath(root);
+      // One folder at a time, never recursive: a link or a file at any step stops the walk before it writes through it.
+      for (const rel of LAYOUT) {
+        let cur = root;
+        for (const seg of rel) {
+          cur = path.join(cur, seg);
+          let st;
+          try { st = await lstat(cur); } catch (e) {
+            if (errCode(e) !== 'ENOENT') throw e;
+            await mkdir(cur);
+            st = await lstat(cur);
+          }
+          if (st.isSymbolicLink() || !st.isDirectory()) refuse(`${rel.join('/')} is a link or not a folder`);
+          if (!isUnderRoot(realRoot, await realpath(cur))) refuse(`${rel.join('/')} leaves the data home`);
+        }
+      }
     }
   });
 }
