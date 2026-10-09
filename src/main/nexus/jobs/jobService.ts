@@ -22,6 +22,10 @@
  *   content hash is copied from the version into job_inputs.
  * - Agent runs. `agent.run` needs a live (non-terminal) session in the same
  *   project and workspace; the database CHECK and tr_jobs_insert back this up.
+ * - System kinds (B2a). `validate` and `ingest` jobs are the platform's own work: `create`
+ *   refuses them to anyone but the stored system principal ('invalid', reason
+ *   'system_job_kind', after authorization). The validation framework creates a user's
+ *   revalidation through `createCheckTx`.
  * - State. The table in jobRules.ts mirrors job_state_transitions; tr_jobs_transition
  *   refuses anything else. -> leased counts an attempt; the first -> running sets
  *   started_at; a terminal state sets finished_at; retry_scheduled -> queued clears
@@ -60,6 +64,8 @@ export interface CreateJobInput {
 }
 
 export const JOB_KINDS: readonly JobKind[] = Object.freeze(['agent.run', 'tool.run', 'validate', 'ingest'] as JobKind[]);
+/** Kinds only the system requests through `create` (B2a: checks and ingests are the platform's own work). */
+export const SYSTEM_JOB_KINDS: ReadonlySet<JobKind> = new Set<JobKind>(['validate', 'ingest']);
 export const MAX_IDEMPOTENCY_KEY_CHARS = 200;
 export const MAX_JOB_INPUTS = 256;
 export const MAX_RETRY_ATTEMPTS = 20;
@@ -280,6 +286,21 @@ export class JobService {
   }
 
   create(p: Principal, i: CreateJobInput): { job: Job; created: boolean } {
+    return this.createJob(p, i, false);
+  }
+
+  /** The system principal as STORED (a principal object claiming kind 'system' is not enough). */
+  private isSystem(p: Principal): boolean {
+    if (p?.kind !== 'system' || typeof p.id !== 'string') return false;
+    const row = this.db.prepare('SELECT kind FROM principals WHERE id = ?').get(p.id) as { kind: string } | undefined;
+    return row?.kind === 'system';
+  }
+
+  /**
+   * `create`'s rules. `checkKinds` admits the system job kinds (`validate`, `ingest`) for a requester that is not the
+   * system: only the validation framework passes it (`createCheckTx`, a user's Revalidate).
+   */
+  private createJob(p: Principal, i: CreateJobInput, checkKinds: boolean): { job: Job; created: boolean } {
     if (!isPlainObject(i)) throw new PlatformError('invalid', 'input must be an object');
     if (!JOB_KINDS.includes(i.kind)) throw new PlatformError('invalid', 'unknown job kind');
     if (!isStr(i.projectId) || !isStr(i.workspaceId)) throw new PlatformError('invalid', 'projectId and workspaceId are required');
@@ -310,6 +331,11 @@ export class JobService {
     }
 
     const pw = requireActiveParticipation(this.access, this.db, p, i.projectId, i.workspaceId, 'job.create');
+    // The system's job kinds: a check (`validate`) or an ingest is never requested through the public create by
+    // anyone but the system; the validation framework creates a user's revalidation itself (createCheckTx).
+    if (SYSTEM_JOB_KINDS.has(i.kind) && !checkKinds && !this.isSystem(p)) {
+      throw new PlatformError('invalid', `a ${i.kind} job is created by the system`, { reason: 'system_job_kind' });
+    }
     // Read-only references, checked after authorization so a stranger learns nothing about them.
     if (sessionId !== null) {
       this.requireLiveSessionFor(sessionId, pw);
@@ -404,7 +430,18 @@ export class JobService {
    */
   createTx(p: Principal, i: CreateJobInput): { job: Job; created: boolean } {
     if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'createTx needs an open transaction');
-    return this.create(p, i);
+    return this.createJob(p, i, false);
+  }
+
+  /**
+   * @internal For the validation framework only (ValidationService), INSIDE the caller's IMMEDIATE transaction: the
+   * rules of `createTx` for a `validate` job, which this path admits for a requester that is not the system (a user's
+   * Revalidate acts on the user's behalf; its results are still recorded by the system). Never map it to a transport.
+   */
+  createCheckTx(p: Principal, i: CreateJobInput): { job: Job; created: boolean } {
+    if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'createCheckTx needs an open transaction');
+    if (!isPlainObject(i) || i.kind !== 'validate') throw new PlatformError('invalid', 'createCheckTx creates validate jobs only');
+    return this.createJob(p, i, true);
   }
 
   /**

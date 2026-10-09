@@ -5,9 +5,15 @@
  * - a bad shape                                          -> error  `parser_contract`
  * - counts that disagree (the `tests` attribute included) -> failed `counts_mismatch`
  * - nothing executed                                     -> failed `no_tests`
- * - an executed file not in the discovery                -> failed `undiscovered_ids` (when the framework attributes files)
+ * - the suite's stored list was cut                      -> failed `discovery_truncated` (a subset never passes)
+ * - an executed test the discovery did not list          -> failed `undiscovered_ids`: a case naming a file the
+ *   discovery never listed, or, when the discovery lists test ids (not only files), a case whose id or name is
+ *   not among them; a framework that attributes no file is judged by id only, and only against such a list
+ * - a discovered file with no case in the report         -> failed `discovered_not_run` (when the framework
+ *   attributes files: the run covered a subset)
  * - exit 0 with failures, or non-zero with all passing   -> failed `exit_inconsistent`
  * - any failure or error                                 -> failed `tests_failed`
+ * Lookups are by Set: the check stays linear in cases + discovered names.
  */
 import type { Evidence } from '../../../../shared/nexus/evidence';
 import { checkJunit, errored, failed, junitCountsAgree, passed, SHA256_RE, type ValidatorOutcome } from '../normalized';
@@ -20,7 +26,8 @@ export interface TestsPassFacts {
   /** The hash of the staged `junit.xml` (null when the attempt staged none). */
   junitSha256: string | null;
   exit: { code: number | null; signal?: string; oomKilled: boolean };
-  discovery: { ids: string[]; files: string[] };
+  /** The suite's stored discovery; `truncated` when the stored list is not the whole list. */
+  discovery: { ids: string[]; files: string[]; truncated?: boolean };
   imageId: string | null;
   lockfileSha256: string | null;
 }
@@ -54,10 +61,31 @@ export function run(f: TestsPassFacts): ValidatorOutcome {
   if (r.sha256 !== staged) return failed('junit_missing', 'The JUnit result does not belong to the staged report.', evidence);
   if (!junitCountsAgree(r)) return failed('counts_mismatch', 'The JUnit counts disagree with the test rows.', evidence);
   if (executed <= 0) return failed('no_tests', 'No tests were executed.', evidence);
+  if (f.discovery.truncated === true) return failed('discovery_truncated', 'The stored discovered list is incomplete; a subset never passes.', evidence);
   const files = new Set(f.discovery.files);
-  const undiscovered = r.cases.filter((c) => c.outcome !== 'skipped' && c.file !== null && !files.has(c.file)
-    && !f.discovery.ids.some((id) => id === c.id || id.startsWith(`${c.file}::`)));
+  const ids = new Set(f.discovery.ids);
+  // An id-level discovery lists tests, not only files (pytest node ids, vitest names); a file-level one lists files.
+  const idLevel = f.discovery.ids.some((id) => !files.has(id));
+  const idNames = new Set<string>(); const idFiles = new Set<string>();
+  for (const id of f.discovery.ids) {
+    const first = id.indexOf('::');
+    if (first < 0) { idNames.add(id); continue; }          // a bare test name
+    idFiles.add(id.slice(0, first));                       // `file::...::name`
+    idNames.add(id.slice(id.lastIndexOf('::') + 2));
+  }
+  const undiscovered = r.cases.filter((c) => {
+    if (c.outcome === 'skipped' || ids.has(c.id)) return false;
+    if (c.file !== null && !files.has(c.file) && !idFiles.has(c.file)) return true;   // a file the discovery never listed
+    return idLevel && !idNames.has(c.name);                                           // a test an id-level discovery never listed
+  });
   if (undiscovered.length > 0) return failed('undiscovered_ids', `${undiscovered.length} executed test(s) were not in the discovered list.`, evidence);
+  if (r.cases.some((c) => c.file !== null)) {
+    // A framework that attributes files: every discovered file must appear in the report (a skip is the framework's
+    // own word that it loaded the file); a file with no case at all was not run.
+    const reported = new Set(r.cases.map((c) => c.file).filter((x): x is string => x !== null));
+    const notRun = f.discovery.files.filter((x) => !reported.has(x));
+    if (notRun.length > 0) return failed('discovered_not_run', `${notRun.length} discovered test file(s) have no test in the report.`, evidence);
+  }
   const bad = r.failed + r.errored;
   if ((bad > 0 && f.exit.code === 0) || (bad === 0 && f.exit.code !== 0)) {
     return failed('exit_inconsistent', `The exit code (${f.exit.code}) disagrees with the test results.`, evidence);

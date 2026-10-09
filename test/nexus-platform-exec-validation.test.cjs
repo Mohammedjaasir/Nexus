@@ -650,3 +650,507 @@ test('O10-O17 find what they name (negative controls with the guards dropped)', 
   for (const id of Object.keys(EXEC_ZERO)) assert.ok(n[id] >= 1, `${id} found nothing: ${JSON.stringify(n)}`);
   w.close();
 });
+
+// ---------- fix round 1 (review of f603fe06): one test per finding, R1-R15 ----------
+const { PlatformError } = loadTs('src/main/nexus/errors.ts');
+const { stepStateFrom } = loadTs('src/shared/nexus/stepState.ts');
+const { getDomain } = loadTs('src/shared/nexus/domains/index.ts');
+const { checkEvidence } = loadTs('src/main/nexus/validation/evidenceShape.ts');
+const { FakeRunner } = require('./helpers/fakeRunner.cjs');
+const { MAX_TREE_FILES } = loadTs('src/main/nexus/exec/ingest.ts');
+const { MAX_DISCOVERED_FILES } = loadTs('src/main/nexus/exec/planBuilder.ts');
+const { FULL_PASS_MS } = loadTs('src/main/nexus/validation/checkRunner.ts');
+const { BLOB_GC_MIN_AGE_MS } = loadTs('src/main/nexus/blobs/blobIndex.ts');
+
+/** Every text cell of the tables a secret must never reach, joined (for a doesNotMatch). */
+function storedText(w) {
+  const q = (sql) => w.db.prepare(sql).all().map((r) => Object.values(r).join(' ')).join('\n');
+  return [q('SELECT storage_ref_json, metadata_json FROM artifact_versions'), q('SELECT error_json, params_json FROM jobs'),
+    q('SELECT summary, data_json FROM job_events'), q('SELECT details_json FROM activity'), q('SELECT summary, evidence_json FROM validations'),
+    q('SELECT error_json FROM job_attempts')].join('\n');
+}
+/** A discovery through the fake runner with this list (no test check run). */
+function discover(w, files, x = {}) {
+  const r = w.attach();
+  const d = w.exec.start(w.me, w.req('sde.tests.discover')).job;
+  w.exec.tick(w.now()); w.provision(r, d.id, { c: x.c ?? 'a' });
+  const ids = w.file('ids.txt', files.join('\n'));
+  w.exitWith(r, d.id, { code: 0, outputs: [ids], parsed: [{ parser: 'discovery', sourceSha256: ids.sha256, normalized: { framework: 'node-test', ids: x.ids ?? files, files } }] });
+  return d;
+}
+/** Run the queued sde.tests_pass check of a suite with this JUnit (through the scheduler and the fake runner). */
+async function runCheck(w, suiteVersionId, jr, exit = 0) {
+  const r = w.attach();
+  const tj = w.validateJobs(suiteVersionId, 'sde.tests_pass').find((j) => j.state === 'queued');
+  w.exec.tick(w.now()); w.provision(r, tj.id, { c: 'b' });
+  const start = r.sentOf('attempt.start').find((m) => m.attemptId === w.liveAttempt(tj.id).id);
+  const jf = w.file('junit.xml', JSON.stringify(jr));
+  w.exitWith(r, tj.id, { code: exit, outputs: [jf], parsed: [{ parser: 'junit', sourceSha256: jf.sha256, normalized: { sha256: jf.sha256, ...jr } }] });
+  await w.settle();
+  return { tj, start };
+}
+
+test('R1 the validation pass runs only when work is due: queued checks, an ended check job, a waiting re-hash or the periodic pass (C20b)', async () => {
+  const w = execWorld({ realIngest: true }); w.attach();
+  const runner = w.nx.validation.runner;
+  let passes = 0; const orig = runner.runPending.bind(runner);
+  runner.runPending = (now) => { passes++; return orig(now); };
+  w.exec.tick(w.now());                                   // the first pass after start scans once (a restart may have left checks)
+  const first = passes;
+  assert.ok(first >= 1);
+  for (let i = 0; i < 20; i++) { w.advance(500); w.exec.tick(w.now()); }
+  assert.equal(passes, first, 'no pass while nothing is due');
+  // New checks queued by an ingest: one pass.
+  const b = await w.runBuild({ files: ['a.js'] });
+  passes = 0; w.advance(500); w.exec.tick(w.now());
+  assert.ok(passes <= 1);
+  passes = 0; for (let i = 0; i < 5; i++) { w.advance(500); w.exec.tick(w.now()); }
+  assert.equal(passes, 0, 'a waiting re-hash is timed out in memory, without a pass');
+  w.answerVerifies(w.attach(), true); await w.settle();
+  assert.equal(w.version(b.buildVersionId).status, 'candidate', 'the answers completed the check without a scheduler pass');
+  // A recipe check that ends without its report: the job-end event, not every tick, brings the pass that records it.
+  const r = await w.runTests({ skipTests: true });
+  const tj = w.validateJobs(r.suiteVersionId, 'sde.tests_pass')[0];
+  w.exec.tick(w.now()); w.provision(w.attach(), tj.id, { c: 'b' });
+  runner.runPending = (now) => { passes++; }; passes = 0;   // nothing records it but the gated tick
+  w.exitWith(w.attach(), tj.id, { code: 0, outputs: [], parsed: [] });
+  assert.equal(w.jobState(tj.id), 'failed'); assert.equal(w.latest(r.suiteVersionId, 'sde.tests_pass'), undefined);
+  runner.runPending = (now) => { passes++; return orig(now); }; passes = 0;
+  w.advance(500); w.exec.tick(w.now());
+  assert.equal(passes, 1, 'one pass on the job-end event');
+  assert.equal(w.latest(r.suiteVersionId, 'sde.tests_pass').status, 'failed');
+  // The periodic safety pass.
+  passes = 0; w.advance(FULL_PASS_MS); w.exec.tick(w.now());
+  assert.equal(passes, 1);
+  healthy(w); w.close();
+});
+
+test('R2 validate and ingest jobs are the system\'s: the public create refuses them; a bad check job fails once, never completes', async () => {
+  const w = execWorld({ realIngest: true });
+  for (const kind of ['validate', 'ingest']) {
+    assert.throws(() => w.nx.jobs.create(w.me, { kind, projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: `k-${kind}`, validatorId: 'req.schema',
+      params: { versionId: w.suiteV } }), code('invalid', 'system_job_kind'));
+  }
+  // P12: a member cannot carry revalidate:true onto a cancelled_partial draft through the public create.
+  const member = w.addUser('user:member', 'project', 'p-ledger', 'member');
+  assert.throws(() => w.nx.jobs.create(member, { kind: 'validate', projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: 'k-m',
+    validatorId: 'req.schema', params: { versionId: w.suiteV, revalidate: true } }), code('invalid', 'system_job_kind'));
+  assert.equal(count(w, "jobs WHERE kind = 'validate'"), 0);
+  // P1b: a system validate job naming no known validator, or no version: failed invalid_check, never completed (O17 stays 0).
+  const mk = (key, extra) => w.nx.jobs.create(w.sys, { kind: 'validate', projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key, ...extra }).job.id;
+  const unknown = mk('k1', { validatorId: 'nope', params: { versionId: w.suiteV } });
+  const noVersion = mk('k2', { validatorId: 'suite.discovered', params: {} });
+  const gone = mk('k3', { validatorId: 'suite.discovered', params: { versionId: 'no-such-version' } });
+  const wrongKind = mk('k4', { validatorId: 'req.schema', params: { versionId: w.suiteV } });
+  const noRecipe = mk('k5', { validatorId: 'sde.tests_pass', params: { versionId: w.suiteV } });
+  // P11: a validate job in another project aimed at p-ledger's suite: refused once, not retried on every tick.
+  const pwInv = w.nx.workspaces.primaryOf(w.me, 'p-invoice');
+  const cross = w.nx.jobs.create(w.sys, { kind: 'validate', projectId: 'p-invoice', workspaceId: pwInv.workspaceId, idempotencyKey: 'k6',
+    validatorId: 'suite.discovered', params: { versionId: w.suiteV } }).job.id;
+  w.nx.validation.runPending(w.now());
+  const expect = { [unknown]: 'unknown_validator', [noVersion]: 'version_missing', [gone]: 'version_missing', [wrongKind]: 'kind_mismatch',
+    [noRecipe]: 'not_runnable', [cross]: 'version_mismatch' };
+  for (const [id, why] of Object.entries(expect)) {
+    const j = w.job(id);
+    assert.equal(j.state, 'failed', why); assert.equal(j.outcome, 'invalid_check'); assert.equal(JSON.parse(j.error_json).code, why);
+    const [a] = w.attempts(id);
+    assert.equal(a.state, 'failed'); assert.equal(a.outcome, 'invalid_check');
+    assert.equal(count(w, 'validations WHERE job_id = ?', id), 0);
+  }
+  const before = w.logs.length;
+  for (let i = 0; i < 5; i++) { w.advance(5000); w.exec.tick(w.now()); }
+  assert.equal(w.logs.slice(before).filter((l) => /validation/.test(l)).length, 0, 'no poison job: nothing is retried on the next ticks');
+  assert.equal(w.orphans().O17, 0);
+  // The framework's own path still creates a user's revalidation (E3), on the user's behalf.
+  const { version } = w.nx.artifacts.saveInline(w.me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'requirement', target: { name: 'R2' }, content: GOOD_REQ });
+  const { jobs } = w.nx.validation.revalidate(w.me, version.id);
+  assert.equal(w.job(jobs[0]).requested_by, 'user:local'); assert.equal(w.jobState(jobs[0]), 'completed');
+  healthy(w); w.close();
+});
+
+test('R3 secret-shaped runner facts never reach a version: ingest refuses invalid_output secret_in_output, once, not retried', async () => {
+  const w = execWorld({ realIngest: true, resolveCommit: resolver() });
+  const tok = 'ghp_' + 'A1b2C3d4E5'.repeat(4);
+  const key = 'sk-' + 'q'.repeat(40);
+  // A branch named like a token (the snapshot recipe is retryable: still failed, not retry_scheduled).
+  const j = await w.snapshot({ commit: NEWC, branch: tok, dirty: false, tree: TREE });
+  assert.equal(w.jobState(j), 'failed'); assert.equal(w.job(j).outcome, 'invalid_output');
+  assert.equal(JSON.parse(w.job(j).error_json).code, 'secret_in_output');
+  assert.equal(count(w, 'artifact_versions WHERE produced_by_job_id = ?', j), 0);
+  // A discovered test file named after a key (discovery is retryable too).
+  const d = discover(w, [`test/${key}.test.js`]); await w.settle();
+  assert.equal(w.jobState(d.id), 'failed'); assert.equal(JSON.parse(w.job(d.id).error_json).code, 'secret_in_output');
+  assert.equal(count(w, 'artifact_versions WHERE produced_by_job_id = ?', d.id), 0);
+  // A manifest argument carrying a key.
+  const b = await w.runBuild({ files: ['server.js'] }); w.answerVerifies(w.attach(), true); await w.settle();
+  const job = w.exec.start(w.me, w.req('sde.app.assemble', { inputs: [{ versionId: b.buildVersionId, slot: 'build' }] })).job;
+  w.exec.tick(w.now()); w.provisionEngine(w.attach(), job.id);
+  w.exitWith(w.attach(), job.id, { code: 0, parsed: [{ parser: 'app-manifest', sourceSha256: 'd'.repeat(64),
+    normalized: { manifest: { ...MANIFEST, run: ['node', 'dist/server.js', `--key=${key}`] } } }] });
+  await w.settle();
+  assert.equal(w.jobState(job.id), 'failed'); assert.equal(JSON.parse(w.job(job.id).error_json).code, 'secret_in_output');
+  const text = storedText(w);
+  assert.doesNotMatch(text, new RegExp(tok)); assert.doesNotMatch(text, new RegExp(key));
+  // The system insert itself refuses them (metadata, inline content, git ref): defence in depth.
+  const runner = w.attach();
+  const bj = w.exec.start(w.me, w.req('sde.build.run')).job; w.exec.tick(w.now()); w.provision(runner, bj.id, { c: 'f' });
+  const art = w.version(b.buildVersionId).artifact_id;
+  const ins = (o) => () => w.db.transaction(() => w.nx.artifacts.insertSystemVersionTx(w.sys, { artifactId: art, contentHash: 'x', metadata: {},
+    storage: { kind: 'inline', json: {} }, environment: null, jobId: bj.id, outputPath: null, action: null, onBehalfOf: 'user:local', inputs: [], now: w.now(), ...o })).immediate();
+  assert.throws(ins({ metadata: { note: key } }), code('invalid', 'secret_in_metadata'));
+  assert.throws(ins({ storage: { kind: 'inline', json: { run: [key] } } }), code('invalid', 'secret_in_metadata'));
+  assert.throws(ins({ storage: { kind: 'git', commit: NEWC, ref: tok } }), code('invalid', 'secret_in_metadata'));
+  w.exec.cancel(w.me, bj.id);
+  healthy(w); w.close();
+});
+
+test('R4 a suite never passes on a subset: the whole discovered list is stored and run; a file with no case fails; over-limit lists are refused', async () => {
+  // P13: 1,500 files are all kept and all run.
+  const files = Array.from({ length: 1500 }, (_, i) => `test/t${String(i).padStart(4, '0')}.test.js`);
+  const w = execWorld({ realIngest: true });
+  discover(w, files); await w.settle();
+  const suite = w.db.prepare("SELECT * FROM artifact_versions WHERE output_path = 'ids.txt'").get();
+  const meta = JSON.parse(suite.metadata_json);
+  assert.equal(meta.files.length, 1500); assert.equal(meta.discovery.truncated, false); assert.equal(meta.discovery.filesCount, 1500);
+  // The runner ran only 1,000 of them: discovered_not_run, the suite fails.
+  const ran = files.slice(0, 1000);
+  const { start } = await runCheck(w, suite.id, junit(ran.map((f) => ({ name: 'ok', file: f }))));
+  assert.equal(start.plan.container.argv.filter((a) => /^test\/t\d+\.test\.js$/.test(a)).length, 1500, 'the plan runs the whole list');
+  const tp = w.latest(suite.id, 'sde.tests_pass');
+  assert.equal(tp.status, 'failed'); assert.match(tp.summary, /discovered_not_run/);
+  assert.equal(w.version(suite.id).status, 'failed');
+  // The whole list ran: it passes.
+  const w2 = execWorld({ realIngest: true });
+  discover(w2, files); await w2.settle();
+  const s2 = w2.db.prepare("SELECT id FROM artifact_versions WHERE output_path = 'ids.txt'").get().id;
+  await runCheck(w2, s2, junit(files.map((f) => ({ name: 'ok', file: f }))));
+  assert.equal(w2.latest(s2, 'sde.tests_pass').status, 'passed'); assert.equal(w2.version(s2).status, 'candidate');
+  // More files than a test run takes: refused at ingest, deterministic (discovery is retryable, yet it is not retried).
+  const w3 = execWorld({ realIngest: true });
+  const many = Array.from({ length: MAX_DISCOVERED_FILES + 1 }, (_, i) => `test/m${i}.test.js`);
+  const d3 = discover(w3, many); await w3.settle();
+  assert.equal(w3.jobState(d3.id), 'failed'); assert.equal(JSON.parse(w3.job(d3.id).error_json).code, 'discovery_too_large');
+  assert.equal(count(w3, 'artifact_versions WHERE produced_by_job_id = ?', d3.id), 0);
+  // A stored list marked truncated (an older version) never passes.
+  const base = { junitSha256: 'a'.repeat(64), exit: { code: 0, oomKilled: false }, imageId: null, lockfileSha256: null };
+  const good = { sha256: 'a'.repeat(64), total: 1, passed: 1, failed: 0, errored: 0, skipped: 0, cases: [{ id: 't::c::n', file: 't', classname: 'c', name: 'n', outcome: 'passed', ms: 1 }] };
+  assert.equal(testsPass.run({ ...base, junit: good, discovery: { ids: ['t'], files: ['t'] } }).status, 'passed');
+  assert.equal(testsPass.run({ ...base, junit: good, discovery: { ids: ['t'], files: ['t'], truncated: true } }).reason, 'discovery_truncated');
+  healthy(w); healthy(w2); healthy(w3); w.close(); w2.close(); w3.close();
+});
+
+test('R5 the main thread stays responsive at the largest tree: bounded slices, one query per check, O(1) answers; oversized trees refused', async () => {
+  const w = execWorld({ realIngest: true }); const runner = w.attach();
+  const b = w.exec.start(w.me, w.req('sde.build.run')).job; w.exec.tick(w.now()); w.provision(runner, b.id, { c: 'd' });
+  const outputs = Array.from({ length: MAX_TREE_FILES }, (_, i) => w.file(`dist/sub${i % 50}/f${i}.js`, `content ${i}`));
+  const ms = (t) => Number(process.hrtime.bigint() - t) / 1e6;
+  const slices = { commit: [], pass: [] };
+  const commit = w.exec.commitIngest.bind(w.exec);
+  w.exec.commitIngest = (...a) => { const t = process.hrtime.bigint(); try { return commit(...a); } finally { slices.commit.push(ms(t)); } };
+  const cr = w.nx.validation.runner; const pass = cr.runPending.bind(cr);
+  let prepares = 0; const prep = w.db.prepare.bind(w.db);
+  cr.runPending = (now) => { const t = process.hrtime.bigint(); try { return pass(now); } finally { slices.pass.push(ms(t)); } };
+  let t = process.hrtime.bigint();
+  w.exitWith(runner, b.id, { code: 0, outputs });
+  const exitMs = ms(t);
+  // The exit is durable and the handler returned: the large commit runs on a later turn.
+  assert.equal(w.job(b.id).phase, 'collecting'); assert.equal(count(w, 'artifact_versions WHERE produced_by_job_id = ?', b.id), 0);
+  w.db.prepare = (sql) => { prepares++; return prep(sql); };
+  await w.settle();
+  w.db.prepare = prep;
+  assert.equal(w.jobState(b.id), 'completed');
+  assert.ok(prepares < 400, `the build checks prepare ${prepares} statements for ${MAX_TREE_FILES} files (one query per check, not one per file)`);
+  const sent = runner.sentOf('blob.verify');
+  assert.equal(sent.length, MAX_TREE_FILES);
+  t = process.hrtime.bigint();
+  for (const m of sent) runner.report({ op: 'blob.verified', sha256: m.sha256, ok: true });
+  const answersMs = ms(t);
+  await w.settle();
+  const v = w.db.prepare("SELECT id, status FROM artifact_versions WHERE produced_by_job_id = ?").get(b.id);
+  assert.equal(v.status, 'candidate');
+  console.log(`# R5 ${MAX_TREE_FILES} files: exit handler ${exitMs.toFixed(1)} ms; commit ${slices.commit.map((x) => x.toFixed(1)).join(', ')} ms; `
+    + `longest pass ${Math.max(...slices.pass).toFixed(1)} ms; ${sent.length} answers ${answersMs.toFixed(1)} ms`);
+  assert.ok(exitMs < 500, `exit handler ${exitMs} ms`);
+  assert.ok(Math.max(...slices.commit) < 2000, `ingest commit ${slices.commit} ms`);
+  assert.ok(Math.max(...slices.pass) < 1500, `longest validation pass ${Math.max(...slices.pass)} ms`);
+  assert.ok(answersMs < 2000, `${sent.length} re-hash answers took ${answersMs} ms (linear, not quadratic)`);
+  // One file more than a tree may hold: refused (invalid_output tree_too_large); nothing stored.
+  const w2 = execWorld({ realIngest: true }); const r2 = w2.attach();
+  const b2 = w2.exec.start(w2.me, w2.req('sde.build.run')).job; w2.exec.tick(w2.now()); w2.provision(r2, b2.id, { c: 'd' });
+  w2.exitWith(r2, b2.id, { code: 0, outputs: Array.from({ length: MAX_TREE_FILES + 1 }, (_, i) => w2.file(`dist/f${i}.js`, `c ${i}`)) });
+  await w2.settle();
+  assert.equal(w2.jobState(b2.id), 'failed'); assert.equal(w2.job(b2.id).outcome, 'invalid_output');
+  assert.equal(JSON.parse(w2.job(b2.id).error_json).code, 'tree_too_large');
+  assert.equal(count(w2, 'blobs'), 0);
+  healthy(w); healthy(w2); w.close(); w2.close();
+});
+
+test('R6 a version that is no longer a draft takes no blocking row: dedupe and user runs are advisory evidence; O16 reads the latest row', async () => {
+  // P2: the same commit snapshotted again after the folder moved: the second check fails, the active version is untouched.
+  let n = 0;
+  const w = execWorld({ realIngest: true, resolveCommit: async (root, sha) => (++n === 1 ? { commit: sha } : { error: 'bad object' }) });
+  const j1 = await w.snapshot({ commit: NEWC, branch: 'main', dirty: false, tree: TREE });
+  const v1 = w.db.prepare('SELECT * FROM artifact_versions WHERE produced_by_job_id = ?').get(j1);
+  assert.equal(v1.status, 'active');
+  const j2 = await w.snapshot({ commit: NEWC, branch: 'main', dirty: false, tree: TREE });
+  assert.equal(w.jobState(j2), 'completed', 'the deduplicated output is still the attempt\'s evidence');
+  const row = w.db.prepare('SELECT * FROM validations WHERE job_id = ? AND attempt_n = 1').get(j2);
+  assert.equal(row.version_id, v1.id); assert.equal(row.status, 'failed'); assert.equal(row.blocking, 0); assert.equal(row.advisory, 1);
+  assert.equal(w.version(v1.id).status, 'active');
+  assert.equal(w.db.prepare("SELECT status FROM validations WHERE version_id = ? AND blocking = 1 ORDER BY finished_at DESC, rowid DESC").get(v1.id).status, 'passed');
+  assert.equal(w.stepState('sde', 'repository'), 'done');
+  assert.equal(w.exec.get(w.me, j2).headline, 'checks_failed', 'the job reports its own result');
+  // P5: a user's run on the candidate suite that fails: advisory on the suite, which stays a candidate.
+  const r0 = await w.runTests({ discovery: ['test/a.test.js'], junit: junit([{ name: 'a' }]), exit: 0 });
+  assert.equal(w.version(r0.suiteVersionId).status, 'candidate');
+  const runner = w.attach();
+  const uj = w.exec.start(w.me, w.req('sde.tests.run', { inputs: [{ versionId: r0.suiteVersionId, slot: 'suite' }] })).job;
+  w.exec.tick(w.now()); w.provision(runner, uj.id, { c: 'e' });
+  const jr = junit([{ name: 'a', outcome: 'failed' }]); const jf = w.file('junit.xml', JSON.stringify(jr));
+  w.exitWith(runner, uj.id, { code: 1, outputs: [jf], parsed: [{ parser: 'junit', sourceSha256: jf.sha256, normalized: { sha256: jf.sha256, ...jr } }] });
+  await w.settle();
+  assert.equal(w.jobState(uj.id), 'completed'); assert.equal(w.exec.get(w.me, uj.id).headline, 'checks_failed');
+  const ur = w.db.prepare('SELECT * FROM validations WHERE job_id = ?').get(uj.id);
+  assert.equal(ur.status, 'failed'); assert.equal(ur.blocking, 0); assert.equal(ur.advisory, 1);
+  assert.equal(w.version(r0.suiteVersionId).status, 'candidate');
+  assert.equal(w.stepState('sde', 'tests'), 'done');
+  healthy(w);
+  // O16 reads the latest blocking row: a newer blocking failure on a candidate is found (a passed row in history is not enough).
+  w.db.prepare(`INSERT INTO validations (id, version_id, validator_id, validator_version, stage, status, blocking, advisory, summary, evidence_json,
+      job_id, attempt_n, created_by, started_at, finished_at) VALUES ('v-late', ?, 'sde.tests_pass', '1', 'candidate', 'failed', 1, 0, 'x', '[]', NULL, NULL, 'system', ?, ?)`)
+    .run(r0.suiteVersionId, w.now() + 10, w.now() + 10);
+  assert.equal(w.orphans().O16, 1);
+  w.close();
+});
+
+test('R7 revalidate is bounded: while a check of the (version, validator) is live it is returned, never a second one', async () => {
+  const w = execWorld({ realIngest: true });
+  const r = await w.runTests({ skipTests: true });
+  const live = w.validateJobs(r.suiteVersionId, 'sde.tests_pass')[0].id;
+  for (let i = 0; i < 60; i++) assert.deepEqual(w.nx.validation.revalidate(w.me, r.suiteVersionId).jobs.includes(live), true);
+  assert.equal(count(w, "jobs WHERE kind = 'validate' AND validator_id = 'sde.tests_pass' AND state IN ('queued','leased','running')"), 1);
+  // Once it ended, a revalidation queues a new one.
+  w.exec.cancel(w.me, live);
+  const again = w.nx.validation.revalidate(w.me, r.suiteVersionId).jobs;
+  assert.equal(again.length, 2); assert.ok(!again.includes(live));
+  w.close();
+});
+
+test('R8 output deduplicated onto a draft finalizes it: a snapshot whose first check could not run becomes active on the second', async () => {
+  const gate = { ok: true };
+  const w = execWorld({ realIngest: true, resolveCommit: async (root, sha) => ({ commit: sha }), acceptFsRoot: (root) => (gate.ok ? root : null) });
+  /** A snapshot whose plan had the folder (the lease), and whose ingest may not (`rootAtExit`). */
+  const snap = async (rootAtExit) => {
+    const r = w.attach();
+    const j = w.exec.start(w.me, w.req('sde.repository.snapshot')).job;
+    w.exec.tick(w.now()); w.provisionEngine(r, j.id);
+    gate.ok = rootAtExit;
+    w.exitWith(r, j.id, { code: 0, parsed: [{ parser: 'repo-snapshot', sourceSha256: 'e'.repeat(64), normalized: { commit: NEWC, branch: 'main', dirty: false, tree: TREE } }] });
+    await w.settle();
+    gate.ok = true;
+    return j.id;
+  };
+  const j1 = await snap(false);
+  const v1 = w.db.prepare('SELECT * FROM artifact_versions WHERE produced_by_job_id = ?').get(j1);
+  assert.equal(v1.status, 'draft'); assert.equal(w.latest(v1.id, 'git.head_resolves').status, 'error');
+  const j2 = await snap(true);
+  assert.equal(count(w, 'artifact_versions WHERE produced_by_job_id = ?', j2), 0, 'one version');
+  assert.equal(w.latest(v1.id, 'git.head_resolves').status, 'passed'); assert.equal(w.latest(v1.id, 'git.head_resolves').blocking, 1);
+  assert.equal(w.version(v1.id).status, 'active');
+  // A build deduplicated onto a draft whose re-hash was lost queues its checks again and completes.
+  const b1 = await w.runBuild({ files: ['a.js'] });
+  w.attach().report({ op: 'fault', message: 'the docker daemon went away' }); await w.settle();
+  assert.equal(w.latest(b1.buildVersionId, 'blob.integrity').status, 'error');
+  const b2 = await w.runBuild({ files: ['a.js'] });
+  assert.equal(b2.buildVersionId, null, 'the same tree is the same version');
+  w.answerVerifies(w.attach(), true); await w.settle();
+  assert.equal(w.version(b1.buildVersionId).status, 'candidate');
+  healthy(w); w.close();
+});
+
+test('R9 only a runner-wide fault errors outstanding re-hashes: a fault about one attempt does not; a port that leaves ready or is replaced does', async () => {
+  const w = execWorld({ realIngest: true });
+  const b = await w.runBuild({ files: ['a.js'] });
+  const runner = w.attach();
+  const d = w.exec.start(w.me, w.req('sde.tests.discover')).job; w.exec.tick(w.now()); const a = w.provision(runner, d.id, { c: 'e' });
+  runner.report({ op: 'fault', attemptId: a.id, message: 'log write failed for that attempt' });
+  runner.report({ op: 'fault', attemptId: a.id, failureClass: 'docker_error', message: 'a later hiccup on that attempt' });
+  w.answerVerifies(runner, true); await w.settle();
+  assert.equal(w.latest(b.buildVersionId, 'blob.integrity').status, 'passed');
+  assert.equal(w.version(b.buildVersionId).status, 'candidate');
+  // The port leaves ready while a re-hash is out: error (Revalidate offered), never passed.
+  const b2 = await w.runBuild({ files: ['b.js'] });
+  runner.setState('crashed'); w.exec.tick(w.now()); await w.settle();
+  assert.equal(w.latest(b2.buildVersionId, 'blob.integrity').status, 'error');
+  // A replaced port: the old one's re-hashes are error.
+  runner.setState('ready'); w.exec.tick(w.now());
+  w.nx.validation.revalidate(w.me, b2.buildVersionId); await w.settle();
+  assert.ok(runner.sentOf('blob.verify').length >= 3);
+  const before = w.validations(b2.buildVersionId).filter((x) => x.validator_id === 'blob.integrity').length;
+  w.exec.attachRunner(new FakeRunner(), w.bootId); await w.settle();
+  const rows = w.validations(b2.buildVersionId).filter((x) => x.validator_id === 'blob.integrity');
+  assert.equal(rows.length, before + 1); assert.equal(rows[rows.length - 1].status, 'error');
+  healthy(w); w.close();
+});
+
+test('R10 evidence is validated against the Evidence union; only its typed digest positions are exempt from the secret check', () => {
+  const w = execWorld({ realIngest: true });
+  const { version } = w.nx.artifacts.saveInline(w.me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'requirement', target: { name: 'R10' }, content: GOOD_REQ });
+  const hexSecret = 'deadbeef'.repeat(8);
+  const rec = (evidence) => w.db.transaction(() => w.nx.validation.recordResultTx(w.sys, { versionId: version.id, validatorId: 'req.schema',
+    status: 'passed', summary: 'fine', evidence })).immediate();
+  // P9: a digest-named key inside a free-form member, an unknown type, an extra field: not the union (bad_evidence).
+  for (const ev of [[{ type: 'schema', schemaId: 's', errors: [{ path: '', message: 'm', blobSha256: hexSecret }] }],
+    [{ type: 'x', note: { manifestSha256: hexSecret } }], [{ type: 'hash', label: 'x', sha256: 'c'.repeat(64), extra: 1 }],
+    [{ type: 'number', name: 'n', value: 1 }], [{ type: 'git', commit: 'abc', check: 'resolves', detail: '' }], 'not a list']) {
+    const r = rec(ev);
+    assert.equal(r.status, 'error', JSON.stringify(ev)); assert.match(r.summary, /bad_evidence/); assert.deepEqual(r.evidence, []);
+  }
+  // A long hex anywhere but a typed digest position is secret-shaped.
+  const s = rec([{ type: 'schema', schemaId: 's', errors: [{ path: '', message: `m ${hexSecret}` }] }]);
+  assert.equal(s.status, 'error'); assert.match(s.summary, /secret_in_evidence/);
+  // Every typed digest position takes a digest.
+  const digest = 'f'.repeat(64);
+  const typed = [{ type: 'hash', label: 'x', sha256: digest }, { type: 'number', name: 'n', value: 1, source: { blobSha256: digest, pointer: '/x' } },
+    { type: 'junit', sha256: digest, total: 1, passed: 1, failed: 0, errored: 0, skipped: 0 }, { type: 'file', path: 'a', sha256: digest, bytes: 1 },
+    { type: 'http', method: 'GET', path: '/h', status: 200, ms: 1, bodySha256: digest }, { type: 'git', commit: NEWC, check: 'resolves', detail: 'ok' },
+    { type: 'log', attemptId: 'a1', stream: 'stdout', offset: 0, length: 1, sha256: digest }];
+  const ok = rec(typed);
+  assert.equal(ok.status, 'passed'); assert.deepEqual(ok.evidence, typed);
+  assert.equal(checkEvidence(typed).ok, true);
+  w.close();
+});
+
+test('R11 deterministic ingest refusals fail invalid_output with the reason and are never retried; a crash still retries', async () => {
+  const ids = (w) => w.file('ids.txt', 'test/a.test.js');
+  const exitOf = (w) => { const f = ids(w); return { outputs: [f], parsed: [{ parser: 'discovery', sourceSha256: f.sha256, normalized: { framework: 'node-test', ids: ['test/a.test.js'], files: ['test/a.test.js'] } }] }; };
+  const cases = [
+    ['input_not_granted', () => { throw new PlatformError('input_not_granted', 'an input is not granted to the job as that version and role'); }],
+    ['constraint', () => { throw Object.assign(new Error('UNIQUE constraint failed: artifacts.project_id'), { code: 'SQLITE_CONSTRAINT_UNIQUE' }); }],
+    ['ingest_error', () => { throw new Error('crash'); }]
+  ];
+  for (const [want, fault] of cases) {
+    const w = execWorld({ realIngest: true, ingestFaults: { afterRows: (recipe) => { if (recipe === 'sde.test.discover') fault(); } } });
+    const runner = w.attach();
+    const d = w.exec.start(w.me, w.req('sde.tests.discover')).job; w.exec.tick(w.now()); w.provision(runner, d.id);
+    w.exitWith(runner, d.id, exitOf(w)); await w.settle();
+    const a = w.attempts(d.id)[0];
+    if (want === 'ingest_error') {
+      assert.equal(a.outcome, 'ingest_error'); assert.equal(w.jobState(d.id), 'retry_scheduled', 'a crash is infrastructure: retried');
+    } else {
+      assert.equal(a.outcome, 'invalid_output', want); assert.equal(JSON.parse(a.error_json).code, want);
+      assert.equal(w.jobState(d.id), 'failed', `${want} is not retried`); assert.equal(w.job(d.id).outcome, 'invalid_output');
+    }
+    assert.equal(count(w, 'artifact_versions WHERE produced_by_job_id = ?', d.id), 0);
+    healthy(w); w.close();
+  }
+  // P14: the project's repository was archived: a snapshot cannot add a second one (ux_repository_per_project); refused, not retried.
+  const w = execWorld({ realIngest: true, resolveCommit: resolver() });
+  w.db.prepare("UPDATE artifacts SET status = 'archived' WHERE kind = 'repository' AND project_id = 'p-ledger'").run();
+  const j = await w.snapshot({ commit: NEWC, branch: 'main', dirty: false, tree: TREE });
+  assert.equal(w.jobState(j), 'failed'); assert.equal(JSON.parse(w.job(j).error_json).code, 'repository_archived');
+  assert.equal(w.attempts(j).length, 1);
+  w.close();
+});
+
+test('R12 the production snapshot path: a project with no repository gets a project-owned one, promoted by the system on the user\'s behalf', async () => {
+  const w = execWorld({ realIngest: true, resolveCommit: resolver() });
+  w.nx.workspaces.attach(w.me, 'p-invoice', 'sde');
+  assert.equal(count(w, "artifacts WHERE project_id = 'p-invoice' AND kind = 'repository'"), 0);
+  const r = w.attach();
+  const snap = async (commit) => {
+    const j = w.exec.start(w.me, w.req('sde.repository.snapshot', { projectId: 'p-invoice' })).job;
+    w.exec.tick(w.now()); w.provisionEngine(r, j.id);
+    w.exitWith(r, j.id, { code: 0, parsed: [{ parser: 'repo-snapshot', sourceSha256: 'e'.repeat(64), normalized: { commit, branch: 'main', dirty: false, tree: TREE } }] });
+    await w.settle();
+    return j.id;
+  };
+  const j1 = await snap(NEWC);
+  assert.equal(w.jobState(j1), 'completed');
+  const v1 = w.db.prepare(`SELECT v.*, a.owner_scope, a.owner_participation_id, a.current_version_id FROM artifact_versions v JOIN artifacts a ON a.id = v.artifact_id
+    WHERE v.produced_by_job_id = ?`).get(j1);
+  assert.equal(v1.owner_scope, 'project'); assert.equal(v1.owner_participation_id, null); assert.equal(v1.participation_id, null);
+  assert.equal(v1.status, 'active'); assert.equal(v1.current_version_id, v1.id);
+  for (const action of ['artifact.create', 'version.register', 'version.finalize', 'version.promote']) {
+    const row = w.db.prepare('SELECT * FROM activity WHERE action = ? AND (version_id = ? OR entity_id = ?)').get(action, v1.id, v1.artifact_id);
+    assert.ok(row, action); assert.equal(row.actor_kind, 'system'); assert.equal(row.on_behalf_of, 'user:local');
+  }
+  const j2 = await snap(NEWC2);
+  const v2 = w.db.prepare('SELECT * FROM artifact_versions WHERE produced_by_job_id = ?').get(j2);
+  assert.equal(v2.status, 'active'); assert.equal(w.version(v1.id).status, 'deprecated'); assert.equal(v2.artifact_id, v1.artifact_id);
+  assert.ok(w.db.prepare("SELECT 1 FROM artifact_edges WHERE from_version_id = ? AND to_version_id = ? AND relation = 'derived_from' AND source = 'ingest'").get(v2.id, v1.id));
+  assert.equal(w.nx.artifacts.getVersion(w.me, v2.id).status, 'active');
+  // The project-owned repository is a usable input.
+  const d = w.exec.start(w.me, w.req('sde.tests.discover', { projectId: 'p-invoice', inputs: [{ versionId: v2.id, slot: 'repository' }] })).job;
+  w.exec.tick(w.now()); w.provision(r, d.id, { c: 'e' });
+  const f = w.file('ids.txt', 'test/a.test.js');
+  w.exitWith(r, d.id, { code: 0, outputs: [f], parsed: [{ parser: 'discovery', sourceSha256: f.sha256, normalized: { framework: 'node-test', ids: ['test/a.test.js'], files: ['test/a.test.js'] } }] });
+  await w.settle();
+  assert.equal(w.jobState(d.id), 'completed');
+  healthy(w); w.close();
+});
+
+test('R13 a draft whose check could not run and that nothing works on reads failed (needs attention), not in progress forever', async () => {
+  const w = execWorld({ realIngest: true });
+  const b = await w.runBuild({ files: ['a.js'] });
+  assert.equal(w.stepState('sde', 'build'), 'in_progress', 'the re-hash is still out');
+  w.attach().report({ op: 'fault', message: 'the docker daemon went away' }); await w.settle();
+  assert.equal(w.version(b.buildVersionId).status, 'draft'); assert.equal(w.latest(b.buildVersionId, 'blob.integrity').status, 'error');
+  assert.equal(w.stepState('sde', 'build'), 'failed');
+  w.nx.validation.revalidate(w.me, b.buildVersionId);
+  assert.equal(w.stepState('sde', 'build'), 'in_progress');
+  w.answerVerifies(w.attach(), true); await w.settle();
+  assert.equal(w.stepState('sde', 'build'), 'done');
+  // The pure rule.
+  const step = getDomain('sde').lifecycle.find((s) => s.id === 'build');
+  const draft = (validators) => ({ status: 'draft', validators });
+  assert.equal(stepStateFrom(step, { versions: [draft({ 'blob.integrity': 'error' })], liveJobs: 0, inputsAvailable: true }), 'failed');
+  assert.equal(stepStateFrom(step, { versions: [draft({ 'blob.integrity': 'error' })], liveJobs: 1, inputsAvailable: true }), 'in_progress');
+  assert.equal(stepStateFrom(step, { versions: [draft({ 'build.exit_zero': 'passed' })], liveJobs: 0, inputsAvailable: true }), 'in_progress');
+  healthy(w); w.close();
+});
+
+test('R14 a user\'s test run on a candidate suite keeps its JUnit bytes as a blob that its evidence names (not attached; never a GC candidate)', async () => {
+  const w = execWorld({ realIngest: true });
+  const r0 = await w.runTests({ discovery: ['test/a.test.js'], junit: junit([{ name: 'a' }]), exit: 0 });
+  const attached = count(w, 'version_blobs WHERE version_id = ?', r0.suiteVersionId);
+  const runner = w.attach();
+  const uj = w.exec.start(w.me, w.req('sde.tests.run', { inputs: [{ versionId: r0.suiteVersionId, slot: 'suite' }] })).job;
+  w.exec.tick(w.now()); w.provision(runner, uj.id, { c: 'e' });
+  const jr = junit([{ name: 'a' }, { name: 'a2' }]); const jf = w.file('junit.xml', JSON.stringify(jr));
+  w.exitWith(runner, uj.id, { code: 0, outputs: [jf], parsed: [{ parser: 'junit', sourceSha256: jf.sha256, normalized: { sha256: jf.sha256, ...jr } }] });
+  await w.settle();
+  assert.equal(w.jobState(uj.id), 'completed');
+  assert.ok(w.db.prepare('SELECT 1 FROM blobs WHERE sha256 = ?').get(jf.sha256), 'the report is a stored blob');
+  assert.equal(count(w, 'version_blobs WHERE version_id = ?', r0.suiteVersionId), attached, 'the candidate suite is unchanged');
+  const ev = JSON.parse(w.db.prepare('SELECT evidence_json FROM validations WHERE job_id = ?').get(uj.id).evidence_json);
+  assert.ok(ev.some((e) => e.type === 'hash' && e.label === 'junit' && e.sha256 === jf.sha256));
+  w.advance(BLOB_GC_MIN_AGE_MS + 60_000);
+  assert.ok(!w.nx.blobs.gcCandidates().candidates.some((c) => c.sha256 === jf.sha256), 'evidence keeps the report');
+  healthy(w); w.close();
+});
+
+test('R15 undiscovered_ids: a file OR an id absent from the discovery; a framework that attributes no file is judged by id against an id-level list', () => {
+  const base = { junitSha256: 'a'.repeat(64), exit: { code: 0, oomKilled: false }, imageId: null, lockfileSha256: null };
+  const report = (cases) => ({ sha256: 'a'.repeat(64), total: cases.length, passed: cases.length, failed: 0, errored: 0, skipped: 0,
+    cases: cases.map((c) => ({ id: `${c.file ?? ''}::${c.classname}::${c.name}`, ...(c.file ? { file: c.file } : {}), classname: c.classname, name: c.name, outcome: 'passed', ms: 1 })) });
+  const pytest = { files: ['tests/test_a.py'], ids: ['tests/test_a.py::test_x', 'tests/test_a.py::test_y'] };
+  // pytest xunit2 attributes no file: judged by id (name) against the node ids.
+  assert.equal(testsPass.run({ ...base, discovery: pytest, junit: report([{ classname: 'tests.test_a', name: 'test_x' }, { classname: 'tests.test_a', name: 'test_y' }]) }).status, 'passed');
+  const extra = testsPass.run({ ...base, discovery: pytest, junit: report([{ classname: 'tests.test_a', name: 'test_x' }, { classname: 'tests.test_a', name: 'test_z' }]) });
+  assert.equal(extra.reason, 'undiscovered_ids');
+  // An attributing case in a discovered file whose test the id-level list never named.
+  assert.equal(testsPass.run({ ...base, discovery: pytest, junit: report([{ file: 'tests/test_a.py', classname: 'c', name: 'test_x' },
+    { file: 'tests/test_a.py', classname: 'c', name: 'test_q' }]) }).reason, 'undiscovered_ids');
+  // A file-level discovery (node-test lists files): a case attributing no file is not judged by id (N3).
+  assert.equal(testsPass.run({ ...base, discovery: { files: ['test/a.test.js'], ids: ['test/a.test.js'] }, junit: report([{ classname: 'Suite', name: 'ok' }]) }).status, 'passed');
+  // A file absent from the discovery.
+  assert.equal(testsPass.run({ ...base, discovery: { files: ['test/a.test.js'], ids: ['test/a.test.js'] },
+    junit: report([{ file: 'test/a.test.js', classname: 'c', name: 'a' }, { file: 'test/b.test.js', classname: 'c', name: 'b' }]) }).reason, 'undiscovered_ids');
+  // Linear: 20,000 cases against 5,000 discovered files.
+  const files = Array.from({ length: 5000 }, (_, i) => `test/t${i}.test.js`);
+  const big = report(Array.from({ length: 20000 }, (_, i) => ({ file: files[i % 5000], classname: 'c', name: `n${i}` })));
+  const t = process.hrtime.bigint();
+  assert.equal(testsPass.run({ ...base, discovery: { files, ids: files }, junit: big }).status, 'passed');
+  assert.ok(Number(process.hrtime.bigint() - t) / 1e6 < 1000);
+});

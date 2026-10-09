@@ -31,10 +31,16 @@
  *   observes itself (async), and `ingestTx` runs in ONE transaction under the BlobIndex shared
  *   ingest lock with a live token: synchronously when no GC holds the lock, else after GC
  *   releases it (never during GC). The attempt and job move in that transaction; the evidence
- *   backstop (a validation or version bound to (job, n)) still applies. A throw is recorded as
- *   `ingest_error` (retryable). A replayed exit while collecting is dropped. Recipe checks
- *   (`validate` jobs with a recipe) lease like tool jobs and read `params.versionId` as input.
- *   A tree output (a build) is judged by its validators, not by the bare contract paths.
+ *   backstop (a validation or version bound to (job, n)) still applies. A throw that refuses the
+ *   outputs deterministically (`invalid`, `input_not_granted`, a stored constraint, ...) fails
+ *   `invalid_output` with its reason and is never retried; any other throw is `ingest_error`
+ *   (retryable). An exit with more than ASYNC_INGEST_OUTPUTS outputs commits on a later turn.
+ *   A replayed exit while collecting is dropped. Recipe checks (`validate` jobs with a recipe)
+ *   lease like tool jobs and read `params.versionId` as input. A tree output (a build) is judged
+ *   by its validators, not by the bare contract paths. The validation framework's pass runs in
+ *   every tick but works only when some is due; a validate job that ends tells it (onJobEnded),
+ *   and a runner-wide fault (no attempt named, the port leaving `ready`, a replaced port) errors
+ *   outstanding re-hashes.
  * - Runner messages are validated by `parseRunnerMessage`, then: the attempt is known, its
  *   lease owner is this boot, `attempt.event` seq is strictly increasing. Anything else is
  *   dropped with one log line and no write. Each handler is one small transaction.
@@ -67,6 +73,7 @@ import { appendActivityRow } from '../activity/writer';
 import { containsSecret } from '../activity/redact';
 import type { BlobIndex, IngestToken } from '../blobs/blobIndex';
 import { getKind } from '../../../shared/nexus/kinds';
+import { getValidator } from '../../../shared/nexus/validators';
 import { newId } from '../db/ids';
 import { immediateTx } from '../db/tx';
 import { PlatformError } from '../errors';
@@ -143,10 +150,14 @@ export interface IngestPort {
 }
 /** The validation framework's hooks into the scheduler and the runner messages (Task 8). */
 export interface ValidationHooks {
+  /** The scheduler's pass: the framework does work only when some is due. */
   tick(now: number): void;
   runPending(now: number): void;
   onBlobVerified(sha256: string, ok: boolean): void;
+  /** Runner-wide: a fault naming no attempt, or the port left `ready` or was replaced. */
   onRunnerFault(): void;
+  /** A validate job reached a terminal state (a recipe check may need its result recorded). */
+  onJobEnded?(): void;
 }
 
 export interface ExecDataHome { root: string; attemptWorkRel(jobId: string, n: number): string; attemptLogPath(jobId: string, n: number): string }
@@ -198,11 +209,35 @@ const REFUSAL_WAIT: Record<string, string> = {
   disk_low: 'waiting:disk', busy: 'waiting:slots'
 };
 
+/** An exit reporting more outputs than this is ingested on a later turn (the exit handler stays short). */
+export const ASYNC_INGEST_OUTPUTS = 256;
+/** Ingest throws that are the outputs' fault, not the infrastructure's: retrying cannot change them. */
+const DETERMINISTIC_INGEST_CODES = new Set(['invalid', 'input_not_granted', 'immutable', 'not_found', 'participation_inactive']);
+const LABEL_RE = /^[a-z][a-z0-9_.-]{0,63}$/;
+
 const isStr = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v) && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
 const parseJson = (text: string | null): unknown => { if (text === null) return null; try { return JSON.parse(text) as unknown; } catch { return null; } };
 const invalid = (reason: string, message: string): never => { throw new PlatformError('invalid', message, { reason }); };
+
+/**
+ * A throw out of an ingest that is a deterministic refusal of the outputs, as the error to record (`{ code: reason }`),
+ * or null when it may be transient. Its message names the reason only (never a value from the outputs).
+ */
+export function deterministicIngestRefusal(e: unknown): { code: string; message: string } | null {
+  if (e instanceof PlatformError && DETERMINISTIC_INGEST_CODES.has(e.code)) {
+    const r = e.detail?.reason;
+    const reason = typeof r === 'string' && LABEL_RE.test(r) ? r : e.code;
+    const code = reason === 'secret_in_metadata' ? 'secret_in_output' : reason;
+    return { code, message: `the outputs were refused: ${code}` };
+  }
+  const sqlite = (e as { code?: unknown } | null)?.code;
+  if (typeof sqlite === 'string' && sqlite.startsWith('SQLITE_CONSTRAINT')) {
+    return { code: 'constraint', message: 'the outputs were refused: they break a stored rule' };
+  }
+  return null;
+}
 
 /** Params against an action's closed schema; also refuses paths, `..` and NUL in any string. */
 export function checkParams(schema: ParamsSchema, params: unknown): Record<string, unknown> {
@@ -295,8 +330,10 @@ export class ExecutionService {
   private sendFailures = 0;
   /** Attempts whose exit is durable and whose outputs are being ingested (a replayed exit is dropped meanwhile). */
   private readonly collecting = new Set<string>();
-  /** Ingests that went asynchronous (main's git answers, or a wait for blob GC). */
+  /** Ingests that went asynchronous (main's git answers, a wait for blob GC, or a large output list). */
   private readonly pendingIngest = new Set<Promise<unknown>>();
+  /** The port state the last tick saw (leaving `ready` is a runner-wide fault for outstanding re-hashes). */
+  private lastPortState: string | null = null;
 
   constructor(private readonly db: Database.Database, private readonly deps: ExecutionDeps) {
     this.access = new ProjectAccess(db, { auth: deps.auth });
@@ -320,7 +357,9 @@ export class ExecutionService {
   /** Attach (or detach, with null) the runner. Sends `hello` and a `probe`; messages flow to onRunnerMessage. */
   attachRunner(port: RunnerPort | null, bootId: string): void {
     if (this.unsubscribe) { try { this.unsubscribe(); } catch { /* the old port is gone */ } }
-    this.unsubscribe = null; this.port = null; this.probe = null; this.probeSentAt = null;
+    // A replaced or detached port: whatever it was asked to re-hash will not be answered.
+    if (this.port) this.deps.validation?.onRunnerFault();
+    this.unsubscribe = null; this.port = null; this.probe = null; this.probeSentAt = null; this.lastPortState = null;
     if (!this.deps.available) { if (port) this.log('[nexus] exec: runner not attached: execution is not available'); return; }
     if (!port) return;
     if (typeof bootId !== 'string' || !ULID_RE.test(bootId)) throw new PlatformError('invalid', 'bootId must be a ULID');
@@ -631,6 +670,14 @@ export class ExecutionService {
         .catch((e) => this.ingestFailed(attemptId, exited, e)));
       return;
     }
+    if (exited.outputs.length > ASYNC_INGEST_OUTPUTS) {
+      // A large output list: the exit handler returns now (the exit is already durable); the bounded commit runs on
+      // a later turn, so the message path never carries a large transaction (constraint 7).
+      this.trackIngest(new Promise<void>((resolve) => setImmediate(resolve))
+        .then(() => commit(prepared))
+        .catch((e) => this.ingestFailed(attemptId, exited, e)));
+      return;
+    }
     const r = commit(prepared);
     if (r) this.trackIngest(r.catch((e) => this.ingestFailed(attemptId, exited, e)));
   }
@@ -676,28 +723,43 @@ export class ExecutionService {
     }
     this.collecting.delete(attemptId);
     this.send({ op: 'attempt.release', attemptId });
-    if (ran) this.deps.validation?.runPending(now);
+    if (!ran || !this.deps.validation) return;
+    // The checks the ingest queued run now; after a large ingest, on the next turn (each slice stays bounded).
+    if (exited.outputs.length > ASYNC_INGEST_OUTPUTS) {
+      const v = this.deps.validation;
+      this.trackIngest(new Promise<void>((resolve) => setImmediate(resolve)).then(() => v.runPending(this.deps.now())));
+    } else {
+      this.deps.validation.runPending(now);
+    }
   }
 
-  /** The exit is never lost: a small transaction records the ingest failure (retryable infrastructure). */
+  /**
+   * The exit is never lost: a small transaction records the ingest failure. A deterministic refusal (the outputs
+   * break a rule: `invalid`, `input_not_granted`, a stored constraint, ...) fails the attempt and the job
+   * `invalid_output` with its reason and is never retried; anything else (a crash, a busy store) is `ingest_error`,
+   * retryable infrastructure.
+   */
   private ingestFailed(attemptId: string, exited: AttemptExited, e: unknown): void {
     this.collecting.delete(attemptId);
     const now = this.deps.now();
+    const refused = deterministicIngestRefusal(e);
     const why = e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error';
-    const error = { code: 'ingest_error', message: `ingest failed: ${why}` };
+    const error = refused ?? { code: 'ingest_error', message: `ingest failed: ${why}` };
+    const outcome = refused ? 'invalid_output' : 'ingest_error';
     const exit = { code: exited.exit.code, signal: exited.exit.signal, oomKilled: exited.exit.oomKilled };
     try {
       immediateTx(this.db, () => {
         const cur = attemptRow(this.db, attemptId);
         if (!cur || cur.state !== 'running') return;
         const j = this.row(cur.job_id)!;
-        transitionAttemptTx(this.db, cur, 'failed', now, j.project_id, { exit, outcome: 'ingest_error', error, logBytes: exited.logBytes });
-        this.failJobTx(j.id, 'infra_error', error, now);
+        transitionAttemptTx(this.db, cur, 'failed', now, j.project_id, { exit, outcome, error, logBytes: exited.logBytes });
+        this.failJobTx(j.id, refused ? 'invalid_output' : 'infra_error', error, now);
       });
     } catch (e2) {
       this.log(`[nexus] exec: ingest failure not recorded: ${e2 instanceof PlatformError ? e2.code : (e2 as Error)?.name ?? 'error'}`);
     }
-    this.log(`[nexus] exec: ingest failed (${why}); the attempt failed ingest_error`);
+    this.log(refused ? `[nexus] exec: ingest refused the outputs (${refused.code}); the attempt failed invalid_output`
+      : `[nexus] exec: ingest failed (${why}); the attempt failed ingest_error`);
     this.send({ op: 'attempt.release', attemptId });
     this.deps.validation?.runPending(now);
   }
@@ -710,8 +772,9 @@ export class ExecutionService {
     if (!a || !m.failureClass || a.lease_owner !== this.bootId || a.state !== 'starting') {
       this.faults++;
       this.log('[nexus] exec: runner fault (not attributed to a starting attempt of this boot)');
-      // Re-hashes in flight cannot be trusted to answer: those checks could not run.
-      this.deps.validation?.onRunnerFault();
+      // A runner-wide fault (it names no attempt): re-hashes in flight cannot be trusted to answer, so those checks
+      // could not run. A fault about one attempt says nothing about the runner's other work.
+      if (m.attemptId === undefined) this.deps.validation?.onRunnerFault();
       return;
     }
     const cls = m.failureClass;
@@ -739,6 +802,8 @@ export class ExecutionService {
     // A terminal job keeps no requeue backoff (retry_scheduled sets its own next_attempt_at after this).
     if (TERMINAL_JOB_STATES.has(to)) this.db.prepare('UPDATE jobs SET next_attempt_at = NULL WHERE id = ? AND next_attempt_at IS NOT NULL').run(id);
     const after = this.row(id)!;
+    // A check that ended: the validation framework records an ended recipe check on its next pass (not every tick).
+    if (TERMINAL_JOB_STATES.has(to) && after.kind === 'validate') this.deps.validation?.onJobEnded?.();
     appendJobEventTx(this.db, { type: 'job.transition', summary: `job ${before.state} -> ${to}${d?.outcome ? ` (${d.outcome})` : ''}`,
       projectId: after.project_id, jobId: id,
       // The event names the current attempt once its row exists (the lease writes this event just before the insert).
@@ -787,7 +852,13 @@ export class ExecutionService {
       this.sweep(now, firstOfStreak);
       // Probing is independent of leasing: a runner that only answers probes recovers from the send-failure flag.
       if ((firstOfStreak && this.port) || (this.portReady() && (this.probeSentAt === null || now - this.probeSentAt >= this.caps.probeRefreshMs))) this.sendProbe(now);
-      // Checks that main runs itself (and re-hash answers that timed out) progress on every pass.
+      // The port left `ready` (crashed, restarting): re-hashes it was asked for will not be answered.
+      let portState: string | null = null;
+      try { portState = this.port ? this.port.state() : null; } catch { portState = 'unavailable'; }
+      if (this.lastPortState === 'ready' && portState !== 'ready') this.deps.validation?.onRunnerFault();
+      this.lastPortState = portState;
+      // The validation framework's pass: it does work only when some is due (queued checks, an ended check job,
+      // a re-hash waiting for its timeout, or its periodic safety pass).
       this.deps.validation?.tick(now);
       // The blob store contract: no lease and no start while GC holds its exclusive lock.
       if (this.deps.blobs?.isExclusiveHeld()) return;
@@ -1478,9 +1549,17 @@ export class ExecutionService {
     if (j.state === 'completed' || j.state === 'partial') {
       const rel = `(v.job_id = @id OR v.job_id IN (SELECT id FROM jobs WHERE parent_job_id = @id)
         OR v.version_id IN (SELECT id FROM artifact_versions WHERE produced_by_job_id = @id))`;
-      const latest = this.db.prepare(`SELECT v.status FROM validations v WHERE v.blocking = 1 AND ${rel}
-        AND NOT EXISTS (SELECT 1 FROM validations w WHERE w.version_id = v.version_id AND w.validator_id = v.validator_id
+      // The latest blocking row per (version, validator) of what the job made or checked, plus the job's own evidence
+      // recorded on a version that was no longer a draft (a deduplicated output, a run on a candidate): those rows
+      // are advisory for the version but are this job's result.
+      const blocking = this.db.prepare(`SELECT v.status FROM validations v WHERE v.blocking = 1 AND ${rel}
+        AND NOT EXISTS (SELECT 1 FROM validations w WHERE w.version_id = v.version_id AND w.validator_id = v.validator_id AND w.blocking = 1
           AND (w.finished_at > v.finished_at OR (w.finished_at = v.finished_at AND w.rowid > v.rowid)))`).all({ id: j.id }) as { status: string }[];
+      const own = (this.db.prepare(`SELECT v.status, v.validator_id FROM validations v WHERE v.job_id = @id AND v.blocking = 0
+        AND NOT EXISTS (SELECT 1 FROM validations w WHERE w.job_id = v.job_id AND w.version_id = v.version_id AND w.validator_id = v.validator_id
+          AND w.blocking = 0 AND (w.finished_at > v.finished_at OR (w.finished_at = v.finished_at AND w.rowid > v.rowid)))`).all({ id: j.id }) as
+        { status: string; validator_id: string }[]).filter((x) => getValidator(x.validator_id)?.blocking === true);
+      const latest = [...blocking, ...own];
       const outs = this.db.prepare('SELECT status FROM artifact_versions WHERE produced_by_job_id = ?').all(j.id) as { status: string }[];
       const liveChildren = (this.db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE parent_job_id = ? AND state IN (${LIVE_JOB_STATES.map(() => '?').join(', ')})`)
         .get(j.id, ...LIVE_JOB_STATES) as { n: number }).n;

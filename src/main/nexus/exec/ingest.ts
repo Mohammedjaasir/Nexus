@@ -6,16 +6,26 @@
  *
  * In the transaction, per recipe:
  * - contract: the outputs the recipe needs are re-read from the report (shapes re-validated, never trusted);
+ * - refusals, deterministic and never retried (`invalid_output` with the reason): a secret-shaped value in what
+ *   would be stored (`secret_in_output`: a branch, a discovered test name, a manifest argument), a discovered list
+ *   a test run cannot take whole (`discovery_too_large`: more than MAX_DISCOVERED_FILES files, or more than a
+ *   version's metadata holds), an output tree over MAX_TREE_FILES files (`tree_too_large`), the project's
+ *   repository archived (`repository_archived`);
  * - targets: a new or existing artifact owned by the job's participation, or the project's one `repository`;
  * - versions: drafts with `output_path`, `environment_json` (the attempt's, exactly) and `storage_kind`
  *   `inline` / `git` / `tree`, written whole while draft (ArtifactService.insertSystemVersionTx), with the
  *   producing attempt in `version_attempts`; blobs recorded and attached (role `discovery`, `file`, `junit`);
+ *   a discovered list is kept WHOLE in the suite's metadata (the test plan runs exactly it);
  * - lineage: edges to the job's granted inputs (source `job_input`) and to the previous version (source `ingest`);
  * - validators: register validators inline (ValidationService.runRegisterTx), then the finalize rule, then the
  *   candidate validate jobs (ValidationService.enqueueCandidate);
  * - idempotent: by `(produced_by_job_id, output_path)`, and by content hash (the same commit, the same list,
  *   the same tree). Output that deduplicates to an existing version still records a validation bound to
- *   (job, attempt n), so the evidence backstop sees the attempt's evidence.
+ *   (job, attempt n), so the evidence backstop sees the attempt's evidence; on a version that is no longer a
+ *   draft that row is advisory (ValidationService), and onto a draft it finalizes it and queues its candidate
+ *   checks when it is ready for them.
+ * - a user's test run on a candidate suite records its result (advisory) and keeps its JUnit bytes as a blob
+ *   named by the result's evidence (the suite itself is immutable).
  *
  * A recipe without an ingest rule here (dependency install, diagnostics: Task 9 and later) is refused with
  * `ingest_unavailable` / `no_ingest_rule`: unfinished work is never completed.
@@ -24,14 +34,17 @@ import { createHash } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import type { StagedOutput } from '../../../shared/nexus/execution';
 import type { Principal } from '../../../shared/nexus/platform';
+import { containsSecret } from '../activity/redact';
 import type { ArtifactService } from '../artifact/artifactService';
+import { INLINE_MAX_BYTES } from '../artifact/versionRules';
 import type { BlobIndex, IngestToken } from '../blobs/blobIndex';
 import { PlatformError } from '../errors';
 import type { ResolveCommit, ValidationService } from '../validation/validationService';
-import { checkDiscovery, checkGitFacts, COMMIT_RE } from '../validation/normalized';
+import { checkDiscovery, checkGitFacts, COMMIT_RE, type ValidatorOutcome } from '../validation/normalized';
 import * as tests from '../validation/validators/testsPass';
 import { manifestSha256, exitZero, EXIT_ZERO, type TreeFile } from '../validation/validators/buildChecks';
 import type { AttemptExited, IngestContext, IngestDecision, IngestPort } from './executionService';
+import { MAX_DISCOVERED_FILES } from './planBuilder';
 
 export type { AttemptExited };
 
@@ -51,11 +64,14 @@ interface InputRow { version_id: string; role: string; status: string; storage_r
 
 const ok: IngestDecision = { ok: true };
 const refuse = (outcome: string, code: string, message: string): IngestDecision => ({ ok: false, outcome, error: { code, message } });
+const secretRefusal = (what: string): IngestDecision =>
+  refuse('invalid_output', 'secret_in_output', `the ${what} holds a secret-shaped value; nothing was stored`);
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const parse = (t: string | null): unknown => { if (t === null) return null; try { return JSON.parse(t) as unknown; } catch { return null; } };
 const sha256 = (s: string): string => createHash('sha256').update(s).digest('hex');
-/** The version listing of the discovered files stays small; the full list is in the `ids.txt` blob. */
-export const MAX_METADATA_FILES = 1000;
+const jsonBytes = (v: unknown): number => Buffer.byteLength(JSON.stringify(v), 'utf8');
+/** The most files a build output tree may hold (the ingest transaction stays bounded; the blob index takes 10,000 per call). */
+export const MAX_TREE_FILES = 5000;
 
 export class IngestService implements IngestPort {
   constructor(private readonly db: Database.Database, private readonly deps: IngestDeps) {}
@@ -133,6 +149,27 @@ export class IngestService implements IngestPort {
     if (outputs.length) this.deps.blobs!.recordBlobsTx(token, outputs.map((o) => ({ sha256: o.sha256, bytes: o.bytes, mediaType: o.mediaType })));
   }
 
+  /**
+   * Output that deduplicates to an existing version: the check still runs and binds this attempt's evidence (advisory
+   * when the version is no longer a draft). Onto a draft, the new evidence may make it ready: finalize, then queue its
+   * candidate checks (a live one is reused) once its register checks passed.
+   */
+  private dedupe(ctx: IngestContext, prior: VersionRow, validatorId: string, outcome: ValidatorOutcome): IngestDecision {
+    const { job, attempt, system } = ctx;
+    this.deps.validation.recordOutcomeTx(prior.id, validatorId, outcome, { jobId: job.id, attemptN: attempt.n });
+    if (prior.status === 'draft' && this.deps.validation.finalizeIfReady(system, prior.id) === 'draft' && this.registerPassed(prior.id)) {
+      this.deps.validation.enqueueCandidate(system, prior.id, { parentJobId: job.id });
+    }
+    return ok;
+  }
+
+  /** Every blocking register validator of the version's latest blocking rows passed. */
+  private registerPassed(versionId: string): boolean {
+    return !this.db.prepare(`SELECT 1 FROM validations v WHERE v.version_id = ? AND v.stage = 'register' AND v.blocking = 1 AND v.status <> 'passed'
+      AND NOT EXISTS (SELECT 1 FROM validations w WHERE w.version_id = v.version_id AND w.validator_id = v.validator_id AND w.blocking = 1
+        AND (w.finished_at > v.finished_at OR (w.finished_at = v.finished_at AND w.rowid > v.rowid)))`).get(versionId);
+  }
+
   // ---------- repository snapshot (engine) ----------
 
   private snapshot(ctx: IngestContext): IngestDecision {
@@ -141,19 +178,20 @@ export class IngestService implements IngestPort {
       ?? ctx.exited.parsed.find((p) => isObj(p.normalized))?.normalized;
     const g = checkGitFacts(reported);
     if (!g.ok) return refuse('invalid_output', 'parser_contract', `the snapshot facts were not usable: ${g.message}`);
+    if (containsSecret(g.value)) return secretRefusal('snapshot report');
     const facts = isObj(ctx.facts) ? ctx.facts : {};
     const resolved = (isObj(facts.resolved) ? facts.resolved : null) as { commit: string } | { error: string } | null;
     const headFacts = { storageCommit: g.value.commit, reported, resolved };
-    const repo = this.db.prepare("SELECT id FROM artifacts WHERE project_id = ? AND kind = 'repository' AND status = 'active' LIMIT 1")
-      .get(job.project_id) as { id: string } | undefined;
+    // One repository per project (ux_repository_per_project): an archived one is never replaced by a second.
+    const repo = this.db.prepare("SELECT id, status FROM artifacts WHERE project_id = ? AND kind = 'repository' ORDER BY created_at, id LIMIT 1")
+      .get(job.project_id) as { id: string; status: string } | undefined;
+    if (repo && repo.status !== 'active') {
+      return refuse('invalid_output', 'repository_archived', 'the project repository is archived; restore it before taking a snapshot');
+    }
     const contentHash = `git:${g.value.commit}`;
     const prior = this.already(job.id, 'facts') ?? (repo ? this.sameContent(repo.id, contentHash) : null);
-    if (prior) {
-      // The same commit was already snapshotted: one version. The check still runs and binds this attempt's evidence.
-      this.deps.validation.recordOutcomeTx(prior.id, 'git.head_resolves', this.deps.validation.runPure('git.head_resolves', headFacts),
-        { jobId: job.id, attemptN: attempt.n });
-      return ok;
-    }
+    // The same commit was already snapshotted: one version.
+    if (prior) return this.dedupe(ctx, prior, 'git.head_resolves', this.deps.validation.runPure('git.head_resolves', headFacts));
     const previous = repo ? this.latestLive(repo.id) : null;
     const v = this.deps.artifacts.insertSystemVersionTx(system, {
       ...(repo ? { artifactId: repo.id } : { newArtifact: { kind: 'repository', name: 'Repository', participation: null } }),
@@ -183,29 +221,37 @@ export class IngestService implements IngestPort {
     const commit = isObj(repoStorage) && typeof repoStorage.commit === 'string' && COMMIT_RE.test(repoStorage.commit) ? repoStorage.commit : null;
     if (!commit) return refuse('invalid_output', 'bad_input', 'the repository input stores no commit');
     const d = checkDiscovery(parsed?.normalized);
+    const files = d.ok ? d.value.files : [];
+    const ids = d.ok ? d.value.ids : [];
+    if (containsSecret(files) || containsSecret(ids)) return secretRefusal('discovered list');
+    // The test plan runs exactly the stored list (planBuilder MAX_DISCOVERED_FILES): a list it cannot take whole is
+    // refused here, never cut.
+    if (files.length > MAX_DISCOVERED_FILES) {
+      return refuse('invalid_output', 'discovery_too_large', `the discovery lists ${files.length} test files; a test run takes at most ${MAX_DISCOVERED_FILES}`);
+    }
     const repoMeta = parse(repo.metadata_json);
     const env = parse(ctx.attempt.environment_json);
     const profile = isObj(repoMeta) && typeof repoMeta.profile === 'string' ? repoMeta.profile
       : isObj(env) && typeof env.profile === 'string' ? env.profile : null;
+    // The files once (the plan reads `files`); the ids only when they say more than the files and fit beside them.
+    const idsDiffer = ids.length !== files.length || ids.some((x, i) => x !== files[i]);
+    const framework = d.ok ? d.value.framework : null;
+    const base = { profile: profile ?? 'sde-node', framework, files, commit, count: Math.max(ids.length, files.length) };
+    const disc = { sha256: parsed?.sourceSha256 ?? null, framework, filesCount: files.length, idsCount: ids.length, truncated: false };
+    let metadata: Record<string, unknown> = { ...base, discovery: { ...disc, ...(idsDiffer ? { ids } : {}) } };
+    if (idsDiffer && jsonBytes(metadata) > INLINE_MAX_BYTES) metadata = { ...base, discovery: { ...disc, idsStored: false } };
+    if (jsonBytes(metadata) > INLINE_MAX_BYTES) {
+      return refuse('invalid_output', 'discovery_too_large', `the discovered list is larger than a test suite records (${INLINE_MAX_BYTES} bytes)`);
+    }
     const registerFacts = { 'suite.discovered': { discovery: parsed?.normalized ?? null, listSha256: parsed?.sourceSha256 ?? null, storedSha256: staged.sha256 } };
     const contentHash = sha256(`test_suite\n${commit}\n${staged.sha256}`);
     const artifactId = this.ownedArtifact(job.participation_id, 'test_suite', 'Test suite');
     const prior = this.already(job.id, 'ids.txt') ?? (artifactId ? this.sameContent(artifactId, contentHash) : null);
-    if (prior) {
-      this.deps.validation.recordOutcomeTx(prior.id, 'suite.discovered', this.deps.validation.runPure('suite.discovered', registerFacts['suite.discovered']),
-        { jobId: job.id, attemptN: attempt.n });
-      return ok;
-    }
+    if (prior) return this.dedupe(ctx, prior, 'suite.discovered', this.deps.validation.runPure('suite.discovered', registerFacts['suite.discovered']));
     const previous = artifactId ? this.latestLive(artifactId) : null;
-    const files = d.ok ? d.value.files.slice(0, MAX_METADATA_FILES) : [];
-    const ids = d.ok ? d.value.ids.slice(0, MAX_METADATA_FILES) : [];
     const v = this.deps.artifacts.insertSystemVersionTx(system, {
       ...(artifactId ? { artifactId } : { newArtifact: { kind: 'test_suite', name: 'Test suite', participation: job.participation_id } }),
-      storage: { kind: 'git', commit }, contentHash,
-      metadata: { profile: profile ?? 'sde-node', framework: d.ok ? d.value.framework : null, files, commit,
-        count: d.ok ? Math.max(d.value.ids.length, d.value.files.length) : 0,
-        discovery: { sha256: parsed?.sourceSha256 ?? null, framework: d.ok ? d.value.framework : null, files, ids,
-          truncated: d.ok ? d.value.files.length > MAX_METADATA_FILES || d.value.ids.length > MAX_METADATA_FILES : false } },
+      storage: { kind: 'git', commit }, contentHash, metadata,
       environment: this.environment(ctx), jobId: job.id, attemptN: attempt.n, outputPath: 'ids.txt', action: 'exec.discover',
       onBehalfOf: job.on_behalf_of, now: this.deps.now(),
       inputs: [{ versionId: repo.version_id, role: 'repository', relation: 'derived_from', source: 'job_input' },
@@ -221,13 +267,6 @@ export class IngestService implements IngestPort {
       this.deps.validation.enqueueCandidate(system, v.id, { parentJobId: job.id });
     }
     return ok;
-  }
-
-  /** Every register validator of the version's latest rows passed. */
-  private registerPassed(versionId: string): boolean {
-    return !this.db.prepare(`SELECT 1 FROM validations v WHERE v.version_id = ? AND v.stage = 'register' AND v.blocking = 1 AND v.status <> 'passed'
-      AND NOT EXISTS (SELECT 1 FROM validations w WHERE w.version_id = v.version_id AND w.validator_id = v.validator_id
-        AND (w.finished_at > v.finished_at OR (w.finished_at = v.finished_at AND w.rowid > v.rowid)))`).get(versionId);
   }
 
   // ---------- a test run (the sde.tests_pass check, or a user's run on a suite) ----------
@@ -247,7 +286,7 @@ export class IngestService implements IngestPort {
     const meta = parse(suite.metadata_json);
     const disc = isObj(meta) && isObj(meta.discovery) ? meta.discovery : null;
     const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
-    const files = list(disc?.files ?? (isObj(meta) ? meta.files : []));
+    const files = list(isObj(meta) && Array.isArray(meta.files) ? meta.files : disc?.files);
     const ids = list(disc?.ids ?? files);
     const staged = ctx.exited.outputs.find((o) => o.relPath === 'junit.xml') ?? null;
     const parsed = ctx.exited.parsed.find((p) => p.parser === 'junit');
@@ -255,15 +294,16 @@ export class IngestService implements IngestPort {
     const outcome = tests.run({
       junit: parsed?.normalized ?? null, junitSha256: staged?.sha256 ?? null,
       exit: { code: ctx.exited.exit.code, ...(ctx.exited.exit.signal ? { signal: ctx.exited.exit.signal } : {}), oomKilled: ctx.exited.exit.oomKilled },
-      discovery: { ids, files },
+      discovery: { ids, files, truncated: disc?.truncated === true },
       imageId: isObj(env) && typeof env.imageId === 'string' ? env.imageId : null,
       lockfileSha256: isObj(env) && typeof env.lockfileSha256 === 'string' ? env.lockfileSha256 : null
     });
-    if (staged && suite.status === 'draft') {
-      // The report's bytes stay with the suite they judged (attached while it is still a draft).
+    if (staged) {
+      // The report's bytes are kept: attached to the suite they judged while it is still a draft; otherwise (a run on
+      // a candidate suite, which is immutable) recorded as a blob that the result's evidence names (`hash` junit).
       const token = this.token(ctx);
       this.record(token, [staged]);
-      this.deps.blobs!.attachTx(token, suite.id, [{ sha256: staged.sha256, role: 'junit', path: `junit/${job.id}-${attempt.n}.xml` }]);
+      if (suite.status === 'draft') this.deps.blobs!.attachTx(token, suite.id, [{ sha256: staged.sha256, role: 'junit', path: `junit/${job.id}-${attempt.n}.xml` }]);
     }
     this.deps.faults?.afterRows?.(ctx.recipe.id);
     this.deps.validation.recordOutcomeTx(suite.id, tests.ID, outcome, { jobId: job.id, attemptN: attempt.n });
@@ -278,17 +318,17 @@ export class IngestService implements IngestPort {
     const { job, attempt, system } = ctx;
     const repo = this.inputs(job.id, 'repository')[0];
     if (!repo || job.participation_id === null) return refuse('invalid_output', 'bad_input', 'the build has no repository input');
-    const files: TreeFile[] = ctx.exited.outputs.filter((o) => o.relPath.startsWith('dist/') && o.relPath.length > 5)
-      .map((o) => ({ path: o.relPath.slice(5), sha256: o.sha256, bytes: o.bytes }));
+    const staged = ctx.exited.outputs.filter((o) => o.relPath.startsWith('dist/') && o.relPath.length > 5);
+    if (staged.length > MAX_TREE_FILES) {
+      return refuse('invalid_output', 'tree_too_large', `the build output holds ${staged.length} files; at most ${MAX_TREE_FILES} are stored`);
+    }
+    const files: TreeFile[] = staged.map((o) => ({ path: o.relPath.slice(5), sha256: o.sha256, bytes: o.bytes }));
     const tree = { kind: 'tree' as const, manifestSha256: manifestSha256(files), files: files.length, bytes: files.reduce((s, f) => s + f.bytes, 0) };
     const contentHash = `tree:${tree.manifestSha256}`;
     const artifactId = this.ownedArtifact(job.participation_id, 'build', 'Build');
     const prior = this.already(job.id, 'dist') ?? (artifactId ? this.sameContent(artifactId, contentHash) : null);
     const exitFacts = { exit: { code: ctx.exited.exit.code, ...(ctx.exited.exit.signal ? { signal: ctx.exited.exit.signal } : {}), oomKilled: ctx.exited.exit.oomKilled } };
-    if (prior) {
-      this.deps.validation.recordOutcomeTx(prior.id, EXIT_ZERO, exitZero(exitFacts), { jobId: job.id, attemptN: attempt.n });
-      return ok;
-    }
+    if (prior) return this.dedupe(ctx, prior, EXIT_ZERO, exitZero(exitFacts));
     const repoMeta = parse(repo.metadata_json);
     const repoStorage = parse(repo.storage_ref_json);
     const commit = isObj(repoStorage) && typeof repoStorage.commit === 'string' && COMMIT_RE.test(repoStorage.commit) ? repoStorage.commit : null;
@@ -305,7 +345,6 @@ export class IngestService implements IngestPort {
     this.bindAttempt(v.id, job.id, attempt.n);
     if (files.length) {
       const token = this.token(ctx);
-      const staged = ctx.exited.outputs.filter((o) => o.relPath.startsWith('dist/') && o.relPath.length > 5);
       this.record(token, staged);
       this.deps.blobs!.attachTx(token, v.id, files.map((f) => ({ sha256: f.sha256, role: 'file' as const, path: f.path })));
     }
@@ -325,15 +364,13 @@ export class IngestService implements IngestPort {
       ?? ctx.exited.parsed.find((p) => isObj(p.normalized))?.normalized;
     const manifest = isObj(facts) ? facts.manifest : undefined;
     if (!isObj(manifest)) return refuse('invalid_output', 'parser_contract', 'the manifest was not usable');
+    if (containsSecret(manifest)) return secretRefusal('application manifest');
     let storage: { kind: 'inline'; json: unknown };
     try { storage = { kind: 'inline', json: JSON.parse(JSON.stringify(manifest)) as unknown }; } catch { return refuse('invalid_output', 'parser_contract', 'the manifest is not JSON'); }
     const contentHash = sha256(`application\n${buildIn.version_id}\n${JSON.stringify(manifest)}`);
     const artifactId = this.ownedArtifact(job.participation_id, 'application', 'Application');
     const prior = this.already(job.id, 'manifest') ?? (artifactId ? this.sameContent(artifactId, contentHash) : null);
-    if (prior) {
-      this.deps.validation.recordOutcomeTx(prior.id, 'app.manifest_schema', this.deps.validation.runPure('app.manifest_schema', manifest), { jobId: job.id, attemptN: attempt.n });
-      return ok;
-    }
+    if (prior) return this.dedupe(ctx, prior, 'app.manifest_schema', this.deps.validation.runPure('app.manifest_schema', manifest));
     const previous = artifactId ? this.latestLive(artifactId) : null;
     const v = this.deps.artifacts.insertSystemVersionTx(system, {
       ...(artifactId ? { artifactId } : { newArtifact: { kind: 'application', name: 'Application', participation: job.participation_id } }),

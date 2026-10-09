@@ -28,7 +28,10 @@ export function stepStateFrom(step: LifecycleStep, r: StepRecords, at: SubPhase 
   const allowed = done.statuses as readonly string[];
   if (r.versions.some((v) => allowed.includes(v.status) && done.validators.every((id) => v.validators[id] === 'passed'))) return 'done';
   if (r.liveJobs > 0) return 'in_progress';
-  // A draft whose checks have not failed is still being validated (or waits for a Revalidate after an error).
+  // Nothing is working on the step and a draft's checks could not run (`error`): it needs attention (Revalidate),
+  // so it reads failed, never in progress forever.
+  if (r.versions.some((v) => v.status === 'draft' && Object.values(v.validators).includes('error'))) return 'failed';
+  // A draft whose checks have not failed is still being validated.
   if (r.versions.some((v) => v.status === 'draft' && !Object.values(v.validators).includes('failed'))) return 'in_progress';
   if (r.versions.some((v) => v.status === 'failed' || done.validators.some((id) => v.validators[id] === 'failed'))) return 'failed';
   return r.inputsAvailable ? 'ready' : 'blocked';

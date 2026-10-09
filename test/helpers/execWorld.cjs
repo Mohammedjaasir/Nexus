@@ -194,8 +194,10 @@ function execWorld(o = {}) {
       const kind = 'kind' in step.doneWhen ? step.doneWhen.kind : null;
       const versions = kind === null ? [] : db.prepare(`SELECT v.id, v.status FROM artifact_versions v JOIN artifacts a ON a.id = v.artifact_id
         WHERE a.project_id = ? AND a.kind = ?`).all('p-ledger', kind).map((v) => {
-        const rows = db.prepare(`SELECT validator_id, status FROM validations x WHERE x.version_id = ? AND NOT EXISTS (SELECT 1 FROM validations y
-          WHERE y.version_id = x.version_id AND y.validator_id = x.validator_id AND (y.finished_at > x.finished_at OR (y.finished_at = x.finished_at AND y.rowid > x.rowid)))`).all(v.id);
+        // The latest BLOCKING row per validator (what the finalize rule reads; advisory rows never gate a step).
+        const rows = db.prepare(`SELECT validator_id, status FROM validations x WHERE x.version_id = ? AND x.blocking = 1 AND NOT EXISTS (SELECT 1 FROM validations y
+          WHERE y.version_id = x.version_id AND y.validator_id = x.validator_id AND y.blocking = 1
+            AND (y.finished_at > x.finished_at OR (y.finished_at = x.finished_at AND y.rowid > x.rowid)))`).all(v.id);
         return { status: v.status, validators: Object.fromEntries(rows.map((r) => [r.validator_id, r.status])) };
       });
       const recipes = step.via.flatMap((v) => ('userAction' in v ? (getUserAction(v.userAction)?.run.recipes ?? []) : 'recipe' in v ? [v.recipe] : []));

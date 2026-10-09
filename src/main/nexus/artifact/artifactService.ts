@@ -562,6 +562,8 @@ export class ArtifactService {
    *   the job as the same (version, role) in job_inputs, else 'input_not_granted' (the B0b rule).
    * - Lineage edges are written with their own source (`job_input` or `ingest`); one 'version.register' row (actor
    *   system, on behalf of the job's user).
+   * - Secrets never reach the version: secret-shaped metadata, inline content, git ref or git paths are refused
+   *   ('invalid', reason 'secret_in_metadata'; ingest refuses such outputs first as `secret_in_output`).
    * The public `create` still refuses `repository`, and the public `registerVersion` still answers
    * 'storage_unavailable' for blob, tree and external storage.
    */
@@ -577,6 +579,11 @@ export class ArtifactService {
     }
     if (o.action !== null && (typeof o.action !== 'string' || !ACTION_RE.test(o.action))) throw new PlatformError('invalid', 'action must be a short lowercase label');
     assertExactJson(o.metadata, 'metadata');
+    // What a runner reported never carries a secret into a version: metadata, inline content and the git ref are
+    // checked here (the public path leaves inline content alone; an ingested one is the runner's report).
+    refuseSecretJson(o.metadata, 'metadata');
+    if (storage.kind === 'inline') refuseSecretJson(storage.json, 'the inline content');
+    if (storage.kind === 'git') { refuseSecretText(storage.ref, 'the git ref'); refuseSecretJson(storage.paths, 'the git paths'); }
     const metadataJson = JSON.stringify(o.metadata);
     if (Buffer.byteLength(metadataJson, 'utf8') > INLINE_MAX_BYTES) throw new PlatformError('invalid', `metadata exceeds ${INLINE_MAX_BYTES} bytes`);
     const environmentJson = o.environment === null ? null : JSON.stringify(o.environment);

@@ -130,25 +130,32 @@ function writeVersionBlobRows(db: Database.Database, versionId: VersionId, items
   return immediateTx(db, () => {
     const v = db.prepare('SELECT id FROM artifact_versions WHERE id = ?').get(versionId);
     if (!v) throw new PlatformError('not_found', 'no such version');
-    const has = db.prepare('SELECT 1 FROM blobs WHERE sha256 = ?');
-    const ins = db.prepare('INSERT OR IGNORE INTO version_blobs (version_id, sha256, role, path) VALUES (?, ?, ?, ?)');
     const touch = db.prepare('UPDATE blobs SET last_referenced_at = ? WHERE sha256 = ? AND last_referenced_at < ?');
     let attached = 0;
-    for (const it of list) {
-      if (!has.get(it.sha)) throw new PlatformError('invalid', 'the blob is not recorded', { reason: 'blob_unknown' });
+    // In chunks of ATTACH_CHUNK rows per statement (a large tree is a few dozen statements, not thousands).
+    for (let i = 0; i < list.length; i += ATTACH_CHUNK) {
+      const part = list.slice(i, i + ATTACH_CHUNK);
+      const shas = [...new Set(part.map((x) => x.sha))];
+      const known = new Map((db.prepare(`SELECT sha256, last_referenced_at AS at FROM blobs WHERE sha256 IN (${shas.map(() => '?').join(', ')})`)
+        .all(...shas) as { sha256: string; at: number }[]).map((r) => [r.sha256, r.at]));
+      if (shas.some((s) => !known.has(s))) throw new PlatformError('invalid', 'the blob is not recorded', { reason: 'blob_unknown' });
       try {
-        attached += ins.run(versionId, it.sha, it.role, it.path).changes;
+        attached += db.prepare(`INSERT OR IGNORE INTO version_blobs (version_id, sha256, role, path) VALUES ${part.map(() => '(?, ?, ?, ?)').join(', ')}`)
+          .run(...part.flatMap((it) => [versionId, it.sha, it.role, it.path])).changes;
       } catch (e) {
         if (/attached to a version only while it is a draft/.test(String((e as Error)?.message))) {
           throw new PlatformError('immutable', 'bytes are attached to a version only while it is a draft');
         }
         throw e;
       }
-      touch.run(now, it.sha, now);
+      // Only a blob whose last reference is older than now is touched (one just recorded already is now).
+      for (const [sha, at] of known) if (at < now) touch.run(now, sha, now);
     }
     return { attached };
   });
 }
+/** Rows per attach statement (4 parameters each, far below SQLite's host-parameter limit). */
+const ATTACH_CHUNK = 250;
 
 /** Whether any version holds this blob. */
 export function isBlobReferenced(db: Database.Database, sha256: string): boolean {
@@ -166,10 +173,16 @@ export function candidatesHash(candidates: readonly BlobGcCandidate[]): string {
 const liveAttemptCount = (db: Database.Database): number =>
   (db.prepare("SELECT COUNT(*) AS n FROM job_attempts WHERE state IN ('starting','running')").get() as { n: number }).n;
 
-/** The unreferenced blobs whose last reference is older than 24 h, by sha256. */
+/**
+ * The unreferenced blobs whose last reference is older than 24 h, by sha256. A blob is referenced by a version
+ * (`version_blobs`) or as a JUnit report a validation's evidence names (`{ type: 'hash', label: 'junit' }`: the
+ * report of a test run on a suite that was no longer a draft is kept that way).
+ */
 export function listGcCandidates(db: Database.Database, now: number): BlobGcCandidate[] {
   const rows = db.prepare(`SELECT b.sha256, b.bytes, b.last_referenced_at FROM blobs b
     WHERE b.last_referenced_at < ? AND NOT EXISTS (SELECT 1 FROM version_blobs vb WHERE vb.sha256 = b.sha256)
+      AND b.sha256 NOT IN (SELECT json_extract(e.value, '$.sha256') FROM validations x, json_each(x.evidence_json) e
+        WHERE json_extract(e.value, '$.type') = 'hash' AND json_extract(e.value, '$.label') = 'junit')
     ORDER BY b.sha256`).all(now - BLOB_GC_MIN_AGE_MS) as { sha256: string; bytes: number; last_referenced_at: number }[];
   return rows.map((r) => ({ sha256: r.sha256, bytes: r.bytes, lastReferencedAt: r.last_referenced_at }));
 }

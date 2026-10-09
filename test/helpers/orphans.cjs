@@ -91,7 +91,8 @@ const EXEC_QUERIES = {
   O15: (v9) => v9 ? `SELECT x.id FROM validations x WHERE NOT EXISTS (SELECT 1 FROM artifact_versions v WHERE v.id = x.version_id)
     OR (x.job_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j.id = x.job_id))
     OR (x.attempt_n IS NOT NULL AND NOT EXISTS (SELECT 1 FROM job_attempts a WHERE a.job_id = x.job_id AND a.n = x.attempt_n))` : null,
-  // O16 job-produced candidate or active versions without a passed row for every blocking validator of their kind.
+  // O16 job-produced candidate or active versions whose LATEST blocking row is not `passed` for some blocking
+  // validator of their kind (none at all, or a newer failed / error row: a passed row in history is not enough).
   O16: (v9) => {
     if (!v9) return null;
     const pairs = blockingPairs();
@@ -99,7 +100,9 @@ const EXEC_QUERIES = {
     return `WITH req(kind, validator) AS (VALUES ${pairs.map(([k, v]) => `(${sqlText(k)}, ${sqlText(v)})`).join(', ')})
       SELECT v.id, r.validator FROM artifact_versions v JOIN artifacts a ON a.id = v.artifact_id JOIN req r ON r.kind = a.kind
       WHERE v.produced_by_job_id IS NOT NULL AND v.status IN ('candidate','active')
-        AND NOT EXISTS (SELECT 1 FROM validations x WHERE x.version_id = v.id AND x.validator_id = r.validator AND x.status = 'passed' AND x.blocking = 1)`;
+        AND NOT EXISTS (SELECT 1 FROM validations x WHERE x.version_id = v.id AND x.validator_id = r.validator AND x.status = 'passed' AND x.blocking = 1
+          AND NOT EXISTS (SELECT 1 FROM validations y WHERE y.version_id = x.version_id AND y.validator_id = x.validator_id AND y.blocking = 1
+            AND (y.finished_at > x.finished_at OR (y.finished_at = x.finished_at AND y.rowid > x.rowid))))`;
   },
   // O17 completed tool.run or validate jobs whose current attempt has neither an ingested output version nor a (job, n) validation.
   O17: (v9) => v9 ? `SELECT j.id FROM jobs j WHERE j.state = 'completed' AND j.kind IN ('tool.run','validate')
