@@ -114,3 +114,44 @@ test('the e2fceec build opens a v8 database as newer: legacy list, save and dele
   assert.equal(n.hasPlatformRecords('p-ledger'), true); assert.equal(n.deleteProject('p-ledger'), false);
   n.close();
 });
+test('the B1 build d7abc87b opens a v9 database as newer: legacy list, save and delete work; its delete guard stays on', () => {
+  const { materializeRev } = require('./helpers/materialize-rev.cjs');
+  const { file, dir } = h.v6Fixture();
+  const cur = new PersistStore(file); cur.open({ log: () => {}, backupDir: path.join(dir, 'b'), now: () => h.NOW, enableV9: true });
+  assert.equal(cur.schemaVersion, 9); assert.equal(cur.executionAvailable, true);
+  // A job on p-ledger (a platform record); p-sales has none.
+  const pdb = cur.platformDatabase();
+  const pw = pdb.prepare("SELECT id FROM project_workspaces WHERE project_id = 'p-ledger' AND workspace_id = 'sde'").get().id;
+  pdb.prepare(`INSERT INTO jobs (id, kind, project_id, workspace_id, participation_id, idempotency_key, requested_by, on_behalf_of, created_at,
+    updated_at, state_changed_at) VALUES ('j-down', 'tool.run', 'p-ledger', 'sde', ?, 'k-down', 'user:local', 'user:local', ?, ?, ?)`).run(pw, h.NOW, h.NOW, h.NOW);
+  cur.close();
+  const oldDb = materializeRev('d7abc87b', h.tmpDir('nx-rev-'));
+  const { PersistStore: OldStore } = loadTs.loadAbsolute(oldDb);
+  const logs = [];
+  const o = new OldStore(file); o.open({ log: (l) => logs.push(l), backupDir: path.join(dir, 'b'), now: () => h.NOW });
+  assert.equal(o.lastMigration.state, 'skipped'); assert.equal(o.lastMigration.reason, 'newer_schema');
+  assert.equal(o.platformAvailable, false); assert.equal(o.platformDatabase(), null);
+  assert.ok(logs.some((l) => /schema v9 is newer than this build \(v8\)/.test(l)), logs.join(' | '));
+  assert.equal(o.listProjects().length, 5);
+  o.saveProject({ ...o.getProject('p-invoice'), name: 'invoice-ocr-2' });
+  assert.equal(o.getProject('p-invoice').name, 'invoice-ocr-2');
+  assert.equal(o.deleteProject('p-sales'), true);                    // no platform records: participations cascade
+  assert.equal(o.getProject('p-sales'), null);
+  // The B1 guard is `version >= 7`, so at v9 it still sees the job and refuses without writing.
+  const raw = h.openRaw(file); const snap = h.allRows(raw); raw.close();
+  assert.equal(o.hasPlatformRecords('p-ledger'), true);
+  assert.equal(o.deleteProject('p-ledger'), false);
+  const after = h.openRaw(file); assert.deepEqual(h.allRows(after), snap, 'the refused delete wrote nothing'); after.close();
+  assert.ok(o.getProject('p-ledger'));
+  o.close();
+  const db = h.openRaw(file);
+  assert.equal(db.pragma('user_version', { simple: true }), 9);
+  assert.deepEqual(db.pragma('foreign_key_check'), []);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM jobs WHERE id='j-down'").get().n, 1);
+  db.close();
+  const n = new PersistStore(file); n.open({ log: () => {}, backupDir: path.join(dir, 'b'), enableV9: true });
+  assert.equal(n.lastMigration.state, 'not_needed'); assert.equal(n.lastMigrationV8.state, 'not_needed'); assert.equal(n.lastMigrationV9.state, 'not_needed');
+  assert.equal(n.platformAvailable, true); assert.equal(n.handoffsAvailable, true); assert.equal(n.executionAvailable, true);
+  assert.equal(n.hasPlatformRecords('p-ledger'), true); assert.equal(n.deleteProject('p-ledger'), false);
+  n.close();
+});

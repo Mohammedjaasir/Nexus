@@ -9,6 +9,8 @@ export interface MigrationHooks {
   beforeTransaction?: (db: Database.Database, toVersion?: number) => void;
   /** Replaces the free-space probe of the backup directory (insufficient_disk test). */
   freeBytes?: () => number | null;
+  /** Consulted only by the v9 step after its COMMIT: a boolean replaces the quick_check result (post-check failure test). */
+  postCheck?: (db: Database.Database, toVersion: number) => boolean | undefined;
 }
 
 export interface MigrationContext {
@@ -25,5 +27,5 @@ export interface MigrationContext {
 export type MigrationOutcome =
   | { state: 'not_needed'; version: number }
   | { state: 'applied'; fromVersion: number; backupFile: string | null; durationMs: number; backfilled: number; unassigned: number; postCheckOk: boolean }
-  | { state: 'skipped'; fromVersion: number; reason: 'held' | 'precheck_failed' | 'insufficient_disk' | 'backup_failed' | 'newer_schema' | 'v7_unavailable'; detail: string }
+  | { state: 'skipped'; fromVersion: number; reason: 'held' | 'precheck_failed' | 'insufficient_disk' | 'backup_failed' | 'newer_schema' | 'v7_unavailable' | 'v8_unavailable' | 'not_enabled'; detail: string }
   | { state: 'failed'; fromVersion: number; error: string; backupFile: string | null };

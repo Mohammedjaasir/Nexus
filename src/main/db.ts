@@ -37,18 +37,28 @@ import { appendCrashLog, redactForLog } from './crashLog';
 import type { MigrationContext, MigrationHooks, MigrationOutcome } from './nexus/db/migrationTypes';
 import { applyV7, v7ShapeProblem } from './nexus/db/schemaV7';
 import { applyV8, v8ShapeProblem } from './nexus/db/schemaV8';
+import { applyV9, v9ShapeProblem } from './nexus/db/schemaV9';
 import { syncPrimaryFromLegacyDomain } from './nexus/workspace/legacyPrimary';
 import { backupAndVerify, BackupError, freeBytes, integrityOk, tableRowCounts, type BackupRecord } from './nexus/db/backup';
 
 export const V7 = 7;
 export const V8 = 8;
+export const V9 = 9;
+/**
+ * Whether open() runs the v9 step when the caller does not say (PersistOpenOptions.enableV9).
+ * v9 stays off until it is verified; making it the default is this one line.
+ */
+export const V9_ENABLED_BY_DEFAULT = false;
 /** Platform tables that reference projects ON DELETE RESTRICT (fixed names, safe to interpolate). */
-const PLATFORM_RECORD_TABLES: readonly string[] = ['artifacts', 'jobs', 'agent_sessions', 'handoffs'];
+const PLATFORM_RECORD_TABLES: readonly string[] = ['artifacts', 'jobs', 'agent_sessions', 'handoffs', 'deployments', 'approvals'];
 /** Migrations before the platform core; they run exactly as they always have. */
 const LEGACY_VERSION = 6;
 
 /** See PersistStore.handoffsUnavailableReason. */
 export type HandoffsUnavailableReason = 'held' | 'auto_held' | 'backup_failed' | 'failed' | 'shape';
+
+/** See PersistStore.executionUnavailableReason. */
+export type ExecutionUnavailableReason = 'not_enabled' | 'held' | 'auto_held' | 'backup_failed' | 'failed' | 'shape';
 
 export interface PersistOpenOptions {
   /** Receives every migration log line (already ISO-stamped). Default: console plus the main crash log file. */
@@ -59,6 +69,13 @@ export interface PersistOpenOptions {
   holdV7?: boolean;
   /** Keep the database at v7 (NEXUS_DB_HOLD_V8=1). Default: NEXUS_DB_HOLD_V8 === '1'. */
   holdV8?: boolean;
+  /**
+   * Run the v9 step (execution records). Default: V9_ENABLED_BY_DEFAULT (false). Off, a v8
+   * database stays at v8 and execution reports `not_enabled`; the platform and handoffs are unchanged.
+   */
+  enableV9?: boolean;
+  /** Keep the database at v8 when v9 is enabled (NEXUS_DB_HOLD_V9=1). Default: NEXUS_DB_HOLD_V9 === '1'. holdV7 and holdV8 imply it. */
+  holdV9?: boolean;
   appVersion?: string | null;
   now?: () => number;
   /** Tests only. */
@@ -234,8 +251,11 @@ export const V7_FAILURE_LIMIT = 3;
 /** Consecutive failed v8 transactions after which v8 is held automatically. */
 export const V8_FAILURE_LIMIT = 3;
 
+/** Consecutive failed v9 transactions after which v9 is held automatically. */
+export const V9_FAILURE_LIMIT = 3;
+
 /** Small marker next to the DB file counting consecutive failed transactions of one platform step (no table, no error text). */
-export function platformFailureMarkerPath(dbFile: string, version: 7 | 8): string {
+export function platformFailureMarkerPath(dbFile: string, version: 7 | 8 | 9): string {
   return `${dbFile}.v${version}-failures.json`;
 }
 
@@ -286,13 +306,20 @@ export class PersistStore {
   private outcomeV8: MigrationOutcome | null = null;
   /** What the v8 step needs from the v7 step of the same open(): the version on disk before open(), and the backup folder. */
   private v8Env: { openedFrom: number; backupDir: string } = { openedFrom: 0, backupDir: '' };
+  /** True only at v9 with the v9 post-check (or the reopen v9 shape check) passed. */
+  private executionOk = false;
+  private outcomeV9: MigrationOutcome | null = null;
+  /** Whether this open() was asked to run v9 (PersistOpenOptions.enableV9). */
+  private v9Enabled = V9_ENABLED_BY_DEFAULT;
 
   /** Open (creating if needed) and migrate the DB. Idempotent — a second call is
    *  a no-op. Throws if the native module fails to load, the file is unusable or a
    *  legacy (v1–v6) migration fails; callers should guard so a DB failure can't
    *  crash app startup. Never throws because of v7: a v7 problem leaves the DB at
    *  v6 with the platform unavailable. Never throws because of v8 either: a v8
-   *  problem leaves the DB at v7 with the platform on and handoffs unavailable. */
+   *  problem leaves the DB at v7 with the platform on and handoffs unavailable. Nor
+   *  because of v9 (run only with enableV9): a v9 problem leaves the DB at v8 with the
+   *  platform and handoffs on and execution unavailable. */
   open(opts: PersistOpenOptions = {}): void {
     if (this.db) return;
     const path = this.dbPath ?? join(app.getPath('userData'), 'harness.db');
@@ -305,6 +332,7 @@ export class PersistStore {
     // written by the app before the backup is verified and the migration is done.
     this.migrate(db, path, opts);
     this.migrateV8Guarded(db, path, opts);
+    this.migrateV9Guarded(db, path, opts);
     this.db = db;
     this.closed = false;
     // Anything written before the DB was open (or while paused) goes in now, in order.
@@ -343,14 +371,14 @@ export class PersistStore {
     this.v8Env = { openedFrom: from, backupDir };
     log(`[db] schema version ${from}`);
 
-    if (from > V8) {
-      log(`[db] schema v${from} is newer than this build (v${V8}); opened for legacy use only, platform disabled, nothing migrated`);
+    if (from > V9) {
+      log(`[db] schema v${from} is newer than this build (v${V9}); opened for legacy use only, platform disabled, nothing migrated`);
       this.version = from;
       this.outcome = { state: 'skipped', fromVersion: from, reason: 'newer_schema', detail: `schema v${from}` };
       return;
     }
-    if (from === V7 || from === V8) {
-      // At v8 the v7 objects are unchanged, so the same exact v7 check decides the platform.
+    if (from === V7 || from === V8 || from === V9) {
+      // At v8 and v9 the v7 objects are unchanged, so the same exact v7 check decides the platform.
       let problem: string | null;
       try { problem = v7ShapeProblem(db, true); } catch (err) { problem = errorMessage(err); }
       if (problem) log(`[db] v7 shape check failed: ${scrub(problem)}; platform disabled`);
@@ -503,7 +531,7 @@ export class PersistStore {
       this.outcomeV8 = { state: 'skipped', fromVersion: this.version, reason: 'v7_unavailable', detail };
       return;
     }
-    if (this.version === V8) {
+    if (this.version >= V8) {
       let problem: string | null;
       try { problem = v8ShapeProblem(db, true); } catch (err) { problem = errorMessage(err); }
       if (problem) log(`[db] v8 shape check failed: ${scrub(problem)}; handoffs disabled`);
@@ -610,6 +638,162 @@ export class PersistStore {
     this.outcomeV8 = { state: 'applied', fromVersion: V7, backupFile, durationMs, backfilled: 0, unassigned: 0, postCheckOk: postOk };
   }
 
+  /** The v9 step never throws out of open(): anything unexpected leaves the platform and handoffs as the v8 step left them, without execution. */
+  private migrateV9Guarded(db: Database.Database, dbFile: string, opts: PersistOpenOptions): void {
+    try {
+      this.migrateV9(db, dbFile, opts);
+    } catch (err) {
+      this.executionOk = false;
+      try { this.version = db.pragma('user_version', { simple: true }) as number; } catch { /* keep the last known version */ }
+      const error = this.nexusScrub(errorMessage(err));
+      this.nexusLogLine(`[db] v9 step: unexpected error=${error}; execution disabled`);
+      this.outcomeV9 = { state: 'failed', fromVersion: V8, error, backupFile: null };
+    }
+  }
+
+  /**
+   * Schema v9 (execution records), a sibling of the v8 step with the same safety procedure:
+   * pre-checks, a verified harness-v8-<UTC>.db backup taken after the v8 COMMIT, one
+   * BEGIN IMMEDIATE transaction, the NEXUS_DB_HOLD_V9 hold (implied by the v7 and v8 holds)
+   * and its own failure marker. It runs only when enabled (PersistOpenOptions.enableV9) and
+   * only on a clean v8 (applied, or reopened with the exact v8 shape). A failure leaves the
+   * database at v8 with the platform and handoffs on and execution off.
+   */
+  private migrateV9(db: Database.Database, dbFile: string, opts: PersistOpenOptions): void {
+    const log = (line: string): void => this.nexusLogLine(line);   // the v7 step's sink: ISO-stamped, never throws
+    const scrub = this.nexusScrub;
+    const now = this.nexusNow;
+    const { openedFrom, backupDir } = this.v8Env;
+    this.executionOk = false;
+    this.v9Enabled = opts.enableV9 ?? V9_ENABLED_BY_DEFAULT;
+    const v8 = this.outcomeV8;
+    if (v8 && v8.state === 'skipped' && v8.reason === 'newer_schema') {
+      this.outcomeV9 = { ...v8 };
+      return;
+    }
+    // 1. Decide. v8 not in place (v7 or v8 held, skipped or failed, or either shape check failed): no v9 line.
+    if (this.version < V8 || !this.platformOk || !this.handoffsOk) {
+      const detail = v8 ? (v8.state === 'skipped' ? `v8 ${v8.reason}` : `v8 ${v8.state}`) : 'v8 not run';
+      this.outcomeV9 = { state: 'skipped', fromVersion: this.version, reason: 'v8_unavailable', detail };
+      return;
+    }
+    if (this.version === V9) {
+      let problem: string | null;
+      try { problem = v9ShapeProblem(db, true); } catch (err) { problem = errorMessage(err); }
+      if (problem) log(`[db] v9 shape check failed: ${scrub(problem)}; execution disabled`);
+      this.executionOk = problem === null;
+      this.outcomeV9 = { state: 'not_needed', version: V9 };
+      return;
+    }
+    if (!this.v9Enabled) {
+      log(`[db] v9 migration: not enabled; database stays at v${V8}`);
+      this.outcomeV9 = { state: 'skipped', fromVersion: V8, reason: 'not_enabled', detail: 'enableV9=false' };
+      return;
+    }
+    const holdV9 = opts.holdV9 ?? process.env.NEXUS_DB_HOLD_V9 === '1';
+    const holdV8 = opts.holdV8 ?? process.env.NEXUS_DB_HOLD_V8 === '1';
+    const holdV7 = opts.holdV7 ?? process.env.NEXUS_DB_HOLD_V7 === '1';
+    if (holdV9 || holdV8 || holdV7) {
+      const by = holdV9 ? 'NEXUS_DB_HOLD_V9=1' : holdV8 ? 'NEXUS_DB_HOLD_V8=1' : 'NEXUS_DB_HOLD_V7=1';
+      log(`[db] v9 migration: skipped reason=held (${by}); database stays at v${V8}`);
+      this.outcomeV9 = { state: 'skipped', fromVersion: V8, reason: 'held', detail: by };
+      return;
+    }
+    // A deterministic v9 failure must not take a new backup on every launch.
+    const marker = platformFailureMarkerPath(dbFile, 9);
+    const failures = readFailureCount(marker);
+    if (failures >= V9_FAILURE_LIMIT) {
+      log(`[db] v9 migration: skipped reason=held: repeated_failure count=${failures}; database stays at v${V8}; no new backup taken`);
+      log(`[db] to retry v9, quit and delete ${basename(marker)} next to ${basename(dbFile)}; existing backups are kept `
+        + '(restore one with the restore tool, tools/nexus-db-restore.cjs, if needed)');
+      this.outcomeV9 = { state: 'skipped', fromVersion: V8, reason: 'held', detail: `repeated_failure count=${failures}` };
+      return;
+    }
+
+    const skip = (reason: 'precheck_failed' | 'insufficient_disk' | 'backup_failed', detail: string): void => {
+      log(`[db] v9 migration: skipped reason=${reason} detail=${detail}; database left at v${V8}`);
+      this.outcomeV9 = { state: 'skipped', fromVersion: V8, reason, detail };
+    };
+
+    let preCounts: Record<string, number> | null = null;
+    let backup: BackupRecord | null = null;
+    if (openedFrom > 0) {
+      // 2. Pre-checks on the committed v8 database. Nothing is written.
+      try {
+        const integrityStart = Date.now();
+        if (!integrityOk(db)) return skip('precheck_failed', 'integrity_check is not ok');
+        const integrityMs = Date.now() - integrityStart;
+        const size = (f: string): number => { try { return fs.statSync(f).size; } catch { return 0; } };
+        const needed = 2 * (size(dbFile) + size(`${dbFile}-wal`));
+        const free = opts.hooks?.freeBytes ? opts.hooks.freeBytes() : freeBytes(backupDir);
+        if (free !== null && free < needed) return skip('insufficient_disk', `free=${free} needed=${needed}`);
+        preCounts = tableRowCounts(db);
+        log(`[db] v9 precheck ok integrity=ok integrityMs=${integrityMs} free=${free ?? 'unknown'} needed=${needed}`);
+      } catch (err) {
+        return skip('precheck_failed', scrub(errorMessage(err)));
+      }
+      // 3. Backup of the v8 database (harness-v8-<UTC>.db), verified before anything changes.
+      try {
+        backup = this.takeBackup(db, backupDir, V8, preCounts, now);
+      } catch (err) {
+        const stage = err instanceof BackupError ? err.stage : 'unexpected';
+        log(`[db] backup failed stage=${stage} error=${scrub(errorMessage(err))}`);
+        return skip('backup_failed', `stage=${stage}`);
+      }
+      log(`[db] backup ok file=${backup.file} bytes=${backup.bytes} sha256=${backup.sha256} from=${V8} `
+        + `writeMs=${backup.timings.writeMs} verifyMs=${backup.timings.verifyMs} hashMs=${backup.timings.hashMs}`);
+      log(`[db] row counts ${Object.entries(preCounts).map(([t, n]) => `${t}=${n}`).join(' ')}`);
+    } else {
+      log('[db] fresh database: no v9 backup needed');
+    }
+    const backupFile = backup?.file ?? null;
+
+    // 4. v9 in one BEGIN IMMEDIATE transaction: DDL, seeds, record, activity row,
+    //    verification and user_version all commit or roll back together.
+    log(`[db] v9 migration: start from=${V8}`);
+    const started = Date.now();
+    const ctx: MigrationContext = { now, appVersion: opts.appVersion !== undefined ? opts.appVersion : defaultAppVersion(), fromVersion: V8, preCounts, backup };
+    let result: { attemptStates: number; approvalStates: number; deploymentStates: number; relationsAdded: number };
+    try {
+      opts.hooks?.beforeTransaction?.(db, V9);
+      result = db.transaction(() => {
+        const r = applyV9(db, ctx);
+        db.pragma(`user_version = ${V9}`);
+        opts.hooks?.beforeCommit?.(db, V9);
+        return r;
+      }).immediate();
+    } catch (err) {
+      // SQLite rolled everything back, user_version included: the database is still v8.
+      const kept = backupFile ? `backup kept at ${backupFile}` : 'no backup (fresh database)';
+      log(`[db] v9 migration: failed from=${V8} error=${scrub(errorMessage(err))}; database left at v${V8}; ${kept}`);
+      const count = failures + 1;
+      writeFailureCount(marker, count, now());
+      log(count >= V9_FAILURE_LIMIT
+        ? `[db] v9 migration has failed ${count} times in a row; it is held from the next launch (held: repeated_failure)`
+        : `[db] v9 migration will be retried at the next launch (failure ${count} of ${V9_FAILURE_LIMIT}); set NEXUS_DB_HOLD_V9=1 to stay on v${V8}`);
+      this.outcomeV9 = { state: 'failed', fromVersion: V8, error: scrub(errorMessage(err)), backupFile };
+      return;
+    }
+    const durationMs = Date.now() - started;
+    this.version = V9;
+    clearFailureMarker(marker);
+
+    // 5. Post-check after COMMIT. The v7 and v8 objects are unchanged, so the platform and handoffs stay on either way.
+    let postOk: boolean;
+    try {
+      const forced = opts.hooks?.postCheck?.(db, V9);
+      postOk = typeof forced === 'boolean' ? forced : integrityOk(db, 'quick');
+    } catch { postOk = false; }
+    if (postOk) {
+      log(`[db] v9 migration: success to=${V9} durationMs=${durationMs} attemptStates=${result.attemptStates} `
+        + `approvalStates=${result.approvalStates} deploymentStates=${result.deploymentStates} relationsAdded=${result.relationsAdded}`);
+    } else {
+      log(`[db] v9 post-check FAILED; execution disabled; restore from backup ${backupFile ?? '(none: fresh database)'}`);
+    }
+    this.executionOk = postOk;
+    this.outcomeV9 = { state: 'applied', fromVersion: V8, backupFile, durationMs, backfilled: 0, unassigned: 0, postCheckOk: postOk };
+  }
+
   /** backupAndVerify never overwrites; a name already taken (same second) moves on to the next second. */
   private takeBackup(db: Database.Database, dir: string, from: number, rowCounts: Record<string, number>, now: () => number): BackupRecord {
     for (let attempt = 0; ; attempt++) {
@@ -621,14 +805,50 @@ export class PersistStore {
     }
   }
 
-  /** The schema version in effect: 8 or 7 once committed, otherwise what the file had (or the legacy steps reached). */
+  /** The schema version in effect: 9, 8 or 7 once committed, otherwise what the file had (or the legacy steps reached). */
   get schemaVersion(): number { return this.version; }
 
-  /** True only at v7 or v8 with the exact v7 shape (the v7 post-check, or the reopen shape check) passed. */
-  get platformAvailable(): boolean { return this.db !== null && this.version >= V7 && this.version <= V8 && this.platformOk; }
+  /** True only at v7, v8 or v9 with the exact v7 shape (the v7 post-check, or the reopen shape check) passed. */
+  get platformAvailable(): boolean { return this.db !== null && this.version >= V7 && this.version <= V9 && this.platformOk; }
 
-  /** True only at v8 with the v8 post-check (or the reopen v8 shape check) passed, and the platform available. */
-  get handoffsAvailable(): boolean { return this.platformAvailable && this.version === V8 && this.handoffsOk; }
+  /** True only at v8 or v9 with the v8 post-check (or the reopen v8 shape check) passed, and the platform available. */
+  get handoffsAvailable(): boolean { return this.platformAvailable && (this.version === V8 || this.version === V9) && this.handoffsOk; }
+
+  /**
+   * True only when v9 is enabled for this open(), the store is at v9 with the v9 post-check (or the
+   * reopen v9 shape check) passed, and handoffs are available (v9 sits on v8).
+   */
+  get executionAvailable(): boolean { return this.handoffsAvailable && this.version === V9 && this.executionOk && this.v9Enabled; }
+
+  /** The v9 step's outcome; null before open(). */
+  get lastMigrationV9(): MigrationOutcome | null { return this.outcomeV9; }
+
+  /**
+   * Why execution alone is off while the platform is on. null when execution is available, and also
+   * when the whole platform is off (that reason is the v7 side's).
+   *   not_enabled   v9 was not enabled for this open() (PersistOpenOptions.enableV9; the default until verified)
+   *   held          NEXUS_DB_HOLD_V9=1 (or the v8 or v7 hold) kept the database at v8; also when v8 itself is held
+   *   auto_held     the v9 failure marker reached V9_FAILURE_LIMIT (or v8 is auto-held)
+   *   backup_failed the harness-v8 backup could not be written or verified (or the harness-v7 one, for v8)
+   *   failed        the v9 transaction rolled back, the v9 post-check failed, a pre-check or the disk
+   *                 check skipped v9, or the v9 step threw unexpectedly (or v8 failed)
+   *   shape         the database is at v9 but the v9 shape check failed on reopen (or the v8 one did)
+   * When v8 is not in place, the reason is handoffsUnavailableReason (execution needs handoffs).
+   */
+  get executionUnavailableReason(): ExecutionUnavailableReason | null {
+    if (!this.platformAvailable || this.executionAvailable) return null;
+    if (!this.v9Enabled) return 'not_enabled';
+    const o = this.outcomeV9;
+    if (!o) return 'failed';
+    if (o.state === 'skipped') {
+      if (o.reason === 'v8_unavailable') return this.handoffsUnavailableReason ?? 'failed';
+      if (o.reason === 'held') return o.detail.startsWith('repeated_failure') ? 'auto_held' : 'held';
+      if (o.reason === 'backup_failed') return 'backup_failed';
+      return 'failed';
+    }
+    if (o.state === 'not_needed') return 'shape';
+    return 'failed';
+  }
 
   /** The v7 step's outcome (unchanged contract). */
   get lastMigration(): MigrationOutcome | null { return this.outcome; }
@@ -863,8 +1083,8 @@ export class PersistStore {
   }
 
   /**
-   * True when the project owns platform records (artifacts, jobs, agent sessions or
-   * handoffs), which reference it with ON DELETE RESTRICT. False below v7. A failing check
+   * True when the project owns platform records (artifacts, jobs, agent sessions,
+   * handoffs, deployments or approvals), which reference it with ON DELETE RESTRICT. False below v7. A failing check
    * answers true, so a project is kept rather than half-deleted.
    */
   hasPlatformRecords(projectId: string): boolean {
@@ -872,7 +1092,7 @@ export class PersistStore {
     try {
       // A missing table holds no records; the query covers only the tables that exist.
       const present = (this.db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'
-          AND name IN ('artifacts', 'jobs', 'agent_sessions', 'handoffs')`).pluck().all() as string[])
+          AND name IN ('artifacts', 'jobs', 'agent_sessions', 'handoffs', 'deployments', 'approvals')`).pluck().all() as string[])
         .filter((t) => PLATFORM_RECORD_TABLES.includes(t));
       if (present.length === 0) return false;
       const sql = `SELECT ${present.map((t) => `EXISTS (SELECT 1 FROM ${t} WHERE project_id = ?)`).join(' OR ')} AS has`;

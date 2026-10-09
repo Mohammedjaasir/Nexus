@@ -387,7 +387,7 @@ test('the hint names the matching hold switch: v7 -> NEXUS_DB_HOLD_V8, v6 -> NEX
   assert.doesNotMatch(holdHint(7), /HOLD_V7/);
   assert.match(holdHint(6), /NEXUS_DB_HOLD_V7=1 to stay on schema v6/);
   assert.doesNotMatch(holdHint(6), /HOLD_V8/);
-  for (const v of [0, 5, 8, 9]) {
+  for (const v of [0, 5, 9]) {   // v8 now has a switch (NEXUS_DB_HOLD_V9); its case is below
     assert.doesNotMatch(holdHint(v), /NEXUS_DB_HOLD_V\d=1 to stay/, `no switch claimed for v${v}`);
     assert.match(holdHint(v), new RegExp(`schema v${v}[,;. ]`));
   }
@@ -433,4 +433,24 @@ test('a backup without a SQLite header still restores; the hint names both switc
   assert.equal(fs.readFileSync(db, 'utf8'), 'v6 copy');
   assert.match(ok.stdout, /could not be read from its header/);
   assert.match(ok.stdout, /NEXUS_DB_HOLD_V7=1 for a v6 backup or NEXUS_DB_HOLD_V8=1 for a v7 backup/);
+});
+
+test('the hint for a v8 backup names NEXUS_DB_HOLD_V9 only; the CLI prints it on a dry run and on apply', () => {
+  assert.match(holdHint(8), /^Next: launch with NEXUS_DB_HOLD_V9=1 to stay on schema v8, /);
+  assert.doesNotMatch(holdHint(8), /HOLD_V[78]/);
+  const { dir, db, backup, bytes, hash } = versionScene(8);
+  const before = snapshot(dir);
+  const dry = cli('--db', db, '--backup', backup, '--sha256', hash);
+  assert.equal(dry.status, 0, dry.stderr);
+  assert.ok(dry.stdout.includes('NEXUS_DB_HOLD_V9=1 to stay on schema v8'), dry.stdout);
+  assert.ok(!/NEXUS_DB_HOLD_V[78]/.test(dry.stdout), 'no other switch is named');
+  assert.deepEqual(snapshot(dir), before, 'the dry run changes nothing');
+  const ok = cli('--db', db, '--backup', backup, '--sha256', hash, '--apply');
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.ok(ok.stdout.includes('Next: launch with NEXUS_DB_HOLD_V9=1 to stay on schema v8'), ok.stdout);
+  assert.deepEqual(fs.readFileSync(db), bytes, 'the backup bytes are installed');
+});
+
+test('a backup without a readable header names the v9 switch for a v8 backup too', () => {
+  assert.match(holdHint(null), /NEXUS_DB_HOLD_V9=1 for a v8 backup/);
 });
