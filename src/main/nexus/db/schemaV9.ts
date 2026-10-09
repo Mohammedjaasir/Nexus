@@ -12,6 +12,9 @@
  *
  * V9_DDL is copied verbatim from the approved B2a plan ("Schema v9 / Full DDL").
  * It is shipped migration text: never edit it - later changes go in a new migration.
+ * (One change before v9 ever ran on a real database, B2a Task 9 fix round 2: the `deployments.stop_reason` vocabulary
+ * gained 'refused', 'preflight_failed', 'runner_lost' and 'exit_not_reported', so the row stores a deployment's true
+ * end cause. V9_ENABLED_BY_DEFAULT was false and no database had v9 at the time.)
  * (The two `'%\%'` LIKE patterns are written `\\%` below so the SQL text keeps its backslash.)
  *
  * applyV9 runs inside the caller's single BEGIN IMMEDIATE transaction:
@@ -392,7 +395,8 @@ CREATE TABLE IF NOT EXISTS deployments (
   host_port          INTEGER CHECK (host_port IS NULL OR host_port BETWEEN 1024 AND 65535),
   status             TEXT NOT NULL REFERENCES deployment_states(state),
   health_json        TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(health_json) AND json_type(health_json) = 'array' AND length(health_json) <= 16384),
-  stop_reason        TEXT CHECK (stop_reason IS NULL OR stop_reason IN ('user','idle','cancel','app_quit','recovery','exited','probe_failed','start_timeout')),
+  stop_reason        TEXT CHECK (stop_reason IS NULL OR stop_reason IN ('user','idle','cancel','app_quit','recovery','exited','probe_failed','start_timeout',
+                       'refused','preflight_failed','runner_lost','exit_not_reported')),
   stopped_by         TEXT REFERENCES principals(id),
   created_by         TEXT NOT NULL REFERENCES principals(id),
   started_at         INTEGER NOT NULL,

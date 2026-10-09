@@ -605,7 +605,7 @@ test('D6 two live deployments never share a port: the core refuses a held port a
   const a2 = provisionService(w, r, j2.id, 49207, 'f');
   assert.equal(dep(w, j1.id).host_port, 49207); assert.equal(dep(w, j2.id).host_port, null);
   assert.equal(w.attempt(a2.id).outcome, 'limits_not_applied'); assert.equal(w.jobState(j2.id), 'failed');
-  assert.equal(dep(w, j2.id).status, 'failed'); assert.equal(dep(w, j2.id).stop_reason, 'start_timeout');
+  assert.equal(dep(w, j2.id).status, 'failed'); assert.equal(dep(w, j2.id).stop_reason, 'preflight_failed', 'the true cause on the row');
   assert.ok(r.sentOf('attempt.release').some((m) => m.attemptId === a2.id));
   // The index: a live deployment cannot take a port another live one holds; a finished one frees it.
   const j3 = preview(w, app); w.exec.tick(w.now());
@@ -687,14 +687,14 @@ test('D10 a dev deployment is never requeued: a runner refusal or an unsent plan
   const a = w.liveAttempt(j.id);
   r.report({ op: 'attempt.refused', attemptId: a.id, reason: 'busy' });
   assert.equal(w.jobState(j.id), 'failed'); assert.equal(w.attempts(j.id).length, 1);
-  assert.equal(dep(w, j.id).status, 'failed'); assert.equal(dep(w, j.id).stop_reason, 'start_timeout');
+  assert.equal(dep(w, j.id).status, 'failed'); assert.equal(dep(w, j.id).stop_reason, 'refused', 'the true cause on the row');
   assert.equal(w.latest(app, 'app.preview_health').status, 'error', 'the check could not run; the draft stays a draft');
   assert.equal(w.version(app).status, 'draft');
   w.run(r, MIN);
   assert.equal(w.jobState(j.id), 'failed', 'not requeued');
   r.o.failSend = (m) => m.op === 'attempt.start';
   const j2 = preview(w, app); w.exec.tick(w.now());
-  assert.equal(w.jobState(j2.id), 'failed'); assert.equal(dep(w, j2.id).status, 'failed');
+  assert.equal(w.jobState(j2.id), 'failed'); assert.equal(dep(w, j2.id).status, 'failed'); assert.equal(dep(w, j2.id).stop_reason, 'runner_lost');
   r.o.failSend = null;
   // A preview of a version that is not an application, or of a failed application, is refused before any job.
   assert.throws(() => w.exec.start(w.me, w.req('sde.preview.start', { inputs: [{ versionId: w.repoV, slot: 'application' }] })), code('invalid', 'input_not_allowed'));
@@ -1018,13 +1018,13 @@ test('M2 a dev deployment ends with its true cause: a refused preflight, a runne
   // A port conflict at preflight.
   const j1 = preview(w, app); const j2 = preview(w, app); w.exec.tick(w.now());
   provisionService(w, r, j1.id, 49320); provisionService(w, r, j2.id, 49320, 'f');
-  assert.equal(reasonOf(j2), 'preflight_failed'); assert.equal(dep(w, j2.id).stop_reason, 'start_timeout', 'the frozen v9 vocabulary: it never started');
+  assert.equal(reasonOf(j2), 'preflight_failed'); assert.equal(dep(w, j2.id).stop_reason, 'preflight_failed', 'the true cause on the row');
   assert.equal(ACT.activityText(actView(acts(w, 'deployment.transition', dep(w, j2.id).id).pop()), ACT_CTX),
     'Dev deployment failed: its sandbox did not pass the safety checks');
   // A runner refusal.
   const j3 = preview(w, app); w.exec.tick(w.now());
   r.report({ op: 'attempt.refused', attemptId: w.liveAttempt(j3.id).id, reason: 'docker_stopped' });
-  assert.equal(reasonOf(j3), 'refused');
+  assert.equal(reasonOf(j3), 'refused'); assert.equal(dep(w, j3.id).stop_reason, 'refused');
   // The app quits: a deployment that never passed its check ends its job cancelled (app_quit), not "exited".
   w.nx.deployments.stop(w.me, dep(w, j1.id).id);
   const j4 = preview(w, app); w.exec.tick(w.now());
@@ -1210,5 +1210,41 @@ test('M10 (D8) app quit stops at most 100 deployments in one bounded pass; the n
   assert.equal(count(w, "activity WHERE action = 'deployment.transition'"), 100);
   assert.equal(w.nx.deployments.stopAllForQuit(), 1);
   assert.equal(count(w, "deployments WHERE status = 'starting'"), 0);
+  healthy(w); w.close();
+});
+
+// ---------- fix round 2: the true end cause on the deployment row ----------
+
+test('F2 deployments.stop_reason holds the true cause: the v9 CHECK takes refused, preflight_failed, runner_lost and exit_not_reported', async () => {
+  const { w, r, app } = await deployWorld();
+  const { V9_DDL } = loadTs('src/main/nexus/db/schemaV9.ts');
+  const check = V9_DDL.match(/stop_reason\s+TEXT CHECK \(stop_reason IS NULL OR stop_reason IN \(([^)]*)\)\)/);
+  assert.ok(check, 'the stop_reason CHECK is in V9_DDL');
+  assert.deepEqual(check[1].replace(/\s+/g, '').split(',').map((x) => x.replace(/'/g, '')),
+    ['user', 'idle', 'cancel', 'app_quit', 'recovery', 'exited', 'probe_failed', 'start_timeout', 'refused', 'preflight_failed', 'runner_lost', 'exit_not_reported']);
+  // Every value is accepted on a row; anything else is refused by the database.
+  const fail = (reason) => {
+    const j = preview(w, app); w.exec.tick(w.now());
+    const d = dep(w, j.id);
+    w.db.prepare("UPDATE deployments SET status = 'failed', stop_reason = ?, stopped_at = ?, status_changed_at = ?, updated_at = ? WHERE id = ?")
+      .run(reason, w.now(), w.now(), w.now(), d.id);
+    w.exec.cancel(w.me, j.id);
+    return dep(w, j.id).stop_reason;
+  };
+  for (const reason of ['refused', 'preflight_failed', 'runner_lost', 'exit_not_reported']) assert.equal(fail(reason), reason);
+  assert.throws(() => fail('timeout_or_whatever'), /CHECK/);
+  for (const j of w.db.prepare("SELECT id FROM jobs WHERE recipe_id = 'sde.preview.start' AND state NOT IN ('cancelled','failed','completed')").all()) {
+    w.exec.cancel(w.me, j.id);
+  }
+  // A runner lost after the container started: the row says runner_lost (not exited).
+  const j = preview(w, app); w.exec.tick(w.now());
+  const a = provisionService(w, r, j.id, 49350);
+  w.run(null, 65_000);                                        // no heartbeat: the lease runs out
+  assert.equal(w.attempt(a.id).outcome, 'runner_lost');
+  assert.equal(dep(w, j.id).status, 'failed'); assert.equal(dep(w, j.id).stop_reason, 'runner_lost');
+  assert.equal(JSON.parse(acts(w, 'deployment.transition', dep(w, j.id).id).pop().details_json).reason, 'runner_lost');
+  assert.equal(endCause('failed', 'exit_not_reported', true), 'exit_not_reported');
+  assert.equal(ACT.activityText(actView({ ...acts(w, 'deployment.transition', dep(w, j.id).id).pop(),
+    details_json: JSON.stringify({ to: 'failed', reason: 'exit_not_reported' }) }), ACT_CTX), 'Dev deployment failed: its exit was never reported');
   healthy(w); w.close();
 });

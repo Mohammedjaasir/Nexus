@@ -174,7 +174,8 @@ const DEPLOYMENT_FAILED_WORDS: Record<string, string> = {
   start_timeout: 'Dev deployment failed: it did not start in time',
   refused: 'Dev deployment failed: it could not be started on this computer',
   preflight_failed: 'Dev deployment failed: its sandbox did not pass the safety checks',
-  runner_lost: 'Dev deployment failed: the process that ran it stopped'
+  runner_lost: 'Dev deployment failed: the process that ran it stopped',
+  exit_not_reported: 'Dev deployment failed: its exit was never reported'
 };
 const DEPLOYMENT_STOPPED_WORDS: Record<string, string> = {
   idle: 'Dev deployment stopped at the end of its 2-hour lifetime',

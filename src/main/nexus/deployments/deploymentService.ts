@@ -30,9 +30,9 @@
  *   completes `stopped` only if the deployment had passed its health check; one stopped before its check (the user,
  *   the lifetime, the app quitting) ends its job `cancelled` with that cause; else the job fails.
  * - Any other end of the job ends a live deployment (`endForJobTx`) with the job's true cause: cancel, timeout,
- *   recovery, a runner refusal (`refused`), a refused preflight (`preflight_failed`), a lost runner (`runner_lost`).
- *   `deployments.stop_reason` keeps the frozen v9 vocabulary (a deployment that never started is `start_timeout`); the
- *   precise cause is the `reason` of its `deployment.transition` activity row and of its `deployment` event.
+ *   recovery, a runner refusal (`refused`), a refused preflight (`preflight_failed`), a lost runner (`runner_lost`), an
+ *   exit never reported (`exit_not_reported`). The row's `stop_reason` stores that true cause, as do the `reason` of its
+ *   `deployment.transition` activity row and of its `deployment` event.
  * - Quitting the app stops every live deployment (`app_quit`) in one bounded transaction (MAX_QUIT_STOPS rows).
  * - Records (constraint 13): `deployment.start` (deployment, job and attempt, subject and build versions, profile and
  *   image ids, local-preview on 127.0.0.1, lifetime), `deployment.transition` (from, to, reason, port, whether it ever
@@ -74,9 +74,10 @@ const CANCEL_GRACE_MS = 10_000;
 /** A stopped deployment's job waits this long for the runner's exit report (the cancel grace plus a margin). */
 export const STOPPING_LIMIT_MS = CANCEL_GRACE_MS + 50_000;
 
-export type StopReason = 'user' | 'idle' | 'cancel' | 'app_quit' | 'recovery' | 'exited' | 'probe_failed' | 'start_timeout';
-/** The true cause of an end, beyond the frozen `stop_reason` vocabulary (activity and event `reason`). */
-export type EndCause = StopReason | 'refused' | 'preflight_failed' | 'runner_lost';
+export type StopReason = 'user' | 'idle' | 'cancel' | 'app_quit' | 'recovery' | 'exited' | 'probe_failed' | 'start_timeout'
+  | 'refused' | 'preflight_failed' | 'runner_lost' | 'exit_not_reported';
+/** The true cause of an end: the row's `stop_reason`, and the activity and event `reason`. */
+export type EndCause = StopReason;
 export interface HealthProbeReport { status: number | null; ms: number | null; container: 'running' | 'exited' | 'missing' }
 interface StoredProbe { at: number; status: number | null; ms: number | null; container: string }
 
@@ -144,13 +145,8 @@ export function endCause(to: string, code: string | null, started: boolean): End
   if (code === 'limits_not_applied') return 'preflight_failed';
   if (code !== null && REFUSED_CODES.has(code)) return 'refused';
   if (code === 'not_sent' || code === 'runner_lost') return 'runner_lost';
+  if (code === 'exit_not_reported') return 'exit_not_reported';
   return started ? 'exited' : 'start_timeout';
-}
-
-/** The frozen v9 `stop_reason` for a cause (a deployment that never started is `start_timeout`). */
-function stopReasonFor(cause: EndCause, started: boolean): StopReason {
-  if (cause === 'refused' || cause === 'preflight_failed' || cause === 'runner_lost') return started ? 'exited' : 'start_timeout';
-  return cause;
 }
 
 export class DeploymentService {
@@ -402,13 +398,13 @@ export class DeploymentService {
     const started = !!a && a.started_at !== null;
     const why = endCause(to, cause?.code ?? null, started);
     if (to === 'cancelled' || to === 'timed_out' || to === 'interrupted') {
-      this.moveTx(d, 'stopped', now, { reason: stopReasonFor(why, started), cause: why });
+      this.moveTx(d, 'stopped', now, { reason: why });
       return;
     }
     const check = a && !this.healthyEver(jobId, a.n)
       ? this.judgeTx(d, a, started ? 'exited' : 'missing', now, errored('preview_not_run', 'Checks could not run: the dev deployment ended before its health check.')).check
       : null;
-    this.moveTx(d, 'failed', now, { reason: stopReasonFor(why, started), cause: why, check });
+    this.moveTx(d, 'failed', now, { reason: why, check });
   }
 
   /** @internal The core's cancel (a user cancelled the job): a live deployment stops (`cancel`), recorded as that user's act. */
