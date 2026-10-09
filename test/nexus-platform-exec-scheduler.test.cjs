@@ -885,3 +885,26 @@ test('R4 a terminal move clears the requeue backoff (cancel during backoff)', ()
   assert.equal(w.jobState(job.id), 'cancelled'); assert.equal(w.job(job.id).next_attempt_at, null);
   w.close();
 });
+
+// ---------- fix round 4 ----------
+
+test('Palt alternating stalled and normal ticks (11 s, 1 s, ...) extend leases at most once per lease: a dead runner is runner_lost, probes stay bounded', () => {
+  const w = execWorld(); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const dead = w.exec.start(w.me, w.req('sde.build.run')).job; const live = w.exec.start(w.me, w.req('sde.build.run')).job;
+  w.exec.tick(w.now()); w.provision(runner, dead.id); w.provision(runner, live.id, { c: 'd' });
+  const probes0 = runner.sentOf('probe').length; const start = w.now();
+  let lostAt = null;
+  for (let i = 0; i < 100; i++) {
+    w.advance(i % 2 === 0 ? 11_000 : 1_000);
+    hb(w, runner, live.id);
+    w.exec.tick(w.now());
+    if (lostAt === null && w.attempts(dead.id)[0].outcome === 'runner_lost') lostAt = w.now();
+  }
+  assert.ok(lostAt !== null && lostAt - start <= 3 * 60_000, `runner_lost within a few leases (${lostAt && (lostAt - start) / 1000} s), not at the wall clock`);
+  assert.equal(w.jobState(dead.id), 'failed');
+  assert.equal(w.jobState(live.id), 'running', 'a runner that heartbeats on the alternating ticks stays running');
+  const elapsed = w.now() - start;
+  const probes = runner.sentOf('probe').length - probes0;
+  assert.ok(probes <= Math.ceil(elapsed / 60_000) * 2 + 1, `probes bounded: ${probes} in ${elapsed / 1000} s`);
+  w.close();
+});

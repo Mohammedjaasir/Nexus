@@ -257,7 +257,8 @@ export class ExecutionService {
   private lastTickAt: number | null = null;
   /** Recent sleep-like scheduler stalls (in memory; a restart starts clean and recovery decides). */
   private readonly stalls: { from: number; to: number }[] = [];
-  private inStallStreak = false;
+  /** When the last stall compensation extended the leases (at most once per LEASE_MS). */
+  private lastExtensionAt: number | null = null;
   /** Consecutive `attempt.start` sends that failed while the port said ready. */
   private sendFailures = 0;
 
@@ -620,15 +621,16 @@ export class ExecutionService {
     if (!this.deps.available) return;
     try {
       // A gap since the previous tick longer than TICK_STALL_MS (sleep, a blocked loop) is not the runner's silence:
-      // every live lease moves by the gap (and to at least a full lease from now), no lease expires on this tick,
+      // every live lease moves by the gap, no lease expires on this tick,
       // wall clocks exclude the gap, and the runner is probed.
-      // Only the FIRST stalled tick of a streak (consecutive stalled ticks) extends leases and skips expiry, so ticks
-      // that are always slow cannot keep a dead runner's attempts alive; heartbeats between ticks keep healthy ones.
+      // The compensation is bounded by time: at most one extension (and one stall probe) per LEASE_MS. A stalled tick
+      // within LEASE_MS of the last extension sweeps normally, so slow or alternating ticks cannot keep a dead runner's
+      // attempts alive; heartbeats delivered between ticks keep healthy ones alive.
       const gap = this.lastTickAt === null ? 0 : now - this.lastTickAt;
       this.lastTickAt = now;
       const stalled = gap > TICK_STALL_MS;
-      const firstOfStreak = stalled && !this.inStallStreak;
-      this.inStallStreak = stalled;
+      const firstOfStreak = stalled && (this.lastExtensionAt === null || now - this.lastExtensionAt >= LEASE_MS);
+      if (firstOfStreak) this.lastExtensionAt = now;
       this.flushHeartbeats();
       if (stalled) this.recordStall(gap, now, firstOfStreak);
       this.requeueDue(now);
@@ -652,8 +654,10 @@ export class ExecutionService {
     }
     if (!extend) return;
     immediateTx(this.db, () => {
-      this.db.prepare(`UPDATE job_attempts SET lease_expires_at = MAX(lease_expires_at + ?, ?) WHERE state IN ('starting','running') AND lease_owner = ?`)
-        .run(gap, now + LEASE_MS, this.bootId);
+      // By the gap only: an attempt keeps the lease it had before the stall, so repeated stalls never add up to a lease
+      // that cannot expire. Heartbeats queued during the stall are written by the next tick before it sweeps.
+      this.db.prepare(`UPDATE job_attempts SET lease_expires_at = lease_expires_at + ? WHERE state IN ('starting','running') AND lease_owner = ?`)
+        .run(gap, this.bootId);
     });
     this.log(`[nexus] exec: scheduler resumed after a ${Math.round(gap / 1000)} s gap; leases extended`);
   }
