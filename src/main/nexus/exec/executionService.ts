@@ -57,19 +57,30 @@
  * - Every job transition writes one activity row (JobService) and one `job_events` row in the
  *   same transaction. Recovery (Task 10) rebuilds from these rows: live attempts are exactly
  *   the `starting` and `running` ones, each with its lease owner.
+ * - Approvals, image builds and dev deployments (Task 9). An egress recipe's lease asks the approval port for a
+ *   pending approval and moves `leased -> running (phase approval) -> awaiting_approval` in the lease transaction; no
+ *   plan is built or sent. The user's `once` (ApprovalService.respond) consumes the approval for the current attempt and
+ *   resumes the job in its own transaction (resumeApprovedTx); `deny` and expiry fail it `denied` (endAwaitingTx). The
+ *   plan of an egress recipe carries only an approval of this job consumed by this attempt (planBuilder refuses any
+ *   other). `image.build.*` reports go to the image port; a probe's images are judged against the latest succeeded
+ *   build of their profile (a different context label: `image_mismatch`). A dev deployment (`sde.preview.start`) gets
+ *   its deployment row at lease (DeploymentPort.startTx), its loopback port from `attempt.provisioned`, its health from
+ *   `service.health`; it is never requeued, its exit is judged by the deployment (completed `stopped` only after a
+ *   passed health check), and any terminal move of its job ends a deployment that is still live.
  */
 import type Database from 'better-sqlite3';
-import type { SandboxProfile, SandboxProfileId, StagedOutput, ParsedOutput, ExitInfo, ResourceLimits } from '../../../shared/nexus/execution';
+import type { ImageStatus, SandboxProfile, SandboxProfileId, StagedOutput, ParsedOutput, ExitInfo, ResourceLimits } from '../../../shared/nexus/execution';
 import { SANDBOX_PROFILE_IDS } from '../../../shared/nexus/execution';
 import type { Job, JobKind, JobState, Principal, ScopeRef } from '../../../shared/nexus/platform';
 import { getUserAction, type UserActionDef } from '../../../shared/nexus/actions';
 import type { ParamsSchema } from '../../../shared/nexus/domainSpec';
-import { getRecipe, RETRY_BACKOFF_MS, type RecipeDef } from '../../../shared/nexus/recipes';
+import { getRecipe, PREVIEW_IDLE_TTL_MS, RETRY_BACKOFF_MS, type RecipeDef } from '../../../shared/nexus/recipes';
+import { EXPIRY_SWEEP_MS, latestSucceededBuild, withdrawPendingApprovalsTx } from '../approvals/approvalService';
+import { previewBlocker, readAppManifest, type AppManifest } from '../repo/repoService';
 import { parseRunnerMessage, type CancelReason, type RunnerToMain } from '../../../shared/nexus/runnerProtocol';
 import { evaluateGate, leaseFloorBytes, type GateResult } from '../../../shared/nexus/resourceGate';
 import type { AuthService } from '../auth/authService';
 import { PrincipalResolver } from '../auth/principals';
-import { appendActivityRow } from '../activity/writer';
 import { containsSecret } from '../activity/redact';
 import type { BlobIndex, IngestToken } from '../blobs/blobIndex';
 import { getKind } from '../../../shared/nexus/kinds';
@@ -82,7 +93,7 @@ import { canRetry, isJobState, TERMINAL_JOB_STATES } from '../jobs/jobRules';
 import { JOB_KINDS, requireActiveParticipation, storedWorkspace, validateKey, type JobRow, type JobService } from '../jobs/jobService';
 import { attemptRow, HEARTBEAT_GAP_MS, LEASE_MS, heartbeatTx, insertAttemptTx, liveAttemptOf, transitionAttemptTx, type AttemptRow } from './attempts';
 import { appendJobEventTx, toJobEvent, type JobEvent, type JobEventRow } from './events';
-import { buildPlan, lockfileSha256Of, sandboxRecord, type PlanApproval, type PlanInput } from './planBuilder';
+import { buildPlan, lockfileSha256Of, sandboxRecord, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
 import type { RunnerPort } from './runnerPort';
 import { backoffMs, DEFAULT_CAPS, leaseGuard, SOLO_MEMORY_SHARE, usableImage, type LiveUse, type ProbeCache, type SchedulerCaps } from './scheduler';
 
@@ -121,9 +132,35 @@ export interface HealthSnapshot {
   checkedAt: number | null;
 }
 
-/** The approval path for egress recipes (Task 9 provides it); it only inserts the pending approval row. */
+/**
+ * The approval path for egress recipes (Task 9: ApprovalService). `requestEgressTx` inserts the pending approval row
+ * inside the lease transaction; a PlatformError 'invalid' from it fails the job at lease (nothing is asked). When the
+ * port also has `expireDue`, the scheduler runs it every EXPIRY_SWEEP_MS.
+ */
 export interface EgressApprovalPort {
   requestEgressTx(job: { id: string; projectId: string; onBehalfOf: string }, attempt: { id: string; n: number }, recipe: RecipeDef, now: number): string;
+  expireDue?(now: number): number;
+}
+
+/** Image builds (Task 9: ApprovalService): the runner's `image.build.*` reports. */
+export interface ImageBuildPort {
+  onImageBuildProgress(m: Extract<RunnerToMain, { op: 'image.build.progress' }>): void;
+  onImageBuildDone(m: Extract<RunnerToMain, { op: 'image.build.done' }>): void;
+}
+
+/** Local dev deployments (Task 9: DeploymentService). Every `...Tx` runs inside the core's transaction. */
+export interface DeploymentPort {
+  byJob(jobId: string): { id: string } | null;
+  prepareStart(jobId: string, subjectVersionId: string | null, now: number): { deploymentId: string; manifest: AppManifest; files: { sha256: string; path: string }[] };
+  startTx(j: { id: string; project_id: string; participation_id: string | null; workspace_id: string; on_behalf_of: string },
+    attempt: { n: number }, deploymentId: string, subjectVersionId: string, now: number): string;
+  portHeld(port: number, jobId: string): boolean;
+  onProvisionedTx(jobId: string, attemptN: number, hostPort: number, now: number): void;
+  onHealth(deploymentId: string, probe: { status: number | null; ms: number | null; container: 'running' | 'exited' | 'missing' }): void;
+  onExitedTx(jobId: string, a: { n: number; started_at: number | null; sandbox_json: string | null }, now: number): 'complete' | 'fail';
+  endForJobTx(jobId: string, to: string, now: number): void;
+  stopForCancelTx(p: Principal, jobId: string, now: number): void;
+  tick(now: number): void;
 }
 
 /** What the runner reported for an exited attempt (the `attempt.exited` message, validated). */
@@ -171,6 +208,10 @@ export interface ExecutionDeps {
   /** main's acceptance of a stored project folder (index.ts `acceptFsRoot`); null refuses it. */
   acceptFsRoot?: ((root: string) => string | null) | null;
   approvals?: EgressApprovalPort | null;
+  /** Image builds (Task 9); null: `image.build.*` reports are dropped. */
+  images?: ImageBuildPort | null;
+  /** Dev deployments (Task 9); null: the preview action is `not_in_this_build`. */
+  deployments?: DeploymentPort | null;
   ingest?: IngestPort | null;
   validation?: ValidationHooks | null;
   caps?: Partial<SchedulerCaps>;
@@ -182,7 +223,11 @@ export interface ExecutionDeps {
 interface ExecJobRow extends JobRow {
   capabilities_json: string; limits_json: string; next_attempt_at: number | null; state_json: string | null;
 }
-interface Capability { action: string; recipe: string; recipeVersion: string; executor: string; network: string; profile: SandboxProfileId | null }
+interface Capability {
+  action: string; recipe: string; recipeVersion: string; executor: string; network: string; profile: SandboxProfileId | null;
+  /** A dev deployment: the application version it previews (a draft may be previewed; the job's input is its build). */
+  subjectVersionId?: string;
+}
 
 const PLATFORM: ScopeRef = { type: 'platform' };
 const LIVE_JOB_STATES: readonly JobState[] = ['queued', 'leased', 'running', 'awaiting_approval', 'retry_scheduled'];
@@ -211,6 +256,10 @@ const REFUSAL_WAIT: Record<string, string> = {
 
 /** An exit reporting more outputs than this is ingested on a later turn (the exit handler stays short). */
 export const ASYNC_INGEST_OUTPUTS = 256;
+/** A dev deployment's job: the fixed 2 h lifetime is ended by the deployment; the job's wall clock is a backstop after it. */
+export const SERVICE_WALL_MARGIN_MS = 10 * 60_000;
+/** How often the scheduler runs the dev deployments' pass (start windows, lifetime). */
+export const DEPLOYMENT_TICK_MS = 5_000;
 /** Ingest throws that are the outputs' fault, not the infrastructure's: retrying cannot change them. */
 const DETERMINISTIC_INGEST_CODES = new Set(['invalid', 'input_not_granted', 'immutable', 'not_found', 'participation_inactive']);
 const LABEL_RE = /^[a-z][a-z0-9_.-]{0,63}$/;
@@ -334,6 +383,11 @@ export class ExecutionService {
   private readonly pendingIngest = new Set<Promise<unknown>>();
   /** The port state the last tick saw (leaving `ready` is a runner-wide fault for outstanding re-hashes). */
   private lastPortState: string | null = null;
+  /** The images as the runner last reported them (the cached probe holds them judged against the image builds). */
+  private rawImages: ImageStatus[] | null = null;
+  /** When the expiry sweep and the dev deployments' pass last ran (cadence only; the rows decide). */
+  private lastExpiryAt: number | null = null;
+  private lastDeploymentPassAt: number | null = null;
 
   constructor(private readonly db: Database.Database, private readonly deps: ExecutionDeps) {
     this.access = new ProjectAccess(db, { auth: deps.auth });
@@ -412,7 +466,15 @@ export class ExecutionService {
           this.log(`[nexus] exec: runner ready${m.bootId === this.bootId ? '' : ' (another boot id)'}`); return;
         case 'probe.result':
           this.sendFailures = 0;                       // a fresh report: the port carries messages again
-          this.probe = { probe: m.probe, images: m.images, freeBytes: m.freeBytes, at: this.deps.now() };
+          this.rawImages = m.images;
+          this.probe = { probe: m.probe, images: this.judgeImages(m.images), freeBytes: m.freeBytes, at: this.deps.now() };
+          return;
+        case 'service.health': return this.onServiceHealth(m);
+        case 'image.build.progress':
+          if (this.deps.images) this.deps.images.onImageBuildProgress(m); else this.drop(m.op, 'no image builds in this build');
+          return;
+        case 'image.build.done':
+          if (this.deps.images) this.deps.images.onImageBuildDone(m); else this.drop(m.op, 'no image builds in this build');
           return;
         case 'attempt.provisioned': return this.onProvisioned(m);
         case 'attempt.refused': return this.onRefused(m);
@@ -467,18 +529,36 @@ export class ExecutionService {
     }
     // A container attempt: only a passing preflight report from the runner lets it run (constraint 7).
     const expected = isPlainObject(sandbox.image) && typeof sandbox.image.id === 'string' ? sandbox.image.id : null;
+    const service = recipe.executor === 'service';
     const problems: string[] = [];
     if (!m.preflight || !m.containerId) problems.push('no preflight report for the container');
     else {
       if (!m.preflight.ok) problems.push(...m.preflight.problems);
       if (m.imageDigest !== undefined && expected !== null && m.imageDigest !== expected) problems.push(`image ${m.imageDigest} is not the planned ${expected}`);
+      // A dev deployment's forwarder publishes exactly one loopback port, reported here; no other container publishes one.
+      if (service) {
+        if (m.hostPort === undefined) problems.push('the forwarder reported no loopback port');
+        else if (!this.deps.deployments) problems.push('dev deployments are not available in this build');
+        else if (this.deps.deployments.portHeld(m.hostPort, j.id)) problems.push(`port ${m.hostPort} is held by another live dev deployment`);
+      } else if (m.hostPort !== undefined) problems.push('a tool container reported a published port');
     }
-    const preflight = m.preflight ? { ok: problems.length === 0, problems: problems.slice(0, 50), observed: m.preflight.observed } : null;
-    let record: Record<string, unknown> = { ...sandbox, containerId: m.containerId ?? null, imageDigest: m.imageDigest ?? null, preflight };
-    if (JSON.stringify(record).length > 30_000) record = { ...sandbox, containerId: m.containerId ?? null, preflight: { ok: problems.length === 0, problems: problems.slice(0, 20) } };
+    const preflightOf = (): Record<string, unknown> | null => m.preflight
+      ? { ok: problems.length === 0, problems: problems.slice(0, 50), observed: m.preflight.observed } : null;
+    const recordOf = (): Record<string, unknown> => {
+      const r: Record<string, unknown> = { ...sandbox, containerId: m.containerId ?? null, imageDigest: m.imageDigest ?? null,
+        ...(m.hostPort !== undefined ? { hostPort: m.hostPort } : {}), preflight: preflightOf() };
+      return JSON.stringify(r).length > 30_000 ? { ...sandbox, containerId: m.containerId ?? null, preflight: { ok: problems.length === 0, problems: problems.slice(0, 20) } } : r;
+    };
     let release = false;
     immediateTx(this.db, () => {
       const cur = attemptRow(this.db, a.id)!;
+      if (service && problems.length === 0) {
+        // The port is stored once; `ux_deployments_port_live` is the backstop against two live deployments on one port.
+        try { immediateTx(this.db, () => this.deps.deployments!.onProvisionedTx(j.id, a.n, m.hostPort!, now)); } catch (e) {
+          problems.push(`port ${m.hostPort} could not be bound to the dev deployment (${e instanceof PlatformError ? e.code : 'constraint'})`);
+        }
+      }
+      const record = recordOf();
       if (problems.length === 0) {
         transitionAttemptTx(this.db, cur, 'running', now, j.project_id, { containerId: m.containerId, sandbox: record });
         appendJobEventTx(this.db, { type: 'attempt.provisioned', summary: `attempt ${a.n} container passed preflight`, projectId: j.project_id,
@@ -504,10 +584,12 @@ export class ExecutionService {
     if (a.state !== 'starting') { this.drop(m.op, `attempt is ${a.state}`); return; }
     const j = this.row(a.job_id)!;
     const now = this.deps.now();
+    // A dev deployment is not requeued: its one deployment row (job_id is unique) would wait as `starting` meanwhile.
+    const service = getRecipe(j.recipe_id ?? '')?.executor === 'service';
     immediateTx(this.db, () => {
       const cur = attemptRow(this.db, a.id)!;
       const error = { code: m.reason, message: m.detail ?? `the runner refused: ${m.reason}` };
-      if (REFUSE_TO_FAIL.has(m.reason) || j.state !== 'leased') {
+      if (REFUSE_TO_FAIL.has(m.reason) || j.state !== 'leased' || service) {
         transitionAttemptTx(this.db, cur, 'failed', now, j.project_id, { outcome: m.reason, error });
         this.failJobTx(j.id, 'infra_error', error, now);
         return;
@@ -580,6 +662,7 @@ export class ExecutionService {
     const recipe = getRecipe(j.recipe_id ?? '');
     if (!recipe) { this.drop(m.op, 'job has no recipe'); return; }
     const now = this.deps.now();
+    if (recipe.executor === 'service') { this.serviceExited(a, j, m, now); return; }
     const exit = { code: m.exit.code, signal: m.exit.signal, oomKilled: m.exit.oomKilled };
     const tests = recipe.parsers.includes('junit');
     // A tree output (a build) is judged by its validators (an empty or missing tree fails build.manifest_present,
@@ -615,6 +698,49 @@ export class ExecutionService {
     });
     // 2. Then ingest, under the shared blob ingest lock (never while GC holds it).
     this.runIngest(a.id, { exit: m.exit, outputs: m.outputs, parsed: m.parsed, logBytes: m.logBytes });
+  }
+
+  /**
+   * A dev deployment's containers exited (stopped, crashed or killed). Its outputs are not ingested: the evidence is the
+   * `app.preview_health` result recorded while it ran. The job completes `stopped` only when the deployment had passed
+   * its health check and the exit code is known; otherwise it fails (`exited`). The containers may then go.
+   */
+  private serviceExited(a: AttemptRow, j: ExecJobRow, m: Extract<RunnerToMain, { op: 'attempt.exited' }>, now: number): void {
+    const exit = { code: m.exit.code, signal: m.exit.signal, oomKilled: m.exit.oomKilled };
+    try {
+      immediateTx(this.db, () => {
+        const cur = attemptRow(this.db, a.id)!;
+        if (cur.state !== 'running') return;
+        const decision = this.deps.deployments ? this.deps.deployments.onExitedTx(j.id, cur, now) : 'fail';
+        if (decision === 'complete' && exit.code !== null && this.hasEvidence(j.id, cur.n)) {
+          transitionAttemptTx(this.db, cur, 'succeeded', now, j.project_id, { exit, outcome: 'stopped', logBytes: m.logBytes });
+          this.moveJobTx(j.id, 'completed', now, { outcome: 'stopped' });
+        } else {
+          const error = decision === 'complete'
+            ? { code: 'exit_unknown', message: 'the dev deployment stopped but its exit code is unknown' }
+            : m.exit.oomKilled ? { code: 'oom', message: 'the app container ran out of memory before it answered its health check' }
+              : { code: 'exited', message: 'the app container exited before it answered its health check' };
+          transitionAttemptTx(this.db, cur, 'failed', now, j.project_id, { exit, outcome: error.code, error, logBytes: m.logBytes });
+          this.moveJobTx(j.id, 'failed', now, { outcome: error.code, error });
+        }
+        this.setPhaseTx(j.id, null, now);
+      });
+    } catch (e) {
+      this.log(`[nexus] exec: dev deployment exit not recorded: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
+    }
+    this.send({ op: 'attempt.release', attemptId: a.id });
+  }
+
+  /** The runner's probe of a running dev deployment (`service.health`), for the deployment service. */
+  private onServiceHealth(m: Extract<RunnerToMain, { op: 'service.health' }>): void {
+    const a = this.ownAttempt(m.op, m.attemptId); if (!a) return;
+    if (a.state !== 'running') { this.drop(m.op, `attempt is ${a.state}`); return; }
+    const j = this.row(a.job_id)!;
+    const dep = this.deps.deployments;
+    if (!dep || getRecipe(j.recipe_id ?? '')?.executor !== 'service' || j.state !== 'running') { this.drop(m.op, 'not a running dev deployment'); return; }
+    const d = dep.byJob(j.id);
+    if (!d) { this.drop(m.op, 'the job has no dev deployment'); return; }
+    dep.onHealth(d.id, { status: m.status, ms: m.ms, container: m.container });
   }
 
   /**
@@ -804,6 +930,10 @@ export class ExecutionService {
     const after = this.row(id)!;
     // A check that ended: the validation framework records an ended recipe check on its next pass (not every tick).
     if (TERMINAL_JOB_STATES.has(to) && after.kind === 'validate') this.deps.validation?.onJobEnded?.();
+    // A dev deployment's job that ends ends its deployment if that is still live (cancel, timeout, any failure).
+    if (TERMINAL_JOB_STATES.has(to) && after.recipe_id !== null && this.deps.deployments && getRecipe(after.recipe_id)?.executor === 'service') {
+      this.deps.deployments.endForJobTx(id, to, now);
+    }
     appendJobEventTx(this.db, { type: 'job.transition', summary: `job ${before.state} -> ${to}${d?.outcome ? ` (${d.outcome})` : ''}`,
       projectId: after.project_id, jobId: id,
       // The event names the current attempt once its row exists (the lease writes this event just before the insert).
@@ -860,6 +990,17 @@ export class ExecutionService {
       // The validation framework's pass: it does work only when some is due (queued checks, an ended check job,
       // a re-hash waiting for its timeout, or its periodic safety pass).
       this.deps.validation?.tick(now);
+      // Approvals past their 15 minutes expire (their jobs fail `denied`); dev deployments' start windows and lifetime.
+      const ap = this.deps.approvals;
+      if (ap?.expireDue && (this.lastExpiryAt === null || now - this.lastExpiryAt >= EXPIRY_SWEEP_MS || now < this.lastExpiryAt)) {
+        this.lastExpiryAt = now;
+        ap.expireDue(now);
+      }
+      const dep = this.deps.deployments;
+      if (dep && (this.lastDeploymentPassAt === null || now - this.lastDeploymentPassAt >= DEPLOYMENT_TICK_MS || now < this.lastDeploymentPassAt)) {
+        this.lastDeploymentPassAt = now;
+        dep.tick(now);
+      }
       // The blob store contract: no lease and no start while GC holds its exclusive lock.
       if (this.deps.blobs?.isExclusiveHeld()) return;
       this.resumeConsumed(now);
@@ -1082,21 +1223,40 @@ export class ExecutionService {
     const profile = (this.deps.profiles ?? []).find((p) => p.id === cap.profile) ?? null;
     const image = usableImage(this.probe, cap.profile);
     const inputs = this.planInputs(j.id);
-    const needsRepo = recipe.executor === 'engine' || inputs.some((i) => i.storage?.kind === 'git');
+    // A dev deployment stages the commit its build was made from, beside the build's files.
+    const needsRepo = recipe.executor === 'engine' || recipe.executor === 'service' || inputs.some((i) => i.storage?.kind === 'git');
     const repoPath = needsRepo ? this.repoPathOf(j.project_id) : null;
     const workRel = home.attemptWorkRel(j.id, n);
     const logRel = home.attemptLogPath(j.id, n);
     // Egress plans are built only after the approval is consumed; every other plan is built now.
     let plan: ReturnType<typeof buildPlan> | null = null;
     let planError: { code: string; message: string } | null = null;
-    if (!egress) {
+    const refused = (e: unknown): { code: string; message: string } => {
+      if (!(e instanceof PlatformError)) throw e;
+      return { code: String(e.detail?.reason ?? 'bad_plan'), message: e.message };
+    };
+    // A dev deployment: its manifest, the build's files and its deployment row's id (Task 9).
+    let service: ServiceContext | null = null;
+    if (recipe.executor === 'service') {
+      const dep = this.deps.deployments;
+      if (!dep || !cap.subjectVersionId) planError = { code: 'not_in_this_build', message: 'dev deployments are not available in this build' };
+      else {
+        try {
+          const pre = dep.prepareStart(j.id, cap.subjectVersionId, now);
+          const fwd = usableImage(this.probe, 'nexus-fwd');
+          service = { deploymentId: pre.deploymentId, manifest: pre.manifest, files: pre.files, lifetimeMs: PREVIEW_IDLE_TTL_MS,
+            forwarder: (this.deps.profiles ?? []).find((p) => p.id === 'nexus-fwd') ?? null,
+            forwarderImageId: (fwd?.imageId as `sha256:${string}` | undefined) ?? null };
+        } catch (e) { planError = refused(e); }
+      }
+    }
+    if (!egress && !planError) {
       try {
         plan = buildPlan({ job: { id: j.id, projectId: j.project_id }, attempt: { id: attemptId, n }, bootId: this.bootId!, recipe,
           profile, imageId: (image?.imageId as `sha256:${string}` | undefined) ?? null, dataHomeRoot: home.root, workRel, logRel, inputs, repoPath,
-          approval: null });
+          approval: null, service });
       } catch (e) {
-        if (!(e instanceof PlatformError)) throw e;
-        planError = { code: String(e.detail?.reason ?? 'bad_plan'), message: e.message };
+        planError = refused(e);
       }
     }
     const environment = {
@@ -1120,13 +1280,30 @@ export class ExecutionService {
         if (!approvals) {
           planError = { code: 'approvals_unavailable', message: 'network approvals are not available in this build' };
         } else {
-          const approvalId = approvals.requestEgressTx({ id: j.id, projectId: j.project_id, onBehalfOf: j.on_behalf_of }, { id: attemptId, n }, recipe, now);
-          this.moveJobTx(j.id, 'running', now, undefined, 'leased');
-          this.setPhaseTx(j.id, 'approval', now);
-          this.moveJobTx(j.id, 'awaiting_approval', now, undefined, 'running');
-          appendJobEventTx(this.db, { type: 'approval', summary: 'waiting for approval of network access', projectId: j.project_id, jobId: j.id,
-            attemptN: n, approvalId, data: { approvalId } }, now);
-          return true;
+          // The pending approval, then leased -> running (phase approval) -> awaiting_approval, all in this transaction.
+          // A request the approval path refuses (no lockfile hash, ...) fails the job now: nothing is asked, nothing runs.
+          let approvalId: string | null = null;
+          try {
+            approvalId = immediateTx(this.db, () => approvals.requestEgressTx({ id: j.id, projectId: j.project_id, onBehalfOf: j.on_behalf_of },
+              { id: attemptId, n }, recipe, now));
+          } catch (e) {
+            planError = e instanceof PlatformError ? refused(e) : { code: 'approval_refused', message: 'the approval request could not be recorded' };
+          }
+          if (approvalId !== null) {
+            this.moveJobTx(j.id, 'running', now, undefined, 'leased');
+            this.setPhaseTx(j.id, 'approval', now);
+            this.moveJobTx(j.id, 'awaiting_approval', now, undefined, 'running');
+            appendJobEventTx(this.db, { type: 'approval', summary: 'waiting for approval of network access', projectId: j.project_id, jobId: j.id,
+              attemptN: n, approvalId, data: { approvalId } }, now);
+            return true;
+          }
+        }
+      }
+      if (service && plan && !planError) {
+        try {
+          immediateTx(this.db, () => this.deps.deployments!.startTx(this.row(j.id)!, { n }, service!.deploymentId, cap.subjectVersionId!, now));
+        } catch (e) {
+          planError = e instanceof PlatformError ? refused(e) : { code: 'deployment_refused', message: 'the dev deployment could not be recorded' };
         }
       }
       if (planError) {
@@ -1150,7 +1327,7 @@ export class ExecutionService {
       const j = this.row(a.job_id)!;
       const error = { code: 'not_sent', message: 'the plan did not reach the runner' };
       transitionAttemptTx(this.db, a, 'abandoned', now, j.project_id, { outcome: 'not_sent', error });
-      if (j.state === 'leased') {
+      if (j.state === 'leased' && getRecipe(j.recipe_id ?? '')?.executor !== 'service') {
         this.moveJobTx(j.id, 'queued', now, undefined, 'leased');
         this.setPhaseTx(j.id, 'waiting:runner', now);
         this.requeueBackoffTx(j.id, now);
@@ -1167,8 +1344,8 @@ export class ExecutionService {
    * to perform AFTER the caller commits.
    */
   resumeApproved(jobId: string): () => void {
-    // NOTE for Task 9: respond('once') should record the decision, consume the approval and call this in ONE
-    // transaction where it can. When the caps refuse now ('conflict', reason waiting:<x>), the approval stays
+    // Task 9: ApprovalService.respond('once') records the decision, consumes the approval and resumes the job in ONE
+    // transaction (resumeApprovedTx). When the caps refuse now ('conflict', reason waiting:<x>), the approval stays
     // consumed and the scheduler resumes the job on a later tick once the guards pass (resumeConsumed).
     this.requireAvailable();
     const r = this.resumeTx(jobId, this.deps.now());
@@ -1191,8 +1368,10 @@ export class ExecutionService {
         : leaseGuard({ recipe, profile: cap.profile, memoryMb: typeof limits?.memoryMb === 'number' ? limits.memoryMb : 0 },
           this.runnerReady(), this.probe, this.liveUse(), this.caps);
       if (wait !== null) return { wait };
+      // Only an approval of THIS job consumed by its CURRENT attempt can carry its plan (the plan builder checks it again).
       const approval = this.db.prepare(`SELECT id, job_id, status, consumed_at, consumed_by_job_id, consumed_by_attempt_n FROM approvals
-        WHERE job_id = ? AND status = 'approved' ORDER BY status_changed_at DESC LIMIT 1`).get(j.id) as PlanApproval | undefined;
+        WHERE job_id = ? AND status = 'approved' AND consumed_by_job_id = ? AND consumed_by_attempt_n = ?
+        ORDER BY status_changed_at DESC LIMIT 1`).get(j.id, j.id, a.n) as PlanApproval | undefined;
       const profile = (this.deps.profiles ?? []).find((pr) => pr.id === cap.profile) ?? null;
       const image = usableImage(this.probe, cap.profile);
       const plan = buildPlan({ job: { id: j.id, projectId: j.project_id }, attempt: { id: a.id, n: a.n }, bootId: this.bootId ?? '', recipe,
@@ -1205,6 +1384,86 @@ export class ExecutionService {
       this.setPhaseTx(j.id, 'provisioning', now);
       return { send: () => { if (!this.send({ op: 'attempt.start', attemptId: a.id, plan })) this.unsent(a.id, this.deps.now()); } };
     });
+  }
+
+  /**
+   * @internal ApprovalService.respond only, INSIDE its transaction, right after the user's `once` consumed the approval
+   * for the job's current attempt: the job resumes (`awaiting_approval -> running`, the plan carrying this approval;
+   * the returned `send` goes after commit). When the caps refuse now, the job keeps waiting with `phase` set to the
+   * reason (the approval stays consumed; resumeConsumed starts it on a later tick). A refused plan fails the job now.
+   * Never mapped to a transport: the user's door is `respond`.
+   */
+  resumeApprovedTx(jobId: string, now: number): { send: () => void } | { wait: string } | { failed: string } {
+    this.requireAvailable();
+    if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'resumeApprovedTx runs inside the approval transaction');
+    try {
+      const r = this.resumeTx(jobId, now);
+      if ('wait' in r) this.setPhaseTx(jobId, r.wait, now);
+      return r;
+    } catch (e) {
+      if (!(e instanceof PlatformError) || e.code !== 'invalid') throw e;
+      const j = this.row(jobId)!;
+      const error = { code: String(e.detail?.reason ?? 'bad_plan'), message: e.message };
+      const a = liveAttemptOf(this.db, jobId);
+      if (a) transitionAttemptTx(this.db, a, 'failed', now, j.project_id, { outcome: 'bad_plan', error });
+      this.moveJobTx(jobId, 'failed', now, { outcome: 'infra_error', error });
+      this.setPhaseTx(jobId, null, now);
+      return { failed: error.code };
+    }
+  }
+
+  /**
+   * @internal ApprovalService only, INSIDE its transaction: a job waiting for approval that was denied or expired fails
+   * `denied` (its starting attempt first). Nothing was sent to the runner and nothing is retried.
+   */
+  endAwaitingTx(jobId: string, error: { code: string; message: string }, now: number): void {
+    if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'endAwaitingTx runs inside the approval transaction');
+    const j = this.row(jobId);
+    if (!j || j.state !== 'awaiting_approval') return;
+    const a = liveAttemptOf(this.db, jobId);
+    if (a) transitionAttemptTx(this.db, a, 'failed', now, j.project_id, { outcome: 'denied', error });
+    this.moveJobTx(jobId, 'failed', now, { outcome: 'denied', error });
+    this.setPhaseTx(jobId, null, now);
+  }
+
+  /**
+   * @internal DeploymentService only, INSIDE its transaction: a dev deployment's job ends now (failed, or cancelled when
+   * it never started or was stopped before its health check), its live attempt first. Never retried.
+   */
+  endServiceJobTx(jobId: string, end: { state: 'failed' | 'cancelled'; outcome: string; error: { code: string; message: string } }, now: number): void {
+    if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'endServiceJobTx runs inside the deployment transaction');
+    const j = this.row(jobId);
+    if (!j || TERMINAL_JOB_STATES.has(j.state)) return;
+    const a = liveAttemptOf(this.db, jobId);
+    if (a) transitionAttemptTx(this.db, a, end.state === 'cancelled' ? 'cancelled' : 'failed', now, j.project_id, { outcome: end.outcome, error: end.error });
+    const to: JobState = end.state === 'cancelled' || j.state === 'queued' || j.state === 'retry_scheduled' ? 'cancelled' : 'failed';
+    this.moveJobTx(jobId, to, now, { outcome: end.outcome, error: end.error });
+    this.setPhaseTx(jobId, null, now);
+  }
+
+  /** @internal DeploymentService only, INSIDE its transaction: a job's phase (e.g. `stopping`). */
+  setJobPhaseTx(jobId: string, phase: string | null, now: number): void {
+    if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'setJobPhaseTx runs inside a transaction');
+    this.setPhaseTx(jobId, phase, now);
+  }
+
+  /**
+   * The images as the runner reported them, judged against the image builds (A10): an image whose context label differs
+   * from the latest succeeded build of its profile does not match (`image_mismatch`), whatever its digest says.
+   */
+  private judgeImages(images: readonly ImageStatus[]): ImageStatus[] {
+    return images.map((i) => {
+      if (i.present !== true || i.digestMatches !== true) return i;
+      const b = latestSucceededBuild(this.db, i.profile);
+      return !b || i.contextSha256 === b.contextSha256 ? i : { ...i, digestMatches: false };
+    });
+  }
+
+  /** @internal ApprovalService: an image build finished; judge the cached images again and ask for a fresh probe. */
+  refreshImages(): void {
+    if (!this.deps.available) return;
+    if (this.probe && this.rawImages) this.probe = { ...this.probe, images: this.judgeImages(this.rawImages) };
+    if (this.portReady()) this.sendProbe(this.deps.now());
   }
 
   /** Jobs whose approval was approved and consumed by their current attempt but could not start then: start them now. */
@@ -1260,8 +1519,11 @@ export class ExecutionService {
       { project_id: string; workspace_id: string } | undefined;
     if (!pwRow) throw new PlatformError('participation_inactive', 'the participation is gone');
     const pw = requireActiveParticipation(this.access, this.db, p, pwRow.project_id, pwRow.workspace_id, 'job.create');
-    const inputs = (this.db.prepare('SELECT version_id AS versionId, role AS slot FROM job_inputs WHERE job_id = ? ORDER BY rowid').all(j.id) as
-      { versionId: string; slot: string }[]).map((x) => ({ ...x }));
+    // A dev deployment is retried for the application it previewed (its job input is that application's build).
+    const inputs = cap?.subjectVersionId && getRecipe(cap.recipe)?.executor === 'service'
+      ? [{ versionId: cap.subjectVersionId, slot: 'application' }]
+      : (this.db.prepare('SELECT version_id AS versionId, role AS slot FROM job_inputs WHERE job_id = ? ORDER BY rowid').all(j.id) as
+        { versionId: string; slot: string }[]).map((x) => ({ ...x }));
     const params = (parseJson(j.params_json) ?? {}) as Record<string, unknown>;
     return { job: this.createExecJob(p, { action, projectId: pw.project_id, workspaceId: pw.workspace_id, key, params, inputs, retryOf: j.id }).job };
   }
@@ -1292,6 +1554,14 @@ export class ExecutionService {
     params: Record<string, unknown>; inputs: { versionId: string; slot: string }[]; retryOf: string | null }): { job: ExecJob; created: boolean } {
     const prior = this.db.prepare('SELECT id FROM jobs WHERE idempotency_key = ?').get(o.key) as { id: string } | undefined;
     const recipes = ('recipes' in o.action.run ? o.action.run.recipes : []).map((id) => getRecipe(id)).filter((x): x is RecipeDef => x !== null);
+    const serviceRecipe = recipes.find((rc) => rc.executor === 'service');
+    if (serviceRecipe) return this.createPreviewJob(p, o, serviceRecipe, !!prior);
+    // One live snapshot job per project (Task 9; RepoService also checks the folder first): a new request returns it.
+    if (!prior && recipes.length === 1 && recipes[0].id === 'repo.snapshot') {
+      const live = this.db.prepare(`SELECT * FROM jobs WHERE project_id = ? AND recipe_id = 'repo.snapshot'
+        AND state IN (${LIVE_JOB_STATES.map(() => '?').join(', ')}) ORDER BY created_at, rowid LIMIT 1`).get(o.projectId, ...LIVE_JOB_STATES) as ExecJobRow | undefined;
+      if (live) return { job: this.toExecJob(live), created: false };
+    }
     const facts: { kind: string; metadata: unknown }[] = [];
     for (const x of o.inputs) {
       try {
@@ -1324,7 +1594,13 @@ export class ExecutionService {
       params: o.params, inputs: o.inputs.map((x) => ({ versionId: x.versionId, role: x.slot })),
       retry: { idempotent: recipe.retry.idempotent, maxAttempts: recipe.retry.maxAttempts, backoffMs: RETRY_BACKOFF_MS.slice(0, Math.max(recipe.retry.maxAttempts - 1, 0)) }
     };
-    if (!prior) this.requireQueueRoom(o.projectId);
+    return this.insertExecJob(p, o, recipe, cap, limits, create, !!prior);
+  }
+
+  /** The job row with its capability and limits, one `job.transition` event (shared by every recipe action). */
+  private insertExecJob(p: Principal, o: { action: UserActionDef; projectId: string; key: string; retryOf: string | null }, recipe: RecipeDef,
+    cap: Capability, limits: Record<string, unknown>, create: Parameters<JobService['createTx']>[1], hasPrior: boolean): { job: ExecJob; created: boolean } {
+    if (!hasPrior) this.requireQueueRoom(o.projectId);
     const now = this.deps.now();
     return immediateTx(this.db, () => {
       if (!this.db.prepare('SELECT 1 FROM jobs WHERE idempotency_key = ?').get(o.key)) this.requireQueueRoom(o.projectId);
@@ -1333,10 +1609,58 @@ export class ExecutionService {
         this.db.prepare('UPDATE jobs SET capabilities_json = ?, limits_json = ?, phase = NULL WHERE id = ?')
           .run(JSON.stringify([cap]), JSON.stringify(limits), res.job.id);
         appendJobEventTx(this.db, { type: 'job.transition', summary: `job queued: ${o.action.label}`, projectId: o.projectId, jobId: res.job.id,
-          data: { from: null, to: 'queued', action: o.action.id, recipe: recipe.id, retryOf: o.retryOf } }, now);
+          data: { from: null, to: 'queued', action: o.action.id, recipe: recipe.id, retryOf: o.retryOf,
+            ...(cap.subjectVersionId ? { subjectVersionId: cap.subjectVersionId } : {}) } }, now);
       }
       return { job: this.toExecJob(this.row(res.job.id)!), created: res.created };
     });
+  }
+
+  /**
+   * A dev deployment of an application version (Task 9). The application may be a draft: it is the deployment's
+   * SUBJECT (recorded in the job's capability), while the job's input is the build version it was assembled from
+   * (candidate or active, as every job input). A manifest that names environment variables is refused before any job
+   * exists (`unavailable`: secrets for dev deployments are not supported yet).
+   */
+  private createPreviewJob(p: Principal, o: { action: UserActionDef; projectId: string; workspaceId: string; key: string;
+    params: Record<string, unknown>; inputs: { versionId: string; slot: string }[]; retryOf: string | null }, recipe: RecipeDef, hasPrior: boolean): { job: ExecJob; created: boolean } {
+    if (!this.deps.deployments) return invalid('not_in_this_build', 'dev deployments are not available in this build');
+    const appIn = o.inputs.length === 1 && o.inputs[0].slot === 'application' ? o.inputs[0] : null;
+    if (!appIn) return invalid('input_not_allowed', 'a dev deployment previews one application version');
+    const readable = (versionId: string): void => {
+      try { this.access.requireVersionReadable(p, versionId, o.projectId); } catch (e) {
+        if (e instanceof PlatformError && e.code === 'invalid') throw new PlatformError('invalid', 'the input is not allowed', { reason: 'input_not_allowed' });
+        throw e;
+      }
+    };
+    readable(appIn.versionId);
+    const app = this.db.prepare(`SELECT v.status, v.storage_ref_json, a.kind FROM artifact_versions v JOIN artifacts a ON a.id = v.artifact_id WHERE v.id = ?`)
+      .get(appIn.versionId) as { status: string; storage_ref_json: string; kind: string };
+    if (app.kind !== 'application' || !['draft', 'candidate', 'active'].includes(app.status)) return invalid('input_not_allowed', 'the input is not allowed');
+    const manifest = readAppManifest(app.storage_ref_json);
+    if (!manifest) return invalid('bad_manifest', 'the application manifest is not valid');
+    const blocker = previewBlocker(manifest);
+    if (blocker) throw new PlatformError('unavailable', blocker.message, { reason: blocker.reason, names: blocker.names });
+    if (!recipe.profiles.includes(manifest.profile)) return invalid('no_recipe', 'no recipe of this action fits the application');
+    // The build the application was assembled from (its job_input lineage edge).
+    const edge = this.db.prepare(`SELECT to_version_id AS id FROM artifact_edges WHERE from_version_id = ? AND relation = 'assembled_from'
+      AND source = 'job_input' ORDER BY created_at, id LIMIT 1`).get(appIn.versionId) as { id: string } | undefined;
+    if (!edge) return invalid('input_not_allowed', 'the application has no build to run');
+    readable(edge.id);
+    const build = this.db.prepare('SELECT status FROM artifact_versions WHERE id = ?').get(edge.id) as { status: string };
+    if (build.status !== 'candidate' && build.status !== 'active') return invalid('input_not_allowed', 'the build of this application is not a candidate');
+    const cap: Capability = { action: o.action.id, recipe: recipe.id, recipeVersion: recipe.version, executor: recipe.executor, network: recipe.network,
+      profile: manifest.profile, subjectVersionId: appIn.versionId };
+    const l = recipe.limits!;
+    // The deployment ends itself after its fixed 2 h lifetime; the job's wall clock is only a backstop after that.
+    const limits = { cpus: l.cpus, memoryMb: l.memoryMb, pids: 512, wallClockMs: PREVIEW_IDLE_TTL_MS + SERVICE_WALL_MARGIN_MS,
+      outputMaxBytes: l.outputMaxBytes, tmpfsMb: 512 };
+    const create = {
+      kind: 'tool.run' as const, projectId: o.projectId, workspaceId: o.workspaceId, idempotencyKey: o.key, recipeId: recipe.id,
+      ...(o.retryOf ? { retryOf: o.retryOf } : {}), params: o.params, inputs: [{ versionId: edge.id, role: 'build' }],
+      retry: { idempotent: false, maxAttempts: 1, backoffMs: [] }
+    };
+    return this.insertExecJob(p, o, recipe, cap, limits, create, hasPrior);
   }
 
   private requireQueueRoom(projectId: string): void {
@@ -1386,15 +1710,10 @@ export class ExecutionService {
       transitionAttemptTx(this.db, a, 'cancelled', now, j.project_id, { outcome: 'cancelled', error: { code: 'cancelled', message: `cancelled (${reason})` } });
       out.push({ attemptId: a.id, reason });
     }
-    const pending = this.db.prepare("SELECT id FROM approvals WHERE job_id = ? AND status = 'pending'").all(id) as { id: string }[];
-    for (const ap of pending) {
-      this.db.prepare("UPDATE approvals SET status = 'withdrawn', status_changed_at = ? WHERE id = ? AND status = 'pending'").run(now, ap.id);
-      appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, onBehalfOf: j.on_behalf_of, jobId: id, projectId: j.project_id,
-        workspaceId: j.workspace_id, entityType: 'approval', entityId: ap.id, action: 'approval.withdraw', status: 'succeeded',
-        details: { reason: 'job_cancelled' } }, now);
-      appendJobEventTx(this.db, { type: 'approval', summary: 'approval withdrawn: the job was cancelled', projectId: j.project_id, jobId: id,
-        approvalId: ap.id, data: { status: 'withdrawn' } }, now);
-    }
+    // A pending approval of the job is withdrawn: a cancelled job never reaches the network.
+    withdrawPendingApprovalsTx(this.db, p, j, now);
+    // A dev deployment still live stops with its job, recorded as the canceller's act.
+    this.deps.deployments?.stopForCancelTx(p, id, now);
     this.db.prepare("UPDATE artifact_versions SET draft_flag = 'cancelled_partial' WHERE produced_by_job_id = ? AND status = 'draft' AND draft_flag IS NULL")
       .run(id);
     this.moveJobTx(id, 'cancelled', now, { outcome: 'cancelled' });
@@ -1503,7 +1822,9 @@ export class ExecutionService {
     if (!action || !('recipes' in action.run)) return { available: false, reason: 'not_applicable' };
     const recipes = action.run.recipes.map((id) => getRecipe(id)).filter((x): x is RecipeDef => x !== null).filter((x) => x.executor !== 'engine');
     if (recipes.length === 0) return { available: true, reason: null };
-    const profiles = [...new Set(recipes.flatMap((x) => x.profiles))].filter((x) => x !== 'nexus-fwd');
+    const profiles: SandboxProfileId[] = [...new Set(recipes.flatMap((x) => x.profiles))].filter((x) => x !== 'nexus-fwd');
+    // A dev deployment also runs the loopback forwarder.
+    if (recipes.some((x) => x.executor === 'service')) profiles.push('nexus-fwd');
     for (const pr of profiles) {
       const s = c.images.find((i) => i.profile === pr);
       if (!s || s.present !== true) return { available: false, reason: 'setup:image_missing' };

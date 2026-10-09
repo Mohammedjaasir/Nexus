@@ -20,12 +20,18 @@ const { stepStateFrom } = loadTs('src/shared/nexus/stepState.ts');
 
 const GIB = 2 ** 30;
 const COMMIT = 'c0ffee'.padEnd(40, '0');
-const IMAGE = { 'sde-node': 'sha256:' + '1'.repeat(64), 'sde-python': 'sha256:' + '2'.repeat(64) };
+const IMAGE = { 'sde-node': 'sha256:' + '1'.repeat(64), 'sde-python': 'sha256:' + '2'.repeat(64), 'nexus-fwd': 'sha256:' + '3'.repeat(64) };
 const PROFILES = ['sde-node', 'sde-python'].map((id, i) => ({
   id, image: { repository: `nexus/${id}`, digest: `sha256:${String(i + 7).repeat(64)}` }, user: { uid: 10001, gid: 10001 },
   defaults: { cpus: 1, memoryMb: 1024, pids: 512, wallClockMs: 60000, outputMaxBytes: 2 ** 20, tmpfsMb: 512 },
   entrypoint: ['/opt/nexus/entry'], imageEnv: ['PATH', 'HOME', 'LANG']
 }));
+/** B2a Task 9: the loopback forwarder of dev deployments (with `fwd: true`). */
+const FWD_PROFILE = {
+  id: 'nexus-fwd', image: { repository: 'nexus/nexus-fwd', digest: `sha256:${'9'.repeat(64)}` }, user: { uid: 10001, gid: 10001 },
+  defaults: { cpus: 1, memoryMb: 128, pids: 512, wallClockMs: 60000, outputMaxBytes: 2 ** 20, tmpfsMb: 16 },
+  entrypoint: ['/opt/nexus/fwd-entry'], imageEnv: ['PATH', 'HOME']
+};
 const DEFAULT_INPUTS = { 'sde.build.run': 'repository', 'sde.tests.discover': 'repository', 'sde.deps.install': 'repository', 'sde.tests.run': 'suite' };
 
 /** A preflight report that passes, with every observed field present. */
@@ -45,7 +51,8 @@ function execWorld(o = {}) {
   const fsRootCalls = [];
   const acceptFsRoot = o.acceptFsRoot ?? ((root) => { fsRootCalls.push(root); return typeof root === 'string' && root.length > 0 ? root : null; });
   const dataHome = resolveDataHome(h.tmpDir('nx-home-'));
-  const approvals = o.approvals === false || o.approvals === undefined ? null : {
+  // B2a Task 9: `approvals: 'real'` uses the platform's own ApprovalService as the egress port (and its expiry sweep).
+  const approvals = o.approvals === 'real' ? undefined : o.approvals === false || o.approvals === undefined ? null : {
     requestEgressTx(job, attempt, recipe, now) {
       const id = newId(now);
       db.prepare(`INSERT INTO approvals (id, project_id, job_id, reason, summary, request_json, request_sha256, status, requested_by,
@@ -56,14 +63,16 @@ function execWorld(o = {}) {
     }
   };
   const nx = createNexusPlatform(db, { now: () => clock.t, log: (l) => logs.push(l), execution: o.execution ?? true,
-    dataHome, profiles: PROFILES, acceptFsRoot, approvals, ingest: o.realIngest ? undefined : (o.ingest ?? null),
-    resolveCommit: o.resolveCommit ?? null, ingestFaults: o.ingestFaults ?? null, executionUnavailableReason: o.unavailableReason, appVersion: o.appVersion ?? null });
+    dataHome, profiles: o.fwd ? [...PROFILES, FWD_PROFILE] : PROFILES, acceptFsRoot, approvals, ingest: o.realIngest ? undefined : (o.ingest ?? null),
+    resolveCommit: o.resolveCommit ?? null, ingestFaults: o.ingestFaults ?? null, executionUnavailableReason: o.unavailableReason, appVersion: o.appVersion ?? null,
+    imageContexts: o.imageContexts ?? null, isRepository: o.isRepository ?? null });
   const me = nx.principals.localUser(); const sys = nx.principals.system();
   const bootId = newId(clock.t);
   const probe = {
     docker: o.docker ?? 'running', memoryBytes: o.dockerMemoryBytes ?? 8 * GIB, cpus: 4, freeBytes: o.freeBytes ?? 100 * GIB,
     images: o.images ?? [{ profile: 'sde-node', present: true, digestMatches: true, imageId: IMAGE['sde-node'] },
-      { profile: 'sde-python', present: true, digestMatches: true, imageId: IMAGE['sde-python'] }]
+      { profile: 'sde-python', present: true, digestMatches: true, imageId: IMAGE['sde-python'] },
+      ...(o.fwd ? [{ profile: 'nexus-fwd', present: true, digestMatches: true, imageId: IMAGE['nexus-fwd'] }] : [])]
   };
   const probeMsg = () => ({ op: 'probe.result', probe: { docker: probe.docker, version: '27.0.0', cpus: probe.cpus, memoryBytes: probe.memoryBytes,
     gpu: { detected: false, usableInContainers: false } }, images: probe.images.map((x) => ({ ...x })), freeBytes: probe.freeBytes, runtimes: [] });
@@ -291,4 +300,4 @@ function junit(cases, o = {}) {
     countsMismatch: o.countsMismatch ?? false };
 }
 
-module.exports = { execWorld, passingPreflight, PROFILES, GIB, junit };
+module.exports = { execWorld, passingPreflight, PROFILES, FWD_PROFILE, GIB, junit };

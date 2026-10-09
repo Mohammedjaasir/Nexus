@@ -62,7 +62,9 @@ export type RunnerToMain =
   | { op: 'ready'; bootId: string }
   | { op: 'probe.result'; probe: SandboxProbe; images: ImageStatus[]; freeBytes: number | null;
       runtimes: { kind: RuntimeKind; health: RuntimeHealth }[] }
-  | { op: 'attempt.provisioned'; attemptId: string; containerId?: string; imageDigest?: string; preflight?: ReportedPreflight }
+  | { op: 'attempt.provisioned'; attemptId: string; containerId?: string; imageDigest?: string; preflight?: ReportedPreflight;
+      /** A dev deployment's forwarder: the loopback port the runner chose from its ephemeral range (only with a container). */
+      hostPort?: number }
   | { op: 'attempt.refused'; attemptId: string; reason: RefusalReason; detail?: string }
   | { op: 'attempt.event'; attemptId: string; seq: number; event: ProgressEvent }
   | { op: 'attempt.heartbeat'; attemptId: string; at: number; logBytes: number; outBytes: number; container?: 'running' | 'exited' | 'missing' }
@@ -293,11 +295,15 @@ const preflight: Check<ReportedPreflight> = (x) => {
   if (r.ok && !OBSERVED_KEYS.every((k) => Object.prototype.hasOwnProperty.call(r.observed, k))) return NO;   // a pass shows all it saw
   return r;
 };
-/** A container exists only with its preflight report, and a report exists only for a container. */
+/**
+ * A container exists only with its preflight report, and a report exists only for a container. A published host port
+ * (a dev deployment's forwarder, 1024-65535) is reported only with a container.
+ */
 const provisioned: Check<RunnerToMain> = (x) => {
   const m = obj<Extract<RunnerToMain, { op: 'attempt.provisioned' }>>({ op: lit('attempt.provisioned'), attemptId: ulid },
-    { containerId: str({ re: CONTAINER_ID_RE }), imageDigest: str({ re: DIGEST_RE }), preflight })(x);
+    { containerId: str({ re: CONTAINER_ID_RE }), imageDigest: str({ re: DIGEST_RE }), preflight, hostPort: intIn(1024, 65535) })(x);
   if (m === NO) return NO;
+  if (m.hostPort !== undefined && m.containerId === undefined) return NO;
   return (m.containerId === undefined) === (m.preflight === undefined) ? m : NO;
 };
 

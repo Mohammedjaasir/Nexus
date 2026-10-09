@@ -6,7 +6,10 @@
  * with their versions, the version-level lineage DAG, durable jobs, agent
  * sessions and, at schema v8, handoffs (null below v8 or when v8 is held or
  * failed). At schema v9, with `execution` on, it also composes the execution core
- * (ExecutionService, its runner attached later by main) and the one BlobIndex.
+ * (ExecutionService, its runner attached later by main) and the one BlobIndex, the
+ * validation framework and ingest, and (B2a Task 9) the approval service (once-only
+ * egress and image approvals, image builds), dev deployments and snapshot requests,
+ * each late-bound to the execution core.
  *
  * No IPC is registered here. Callers in main pass a Principal resolved through
  * `principals`; the renderer never supplies identity.
@@ -20,6 +23,9 @@ import { JobService } from './jobs/jobService';
 import { BlobIndex } from './blobs/blobIndex';
 import { ExecutionService, type ExecDataHome, type EgressApprovalPort, type IngestPort } from './exec/executionService';
 import { IngestService } from './exec/ingest';
+import { ApprovalService, type ImageContext } from './approvals/approvalService';
+import { DeploymentService } from './deployments/deploymentService';
+import { RepoService } from './repo/repoService';
 import { ValidationService, type ResolveCommit } from './validation/validationService';
 import type { ArtifactValidatorHooks } from './artifact/artifactService';
 import type { SandboxProfile } from '../../shared/nexus/execution';
@@ -60,6 +66,12 @@ export interface NexusPlatform {
   blobs: BlobIndex | null;
   /** Validator results, the finalize rule and the validate jobs (schema v9); null unless execution is available. */
   validation: ValidationService | null;
+  /** Once-only approvals (egress, image preparation) and image builds (schema v9); null unless execution is available. */
+  approvals: ApprovalService | null;
+  /** Local dev deployments (schema v9); null unless execution is available. */
+  deployments: DeploymentService | null;
+  /** Repository snapshot requests and the app manifest contract; null unless execution is available. */
+  repo: RepoService | null;
   startup(): NexusStartupReport;
 }
 
@@ -79,7 +91,15 @@ export interface NexusPlatformOptions {
   dataHome?: ExecDataHome | null;
   profiles?: readonly SandboxProfile[];
   acceptFsRoot?: ((root: string) => string | null) | null;
+  /**
+   * The egress approval port of the execution core: omitted, the platform's own ApprovalService (which also expires
+   * approvals on the scheduler's cadence); null, none (egress recipes are refused); an object, that port (tests).
+   */
   approvals?: EgressApprovalPort | null;
+  /** The build context of each profile image (B2a Task 12, from infra/images); without it image preparation is refused. */
+  imageContexts?: ((profileId: string) => ImageContext | null) | null;
+  /** main's own async git repository check (src/main/git.ts isRepo); without it snapshot requests are unavailable. */
+  isRepository?: ((root: string) => Promise<boolean>) | null;
   /** The ingest of runner outputs: omitted, the platform's own (Task 8); null, none (exits then fail ingest_unavailable). */
   ingest?: IngestPort | null;
   /** main's own async commit resolution in the project folder (src/main/git.ts resolveCommit), for git.head_resolves. */
@@ -126,16 +146,25 @@ export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformO
   const ingest: IngestPort | null = opts?.ingest !== undefined ? opts.ingest
     : validation ? new IngestService(db, { artifacts, validation, blobs, now, resolveCommit: opts?.resolveCommit ?? null, faults: opts?.ingestFaults ?? null })
       : null;
+  // Task 9: approvals and image builds, dev deployments, snapshot requests. Each is late-bound to the execution core.
+  const approvals = executionAvailable ? new ApprovalService(db, { auth, now, log, imageContext: opts?.imageContexts ?? null }) : null;
+  const deployments = executionAvailable && validation ? new DeploymentService(db, { auth, now, log, validation }) : null;
+  const repo = executionAvailable ? new RepoService(db, { auth, now, log, acceptFsRoot: opts?.acceptFsRoot ?? null,
+    isRepository: opts?.isRepository ?? null }) : null;
   const exec = new ExecutionService(db, {
     auth, jobs, now, log, available: executionAvailable, unavailableReason, blobs,
     dataHome: opts?.dataHome ?? null, profiles: opts?.profiles ?? [], acceptFsRoot: opts?.acceptFsRoot ?? null,
-    approvals: opts?.approvals ?? null, ingest, validation, appVersion: opts?.appVersion ?? null
+    approvals: opts?.approvals !== undefined ? opts.approvals : approvals, images: approvals, deployments,
+    ingest, validation, appVersion: opts?.appVersion ?? null
   });
   validation?.setSender((msg) => exec.sendToRunner(msg));
+  approvals?.bindExecution(exec);
+  deployments?.bindExecution(exec);
+  repo?.bindExecution(exec);
   if (executionAvailable) log('[nexus] execution core ready: runner not attached');
   return {
     principals, auth, activity, workspaces, projects, artifacts, lineage, jobs, sessions, handoffs, handoffsAvailable, executionAvailable,
-    exec, blobs, validation,
+    exec, blobs, validation, approvals, deployments, repo,
     startup(): NexusStartupReport {
       // The seeded principals must resolve; a missing one throws platform_unavailable.
       principals.localUser();

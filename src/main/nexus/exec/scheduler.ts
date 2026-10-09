@@ -13,7 +13,8 @@
  * leaves every queued job as it is and the next tick tries again.
  *
  * Guards (first failing one wins): runner ready -> Docker running (container recipes) ->
- * profile image present and matching -> free space at the data home >= the lease floor ->
+ * profile image present and matching (a dev deployment also needs the `nexus-fwd` forwarder image) ->
+ * free space at the data home >= the lease floor ->
  * slots (job containers, service containers) -> memory budget. Engine recipes (no container)
  * need only the runner.
  */
@@ -67,6 +68,8 @@ export function leaseGuard(c: LeaseCandidate, runnerReady: boolean, cache: Probe
   if (c.recipe.executor === 'engine') return null;
   if (!cache || cache.probe.docker !== 'running') return 'waiting:docker';
   if (!usableImage(cache, c.profile)) return 'waiting:image';
+  // A dev deployment (service recipe) runs its app behind the loopback forwarder: both images must be usable.
+  if (c.recipe.executor === 'service' && !usableImage(cache, 'nexus-fwd')) return 'waiting:image';
   const floor = leaseFloorBytes(c.recipe.limits?.outputMaxBytes ?? 0);
   if (cache.freeBytes === null || cache.freeBytes < floor) return 'waiting:disk';
   if (c.recipe.executor === 'service' ? live.serviceContainers >= caps.serviceContainers : live.jobContainers >= caps.jobContainers) {

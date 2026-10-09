@@ -47,6 +47,7 @@ import * as tests from '../validation/validators/testsPass';
 import { manifestSha256, exitZero, EXIT_ZERO, type TreeFile } from '../validation/validators/buildChecks';
 import type { AttemptExited, IngestContext, IngestDecision, IngestPort } from './executionService';
 import { MAX_DISCOVERED_FILES } from './planBuilder';
+import { acceptManifestReport, APP_MANIFEST_MAX_BYTES } from '../repo/repoService';
 
 export type { AttemptExited };
 
@@ -364,14 +365,21 @@ export class IngestService implements IngestPort {
     const { job, attempt, system } = ctx;
     const buildIn = this.inputs(job.id, 'build')[0];
     if (!buildIn || job.participation_id === null) return refuse('invalid_output', 'bad_input', 'assembly has no build input');
-    // The engine reports `{ manifest }`: the nexus.app.json it read at the build's commit (re-validated by app.manifest_schema).
+    // The engine reports `{ manifest }`: the nexus.app.json it read at the build's commit. The reader contract
+    // (repoService.acceptManifestReport): a plain JSON object of at most 16 KiB, nothing secret-shaped; then
+    // app.manifest_schema judges its shape.
     const facts = ctx.exited.parsed.find((p) => p.parser === 'app-manifest')?.normalized
       ?? ctx.exited.parsed.find((p) => isObj(p.normalized))?.normalized;
-    const manifest = isObj(facts) ? facts.manifest : undefined;
-    if (!isObj(manifest)) return refuse('invalid_output', 'parser_contract', 'the manifest was not usable');
-    if (containsSecret(manifest)) return secretRefusal('application manifest');
-    let storage: { kind: 'inline'; json: unknown };
-    try { storage = { kind: 'inline', json: JSON.parse(JSON.stringify(manifest)) as unknown }; } catch { return refuse('invalid_output', 'parser_contract', 'the manifest is not JSON'); }
+    const accepted = acceptManifestReport(facts);
+    if (!accepted.ok) {
+      if (accepted.reason === 'secret_in_output') return secretRefusal('application manifest');
+      if (accepted.reason === 'manifest_too_large') {
+        return refuse('invalid_output', 'manifest_too_large', `the manifest is larger than ${APP_MANIFEST_MAX_BYTES} bytes`);
+      }
+      return refuse('invalid_output', 'parser_contract', 'the manifest was not usable');
+    }
+    const manifest = accepted.manifest;
+    const storage: { kind: 'inline'; json: unknown } = { kind: 'inline', json: manifest };
     const contentHash = sha256(`application\n${buildIn.version_id}\n${JSON.stringify(manifest)}`);
     const artifactId = this.ownedArtifact(job.participation_id, 'application', 'Application');
     const prior = this.already(job.id, 'manifest') ?? (artifactId ? this.sameContent(artifactId, contentHash) : null);

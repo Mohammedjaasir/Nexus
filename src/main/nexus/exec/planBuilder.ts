@@ -20,6 +20,11 @@
  *   `/tmp`), read-only root, `--cap-drop ALL`, no-new-privileges: fixed.
  * - Engine recipes (`repo.snapshot`, `sde.app.assemble`) get an `EnginePlan` whose repository
  *   folder is the one main accepted from the `projects` row (`acceptFsRoot`), never a param.
+ * - The service recipe (`sde.preview.start`, B2a Task 9) gets a `ServicePlan`: the app container runs the
+ *   application manifest's validated `run` argv (an array, never a shell string) on the internal network
+ *   `nexus-svc-<jobId>` only (no egress); the `nexus-fwd` forwarder joins it and `nexus-pub-<jobId>` and publishes
+ *   exactly one port, on 127.0.0.1 (`publish.hostPort` 0: the runner picks it from its ephemeral range before
+ *   create and reports it). The build's files are staged from the blob store; the lifetime is fixed (2 h).
  *
  * Errors are PlatformError 'invalid' with `detail.reason` (`network_not_approved`,
  * `env_not_allowed`, `secret_in_env`, `image_missing`, `mount_outside_data_home`,
@@ -28,7 +33,7 @@
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import type {
-  AttemptPlan, ContainerSpec, EnginePlan, MountSpec, NetworkMode, ResourceLimits, SandboxProfile, ToolPlan
+  AttemptPlan, ContainerSpec, EnginePlan, MountSpec, NetworkMode, ResourceLimits, SandboxProfile, ServicePlan, ToolPlan
 } from '../../../shared/nexus/execution';
 import type { RecipeDef } from '../../../shared/nexus/recipes';
 import { looksSecret } from '../../../shared/nexus/secretShape';
@@ -67,8 +72,35 @@ export const ARGV_TEMPLATES: Readonly<Record<string, readonly string[]>> = Objec
   'pytest.junit': ['python', '-m', 'pytest', '-q', '--junitxml=/out/junit.xml', '-p', 'no:cacheprovider'],
   'npm.run-build': ['npm', 'run', 'build'],
   'entry.collect-output': ['nexus-collect', '--from', 'dist', '--to', '/out/dist'],
-  'python.build-wheel': ['python', '-m', 'build', '--wheel', '--no-isolation', '--outdir', '/out/dist']
+  'python.build-wheel': ['python', '-m', 'build', '--wheel', '--no-isolation', '--outdir', '/out/dist'],
+  // A dev deployment: the app runs the manifest's validated argv (appended by main); the forwarder's target is appended.
+  'app.manifest-run': [],
+  'fwd.socat-loopback': ['socat', 'TCP-LISTEN:8080,fork,reuseaddr']
 });
+
+/** The forwarder listens on this port inside its container; the runner publishes it on 127.0.0.1 only. */
+export const FORWARDER_PORT = 8080;
+export const SERVICE_START_TIMEOUT_MS = 60_000;
+export const SERVICE_HEALTH_INTERVAL_MS = 5_000;
+/** The forwarder's own small limits (it only relays bytes). */
+export const FORWARDER_LIMITS = Object.freeze({ cpus: 0.5, memoryMb: 128, tmpfsMb: 16, outputMaxBytes: 2 ** 20 });
+export const MAX_RUN_ARGS = 32;
+export const MAX_RUN_ARG_CHARS = 512;
+const HEALTH_PATH_RE = /^\/[A-Za-z0-9/_.-]{0,200}$/;
+const STAGED_PATH_RE = /^(?![./-])[A-Za-z0-9_@+=,.\- /]{1,1024}$/;
+
+/** What a dev deployment's plan needs beyond a tool plan (main reads it from the application version and the probe). */
+export interface ServiceContext {
+  deploymentId: string;
+  /** The application manifest (`nexus.app.json`), already validated by `app.manifest_schema`; re-checked here. */
+  manifest: { profile: string; run: unknown; port: unknown; healthPath: unknown };
+  forwarder: SandboxProfile | null;
+  forwarderImageId: `sha256:${string}` | null;
+  /** The build's files (blob sha256 and the path inside the build tree), staged into `in/dist/<path>`. */
+  files: readonly { sha256: string; path: string }[];
+  /** The fixed lifetime of a dev deployment (the containers' wall clock). */
+  lifetimeMs: number;
+}
 
 /** A consumed approval as read from `approvals` (only the fields the builder checks). */
 export interface PlanApproval {
@@ -98,6 +130,8 @@ export interface PlanContext {
   /** The project folder, as main accepted it from the `projects` row (acceptFsRoot); null when refused. */
   repoPath?: string | null;
   approval?: PlanApproval | null;
+  /** The service recipe only (a dev deployment). */
+  service?: ServiceContext | null;
 }
 
 const refuse = (reason: string, message: string): never => { throw new PlatformError('invalid', message, { reason }); };
@@ -237,7 +271,8 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
     workDir: underDataHome(ctx.dataHomeRoot, ctx.workRel), logPath: underDataHome(ctx.dataHomeRoot, ctx.logRel)
   };
   if (recipe.executor === 'engine') return buildEnginePlan(ctx, base);
-  if (recipe.executor !== 'tool') return refuse('not_in_this_build', 'service plans arrive with dev deployments');
+  if (recipe.executor === 'service') return buildServicePlan(ctx, base);
+  if (recipe.executor !== 'tool') return refuse('not_in_this_build', 'this executor is not in this build');
   const profile = ctx.profile;
   if (!profile || !recipe.profiles.includes(profile.id)) return refuse('image_missing', 'no sandbox profile for this recipe');
   if (!ctx.imageId || !/^sha256:[0-9a-f]{64}$/.test(ctx.imageId)) return refuse('image_missing', 'the profile image is not present');
@@ -282,6 +317,89 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
   return plan;
 }
 
+/** The manifest's run argv as a container argv: 1-32 plain strings, none secret-shaped. Never a shell string. */
+export function checkRunArgv(run: unknown): string[] {
+  if (!Array.isArray(run) || run.length < 1 || run.length > MAX_RUN_ARGS) return refuse('bad_input', 'the app manifest run list is not 1 to 32 arguments');
+  const out: string[] = [];
+  for (const a of run as unknown[]) {
+    if (typeof a !== 'string' || a.length === 0 || a.length > MAX_RUN_ARG_CHARS || a.includes('\0')) refuse('bad_input', 'an app manifest argument is not plain text');
+    if (looksSecret(a as string) || containsSecret([a])) refuse('secret_in_argv', 'an app manifest argument is secret-shaped');
+    out.push(a as string);
+  }
+  return out;
+}
+
+type ServiceBase = Omit<ServicePlan, 'kind' | 'deploymentId' | 'app' | 'forwarder' | 'networks' | 'health' | 'idleTtlMs' | 'staging'>;
+
+function buildServicePlan(ctx: PlanContext, base: ServiceBase): ServicePlan {
+  const { recipe, job, attempt } = ctx;
+  const s = ctx.service;
+  if (!s || typeof s.deploymentId !== 'string' || s.deploymentId.length === 0) return refuse('bad_input', 'a dev deployment needs its deployment and manifest');
+  const profile = ctx.profile;
+  if (!profile || profile.id !== s.manifest.profile || !recipe.profiles.includes(profile.id) || profile.id === 'nexus-fwd') {
+    return refuse('image_missing', 'no sandbox profile for this app');
+  }
+  if (!ctx.imageId || !/^sha256:[0-9a-f]{64}$/.test(ctx.imageId)) return refuse('image_missing', 'the app profile image is not present');
+  const fwd = s.forwarder;
+  if (!fwd || fwd.id !== 'nexus-fwd' || !s.forwarderImageId || !/^sha256:[0-9a-f]{64}$/.test(s.forwarderImageId)) {
+    return refuse('image_missing', 'the forwarder image is not present');
+  }
+  const port = s.manifest.port;
+  if (typeof port !== 'number' || !Number.isInteger(port) || port < 1024 || port > 65535) return refuse('bad_input', 'the app port is out of range');
+  const healthPath = s.manifest.healthPath;
+  if (typeof healthPath !== 'string' || !HEALTH_PATH_RE.test(healthPath)) return refuse('bad_input', 'the health path is not a plain path');
+  const argv = checkRunArgv(s.manifest.run);
+  const lifetime = s.lifetimeMs;
+  if (!Number.isSafeInteger(lifetime) || lifetime <= 0) return refuse('bad_input', 'a dev deployment needs a lifetime');
+  for (const f of s.files) {
+    if (typeof f?.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(f.sha256) || typeof f.path !== 'string' || !STAGED_PATH_RE.test(f.path)
+      || f.path.split('/').some((x) => x === '' || x === '.' || x === '..')) {
+      refuse('bad_input', 'a build file is not a plain relative path');
+    }
+  }
+  const source = sourceOf(ctx.inputs);
+  if (source && !ctx.repoPath) refuse('project_folder_unavailable', 'the project folder is not available');
+  const deps = depsVolume(profile.id, ctx.inputs);
+  const internal = `nexus-svc-${job.id.toLowerCase()}`;
+  const publish = `nexus-pub-${job.id.toLowerCase()}`;
+  const labels = (kind: string): ContainerSpec['labels'] =>
+    ({ 'nexus.job': job.id, 'nexus.attempt': attempt.id, 'nexus.boot': ctx.bootId, 'nexus.project': job.projectId, 'nexus.kind': kind });
+  const mounts: MountSpec[] = [
+    { kind: 'input', hostPath: underDataHome(ctx.dataHomeRoot, `${ctx.workRel}/in`), containerPath: '/in', readOnly: true },
+    { kind: 'out', hostPath: underDataHome(ctx.dataHomeRoot, `${ctx.workRel}/out`), containerPath: '/out', readOnly: false },
+    { kind: 'workspace', hostPath: `nexus-ws-${attempt.id}`, containerPath: '/workspace', readOnly: false }
+  ];
+  if (deps) mounts.push({ kind: 'deps', hostPath: deps, containerPath: profile.id === 'sde-python' ? '/deps' : '/workspace/node_modules', readOnly: true });
+  const network: NetworkMode = { mode: 'service-internal', network: internal };
+  const app: ContainerSpec = {
+    name: `nexus-${attempt.id.toLowerCase()}-app`, labels: labels('service'), profile: profile.id,
+    image: { ref: `${profile.image.repository}@${profile.image.digest}`, id: ctx.imageId },
+    entrypoint: [...profile.entrypoint], argv, imageEnv: [...profile.imageEnv], env: envFor(recipe, profile.id, null), mounts, network,
+    limits: { ...limitsFor(recipe), wallClockMs: lifetime }, readOnlyRootfs: true, capDrop: ['ALL'], noNewPrivileges: true,
+    service: { containerPort: port, healthPath }
+  };
+  const forwarder: ContainerSpec = {
+    name: `nexus-${attempt.id.toLowerCase()}-fwd`, labels: labels('forwarder'), profile: 'nexus-fwd',
+    image: { ref: `${fwd.image.repository}@${fwd.image.digest}`, id: s.forwarderImageId },
+    entrypoint: [...fwd.entrypoint], argv: [...ARGV_TEMPLATES['fwd.socat-loopback'], `TCP:app:${port}`], imageEnv: [...fwd.imageEnv],
+    env: checkEnv({ HOME: '/home/nexus' }), mounts: [], network,
+    limits: { cpus: FORWARDER_LIMITS.cpus, memoryMb: FORWARDER_LIMITS.memoryMb, pids: PIDS_LIMIT, wallClockMs: lifetime,
+      outputMaxBytes: FORWARDER_LIMITS.outputMaxBytes, tmpfsMb: FORWARDER_LIMITS.tmpfsMb },
+    readOnlyRootfs: true, capDrop: ['ALL'], noNewPrivileges: true,
+    publish: { hostIp: '127.0.0.1', hostPort: 0, containerPort: FORWARDER_PORT }
+  };
+  return {
+    ...base, kind: 'service', deploymentId: s.deploymentId, app, forwarder, networks: { internal, publish },
+    health: { path: healthPath, startTimeoutMs: SERVICE_START_TIMEOUT_MS, intervalMs: SERVICE_HEALTH_INTERVAL_MS },
+    idleTtlMs: lifetime,
+    staging: {
+      ...(source && ctx.repoPath ? { source: { repoPath: ctx.repoPath, commit: source.commit } } : {}),
+      blobs: s.files.map((f) => ({ sha256: f.sha256, relPath: `dist/${f.path}` })),
+      ...(deps ? { depsVolume: { name: deps, readOnly: true } } : {})
+    }
+  };
+}
+
 function buildEnginePlan(ctx: PlanContext, base: Omit<EnginePlan, 'kind' | 'task' | 'wallClockMs'>): EnginePlan {
   const repoPath = ctx.repoPath;
   if (!repoPath) return refuse('project_folder_unavailable', 'the project folder is not available');
@@ -297,7 +415,20 @@ function buildEnginePlan(ctx: PlanContext, base: Omit<EnginePlan, 'kind' | 'task
 /** What `job_attempts.sandbox_json` records of a plan: argv, env NAMES, mounts without host paths, network, limits. */
 export function sandboxRecord(plan: AttemptPlan): Record<string, unknown> {
   if (plan.kind === 'engine') return { executor: 'engine', engine: plan.task.engine, network: 'not-applicable', wallClockMs: plan.wallClockMs };
-  if (plan.kind !== 'tool') return { executor: plan.kind };
+  if (plan.kind === 'service') {
+    const rec = (c: ContainerSpec): Record<string, unknown> => ({
+      name: c.name, profile: c.profile, image: c.image, entrypoint: c.entrypoint, argv: c.argv.slice(0, MAX_RUN_ARGS).map((x) => x.slice(0, 200)),
+      argvCount: c.argv.length, argvSha256: createHash('sha256').update(JSON.stringify(c.argv)).digest('hex'), envNames: Object.keys(c.env).sort(),
+      mounts: c.mounts.map((m) => ({ kind: m.kind, containerPath: m.containerPath, readOnly: m.readOnly })), network: c.network, limits: c.limits,
+      ...(c.service ? { service: c.service } : {}), ...(c.publish ? { publish: { hostIp: c.publish.hostIp, containerPort: c.publish.containerPort } } : {})
+    });
+    return {
+      executor: 'service', deploymentId: plan.deploymentId, image: plan.app.image, network: plan.app.network, app: rec(plan.app),
+      forwarder: rec(plan.forwarder), networks: plan.networks, health: plan.health, idleTtlMs: plan.idleTtlMs, user: '10001:10001',
+      readOnlyRootfs: true, capDrop: ['ALL'], noNewPrivileges: true, stagedFiles: plan.staging.blobs.length
+    };
+  }
+  if (plan.kind !== 'tool') return { executor: 'unknown' };
   const c = plan.container;
   const argv = c.argv.slice(0, 200);
   const argvSha256 = createHash('sha256').update(JSON.stringify(c.argv)).digest('hex');
