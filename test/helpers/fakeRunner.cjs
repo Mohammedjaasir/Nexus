@@ -4,7 +4,8 @@
 // with `report(msg)`. It runs no process, no Docker and no file system work.
 //
 // Options: { state: 'ready' | 'starting' | 'unavailable' | 'crashed' (default 'ready'),
-//            neverAnswers: true  -> it never replies on its own (a hung runner; reports still flow) }
+//            neverAnswers: true  -> it never replies on its own (a hung runner; reports still flow),
+//            failSend: (msg) => boolean -> send throws for the messages it selects (a dead port) }
 // On its own (unless neverAnswers) it answers `hello` with `ready`. Probe results are pushed by the
 // test world (execWorld), not invented here.
 class FakeRunner {
@@ -17,6 +18,7 @@ class FakeRunner {
   state() { return this.currentState; }
   setState(s) { this.currentState = s; }
   send(msg) {
+    if (typeof this.o.failSend === 'function' && this.o.failSend(msg)) throw new Error('the runner is gone');
     this.sent.push(JSON.parse(JSON.stringify(msg)));
     if (this.o.neverAnswers) return;
     if (msg.op === 'hello') this.report({ op: 'ready', bootId: msg.bootId });

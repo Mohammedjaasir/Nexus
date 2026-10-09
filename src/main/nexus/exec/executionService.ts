@@ -36,9 +36,9 @@
  * - Timeout: the wall clock of the current attempt, counted from its lease and excluding time
  *   the job spent in `awaiting_approval`. Retry: an idempotent recipe whose attempt failed for
  *   an infrastructure reason goes `retry_scheduled` (backoff 10 s, 60 s, 300 s), then `queued`.
- * - Heartbeats extend the lease and set `heartbeat_at` only (no activity, no event), written at
- *   most once a second per attempt (later ones in that second are coalesced and written by the
- *   next tick); a 45 s gap writes one `attempt.heartbeat_gap` event.
+ * - Heartbeats extend the lease and set `heartbeat_at` only (no activity, no event). The message
+ *   handler keeps the latest one per attempt in memory; the next tick (every second) writes them
+ *   all in one transaction before it sweeps leases. A 45 s gap writes one `attempt.heartbeat_gap` event.
  * - Every job transition writes one activity row (JobService) and one `job_events` row in the
  *   same transaction. Recovery (Task 10) rebuilds from these rows: live attempts are exactly
  *   the `starting` and `running` ones, each with its lease owner.
@@ -63,11 +63,11 @@ import { PlatformError } from '../errors';
 import { ProjectAccess } from '../project/projectAccess';
 import { canRetry, isJobState, TERMINAL_JOB_STATES } from '../jobs/jobRules';
 import { JOB_KINDS, requireActiveParticipation, storedWorkspace, validateKey, type JobRow, type JobService } from '../jobs/jobService';
-import { attemptRow, HEARTBEAT_GAP_MS, heartbeatTx, insertAttemptTx, liveAttemptOf, transitionAttemptTx, type AttemptRow } from './attempts';
+import { attemptRow, HEARTBEAT_GAP_MS, LEASE_MS, heartbeatTx, insertAttemptTx, liveAttemptOf, transitionAttemptTx, type AttemptRow } from './attempts';
 import { appendJobEventTx, toJobEvent, type JobEvent, type JobEventRow } from './events';
-import { buildPlan, sandboxRecord, type PlanApproval, type PlanInput } from './planBuilder';
-import { ATTEMPT_FAULT_RE, classifyCreateFault, type RunnerPort } from './runnerPort';
-import { backoffMs, DEFAULT_CAPS, leaseGuard, usableImage, type LiveUse, type ProbeCache, type SchedulerCaps } from './scheduler';
+import { buildPlan, lockfileSha256Of, sandboxRecord, type PlanApproval, type PlanInput } from './planBuilder';
+import type { RunnerPort } from './runnerPort';
+import { backoffMs, DEFAULT_CAPS, leaseGuard, SOLO_MEMORY_SHARE, usableImage, type LiveUse, type ProbeCache, type SchedulerCaps } from './scheduler';
 
 export interface StartJobRequest {
   projectId: string; workspaceId: string; actionId: string;
@@ -132,6 +132,8 @@ export interface ExecutionDeps {
   ingest?: IngestPort | null;
   caps?: Partial<SchedulerCaps>;
   hooks?: { afterLeaseTransition?: (jobId: string) => void };
+  /** The Nexus app version, recorded in every attempt's environment. */
+  appVersion?: string | null;
 }
 
 interface ExecJobRow extends JobRow {
@@ -142,10 +144,8 @@ interface Capability { action: string; recipe: string; recipeVersion: string; ex
 const PLATFORM: ScopeRef = { type: 'platform' };
 const LIVE_JOB_STATES: readonly JobState[] = ['queued', 'leased', 'running', 'awaiting_approval', 'retry_scheduled'];
 /** Attempt failures an idempotent recipe is retried for (infrastructure, not the work itself). */
-const RETRYABLE = new Set(['docker_resources', 'disk_full', 'container_vanished', 'docker_error']);
+const RETRYABLE = new Set(['docker_resources', 'disk_full', 'container_vanished', 'docker_error', 'ingest_error', 'runner_lost']);
 const CANCEL_GRACE_MS = 10_000;
-/** At most one heartbeat write per attempt per second; the rest are coalesced and written by the next tick. */
-export const HEARTBEAT_WRITE_MS = 1_000;
 export const MAX_START_INPUTS = 64;
 export const MAX_EXEC_LIST_LIMIT = 500;
 export const DEFAULT_EXEC_LIST_LIMIT = 100;
@@ -242,9 +242,8 @@ export class ExecutionService {
   private faults = 0;
   private readonly lastSeq = new Map<string, number>();
   private readonly gapFlagged = new Set<string>();
-  /** Heartbeats are written at most once per HEARTBEAT_WRITE_MS per attempt; the rest wait here for the next tick. */
+  /** The latest heartbeat of each attempt, written by the next tick (the message path does no I/O for heartbeats). */
   private readonly hbPending = new Map<string, { at: number; logBytes: number; outBytes: number }>();
-  private readonly hbWrittenAt = new Map<string, number>();
   private attemptById: Database.Statement | null = null;
 
   constructor(private readonly db: Database.Database, private readonly deps: ExecutionDeps) {
@@ -331,7 +330,12 @@ export class ExecutionService {
 
   private onProvisioned(m: Extract<RunnerToMain, { op: 'attempt.provisioned' }>): void {
     const a = this.ownAttempt(m.op, m.attemptId); if (!a) return;
-    if (a.state !== 'starting') { this.drop(m.op, `attempt is ${a.state}`); return; }
+    if (a.state !== 'starting') {
+      this.drop(m.op, `attempt is ${a.state}`);
+      // Cancelled (or timed out) while provisioning: the container the runner just made must go.
+      if (m.containerId !== undefined && a.state !== 'running') this.send({ op: 'attempt.release', attemptId: a.id });
+      return;
+    }
     const j = this.row(a.job_id)!;
     const recipe = getRecipe(j.recipe_id ?? '');
     if (!recipe || (j.state !== 'leased' && j.state !== 'running')) { this.drop(m.op, `job is ${j.state}`); return; }
@@ -435,11 +439,8 @@ export class ExecutionService {
     this.gapFlagged.delete(a.id);
     const prev = this.hbPending.get(a.id);
     const hb = { at: now, logBytes: Math.max(m.logBytes, prev?.logBytes ?? 0), outBytes: Math.max(m.outBytes, prev?.outBytes ?? 0) };
-    const written = this.hbWrittenAt.get(a.id);
-    if (written !== undefined && now - written < HEARTBEAT_WRITE_MS) { this.hbPending.set(a.id, hb); return; }
-    this.hbPending.delete(a.id);
-    heartbeatTx(this.db, a.id, this.bootId!, now, hb.logBytes, hb.outBytes);
-    this.hbWrittenAt.set(a.id, now);
+    // No I/O on the message path: the next tick writes it (all pending heartbeats in one transaction).
+    this.hbPending.set(a.id, hb);
   }
 
   /** Writes the coalesced heartbeats (one small transaction). */
@@ -448,7 +449,7 @@ export class ExecutionService {
     const list = [...this.hbPending.entries()];
     this.hbPending.clear();
     immediateTx(this.db, () => {
-      for (const [id, hb] of list) { heartbeatTx(this.db, id, this.bootId!, hb.at, hb.logBytes, hb.outBytes); this.hbWrittenAt.set(id, hb.at); }
+      for (const [id, hb] of list) heartbeatTx(this.db, id, this.bootId!, hb.at, hb.logBytes, hb.outBytes);
     });
   }
 
@@ -474,46 +475,74 @@ export class ExecutionService {
       failure = { outcome: 'invalid_output', error: { code: 'outputs_missing', message: `required outputs missing: ${recipe.outputContract.required.join(', ')}` } };
     }
     const decided = failure;
-    immediateTx(this.db, () => {
-      const cur = attemptRow(this.db, a.id)!;
-      let fail = decided;
-      if (!fail) {
-        const ingest = this.deps.ingest;
-        if (!ingest) fail = { outcome: 'ingest_unavailable', error: { code: 'ingest_unavailable', message: 'outputs cannot be ingested in this build' } };
-        else {
-          const d = ingest.ingestTx({ system: this.system(), job: this.row(j.id)!, attempt: cur, recipe,
-            exited: { exit: m.exit, outputs: m.outputs, parsed: m.parsed, logBytes: m.logBytes } });
-          if (d.ok) {
-            // The attempt succeeds first: the job completes only after its current attempt succeeded (backstop trigger).
-            transitionAttemptTx(this.db, cur, 'succeeded', now, j.project_id, { exit, outcome: d.outcome ?? 'succeeded', logBytes: m.logBytes });
-            this.moveJobTx(j.id, 'completed', now, { outcome: d.outcome ?? 'completed' });
-            return;
+    let ingestThrew: string | null = null;
+    try {
+      immediateTx(this.db, () => {
+        const cur = attemptRow(this.db, a.id)!;
+        let fail = decided;
+        if (!fail) {
+          const ingest = this.deps.ingest;
+          if (!ingest) fail = { outcome: 'ingest_unavailable', error: { code: 'ingest_unavailable', message: 'outputs cannot be ingested in this build' } };
+          else {
+            let d: IngestDecision;
+            try {
+              d = ingest.ingestTx({ system: this.system(), job: this.row(j.id)!, attempt: cur, recipe,
+                exited: { exit: m.exit, outputs: m.outputs, parsed: m.parsed, logBytes: m.logBytes } });
+            } catch (e) {
+              ingestThrew = e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error';
+              throw e;                                   // rolls back everything ingest wrote; recorded below
+            }
+            if (d.ok && !this.hasEvidence(j.id, cur.n)) {
+              // Constraint 4 in the core: an ingest that reports success but bound nothing to this attempt completes nothing.
+              d = { ok: false, outcome: 'no_evidence', error: { code: 'no_evidence', message: 'ingest bound no version or validation to the attempt' } };
+            }
+            if (d.ok) {
+              // The attempt succeeds first: the job completes only after its current attempt succeeded (backstop trigger).
+              transitionAttemptTx(this.db, cur, 'succeeded', now, j.project_id, { exit, outcome: d.outcome ?? 'succeeded', logBytes: m.logBytes });
+              this.moveJobTx(j.id, 'completed', now, { outcome: d.outcome ?? 'completed' });
+              return;
+            }
+            fail = { outcome: d.outcome, error: d.error };
           }
-          fail = { outcome: d.outcome, error: d.error };
         }
-      }
-      transitionAttemptTx(this.db, cur, 'failed', now, j.project_id, { exit, outcome: fail.outcome, error: fail.error, logBytes: m.logBytes });
-      this.failJobTx(j.id, fail.outcome, fail.error, now);
-    });
+        transitionAttemptTx(this.db, cur, 'failed', now, j.project_id, { exit, outcome: fail.outcome, error: fail.error, logBytes: m.logBytes });
+        this.failJobTx(j.id, fail.outcome, fail.error, now);
+      });
+    } catch (e) {
+      if (ingestThrew === null) throw e;
+      // The exit is never lost: a second small transaction records the ingest failure (retryable infrastructure).
+      const error = { code: 'ingest_error', message: `ingest failed: ${ingestThrew}` };
+      immediateTx(this.db, () => {
+        const cur = attemptRow(this.db, a.id)!;
+        if (cur.state !== 'running') return;
+        transitionAttemptTx(this.db, cur, 'failed', now, j.project_id, { exit, outcome: 'ingest_error', error, logBytes: m.logBytes });
+        this.failJobTx(j.id, 'infra_error', error, now);
+      });
+    }
     this.send({ op: 'attempt.release', attemptId: a.id });
   }
 
   private onFault(m: Extract<RunnerToMain, { op: 'fault' }>): void {
-    const hit = ATTEMPT_FAULT_RE.exec(m.message);
-    const a = hit ? attemptRow(this.db, hit[1]) : null;
-    if (!hit || !a || a.lease_owner !== this.bootId || a.state !== 'starting') {
+    const a = m.attemptId !== undefined ? attemptRow(this.db, m.attemptId) : null;
+    if (!a || !m.failureClass || a.lease_owner !== this.bootId || a.state !== 'starting') {
       this.faults++;
       this.log('[nexus] exec: runner fault (not attributed to a starting attempt of this boot)');
       return;
     }
-    const cls = classifyCreateFault(hit[2]);
+    const cls = m.failureClass;
     const j = this.row(a.job_id)!;
     const now = this.deps.now();
-    const error = { code: cls, message: `docker create failed: ${hit[2]}` };
+    const error = { code: cls, message: `the container could not be created: ${m.message}` };
     immediateTx(this.db, () => {
       transitionAttemptTx(this.db, attemptRow(this.db, a.id)!, 'failed', now, j.project_id, { outcome: cls, error });
       this.failJobTx(j.id, 'infra_error', error, now);
     });
+  }
+
+  /** Whether a validation or an ingested version is bound to (job, attempt n). */
+  private hasEvidence(jobId: string, n: number): boolean {
+    return !!this.db.prepare(`SELECT 1 FROM validations WHERE job_id = ? AND attempt_n = ?
+      UNION ALL SELECT 1 FROM version_attempts WHERE job_id = ? AND attempt_n = ? LIMIT 1`).get(jobId, n, jobId, n);
   }
 
   // ---------- job transitions (inside the caller's transaction) ----------
@@ -606,13 +635,13 @@ export class ExecutionService {
   private sweep(now: number): void {
     if (this.bootId === null) return;
     const live = this.db.prepare(`SELECT a.id AS attempt_id, a.n, a.state AS attempt_state, a.created_at, a.started_at, a.heartbeat_at,
-        j.id AS job_id, j.state AS job_state, j.limits_json, j.project_id FROM job_attempts a JOIN jobs j ON j.id = a.job_id
+        a.lease_expires_at, j.id AS job_id, j.state AS job_state, j.phase, j.limits_json, j.project_id FROM job_attempts a JOIN jobs j ON j.id = a.job_id
       WHERE a.state IN ('starting','running') AND a.lease_owner = ?`).all(this.bootId) as
       { attempt_id: string; n: number; attempt_state: string; created_at: number; started_at: number | null; heartbeat_at: number | null;
-        job_id: string; job_state: JobState; limits_json: string; project_id: string }[];
+        lease_expires_at: number; job_id: string; job_state: JobState; phase: string | null; limits_json: string; project_id: string }[];
     // In-memory per-attempt state lives only as long as the attempt does.
     const liveIds = new Set(live.map((r) => r.attempt_id));
-    for (const m of [this.lastSeq, this.hbWrittenAt]) for (const id of [...m.keys()]) if (!liveIds.has(id)) m.delete(id);
+    for (const id of [...this.lastSeq.keys()]) if (!liveIds.has(id)) this.lastSeq.delete(id);
     for (const id of [...this.gapFlagged]) if (!liveIds.has(id)) this.gapFlagged.delete(id);
     for (const r of live) {
       const limits = parseJson(r.limits_json) as { wallClockMs?: number } | null;
@@ -621,6 +650,8 @@ export class ExecutionService {
         const elapsed = now - r.created_at - this.approvalWaitMs(r.job_id, r.n, now);
         if (elapsed > wall) { this.timeOut(r.job_id, r.attempt_id, now); continue; }
       }
+      // A lease that ran out without a heartbeat: the runner is gone for this attempt (an approval wait holds no lease).
+      if (r.lease_expires_at < now && r.job_state !== 'awaiting_approval' && r.phase !== 'approval') { this.runnerLost(r.attempt_id, now); continue; }
       if (r.attempt_state === 'running') {
         const last = r.heartbeat_at ?? r.started_at ?? r.created_at;
         if (now - last >= HEARTBEAT_GAP_MS && !this.gapFlagged.has(r.attempt_id)) {
@@ -630,6 +661,16 @@ export class ExecutionService {
         }
       }
     }
+  }
+
+  private runnerLost(attemptId: string, now: number): void {
+    immediateTx(this.db, () => {
+      const a = attemptRow(this.db, attemptId)!;
+      const j = this.row(a.job_id)!;
+      const error = { code: 'runner_lost', message: 'the lease ran out without a heartbeat from the runner' };
+      transitionAttemptTx(this.db, a, 'failed', now, j.project_id, { outcome: 'runner_lost', error });
+      this.failJobTx(j.id, 'infra_error', error, now);
+    });
   }
 
   private timeOut(jobId: string, attemptId: string, now: number): void {
@@ -646,8 +687,9 @@ export class ExecutionService {
   }
 
   private liveUse(): LiveUse {
+    // A job waiting for approval holds no container yet, so it holds no slot and no memory.
     const rows = this.db.prepare(`SELECT j.recipe_id, j.limits_json FROM job_attempts a JOIN jobs j ON j.id = a.job_id
-      WHERE a.state IN ('starting','running')`).all() as { recipe_id: string | null; limits_json: string }[];
+      WHERE a.state IN ('starting','running') AND j.state <> 'awaiting_approval' AND j.phase IS NOT 'approval'`).all() as { recipe_id: string | null; limits_json: string }[];
     const use: LiveUse = { jobContainers: 0, serviceContainers: 0, reservedMemoryMb: 0 };
     for (const r of rows) {
       const recipe = getRecipe(r.recipe_id ?? '');
@@ -735,7 +777,8 @@ export class ExecutionService {
       recipeId: recipe.id, recipeVersion: recipe.version, executor: recipe.executor, profile: cap.profile,
       imageRef: profile ? `${profile.image.repository}@${profile.image.digest}` : null, imageId: image?.imageId ?? null,
       baseDigest: profile?.image.digest ?? null, contextSha256: image?.contextSha256 ?? null,
-      dockerVersion: this.probe?.probe.version ?? null, runnerBootId: this.bootId
+      dockerVersion: this.probe?.probe.version ?? null, runnerBootId: this.bootId, nexusVersion: this.deps.appVersion ?? null,
+      lockfileSha256: lockfileSha256Of(inputs)
     };
     const leased = immediateTx(this.db, () => {
       const cur = this.row(j.id);
@@ -765,8 +808,25 @@ export class ExecutionService {
       }
       return true;
     });
-    if (leased && plan && !planError) this.send({ op: 'attempt.start', attemptId, plan });
+    if (leased && plan && !planError && !this.send({ op: 'attempt.start', attemptId, plan })) this.unsent(attemptId, now);
     return leased;
+  }
+
+  /** `attempt.start` did not reach the runner: nothing ran, so the attempt is abandoned and the job waits again (as on a refusal). */
+  private unsent(attemptId: string, now: number): void {
+    immediateTx(this.db, () => {
+      const a = attemptRow(this.db, attemptId);
+      if (!a || a.state !== 'starting') return;
+      const j = this.row(a.job_id)!;
+      const error = { code: 'not_sent', message: 'the plan did not reach the runner' };
+      transitionAttemptTx(this.db, a, 'abandoned', now, j.project_id, { outcome: 'not_sent', error });
+      if (j.state === 'leased') {
+        this.moveJobTx(j.id, 'queued', now, undefined, 'leased');
+        this.setPhaseTx(j.id, 'waiting:runner', now);
+      } else {
+        this.failJobTx(j.id, 'infra_error', { code: 'runner_lost', message: 'the plan did not reach the runner' }, now);
+      }
+    });
   }
 
   /**
@@ -785,6 +845,11 @@ export class ExecutionService {
       const recipe = getRecipe(j.recipe_id ?? '');
       const cap = this.capabilityOf(j);
       if (!a || !recipe || !cap || !this.deps.dataHome) throw new PlatformError('illegal_transition', 'the job has no attempt to resume');
+      // A job waiting for approval held no slot or memory: the caps are checked again before it starts.
+      const limits = parseJson(j.limits_json) as Partial<ResourceLimits> | null;
+      const wait = leaseGuard({ recipe, profile: cap.profile, memoryMb: typeof limits?.memoryMb === 'number' ? limits.memoryMb : 0 },
+        this.runnerReady(), this.probe, this.liveUse(), this.caps);
+      if (wait !== null) throw new PlatformError('conflict', `the job cannot start now (${wait})`, { reason: wait });
       const approval = this.db.prepare(`SELECT id, job_id, status, consumed_at, consumed_by_job_id, consumed_by_attempt_n FROM approvals
         WHERE job_id = ? AND status = 'approved' ORDER BY status_changed_at DESC LIMIT 1`).get(j.id) as PlanApproval | undefined;
       const profile = (this.deps.profiles ?? []).find((p) => p.id === cap.profile) ?? null;
@@ -793,10 +858,11 @@ export class ExecutionService {
         profile, imageId: (image?.imageId as `sha256:${string}` | undefined) ?? null, dataHomeRoot: this.deps.dataHome.root,
         workRel: this.deps.dataHome.attemptWorkRel(j.id, a.n), logRel: this.deps.dataHome.attemptLogPath(j.id, a.n),
         inputs: this.planInputs(j.id), repoPath: this.repoPathOf(j.project_id), approval: approval ?? null });
-      this.db.prepare('UPDATE job_attempts SET sandbox_json = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(sandboxRecord(plan)), now, a.id);
+      this.db.prepare('UPDATE job_attempts SET sandbox_json = ?, lease_expires_at = ?, updated_at = ? WHERE id = ?')
+        .run(JSON.stringify(sandboxRecord(plan)), now + LEASE_MS, now, a.id);
       this.moveJobTx(j.id, 'running', now, undefined, 'awaiting_approval');
       this.setPhaseTx(j.id, 'provisioning', now);
-      return () => { this.send({ op: 'attempt.start', attemptId: a.id, plan }); };
+      return () => { if (!this.send({ op: 'attempt.start', attemptId: a.id, plan })) this.unsent(a.id, this.deps.now()); };
     });
   }
 
@@ -806,13 +872,14 @@ export class ExecutionService {
     this.requireAvailable();
     if (!isPlainObject(r)) throw new PlatformError('invalid', 'request must be an object');
     if (!isStr(r.projectId) || !isStr(r.workspaceId)) throw new PlatformError('invalid', 'projectId and workspaceId are required');
+    // Authorization first, so every denial is audited whatever else is wrong with the request.
+    const pw = requireActiveParticipation(this.access, this.db, p, r.projectId, r.workspaceId, 'job.create');
     const key = validateKey(r.intentId);
     const action = typeof r.actionId === 'string' ? getUserAction(r.actionId) : null;
     if (!action || !('recipes' in action.run)) return invalid('unknown_action', 'unknown action');
     if (action.domain !== r.workspaceId) return invalid('action_not_in_domain', 'the action belongs to another domain');
     const params = checkParams(action.params, r.params ?? {});
     const inputs = this.validateInputShape(action, r.inputs);
-    const pw = requireActiveParticipation(this.access, this.db, p, r.projectId, r.workspaceId, 'job.create');
     return this.createExecJob(p, { action, projectId: pw.project_id, workspaceId: pw.workspace_id, key, params, inputs, retryOf: null });
   }
 
@@ -1077,6 +1144,10 @@ export class ExecutionService {
       const s = c.images.find((i) => i.profile === pr);
       if (!s || s.present !== true) return { available: false, reason: 'setup:image_missing' };
       if (s.digestMatches !== true) return { available: false, reason: 'setup:image_mismatch' };
+    }
+    const needMb = Math.max(...recipes.map((x) => x.limits?.memoryMb ?? 0));
+    if (typeof c.probe.memoryBytes !== 'number' || needMb > (c.probe.memoryBytes / 2 ** 20) * SOLO_MEMORY_SHARE) {
+      return { available: false, reason: 'setup:docker_memory_low' };
     }
     const floor = leaseFloorBytes(Math.max(...recipes.map((x) => x.limits?.outputMaxBytes ?? 0)));
     if (c.freeBytes === null || c.freeBytes < floor) return { available: false, reason: 'setup:disk_low' };

@@ -76,9 +76,15 @@ export type RunnerToMain =
   | { op: 'blob.verified'; sha256: string; ok: boolean }
   | { op: 'gc.result'; scanId: string; objects: { sha256: string; bytes: number }[];
       workDirs: { jobId: string; attemptN: number; mtime: number }[]; truncated: boolean }
-  | { op: 'fault'; message: string };
+  | { op: 'fault'; message: string;
+      /** A failure of one attempt before it started (e.g. `docker create`): both fields together, never one alone. */
+      attemptId?: string; failureClass?: AttemptFailureClass };
 
 export type RunnerOp = RunnerToMain['op'];
+
+/** Why an attempt failed before it started, as the runner classified Docker's answer. */
+export type AttemptFailureClass = 'disk_full' | 'docker_resources' | 'docker_error';
+export const ATTEMPT_FAILURE_CLASSES: readonly AttemptFailureClass[] = ['disk_full', 'docker_resources', 'docker_error'];
 
 // ----- bounds -----
 
@@ -340,7 +346,12 @@ const PARSERS: Record<RunnerOp, Check<RunnerToMain>> = {
   'blob.verified': msg({ op: lit('blob.verified'), sha256, ok: bool }),
   'gc.result': msg({ op: lit('gc.result'), scanId: ulid, objects: arr(obj({ sha256, bytes: count })),
     workDirs: arr(obj({ jobId: ulid, attemptN: intIn(1, Number.MAX_SAFE_INTEGER), mtime: count })), truncated: bool }),
-  'fault': msg({ op: lit('fault'), message: text })
+  'fault': (x) => {
+    const m = msg({ op: lit('fault'), message: text }, { attemptId: ulid, failureClass: oneOf(ATTEMPT_FAILURE_CLASSES) })(x);
+    if (m === NO) return NO;
+    const f = m as Extract<RunnerToMain, { op: 'fault' }>;
+    return (f.attemptId === undefined) === (f.failureClass === undefined) ? m : NO;
+  }
 };
 
 export const RUNNER_OPS: readonly RunnerOp[] = Object.keys(PARSERS) as RunnerOp[];

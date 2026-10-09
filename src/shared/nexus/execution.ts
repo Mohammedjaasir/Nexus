@@ -55,6 +55,8 @@ export interface MountSpec {
 
 export interface ContainerLabels {
   'nexus.job': string; 'nexus.attempt': string; 'nexus.boot': string; 'nexus.project': string;
+  /** What the container is for (`tool`, `service`, `forwarder`); main sets it on every container it plans. */
+  'nexus.kind'?: string;
 }
 
 export interface ContainerSpec {

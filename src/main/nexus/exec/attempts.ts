@@ -132,8 +132,11 @@ export function adoptAttemptTx(db: Database.Database, a: AttemptRow, bootId: str
  * A heartbeat: extend the lease and record `heartbeat_at` and the byte counters. One small
  * UPDATE, guarded by the live state and the lease owner; returns false when nothing matched.
  */
+const heartbeatStmts = new WeakMap<Database.Database, Database.Statement>();
 export function heartbeatTx(db: Database.Database, attemptId: string, bootId: string, now: number, logBytes: number, outBytes: number): boolean {
-  return db.prepare(`UPDATE job_attempts SET heartbeat_at = ?, lease_expires_at = ?, log_bytes = MAX(log_bytes, ?),
-      out_bytes = MAX(out_bytes, ?), updated_at = ? WHERE id = ? AND lease_owner = ? AND state IN ('starting','running')`)
-    .run(now, now + LEASE_MS, logBytes, outBytes, now, attemptId, bootId).changes === 1;
+  // The hot path: compiled once per connection (preparing it costs more than running it).
+  let st = heartbeatStmts.get(db);
+  if (!st) { st = db.prepare(`UPDATE job_attempts SET heartbeat_at = ?, lease_expires_at = ?, log_bytes = MAX(log_bytes, ?),
+      out_bytes = MAX(out_bytes, ?), updated_at = ? WHERE id = ? AND lease_owner = ? AND state IN ('starting','running')`); heartbeatStmts.set(db, st); }
+  return st.run(now, now + LEASE_MS, logBytes, outBytes, now, attemptId, bootId).changes === 1;
 }

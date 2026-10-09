@@ -76,6 +76,8 @@ export interface NexusPlatformOptions {
   acceptFsRoot?: ((root: string) => string | null) | null;
   approvals?: EgressApprovalPort | null;
   ingest?: IngestPort | null;
+  /** The Nexus app version recorded in each attempt's environment. */
+  appVersion?: string | null;
 }
 
 export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformOptions): NexusPlatform {
@@ -109,7 +111,7 @@ export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformO
   const exec = new ExecutionService(db, {
     auth, jobs, now, log, available: executionAvailable, unavailableReason, blobs,
     dataHome: opts?.dataHome ?? null, profiles: opts?.profiles ?? [], acceptFsRoot: opts?.acceptFsRoot ?? null,
-    approvals: opts?.approvals ?? null, ingest: opts?.ingest ?? null
+    approvals: opts?.approvals ?? null, ingest: opts?.ingest ?? null, appVersion: opts?.appVersion ?? null
   });
   if (executionAvailable) log('[nexus] execution core ready: runner not attached');
   return {

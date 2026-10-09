@@ -50,7 +50,7 @@ function execWorld(o = {}) {
     }
   };
   const nx = createNexusPlatform(db, { now: () => clock.t, log: (l) => logs.push(l), execution: o.execution ?? true,
-    dataHome, profiles: PROFILES, acceptFsRoot, approvals, ingest: o.ingest ?? null, executionUnavailableReason: o.unavailableReason });
+    dataHome, profiles: PROFILES, acceptFsRoot, approvals, ingest: o.ingest ?? null, executionUnavailableReason: o.unavailableReason, appVersion: o.appVersion ?? null });
   const me = nx.principals.localUser(); const sys = nx.principals.system();
   const bootId = newId(clock.t);
   const probe = {
@@ -108,6 +108,12 @@ function execWorld(o = {}) {
       r.report({ op: 'attempt.provisioned', attemptId: a.id, containerId: (extra.c ?? 'c').repeat(64), imageDigest: extra.imageDigest ?? IMAGE['sde-node'],
         preflight: passingPreflight() });
       return a;
+    },
+    /** A heartbeat for every live attempt (as a live runner sends them). */
+    heartbeatAll(r) {
+      for (const a of db.prepare("SELECT id FROM job_attempts WHERE state IN ('starting','running')").all()) {
+        r.report({ op: 'attempt.heartbeat', attemptId: a.id, at: clock.t, logBytes: 0, outBytes: 0, container: 'running' });
+      }
     },
     /** Report an exit for the job's live attempt (outputs by relPath). */
     exit(r, jobId, x = {}) {

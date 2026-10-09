@@ -25,6 +25,7 @@
  * `env_not_allowed`, `secret_in_env`, `image_missing`, `mount_outside_data_home`,
  * `project_folder_unavailable`, `bad_input`, `not_in_this_build`).
  */
+import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import type {
   AttemptPlan, ContainerSpec, EnginePlan, MountSpec, NetworkMode, ResourceLimits, SandboxProfile, ToolPlan
@@ -102,7 +103,7 @@ export interface PlanContext {
 const refuse = (reason: string, message: string): never => { throw new PlatformError('invalid', message, { reason }); };
 const COMMIT_RE = /^[0-9a-f]{40}$/;
 const LOCK_RE = /^[0-9a-f]{64}$/;
-const DISCOVERED_RE = /^(?![./])[A-Za-z0-9_@+=,.\- /]{1,512}$/;
+const DISCOVERED_RE = /^(?![./-])[A-Za-z0-9_@+=,.\- /]{1,512}$/;
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -207,12 +208,19 @@ function sourceOf(inputs: readonly PlanInput[]): { commit: string } | null {
   return null;
 }
 
-function depsVolume(profileId: string, inputs: readonly PlanInput[]): string | null {
+/** The lockfile hash an input version recorded (`metadata.lockfile.sha256`), or null. */
+export function lockfileSha256Of(inputs: readonly PlanInput[]): string | null {
   for (const i of inputs) {
-    const lock = isPlainObject(i.metadata) ? i.metadata.lockfileSha256 : undefined;
-    if (typeof lock === 'string' && LOCK_RE.test(lock)) return `nexus-deps-${profileId}-${lock.slice(0, 12)}`;
+    const lf = isPlainObject(i.metadata) ? i.metadata.lockfile : undefined;
+    const sha = isPlainObject(lf) ? lf.sha256 : undefined;
+    if (typeof sha === 'string' && LOCK_RE.test(sha)) return sha;
   }
   return null;
+}
+
+function depsVolume(profileId: string, inputs: readonly PlanInput[]): string | null {
+  const lock = lockfileSha256Of(inputs);
+  return lock ? `nexus-deps-${profileId}-${lock.slice(0, 12)}` : null;
 }
 
 export function limitsFor(recipe: RecipeDef): ResourceLimits {
@@ -246,7 +254,7 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
   if (deps) mounts.push({ kind: 'deps', hostPath: deps, containerPath: profile.id === 'sde-python' ? '/deps' : '/workspace/node_modules', readOnly: !egress });
   const container: ContainerSpec = {
     name: `nexus-${attempt.id.toLowerCase()}`,
-    labels: { 'nexus.job': job.id, 'nexus.attempt': attempt.id, 'nexus.boot': ctx.bootId, 'nexus.project': job.projectId },
+    labels: { 'nexus.job': job.id, 'nexus.attempt': attempt.id, 'nexus.boot': ctx.bootId, 'nexus.project': job.projectId, 'nexus.kind': 'tool' },
     profile: profile.id,
     image: { ref: `${profile.image.repository}@${profile.image.digest}`, id: ctx.imageId },
     entrypoint: [...profile.entrypoint],
@@ -291,9 +299,10 @@ export function sandboxRecord(plan: AttemptPlan): Record<string, unknown> {
   if (plan.kind === 'engine') return { executor: 'engine', engine: plan.task.engine, network: 'not-applicable', wallClockMs: plan.wallClockMs };
   if (plan.kind !== 'tool') return { executor: plan.kind };
   const c = plan.container;
-  const argv = c.argv.length > 200 ? [...c.argv.slice(0, 200), `[+${c.argv.length - 200} more]`] : c.argv;
+  const argv = c.argv.slice(0, 200);
+  const argvSha256 = createHash('sha256').update(JSON.stringify(c.argv)).digest('hex');
   return {
-    executor: 'tool', name: c.name, profile: c.profile, image: c.image, entrypoint: c.entrypoint, argv,
+    executor: 'tool', name: c.name, profile: c.profile, image: c.image, entrypoint: c.entrypoint, argv, argvCount: c.argv.length, argvSha256,
     envNames: Object.keys(c.env).sort(), mounts: c.mounts.map((m) => ({ kind: m.kind, containerPath: m.containerPath, readOnly: m.readOnly })),
     network: c.network, limits: c.limits, user: '10001:10001', readOnlyRootfs: c.readOnlyRootfs, capDrop: c.capDrop,
     noNewPrivileges: c.noNewPrivileges, tmpfs: { '/tmp': `${c.limits.tmpfsMb}m`, '/home/nexus': '256m' },

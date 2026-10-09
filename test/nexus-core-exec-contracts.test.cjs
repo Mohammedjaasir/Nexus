@@ -220,6 +220,15 @@ test('RP1 runner messages: unknown op, extra keys, oversized strings, bad ids an
   assert.equal(parseRunnerMessage(Object.create({ op: 'fault', message: 'inherited' })), null);
   assert.ok(parseRunnerMessage({ op: 'fault', message: 'ok' }));
 });
+test('RP1b a fault names its attempt only with a failure class (both or neither)', () => {
+  assert.deepEqual(parseRunnerMessage({ op: 'fault', message: 'no space left on device', attemptId: ULID, failureClass: 'disk_full' }),
+    { op: 'fault', message: 'no space left on device', attemptId: ULID, failureClass: 'disk_full' });
+  for (const c of ['disk_full', 'docker_resources', 'docker_error']) assert.ok(parseRunnerMessage({ op: 'fault', message: 'x', attemptId: ULID, failureClass: c }), c);
+  assert.equal(parseRunnerMessage({ op: 'fault', message: 'x', attemptId: ULID }), null);
+  assert.equal(parseRunnerMessage({ op: 'fault', message: 'x', failureClass: 'disk_full' }), null);
+  assert.equal(parseRunnerMessage({ op: 'fault', message: 'x', attemptId: 'not-a-ulid', failureClass: 'disk_full' }), null);
+  assert.equal(parseRunnerMessage({ op: 'fault', message: 'x', attemptId: ULID, failureClass: 'oom' }), null);
+});
 test('RP2 every RunnerToMain op has a sample that parses, and its exact key set is enforced', () => {
   assert.deepEqual([...proto.RUNNER_OPS].sort(), Object.keys(SAMPLES).sort());
   for (const [op, sample] of Object.entries(SAMPLES)) {

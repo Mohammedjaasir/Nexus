@@ -76,6 +76,8 @@ test('C3 unknown, foreign-domain and non-job actions, bad inputs and bad params 
   const w = execWorld();
   assert.throws(() => w.exec.start(w.me, w.req('sde.change.propose')), code('invalid', 'unknown_action'));
   assert.throws(() => w.exec.start(w.me, w.req('sde.requirement.write')), code('invalid', 'unknown_action'));
+  assert.throws(() => w.exec.start(w.me, { ...w.req('sde.build.run'), workspaceId: 'qa' }), code('not_participating'), 'authorization first');
+  w.nx.workspaces.attach(w.me, 'p-ledger', 'qa');
   assert.throws(() => w.exec.start(w.me, { ...w.req('sde.build.run'), workspaceId: 'qa' }), code('invalid', 'action_not_in_domain'));
   // A draft input, and a version of another project.
   const a = w.nx.artifacts.create(w.me, { projectId: 'p-ledger', workspaceId: 'sde', kind: 'test_suite', name: 'draft' });
@@ -146,7 +148,7 @@ test('C5 cancel in every live state: attempts end first, approvals are withdrawn
   assert.equal(w.jobState(d.id), 'cancelled');
   // retry_scheduled
   const t = w.exec.start(w.me, w.req('sde.tests.discover')).job; w.exec.tick(w.now());
-  runner.report({ op: 'fault', message: `attempt ${w.liveAttempt(t.id).id} create failed: Error response from daemon: no space left on device` });
+  runner.report({ op: 'fault', message: 'Error response from daemon: no space left on device', attemptId: w.liveAttempt(t.id).id, failureClass: 'disk_full' });
   assert.equal(w.jobState(t.id), 'retry_scheduled');
   assert.equal(w.exec.cancel(w.me, t.id).state, 'cancelled');
   // a parent cancel cascades to its children first
@@ -166,9 +168,11 @@ test('C5 cancel in every live state: attempts end first, approvals are withdrawn
 test('C6 timeout: the wall clock ends a running attempt; time in awaiting_approval is excluded', () => {
   const w = execWorld({ approvals: true }); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
   const { job } = w.exec.start(w.me, w.req('sde.build.run')); w.exec.tick(w.now()); const a = w.provision(runner, job.id);
-  w.advance(14 * MIN); w.exec.tick(w.now());
+  // A live runner heartbeats; the clock moves in steps shorter than the 60 s lease.
+  const run = (ms) => { for (let t = 0; t < ms; t += 30_000) { w.advance(30_000); w.heartbeatAll(runner); w.exec.tick(w.now()); } };
+  run(14 * MIN);
   assert.equal(w.jobState(job.id), 'running');
-  w.advance(2 * MIN); w.exec.tick(w.now());
+  run(2 * MIN);
   assert.equal(w.jobState(job.id), 'timed_out'); assert.equal(w.attempt(a.id).state, 'timed_out');
   assert.ok(runner.sent.some((m) => m.op === 'attempt.cancel' && m.attemptId === a.id && m.reason === 'timeout'));
   // An egress job waits 20 min for approval (more than its 15 min wall clock) and does not time out.
@@ -184,9 +188,9 @@ test('C6 timeout: the wall clock ends a running attempt; time in awaiting_approv
   const plan = runner.lastStart().plan;
   assert.equal(plan.jobId, d.id); assert.equal(plan.container.network.mode, 'egress-approved');
   w.provision(runner, d.id);
-  w.advance(10 * MIN); w.exec.tick(w.now());
+  run(10 * MIN);
   assert.equal(w.jobState(d.id), 'running', '30 min since lease, 20 of them waiting: 10 min counted');
-  w.advance(6 * MIN); w.exec.tick(w.now());
+  run(6 * MIN);
   assert.equal(w.jobState(d.id), 'timed_out');
   w.close();
 });
@@ -195,7 +199,7 @@ test('C7 retry: an idempotent infra failure is retried with backoff and n = 2; a
   const w = execWorld(); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
   const { job } = w.exec.start(w.me, w.req('sde.tests.discover')); w.exec.tick(w.now());
   const a1 = w.liveAttempt(job.id);
-  runner.report({ op: 'fault', message: `attempt ${a1.id} create failed: Error response from daemon: cannot allocate memory` });
+  runner.report({ op: 'fault', message: 'Error response from daemon: cannot allocate memory', attemptId: a1.id, failureClass: 'docker_resources' });
   assert.equal(w.jobState(job.id), 'retry_scheduled');
   assert.equal(w.job(job.id).next_attempt_at, w.now() + 10_000);
   w.advance(5_000); w.exec.tick(w.now()); assert.equal(w.jobState(job.id), 'retry_scheduled');
@@ -205,7 +209,7 @@ test('C7 retry: an idempotent infra failure is retried with backoff and n = 2; a
   // Non-idempotent: a build failing the same way stays failed.
   const b = w.exec.start(w.me, w.req('sde.build.run')).job; w.exec.tick(w.now());
   // the discover attempt holds a slot; the build still fits (3 slots)
-  runner.report({ op: 'fault', message: `attempt ${w.liveAttempt(b.id).id} create failed: Minimum memory limit allowed is 6MB` });
+  runner.report({ op: 'fault', message: 'Minimum memory limit allowed is 6MB', attemptId: w.liveAttempt(b.id).id, failureClass: 'docker_resources' });
   assert.equal(w.jobState(b.id), 'failed'); assert.equal(w.job(b.id).outcome, 'infra_error');
   // nexus:job:retry -> a new job with retry_of
   const again = w.exec.retry(w.me, b.id, 'retry-intent-1').job;
@@ -320,6 +324,8 @@ test('C14 a heartbeat extends the lease and sets heartbeat_at only; a 45 s gap w
   const act0 = h.count(w.db, 'activity'); const ev0 = h.count(w.db, 'job_events');
   w.advance(10_000);
   runner.report({ op: 'attempt.heartbeat', attemptId: a.id, at: w.now(), logBytes: 50, outBytes: 7, container: 'running' });
+  assert.equal(w.attempt(a.id).heartbeat_at, null, 'the message path does no heartbeat I/O');
+  w.exec.tick(w.now());
   const r = w.attempt(a.id);
   assert.equal(r.heartbeat_at, w.now()); assert.equal(r.lease_expires_at, w.now() + 60_000); assert.equal(r.log_bytes, 50); assert.equal(r.out_bytes, 7);
   assert.equal(h.count(w.db, 'activity'), act0); assert.equal(h.count(w.db, 'job_events'), ev0);
@@ -354,11 +360,11 @@ test('C17 a docker create resources fault fails the job infra_error with its rea
   const w = execWorld(); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
   const b = w.exec.start(w.me, w.req('sde.build.run')).job; w.exec.tick(w.now());
   const ba = w.liveAttempt(b.id);
-  runner.report({ op: 'fault', message: `attempt ${ba.id} create failed: write /var/lib/docker: no space left on device` });
+  runner.report({ op: 'fault', message: 'write /var/lib/docker: no space left on device', attemptId: ba.id, failureClass: 'disk_full' });
   assert.equal(w.jobState(b.id), 'failed'); assert.equal(w.job(b.id).outcome, 'infra_error');
   assert.equal(JSON.parse(w.job(b.id).error_json).code, 'disk_full'); assert.equal(w.attempt(ba.id).outcome, 'disk_full');
   const d = w.exec.start(w.me, w.req('sde.tests.discover')).job; w.exec.tick(w.now());
-  runner.report({ op: 'fault', message: `attempt ${w.liveAttempt(d.id).id} create failed: Minimum memory limit allowed is 6MB` });
+  runner.report({ op: 'fault', message: 'Minimum memory limit allowed is 6MB', attemptId: w.liveAttempt(d.id).id, failureClass: 'docker_resources' });
   assert.equal(w.jobState(d.id), 'retry_scheduled');
   assert.equal(JSON.parse(w.events(d.id, 'job.transition').find((e) => JSON.parse(e.data_json).to === 'failed').data_json).error, 'docker_resources');
   // A fault not naming a starting attempt of this boot is counted, never attributed.
@@ -395,16 +401,46 @@ test('C19 every job transition writes one activity row and one job_events row; t
   w.close();
 });
 
-test('C20 a hung runner never blocks main: 1000 heartbeats and every read answer within budget', async () => {
+test('C20 a hung runner never blocks main: 1000 reports, each its own task, keep the loop and every read within budget', async () => {
   const w = execWorld(); const runner = new FakeRunner({ neverAnswers: true }); w.exec.attachRunner(runner, w.bootId);
   const { job } = w.exec.start(w.me, w.req('sde.build.run')); w.exec.tick(w.now()); w.provision(runner, job.id);
+  const id = w.liveAttempt(job.id).id;
   const lags = []; let last = performance.now();
   const timer = setInterval(() => { const t = performance.now(); lags.push(t - last - 5); last = t; }, 5);
-  for (let i = 0; i < 1000; i++) runner.report({ op: 'attempt.heartbeat', attemptId: w.liveAttempt(job.id).id, at: w.now(), logBytes: i, outBytes: 0, container: 'running' });
+  for (let i = 0; i < 1000; i++) {
+    // A MessagePort delivers each message as its own task; a burst within one second is coalesced to one write.
+    await new Promise((r) => setImmediate(r));
+    runner.report({ op: 'attempt.heartbeat', attemptId: id, at: w.now(), logBytes: i, outBytes: 0, container: 'running' });
+  }
   const t0 = performance.now(); w.exec.list(w.me, { projectId: w.projectId }); w.exec.get(w.me, job.id);
-  assert.ok(performance.now() - t0 < 50);
+  assert.ok(performance.now() - t0 < 50, 'reads answer within 50 ms');
   await new Promise((r) => setTimeout(r, 50)); clearInterval(timer);
   assert.ok(Math.max(...lags) < 100, `event loop lag ${Math.max(...lags)} ms`);
+  w.exec.tick(w.now());
+  assert.equal(w.attempt(id).log_bytes, 999, 'the coalesced heartbeats were written by the tick');
+  w.close();
+});
+
+test('C20b while the clock advances every heartbeat is a real write (by the tick), and the handler p99 stays within a few ms', async () => {
+  const w = execWorld(); const runner = new FakeRunner({ neverAnswers: true }); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.build.run')); w.exec.tick(w.now()); w.provision(runner, job.id);
+  const id = w.liveAttempt(job.id).id;
+  const handler = []; const ticks = [];
+  for (let i = 0; i < 1000; i++) {
+    await new Promise((r) => setImmediate(r));
+    w.advance(500);                        // 500 s in all: inside the 15 min wall clock
+    const t = performance.now();
+    runner.report({ op: 'attempt.heartbeat', attemptId: id, at: w.now(), logBytes: i, outBytes: 0, container: 'running' });
+    handler.push(performance.now() - t);
+    await new Promise((r) => setImmediate(r));
+    const t1 = performance.now(); w.exec.tick(w.now()); ticks.push(performance.now() - t1);   // the tick writes it: a real write per heartbeat
+    if (i % 100 === 0) assert.equal(w.attempt(id).heartbeat_at, w.now());
+  }
+  assert.equal(w.attempt(id).heartbeat_at, w.now()); assert.equal(w.attempt(id).log_bytes, 999);
+  const pct = (xs, q) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length * q)];
+  assert.ok(pct(handler, 0.99) < 5, `heartbeat handler p99 ${pct(handler, 0.99).toFixed(2)} ms`);
+  assert.ok(pct(ticks, 0.5) < 5, `tick (with its heartbeat write) median ${pct(ticks, 0.5).toFixed(2)} ms`);
+  console.log(`# C20b handler p50 ${pct(handler, 0.5).toFixed(3)} p99 ${pct(handler, 0.99).toFixed(3)} ms; tick p50 ${pct(ticks, 0.5).toFixed(3)} p99 ${pct(ticks, 0.99).toFixed(3)} ms`);
   w.close();
 });
 
@@ -550,5 +586,126 @@ test('reads: list, get and eventsSince authorize, page and carry the headline', 
   assert.throws(() => w.exec.get(stranger, a.id), code('denied'));
   assert.throws(() => w.exec.eventsSince(stranger, { sinceSeq: 0, projectId: 'p-ledger' }), code('denied'));
   assert.throws(() => w.exec.list(w.me, { limit: 501 }), code('invalid'));
+  w.close();
+});
+
+// ---------- fix round 1 ----------
+
+test('F1 an ingest that throws never loses the exit: attempt and job fail ingest_error (retryable), the container is released', () => {
+  const ingest = { ingestTx() { throw new Error('disk went away'); } };
+  const w = execWorld({ ingest }); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.tests.discover')); w.exec.tick(w.now()); const a = w.provision(runner, job.id);
+  w.exit(runner, job.id, { code: 0, outputs: ['ids.txt'] });
+  assert.equal(w.attempt(a.id).state, 'failed'); assert.equal(w.attempt(a.id).outcome, 'ingest_error');
+  assert.equal(w.jobState(job.id), 'retry_scheduled', 'idempotent: retried');
+  assert.equal(JSON.parse(w.events(job.id, 'job.transition').find((e) => JSON.parse(e.data_json).to === 'failed').data_json).error, 'ingest_error');
+  assert.ok(runner.sentOf('attempt.release').some((m) => m.attemptId === a.id));
+  w.close();
+});
+
+test('F2 a plan that does not reach the runner: the attempt is abandoned and the job waits again; the next lease is n = 2', () => {
+  const w = execWorld(); const runner = new FakeRunner({ failSend: (m) => m.op === 'attempt.start' }); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.build.run')); w.exec.tick(w.now());
+  const [a1] = w.attempts(job.id);
+  assert.equal(a1.state, 'abandoned'); assert.equal(a1.outcome, 'not_sent');
+  assert.equal(w.jobState(job.id), 'queued'); assert.equal(w.job(job.id).phase, 'waiting:runner');
+  runner.o.failSend = null; w.exec.tick(w.now());
+  assert.equal(w.liveAttempt(job.id).n, 2);
+  w.close();
+});
+
+test('F3 a lease that runs out without a heartbeat fails the attempt runner_lost (retryable); an approval wait holds no lease', () => {
+  const w = execWorld({ approvals: true }); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const s = w.exec.start(w.me, w.req('sde.tests.discover')).job; const r = w.exec.start(w.me, w.req('sde.build.run')).job;
+  const d = w.exec.start(w.me, w.req('sde.deps.install')).job;
+  w.exec.tick(w.now()); w.provision(runner, r.id);
+  w.advance(61_000); w.exec.tick(w.now());
+  assert.equal(w.attempts(s.id)[0].outcome, 'runner_lost'); assert.equal(w.jobState(s.id), 'retry_scheduled', 'starting attempt, idempotent');
+  assert.equal(w.attempts(r.id)[0].outcome, 'runner_lost'); assert.equal(w.jobState(r.id), 'failed', 'running attempt, not idempotent');
+  assert.equal(JSON.parse(w.job(r.id).error_json).code, 'runner_lost');
+  assert.equal(w.jobState(d.id), 'awaiting_approval'); assert.equal(w.liveAttempt(d.id).state, 'starting');
+  w.close();
+});
+
+test('F4 the single container above the memory share is allowed only up to 85 % of Docker memory', () => {
+  const w = execWorld({ dockerMemoryBytes: 2 * GIB }); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.build.run'));
+  w.exec.tick(w.now());
+  assert.equal(w.jobState(job.id), 'queued'); assert.equal(w.job(job.id).phase, 'waiting:memory', '2048 MiB > 85 % of 2 GiB');
+  assert.deepEqual(w.exec.setupAvailability({ actionId: 'sde.build.run' }), { available: false, reason: 'setup:docker_memory_low' });
+  w.setProbe({ memoryBytes: 3 * GIB }); w.exec.tick(w.now());
+  assert.equal(w.jobState(job.id), 'leased', '2048 MiB <= 85 % of 3 GiB');
+  w.close();
+});
+
+test('F5 a job waiting for approval holds no slot; the caps are checked again when it resumes', () => {
+  const w = execWorld({ approvals: true, dockerMemoryBytes: 64 * GIB }); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const d = w.exec.start(w.me, w.req('sde.deps.install')).job; w.exec.tick(w.now());
+  assert.equal(w.jobState(d.id), 'awaiting_approval');
+  const builds = [0, 1, 2].map(() => w.exec.start(w.me, w.req('sde.build.run')).job); w.exec.tick(w.now());
+  assert.ok(builds.every((b) => w.jobState(b.id) === 'leased'), 'three slots free while the deps job waits');
+  const da = w.liveAttempt(d.id);
+  w.db.prepare(`UPDATE approvals SET status = 'approved', decided_by = 'user:local', decided_at = ?, decision = 'once', consumed_at = ?,
+    consumed_by_job_id = ?, consumed_by_attempt_n = ?, status_changed_at = ? WHERE job_id = ?`).run(w.now(), w.now(), d.id, da.n, w.now(), d.id);
+  assert.throws(() => w.exec.resumeApproved(d.id), code('conflict', 'waiting:slots'));
+  assert.equal(w.jobState(d.id), 'awaiting_approval');
+  w.exec.cancel(w.me, builds[0].id);
+  w.exec.resumeApproved(d.id)();
+  assert.equal(w.jobState(d.id), 'running'); assert.equal(runner.lastStart().plan.jobId, d.id);
+  w.close();
+});
+
+test('F6 a passing provisioned report for an attempt cancelled while provisioning releases the container', () => {
+  const w = execWorld(); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.build.run')); w.exec.tick(w.now());
+  const a = w.liveAttempt(job.id);
+  w.exec.cancel(w.me, job.id);
+  runner.report({ op: 'attempt.provisioned', attemptId: a.id, containerId: 'c'.repeat(64), imageDigest: w.IMAGE['sde-node'], preflight: passingPreflight() });
+  assert.equal(w.attempt(a.id).state, 'cancelled'); assert.equal(w.attempt(a.id).container_id, null);
+  assert.ok(runner.sentOf('attempt.release').some((m) => m.attemptId === a.id));
+  w.close();
+});
+
+test('F7 an ingest that says ok but binds no evidence to the attempt completes nothing (no_evidence)', () => {
+  const w = execWorld({ ingest: { ingestTx: () => ({ ok: true }) } }); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.tests.run')); w.exec.tick(w.now()); w.provision(runner, job.id);
+  w.exit(runner, job.id, { code: 0, outputs: ['junit.xml'] });
+  assert.equal(w.jobState(job.id), 'failed'); assert.equal(w.job(job.id).outcome, 'no_evidence');
+  assert.equal(w.attempts(job.id)[0].state, 'failed');
+  w.close();
+});
+
+test('F8 a discovered test file name may not start with "-" (never an option to node --test)', () => {
+  const recipe = getRecipe('sde.test.node');
+  const base = { job: { id: newId(), projectId: 'p' }, attempt: { id: newId(), n: 1 }, bootId: newId(), recipe,
+    profile: require('./helpers/execWorld.cjs').PROFILES[0], imageId: 'sha256:' + '1'.repeat(64), dataHomeRoot: h.tmpDir('nx-plan-'),
+    workRel: 'work/j/1', logRel: 'logs/jobs/j/1.log' };
+  const input = (files) => [{ versionId: 'v', slot: 'suite', contentHash: 'h', storage: { kind: 'inline' }, metadata: { framework: 'node-test', files } }];
+  for (const bad of ['--require=x.js', '-e', '../a.test.js', './a.test.js', '/abs.test.js', 'a/../b.js'])
+    assert.throws(() => buildPlan({ ...base, inputs: input([bad]) }), code('invalid', 'bad_input'), bad);
+  assert.deepEqual(buildPlan({ ...base, inputs: input(['test/a-b.test.js']) }).container.argv.slice(-1), ['test/a-b.test.js']);
+});
+
+test('F9 observability: environment records the Nexus version and lockfile hash; sandbox keeps argv, its count and hash; nexus.kind label', () => {
+  const lock = 'ab'.repeat(32);
+  const w = execWorld({ repoMeta: { lockfile: { path: 'package-lock.json', sha256: lock } }, appVersion: '0.4.4' }); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.build.run')); w.exec.tick(w.now());
+  const a = w.liveAttempt(job.id);
+  const env = JSON.parse(a.environment_json); const sb = JSON.parse(a.sandbox_json);
+  assert.equal(env.nexusVersion, '0.4.4'); assert.equal(env.lockfileSha256, lock);
+  const plan = runner.lastStart().plan;
+  assert.equal(plan.container.labels['nexus.kind'], 'tool');
+  assert.equal(sb.argvCount, plan.container.argv.length); assert.deepEqual(sb.argv, plan.container.argv);
+  assert.equal(sb.argvSha256, require('node:crypto').createHash('sha256').update(JSON.stringify(plan.container.argv)).digest('hex'));
+  w.close();
+});
+
+test('F10 start authorizes first: a viewer with bad params and bad inputs is denied, with one audit row', async () => {
+  const w = execWorld();
+  const viewer = w.addUser('user:viewer2', 'project', 'p-ledger', 'viewer');
+  assert.throws(() => w.exec.start(viewer, w.req('sde.diagnose', { params: { target: 'job', targetId: '../x', extra: 1 }, inputs: [{ versionId: 'nope', slot: 'x' }] })), code('denied'));
+  assert.throws(() => w.exec.start(viewer, { ...w.req('sde.build.run'), actionId: 'no.such.action' }), code('denied'));
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(w.db.prepare("SELECT COUNT(*) AS n FROM activity WHERE status = 'denied' AND actor_id = 'user:viewer2'").get().n, 2);
   w.close();
 });

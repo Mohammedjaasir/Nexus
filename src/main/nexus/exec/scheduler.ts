@@ -36,6 +36,9 @@ export const DEFAULT_CAPS: SchedulerCaps = Object.freeze({
   memoryShare: 0.6, jobContainers: 3, serviceContainers: 2, perProjectQueue: 20, probeRefreshMs: 60_000
 });
 
+/** The one container let through above the share when nothing is live may still use at most this much of Docker's memory. */
+export const SOLO_MEMORY_SHARE = 0.85;
+
 export type WaitReason = 'waiting:runner' | 'waiting:docker' | 'waiting:image' | 'waiting:disk' | 'waiting:slots' | 'waiting:memory';
 
 /** The cached facts a lease decision reads; never waits on the runner. */
@@ -75,7 +78,8 @@ export function leaseGuard(c: LeaseCandidate, runnerReady: boolean, cache: Probe
   // Docker itself refuses one that cannot fit at all (a create fault, failed infra_error).
   const nothingLive = live.jobContainers + live.serviceContainers === 0;
   if (!nothingLive && live.reservedMemoryMb + c.memoryMb > budgetMb) return 'waiting:memory';
-  if (nothingLive && dockerMb <= 0) return 'waiting:memory';
+  // ... but only up to 85 % of Docker's memory: above that it waits, and setup says Docker needs more memory.
+  if (nothingLive && (dockerMb <= 0 || c.memoryMb > dockerMb * SOLO_MEMORY_SHARE)) return 'waiting:memory';
   return null;
 }
 
