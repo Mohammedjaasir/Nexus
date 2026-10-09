@@ -37,6 +37,7 @@ import type {
 } from '../../../shared/nexus/execution';
 import type { RecipeDef } from '../../../shared/nexus/recipes';
 import { looksSecret } from '../../../shared/nexus/secretShape';
+import { homeLabel } from '../../../shared/nexus/homeLabel';
 import { containsSecret } from '../activity/redact';
 import { PlatformError } from '../errors';
 
@@ -144,12 +145,10 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 }
 
 /**
- * This install's `nexus.home` label: the first 16 hex characters of the sha256 of the resolved data-home root. Every
- * container, volume and network of an attempt carries it; restart recovery removes only resources with this value.
+ * This install's `nexus.home` label (src/shared/nexus/homeLabel.ts, shared with the runner): every container, volume and
+ * network of an attempt carries it; restart recovery removes only resources with this value. Re-exported here.
  */
-export function homeLabel(root: string): string {
-  return createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 16);
-}
+export { homeLabel };
 
 /** The labels of an attempt's volumes and networks (and the base of its containers' labels). */
 function attemptLabels(ctx: PlanContext): ResourceLabels {

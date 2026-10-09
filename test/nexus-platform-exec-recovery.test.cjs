@@ -934,7 +934,7 @@ test('D7 blob store hygiene: stale tmp files and unindexed objects older than 24
   const last = () => w.db.prepare("SELECT * FROM activity WHERE action = 'blob.gc' ORDER BY seq DESC LIMIT 1").get();
   assert.equal(last().status, 'failed', 'an undeletable file is reported, never silent');
   assert.deepEqual(JSON.parse(last().details_json), { recovered: true, removed: 1, fileDeleteFailed: 1, hardLinked: 1, hardLinkedIndexed: 0, tmpRemoved: 0,
-    objectsDeferred: false, finishedGc: false });
+    objectsDeferred: false, leftover: 1, finishedGc: false });
   assert.ok(t.logs.some((l) => /blob store hygiene: .*hardLinked=1/.test(l)));
   // Once nothing the GC may have left remains (the second name gone, the young file aged), it is finished and closed.
   fs.unlinkSync(path.join(root, 'work', 'second-name')); age(freshUnindexed, 25 * 3600_000);
@@ -1051,6 +1051,9 @@ test('F8 an attempt no phase B reconciled reads waiting:runner and fails runner_
   w.advance(5_000); t.exec.tick(w.now());
   assert.equal(w.attempt(lost.attempt.id).state, 'failed'); assert.equal(w.attempt(lost.attempt.id).outcome, 'runner_lost');
   assert.equal(w.jobState(lost.job.id), 'retry_scheduled', 'runner_lost is retried when idempotent');
+  assert.deepEqual(t.runner.sentOf('attempt.cancel').filter((m) => m.attemptId === lost.attempt.id).map((m) => m.reason), ['timeout'],
+    'its container is told to stop (fix round 2)');
+  assert.equal(t.runner.sentOf('attempt.cancel').filter((m) => m.attemptId === done.attempt.id).length, 0);
   assert.deepEqual(recoverActs(w, lost.job.id).map(decisionOf), ['unreconciled']);
   assert.deepEqual(recoveryEvents(w, lost.job.id).map(decisionOf), ['unreconciled']);
   assert.equal(w.attempt(done.attempt.id).state, 'running', 'a durable exit keeps waiting for finalization');
@@ -1126,5 +1129,124 @@ test('F7 a staged list over 20,000 entries is dropped for its attempt only (it i
     'reconcile.remove', 'no Docker needed', 'container: \'missing\'', 'recoverBlobStore', 'mid-session runner restart', '10 minutes']) {
     assert.ok(contract.includes(needle), needle);
   }
+  healthy(w); w.close();
+});
+
+// ---------- fix round 2 (review of edb4089b) ----------
+
+test('G1 the reconcile bound waits for a reconcile in flight: asked at 9:50, still live at 10:30, adopted at 10:40; an unanswered one waits at most 5 more minutes', () => {
+  const MIN = 60_000;
+  const w = execWorld({ realIngest: true }); const r = w.attach();
+  const d = provisioned(w, r, 'sde.build.run', 'a');
+  const t = restart(w);
+  w.advance(9 * MIN + 50_000); t.exec.tick(w.now());
+  assert.deepEqual(t.exec.reconcileList().map((x) => x.attemptId), [d.attempt.id]);     // main sends reconcile.list now
+  w.advance(10_000); t.exec.tick(w.now());                                                 // 10:00
+  w.advance(30_000); t.exec.tick(w.now());                                                 // 10:30
+  assert.equal(w.attempt(d.attempt.id).state, 'running'); assert.equal(w.jobState(d.job.id), 'running');
+  w.advance(10_000);                                                                        // 10:40: the answer
+  const b = t.exec.recoverPhaseB(t.sys, t.nx.bootId, rec([entry(w, d.attempt.id, 'running')],
+    [{ kind: 'container', id: 'a'.repeat(64), labels: labelsOf(w, d.attempt.id, d.job.id, { 'nexus.kind': 'tool' }) }]));
+  assert.equal(b.adopted, 1); assert.deepEqual(b.remove, []);
+  assert.equal(w.attempt(d.attempt.id).lease_owner, t.nx.bootId);
+  healthy(w); w.close();
+  // A request that is never answered: the bound counts from it (9:50 + 10 min) and waits 5 minutes more, then ends it.
+  const w2 = execWorld({ realIngest: true }); const r2 = w2.attach();
+  const d2 = provisioned(w2, r2, 'sde.build.run', 'b');
+  const t2 = restart(w2);
+  const a0 = w2.now();
+  w2.advance(9 * MIN + 50_000); t2.exec.tick(w2.now()); t2.exec.reconcileList();
+  w2.advance(10 * MIN + 5_000); t2.exec.tick(w2.now());                                    // past 19:50, but outstanding
+  assert.equal(w2.attempt(d2.attempt.id).state, 'running');
+  w2.advance(5 * MIN); t2.exec.tick(w2.now());                                             // past 24:50
+  assert.equal(w2.attempt(d2.attempt.id).state, 'failed'); assert.equal(w2.attempt(d2.attempt.id).outcome, 'runner_lost');
+  assert.ok(w2.now() - a0 >= 9 * MIN + 50_000 + R.RECONCILE_BOUND_MS + R.RECONCILE_WAIT_CAP_MS);
+  healthy(w2); w2.close();
+  // The rule itself (pure).
+  const due = (s, now) => R.reconcileBoundDue(s, now);
+  assert.equal(due({ recoveredAt: 0, requestedAt: null, outstanding: false }, 10 * MIN - 1), false);
+  assert.equal(due({ recoveredAt: 0, requestedAt: null, outstanding: false }, 10 * MIN), true);
+  assert.equal(due({ recoveredAt: 0, requestedAt: 9 * MIN, outstanding: false }, 10 * MIN), false, 'counted from the later request');
+  assert.equal(due({ recoveredAt: 0, requestedAt: 9 * MIN, outstanding: false }, 19 * MIN), true);
+  assert.equal(due({ recoveredAt: 0, requestedAt: 9 * MIN, outstanding: true }, 19 * MIN), false, 'an outstanding request waits');
+  assert.equal(due({ recoveredAt: 0, requestedAt: 9 * MIN, outstanding: true }, 24 * MIN), true, 'at most 5 minutes more');
+});
+
+test('G2 an attempt the bound fails is told attempt.cancel after the commit when a runner is attached; without one nothing is sent and nothing throws', () => {
+  const w = execWorld({ realIngest: true }); const r = w.attach();
+  const d = provisioned(w, r, 'sde.build.run', 'a');
+  const t = restart(w);
+  t.exec.tick(w.now()); w.advance(R.RECONCILE_BOUND_MS); t.exec.tick(w.now());
+  assert.equal(w.attempt(d.attempt.id).state, 'failed');
+  const cancels = t.runner.sentOf('attempt.cancel').filter((m) => m.attemptId === d.attempt.id);
+  assert.deepEqual(cancels, [{ op: 'attempt.cancel', attemptId: d.attempt.id, graceMs: 10_000, reason: 'timeout' }]);
+  healthy(w); w.close();
+  const w2 = execWorld({ realIngest: true }); const r2 = w2.attach();
+  const d2 = provisioned(w2, r2, 'sde.build.run', 'b');
+  const t2 = restart(w2, { noRunner: true });
+  t2.exec.tick(w2.now()); w2.advance(R.RECONCILE_BOUND_MS); t2.exec.tick(w2.now());
+  assert.equal(w2.attempt(d2.attempt.id).state, 'failed');
+  assert.equal(t2.runner.sent.length, 0);
+  healthy(w2); w2.close();
+});
+
+test('G3 nexus.home is one label per data home: Windows case variants, slashes, a trailing separator and the \\\\?\\ prefix agree; distinct homes differ', () => {
+  const { homeLabel: shared, normalizeHomeRoot } = loadTs('src/shared/nexus/homeLabel.ts');
+  const root = 'C:\\Users\\Pc\\AppData\\Roaming\\nexus-app\\nexus';
+  const label = shared(root, 'win32');
+  for (const v of [root.toLowerCase(), root.toUpperCase(), root.replace(/\\/g, '/'), `${root}\\`, `\\\\?\\${root}`, `\\\\?\\${root.toLowerCase()}`]) {
+    assert.equal(shared(v, 'win32'), label, v);
+  }
+  assert.equal(normalizeHomeRoot(`\\\\?\\${root}`, 'win32'), root.toLowerCase());
+  assert.equal(shared('\\\\?\\UNC\\server\\share\\nexus', 'win32'), shared('\\\\SERVER\\share\\nexus', 'win32'));
+  assert.notEqual(shared('C:\\Users\\pc\\other\\nexus', 'win32'), label);
+  // POSIX paths are case-sensitive: only resolution applies.
+  assert.equal(shared('/home/u/.config/nexus/', 'linux'), shared('/home/u/.config/nexus', 'linux'));
+  assert.notEqual(shared('/home/u/Nexus', 'linux'), shared('/home/u/nexus', 'linux'));
+  assert.match(label, /^[0-9a-f]{16}$/);
+});
+
+test('G4 main and the runner share one homeLabel: hello carries home, and every plan label equals it', () => {
+  const { homeLabel: shared } = loadTs('src/shared/nexus/homeLabel.ts');
+  const w = execWorld({ realIngest: true }); const r = w.attach();
+  const hello = r.sentOf('hello')[0];
+  assert.equal(hello.home, shared(w.dataHome.root)); assert.equal(hello.dataHome, w.dataHome.root);
+  assert.equal(homeLabel, shared, 'planBuilder re-exports the shared function');
+  const d = provisioned(w, r, 'sde.build.run', 'a');
+  const plan = r.sentOf('attempt.start').find((m) => m.attemptId === d.attempt.id).plan;
+  assert.equal(plan.container.labels['nexus.home'], hello.home); assert.equal(plan.resourceLabels['nexus.home'], hello.home);
+  const contract = R.RUNNER_RECOVERY_CONTRACT.join('\n');
+  for (const needle of ['`hello` carries `home`', 'src/shared/nexus/homeLabel.ts', 'exactly when it sends `reconcile.list`', 'up to 5 more minutes',
+    'main sends `attempt.cancel`']) {
+    assert.ok(contract.includes(needle), needle);
+  }
+  healthy(w); w.close();
+});
+
+test('G5 a GC run whose only leftovers are refused deletes is closed (leftover counted); the hard link is still reported failed on every pass', async () => {
+  const w = execWorld({ realIngest: true }); w.attach();
+  await w.dataHome.ensure();
+  const root = w.dataHome.root;
+  const sha = 'd'.repeat(64);
+  const dir = path.join(root, 'objects', 'dd'); fs.mkdirSync(dir, { recursive: true });
+  const p = path.join(dir, sha.slice(2)); fs.writeFileSync(p, 'left');
+  const t0 = new Date(w.now() - 25 * 3600_000); fs.utimesSync(p, t0, t0);
+  fs.linkSync(p, path.join(root, 'work', 'second-name'));
+  const { appendActivityRow } = loadTs('src/main/nexus/activity/writer.ts');
+  w.db.transaction(() => appendActivityRow(w.db, { actorKind: 'system', actorId: w.sys.id, entityType: 'blob', action: 'blob.gc', status: 'started',
+    details: { removed: 1, bytes: 4 } }, w.now())).immediate();
+  const t = restart(w);
+  const r1 = await t.exec.recoverBlobStore(t.sys);
+  assert.equal(r1.finishedGc, true, 'closed: the only leftover is a refused delete');
+  assert.equal(r1.leftover, 1); assert.equal(r1.objectsFailed, 1); assert.equal(r1.hardLinked, 1); assert.equal(fs.existsSync(p), true);
+  const rows = () => w.db.prepare("SELECT status, details_json FROM activity WHERE action = 'blob.gc' ORDER BY seq").all();
+  const first = rows().at(-1);
+  assert.equal(first.status, 'failed');
+  assert.deepEqual(JSON.parse(first.details_json), { recovered: true, removed: 0, fileDeleteFailed: 1, hardLinked: 1, hardLinkedIndexed: 0, tmpRemoved: 0,
+    objectsDeferred: false, leftover: 1, finishedGc: true });
+  const r2 = await t.exec.recoverBlobStore(t.sys);
+  assert.equal(r2.finishedGc, false, 'the run is closed'); assert.equal(r2.objectsFailed, 1); assert.equal(r2.leftover, 1);
+  assert.equal(rows().at(-1).status, 'failed', 'the hard link is reported again');
+  assert.equal(rows().length, 3);
   healthy(w); w.close();
 });

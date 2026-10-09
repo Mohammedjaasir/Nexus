@@ -16,7 +16,8 @@ import type { RuntimeHealth, RuntimeKind } from './runtime';
 export type CancelReason = 'user' | 'timeout' | 'parent' | 'shutdown';
 
 export type MainToRunner =
-  | { op: 'hello'; bootId: string; dataHome: string; profiles: SandboxProfile[] }
+  /** `home`: this install's `nexus.home` (homeLabel.ts of `dataHome`; '' without a data home), for every resource label. */
+  | { op: 'hello'; bootId: string; dataHome: string; home: string; profiles: SandboxProfile[] }
   | { op: 'probe' }
   | { op: 'attempt.start'; attemptId: string; plan: AttemptPlan }
   | { op: 'attempt.cancel'; attemptId: string; graceMs: number; reason: CancelReason }

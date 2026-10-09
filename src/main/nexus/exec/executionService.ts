@@ -100,11 +100,12 @@ import { canRetry, isJobState, TERMINAL_JOB_STATES } from '../jobs/jobRules';
 import { JOB_KINDS, requireActiveParticipation, storedWorkspace, validateKey, type JobRow, type JobService } from '../jobs/jobService';
 import { attemptRow, HEARTBEAT_GAP_MS, LEASE_MS, heartbeatTx, insertAttemptTx, liveAttemptOf, transitionAttemptTx, type AttemptRow } from './attempts';
 import { appendJobEventTx, toJobEvent, type JobEvent, type JobEventRow } from './events';
-import { buildPlan, homeLabel, lockfileSha256Of, sandboxRecord, underDataHome, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
+import { buildPlan, lockfileSha256Of, sandboxRecord, underDataHome, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
+import { homeLabel } from '../../../shared/nexus/homeLabel';
 import type { RunnerPort } from './runnerPort';
 import { backoffMs, DEFAULT_CAPS, leaseGuard, SOLO_MEMORY_SHARE, usableImage, type LiveUse, type ProbeCache, type SchedulerCaps } from './scheduler';
 import {
-  contractMet, exitFailure, failUnreconciled, RECONCILE_BOUND_MS, recoverBlobStore, recoverPhaseA, recoverPhaseB, reconcileList,
+  contractMet, exitFailure, failUnreconciled, reconcileBoundDue, recoverBlobStore, recoverPhaseA, recoverPhaseB, reconcileList,
   type BlobStoreFiles, type BlobSweepReport, type PhaseAReport, type PhaseBReport, type ReconcileResult, type RecoveryHost
 } from './recovery';
 
@@ -403,6 +404,9 @@ export class ExecutionService {
   /** When phase A ran (the reconcile bound counts from it) and when the bound's pass last ran. */
   private recoveredAt: number | null = null;
   private lastUnreconciledAt: number | null = null;
+  /** When main last asked the runner to reconcile (`reconcileList`), and whether that request still waits for its phase B. */
+  private reconcileRequestedAt: number | null = null;
+  private reconcileOutstanding = false;
   /** Ingests that went asynchronous (main's git answers, a wait for blob GC, or a large output list). */
   private readonly pendingIngest = new Set<Promise<unknown>>();
   /** The port state the last tick saw (leaving `ready` is a runner-wide fault for outstanding re-hashes). */
@@ -447,7 +451,8 @@ export class ExecutionService {
       this.log('[nexus] exec: the runner is attached with another boot id than restart recovery used; approval waits are re-owned at runner ready');
     }
     this.unsubscribe = port.onMessage((raw) => this.onRunnerMessage(raw));
-    this.send({ op: 'hello', bootId, dataHome: this.deps.dataHome?.root ?? '', profiles: [...(this.deps.profiles ?? [])] });
+    const root = this.deps.dataHome?.root ?? '';
+    this.send({ op: 'hello', bootId, dataHome: root, home: root ? homeLabel(root) : '', profiles: [...(this.deps.profiles ?? [])] });
     this.sendProbe(this.deps.now());
   }
 
@@ -1052,7 +1057,9 @@ export class ExecutionService {
         dep.tick(now);
       }
       // Restart recovery's bound: attempts phase A left for phase B that no phase B reconciled within 10 minutes.
-      if (this.recoveredAt !== null && now - this.recoveredAt >= RECONCILE_BOUND_MS
+      // It counts from the later of phase A and the last reconcile request, and waits for an outstanding one (capped).
+      if (this.recoveredAt !== null
+        && reconcileBoundDue({ recoveredAt: this.recoveredAt, requestedAt: this.reconcileRequestedAt, outstanding: this.reconcileOutstanding }, now)
         && (this.lastUnreconciledAt === null || now - this.lastUnreconciledAt >= EXPIRY_SWEEP_MS || now < this.lastUnreconciledAt)) {
         this.lastUnreconciledAt = now;
         const owners = [this.recoveryBootId, this.bootId].filter((x): x is string => x !== null);
@@ -1634,12 +1641,19 @@ export class ExecutionService {
    */
   recoverPhaseB(system: Principal, bootId: string, reconcile: ReconcileResult): PhaseBReport {
     this.requireRecoveryBoot(bootId);
-    return recoverPhaseB(this.recoveryHost(), system, bootId, reconcile, this.deps.now());
+    const report = recoverPhaseB(this.recoveryHost(), system, bootId, reconcile, this.deps.now());
+    // The answer to the outstanding reconcile request has been applied.
+    this.reconcileOutstanding = false;
+    return report;
   }
 
   /** What main sends in `reconcile.list` at runner `ready`: every live attempt whose container is recorded. */
   reconcileList(): { attemptId: string; containerId: string; kind: 'tool' | 'service' }[] {
-    return this.deps.available ? reconcileList(this.db) : [];
+    if (!this.deps.available) return [];
+    // Main calls this exactly when it sends `reconcile.list`: the reconcile bound waits for the answer.
+    this.reconcileRequestedAt = this.deps.now();
+    this.reconcileOutstanding = true;
+    return reconcileList(this.db);
   }
 
   /**

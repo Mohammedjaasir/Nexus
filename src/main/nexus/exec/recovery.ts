@@ -56,9 +56,11 @@
  *   Approval waits still owned by another boot are re-owned (phase A ran with another boot id).
  *   Then `orphanDecisions`: the labelled resources to stop and remove.
  *
- * The reconcile bound (`failUnreconciled`, from the scheduler): an attempt phase A left for phase B that no phase B
- * adopted or decided within RECONCILE_BOUND_MS (10 minutes) of phase A fails `runner_lost` (retried only when
- * idempotent), unless its exit is durable: that one keeps waiting for finalization.
+ * The reconcile bound (`failUnreconciled`, from the scheduler; `reconcileBoundDue` says when): an attempt phase A left
+ * for phase B that no phase B adopted or decided fails `runner_lost` (retried only when idempotent) and its container is
+ * told `attempt.cancel`, unless its exit is durable: that one keeps waiting for finalization. The bound counts
+ * RECONCILE_BOUND_MS (10 minutes) from the LATER of phase A and the last reconcile request (`reconcileList`); while a
+ * request is outstanding (no phase B since it), it waits up to RECONCILE_WAIT_CAP_MS (5 minutes) more for the answer.
  *
  * Leases and stall history (carried decision 8): the old process's in-memory stall record is gone at a restart, so
  * every attempt recovery adopts or re-owns gets exactly ONE fresh LEASE_MS from the recovery's `now`, and the wall
@@ -79,9 +81,10 @@
  * meanwhile; it never rejects past its authorization check): `objects/tmp` files older than 24 h are removed;
  * unindexed `objects/<2>/<62>` files older than 24 h are removed only while no attempt is live (GC's own rule: a landing
  * object is never raced). A GC whose last `started` row has no closing row is finished, and closed by the sweep's row
- * (`finishedGc`), only when no unindexed object remains at all (none younger than 24 h, none undeletable). A file that
- * cannot be deleted, and an INDEXED object with a second hard link (a writable second name for stored bytes), is
- * reported: a `blob.gc` row `failed` with `fileDeleteFailed`, `hardLinked` and `hardLinkedIndexed`, and a log line.
+ * (`finishedGc`), when the only unindexed objects left are ones whose delete was refused (counted as `leftover`; none
+ * younger than 24 h may remain). A file that cannot be deleted, and an INDEXED object with a second hard link (a writable
+ * second name for stored bytes), is reported on every pass: a `blob.gc` row `failed` with `fileDeleteFailed`,
+ * `hardLinked`, `hardLinkedIndexed` and `leftover`, and a log line.
  */
 import type Database from 'better-sqlite3';
 import type { JobState, Principal, ScopeRef } from '../../../shared/nexus/platform';
@@ -105,6 +108,12 @@ import { appendJobEventTx } from './events';
  */
 export const RUNNER_RECOVERY_CONTRACT: readonly string[] = Object.freeze([
   'Boot id: main attaches the runner with platform.bootId (the boot id phase A re-owned for), never a fresh one.',
+  'Install label: `hello` carries `home`, this install\'s `nexus.home` (src/shared/nexus/homeLabel.ts of the data home: '
+    + 'resolved, and on Windows lowercased and without a `\\\\?\\` prefix). The runner uses that value, or the same shared '
+    + 'function, for every label it writes and every list it filters; it never derives its own.',
+  'Reconcile request: main calls exec.reconcileList() exactly when it sends `reconcile.list` (that call records the request). '
+    + 'The reconcile bound counts its 10 minutes from the later of phase A and the last request, and while a request has had '
+    + 'no phase B it waits up to 5 more minutes for the answer; recoverPhaseB ends the outstanding request.',
   'At every runner `ready` (app start and every runner restart) main sends `reconcile.list` = exec.reconcileList(); the '
     + 'runner answers one `reconcile.result`, which main routes to exec.recoverPhaseB(system, platform.bootId, result) '
     + '(ExecutionService.onRunnerMessage does not handle `reconcile.result` itself).',
@@ -113,7 +122,7 @@ export const RUNNER_RECOVERY_CONTRACT: readonly string[] = Object.freeze([
   '`reconcile.result.attempts[i].staged` is the COMPLETE list of `/out` (re-hashed) or is omitted; it is never truncated. '
     + 'Main drops a list over 20,000 entries for that attempt only (the attempt is then adopted to re-report).',
   '`reconcile.result.labelled` lists every container, volume and network with a `nexus.home` label equal to this '
-    + 'install\'s (planBuilder.homeLabel of the data home); main decides what to remove and never removes a resource '
+    + 'install\'s (the `home` of `hello`); main decides what to remove and never removes a resource '
     + 'without this install\'s `nexus.home` and a `nexus.attempt` of an ended attempt of its database.',
   'Every container, volume and network the runner creates for an attempt carries the plan\'s labels: containers their '
     + 'spec labels, volumes and networks `plan.resourceLabels` (`nexus.job`, `nexus.attempt`, `nexus.boot`, '
@@ -131,8 +140,10 @@ export const RUNNER_RECOVERY_CONTRACT: readonly string[] = Object.freeze([
   'exec.recoverBlobStore(system) runs once per app start: after phase B and before the scheduler\'s first tick. Not at a '
     + 'mid-session runner restart: the scheduler is running then, and the pass holds the blob store\'s exclusive lock '
     + '(leases and ingests would wait); what a dead runner left in objects/tmp is swept at the next app start.',
-  'If no phase B adopts or decides an attempt phase A left pending within 10 minutes of phase A, it fails '
-    + '`runner_lost` (a durable exit keeps waiting for finalization).'
+  'If no phase B adopts or decides an attempt phase A left pending within the reconcile bound, it fails `runner_lost` '
+    + '(a durable exit keeps waiting for finalization) and main sends `attempt.cancel` (grace 10 s, reason `timeout`) '
+    + 'when a runner is attached: the runner stops that container and keeps its scratch; the next phase B lists it '
+    + 'for removal (its attempt has ended).'
 ]);
 
 /** The activity action of every recovery decision. */
@@ -143,6 +154,8 @@ export const STALE_OBJECT_MS = 24 * 60 * 60 * 1000;
 export const MAX_SWEEP_OBJECTS = 100_000;
 /** An attempt phase A left for phase B that no phase B reconciled within this long fails `runner_lost`. */
 export const RECONCILE_BOUND_MS = 10 * 60_000;
+/** How much longer the bound waits while a reconcile request has had no phase B. */
+export const RECONCILE_WAIT_CAP_MS = 5 * 60_000;
 const CANCEL_GRACE_MS = 10_000;
 const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const PLATFORM: ScopeRef = { type: 'platform' };
@@ -215,7 +228,9 @@ export interface BlobSweepReport {
   hardLinkedIndexed: number;
   /** Unindexed objects were not swept because an attempt is live. */
   objectsDeferred: boolean;
-  /** A blob.gc run left `started` was finished (no unindexed object remains) and closed. */
+  /** Unindexed objects older than 24 h whose delete was refused: what remains of a GC run that is closed anyway. */
+  leftover: number;
+  /** A blob.gc run left `started` was finished (only refused deletes remain, counted as `leftover`) and closed. */
   finishedGc: boolean;
 }
 
@@ -235,7 +250,7 @@ export interface RecoveryHost {
   readonly log: (line: string) => void;
   readonly blobs: BlobIndex | null;
   readonly files: BlobStoreFiles | null;
-  /** This install's `nexus.home` label (planBuilder.homeLabel of the data home); null without a data home (nothing is removed). */
+  /** This install's `nexus.home` label (src/shared/nexus/homeLabel.ts of the data home); null without a data home (nothing is removed). */
   readonly home: string | null;
   /** The validation framework's replacement of an interrupted main check (null without validation). */
   readonly requeueCheckTx: ((system: Principal, jobId: string) => string[]) | null;
@@ -343,6 +358,17 @@ export function orphanDecisions(reconcile: { labelled: readonly LabelledResource
     else out.remove.push({ kind: r.kind, id: r.id, reason: 'attempt_ended' });
   }
   return out;
+}
+
+/**
+ * Whether the reconcile bound is due at `now`: RECONCILE_BOUND_MS after the later of phase A (`recoveredAt`) and the last
+ * reconcile request (`requestedAt`), plus up to RECONCILE_WAIT_CAP_MS more while that request is outstanding (no phase B
+ * since it). Pure.
+ */
+export function reconcileBoundDue(s: { recoveredAt: number; requestedAt: number | null; outstanding: boolean }, now: number): boolean {
+  const deadline = Math.max(s.recoveredAt, s.requestedAt ?? s.recoveredAt) + RECONCILE_BOUND_MS;
+  if (now < deadline) return false;
+  return !(s.outstanding && s.requestedAt !== null && now < deadline + RECONCILE_WAIT_CAP_MS);
 }
 
 /** Whether an attempt's exit is durable: its job collects outputs, or the exit's `attempt.output` event was written. */
@@ -816,7 +842,9 @@ export function failUnreconciled(host: RecoveryHost, system: Principal, owners: 
       host.failJobTx(j.id, 'infra_error', { code: 'runner_lost', message: error.message }, now);
       recordTx(host, system, { decision: 'unreconciled', reason: 'unreconciled', job: j, attemptN: a.n,
         summary: 'the runner did not pick the attempt up again within 10 minutes of the restart' }, now);
-      return { decision: 'unreconciled', count: 'failed' };
+      // Its container may still run: once this has committed, an attached runner is told to stop it (no-op without one).
+      return { decision: 'unreconciled', count: 'failed',
+        after: () => { host.send({ op: 'attempt.cancel', attemptId: a.id, graceMs: CANCEL_GRACE_MS, reason: 'timeout' }); } };
     });
   }
   return { failed: c.failed, waiting: c.pending };
@@ -867,15 +895,18 @@ async function sweep(host: RecoveryHost, files: BlobStoreFiles, now: number, out
     out.objectsFailed = failed.length;
     out.objectsRemoved = old.length - failed.length;
   }
-  // A GC is finished only when nothing it may have left remains: no unindexed object at all (younger ones included).
-  out.finishedGc = open && !listed.truncated && unindexed.length - out.objectsRemoved === 0;
+  // A GC run is finished when nothing it may have left could still go: every unindexed object was old enough to be tried
+  // (none younger than 24 h remains). Deletes that were refused (a hard link, a link) are its `leftover`: the run closes,
+  // and they are reported failed on every pass.
+  out.leftover = out.objectsFailed;
+  out.finishedGc = open && !listed.truncated && unindexed.length === old.length;
 }
 
 /** Blob store hygiene (see the module header). System only. Resolves with what it did; never rejects past its checks. */
 export async function recoverBlobStore(host: RecoveryHost, system: Principal, now: number): Promise<BlobSweepReport> {
   requireSystem(host, system, 'recover_blob_store');
   const none: BlobSweepReport = { ran: false, reason: null, tmpRemoved: 0, tmpFailed: 0, objectsRemoved: 0, objectsFailed: 0, hardLinked: 0,
-    hardLinkedIndexed: 0, objectsDeferred: false, finishedGc: false };
+    hardLinkedIndexed: 0, objectsDeferred: false, leftover: 0, finishedGc: false };
   const files = host.files; const blobs = host.blobs;
   if (!host.available || !files || !blobs) return { ...none, reason: 'not_available' };
   const release = blobs.lock.tryExclusive();
@@ -894,13 +925,14 @@ export async function recoverBlobStore(host: RecoveryHost, system: Principal, no
         immediateTx(host.db, () => appendActivityRow(host.db, { actorKind: system.kind, actorId: system.id, entityType: 'blob', action: 'blob.gc',
           status: problems > 0 ? 'failed' : 'succeeded',
           details: { recovered: true, removed: out.objectsRemoved, fileDeleteFailed: out.objectsFailed + out.tmpFailed, hardLinked: out.hardLinked,
-            hardLinkedIndexed: out.hardLinkedIndexed, tmpRemoved: out.tmpRemoved, objectsDeferred: out.objectsDeferred, finishedGc: out.finishedGc } }, now));
+            hardLinkedIndexed: out.hardLinkedIndexed, tmpRemoved: out.tmpRemoved, objectsDeferred: out.objectsDeferred, leftover: out.leftover,
+            finishedGc: out.finishedGc } }, now));
       } catch (e) {
         host.log(`[nexus] blob store hygiene: its activity row was not recorded (${codeOf(e)})`);
       }
     }
     host.log(`[nexus] blob store hygiene: tmpRemoved=${out.tmpRemoved} objectsRemoved=${out.objectsRemoved} `
-      + `fileDeleteFailed=${out.objectsFailed + out.tmpFailed} hardLinked=${out.hardLinked} hardLinkedIndexed=${out.hardLinkedIndexed}`
+      + `fileDeleteFailed=${out.objectsFailed + out.tmpFailed} hardLinked=${out.hardLinked} hardLinkedIndexed=${out.hardLinkedIndexed} leftover=${out.leftover}`
       + `${out.objectsDeferred ? ' objects=deferred (attempts live)' : ''}${out.finishedGc ? ' unfinishedGc=finished' : ''}`);
     return out;
   } finally {
