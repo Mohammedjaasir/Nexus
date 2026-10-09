@@ -5,12 +5,14 @@
  * repeated progress events.
  *
  * - A1 egress (dependency install). At the lease of an egress recipe the execution core calls `requestEgressTx` INSIDE
- *   its lease transaction: a pending approval (`egress.deps`) bound to the job, naming the registries and the lockfile
- *   hash the install will use (`request_json`), with `request_sha256` = sha256 of the canonical
- *   `{ recipeId, recipeVersion, jobId, lockfileSha256, profile }`, expiring in 15 minutes. The core moves the job
- *   `leased -> running (phase approval) -> awaiting_approval` in the same transaction and sends nothing to the runner.
- *   A repository snapshot without a lockfile hash (`metadata.lockfile.sha256`) is refused (`lockfile_missing`): the job
- *   fails at lease, no approval is asked for.
+ *   its lease transaction: a pending approval (`egress.deps`) bound to the job, naming the registries the packages are
+ *   expected from and the lockfile hash the install must match (`request_json`), with `request_sha256` = sha256 of the
+ *   canonical `{ recipeId, recipeVersion, jobId, lockfileSha256, profile }`, expiring in 15 minutes. The core moves the
+ *   job `leased -> running (phase approval) -> awaiting_approval` in the same transaction and sends nothing to the
+ *   runner. A repository snapshot without a lockfile hash (`metadata.lockfile.sha256`) is refused (`lockfile_missing`):
+ *   the job fails at lease, no approval is asked for. The consent text says exactly what is enforced: network access for
+ *   this one install job, install scripts disabled, packages matched against the lockfile hashes; the hosts are named
+ *   as expected, not blocked (B2a has no host allow-list on the egress network).
  * - A2 image preparation. `requestImage` (a user, owner of the platform) creates a pending `image.prepare` approval
  *   with the build context, the base digest, the estimated size and the free space now, and no job. It is refused
  *   before any row is written when the resource gate says no (`unavailable`, `setup:disk_low`, Docker missing or
@@ -20,24 +22,24 @@
  *   egress `once` records the decision, consumes the approval for the job's CURRENT attempt and resumes the job
  *   (`awaiting_approval -> running` with the plan carrying this approval, sent after commit). When the scheduler's caps
  *   refuse the start right now the approval stays consumed and the job waits (`phase waiting:<x>`): the scheduler
- *   resumes it on a later tick (ExecutionService.resumeConsumed), so an approved approval never leaves its job neither
- *   running nor resumable. `deny` fails the job (`denied`) and sends nothing. Image `once` consumes the approval and
- *   inserts the `image_builds` row (`running`) in the same transaction; `image.build.start` goes after commit.
- *   A second answer is `illegal_transition`; an answer after `expires_at` expires the approval (and fails its job)
- *   and is `illegal_transition` (reason `expired`).
+ *   resumes it on a later tick (ExecutionService.resumeConsumed), and fails it `approval_stale` if it has not started
+ *   within 15 minutes of the consent. `deny` fails the job (`denied`) and sends nothing. Image `once` consumes the
+ *   approval and inserts the `image_builds` row (`running`) in the same transaction; `image.build.start` goes after
+ *   commit. A second answer is `illegal_transition`; an answer after `expires_at` expires the approval (and fails its
+ *   job) and is `illegal_transition` (reason `expired`).
  * - `expireDue(now)` moves pending approvals past `expires_at` to `expired`; an egress job waiting for one fails
  *   `denied` (`approval_expired`). The core calls it every 30 s while this service is its egress port.
+ * - Image builds always end. A build ends `succeeded` / `failed` / `cancelled` on the runner's `image.build.done`;
+ *   `interrupted` when the runner is lost (a runner-wide fault, the port leaving `ready` or being replaced:
+ *   `onRunnerLost`); `failed: timeout` after IMAGE_BUILD_DEADLINE_MS (the scheduler's pass, `tick`, which also tells the
+ *   runner `image.build.cancel`); `cancelled` when the user cancels it (`cancelImageBuild`).
  * - `withdrawForJobTx` (cancel): a pending approval of the job becomes `withdrawn`.
  * - Secrets (constraint 6): `request_json` holds only main-derived values in fixed shapes (ids, enums, registry host
  *   names, hex digests); anything secret-shaped outside the typed digest fields refuses the request
  *   (`secret_in_request`). A build failure's text is stored redacted (redactSecretText). Views name no principal.
- * - RECORDS (constraint 13). Every write appends one `job_events` row in its transaction (type `approval` or
- *   `image_build`); who asked, for whom, who decided, when and how is in the approval row itself (`requested_by`,
- *   `on_behalf_of`, `decided_by`, `decided_at`, `decision`, `consumed_*`) and the build row (`requested_by`, `status`,
- *   `error_json`). A refused answer is audited by AuthService (a `denied` activity row). A withdrawal also appends its
- *   `approval.withdraw` activity row. The other approval and image actions get activity rows once the renderer can say
- *   them (B2a Task 14: every action written to the activity log must have its sentence there; this task may not edit
- *   the renderer).
+ * - Records (constraint 13): every write appends one activity row (`approval.request`, `approval.respond`,
+ *   `approval.expire`, `approval.withdraw`, `image_build.start`, `image_build.finish`; digests nested under `sha256`
+ *   keys so the redactor keeps them) and one `job_events` row (`approval` or `image_build`) in its transaction.
  */
 import { createHash } from 'node:crypto';
 import type Database from 'better-sqlite3';
@@ -59,14 +61,16 @@ import { appendJobEventTx } from '../exec/events';
 import { APPROVAL_STATUSES } from './approvalRules';
 
 export const APPROVAL_TTL_MS = 15 * 60_000;
-/** How often the execution core runs the expiry sweep. */
+/** How often the execution core runs the expiry sweep and the image builds' pass. */
 export const EXPIRY_SWEEP_MS = 30_000;
+/** A running image build is cancelled and failed (`timeout`) after this long. */
+export const IMAGE_BUILD_DEADLINE_MS = 60 * 60_000;
 export const MAX_EXPIRE_PER_SWEEP = 100;
 export const DEFAULT_APPROVAL_LIST = 100;
 export const MAX_APPROVAL_LIST = 500;
 export type ImageProfileId = 'sde-node' | 'sde-python' | 'nexus-fwd';
 export const IMAGE_PROFILES: readonly ImageProfileId[] = Object.freeze(['sde-node', 'sde-python', 'nexus-fwd'] as ImageProfileId[]);
-/** The package registries an approved install may reach, by sandbox profile. */
+/** The package registries an approved install's packages are expected from, by sandbox profile (named, not enforced in B2a). */
 export const EGRESS_REGISTRIES: Readonly<Record<string, readonly string[]>> = Object.freeze({
   'sde-node': Object.freeze(['registry.npmjs.org']),
   'sde-python': Object.freeze(['pypi.org', 'files.pythonhosted.org'])
@@ -76,9 +80,10 @@ export type ApprovalDecision = 'once' | 'deny';
 /** The build context of a profile image (B2a Task 12 provides it from infra/images). */
 export interface ImageContext { contextSha256: string; baseDigest: string; estimatedBytes: number }
 
+export type ImageBuildStatus = 'running' | 'succeeded' | 'failed' | 'cancelled' | 'interrupted';
 /** One image build (schema v9 `image_builds`), as the service reports it. No principal id, no host path. */
 export interface ImageBuildRecord {
-  id: string; profileId: string; approvalId: string; status: 'running' | 'succeeded' | 'failed' | 'cancelled' | 'interrupted';
+  id: string; profileId: string; approvalId: string; status: ImageBuildStatus;
   contextSha256: string; baseDigest: string; imageId: string | null; sizeBytes: number | null;
   error: { code: string; message: string } | null; startedAt: number; finishedAt: number | null;
 }
@@ -121,7 +126,7 @@ interface ApprovalRow {
   consumed_at: number | null; consumed_by_job_id: string | null; consumed_by_attempt_n: number | null; status_changed_at: number;
 }
 interface ImageBuildRow {
-  id: string; profile_id: string; approval_id: string; status: ImageBuildRecord['status']; context_sha256: string; base_digest: string;
+  id: string; profile_id: string; approval_id: string; status: ImageBuildStatus; context_sha256: string; base_digest: string;
   image_id: string | null; size_bytes: number | null; log_path: string | null; error_json: string | null; requested_by: string;
   started_at: number; finished_at: number | null;
 }
@@ -136,6 +141,20 @@ const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object
 const parse = (t: string | null): unknown => { if (t === null) return null; try { return JSON.parse(t) as unknown; } catch { return null; } };
 const invalid = (reason: string, message: string): PlatformError => new PlatformError('invalid', message, { reason });
 const sha256 = (s: string): string => createHash('sha256').update(s).digest('hex');
+/** A `sha256:<hex>` digest as `{ sha256: <hex> }` (the activity redactor keeps a hex digest only under a `sha256` key). */
+const digestDetail = (d: string | null | undefined): { sha256: string } | null => (typeof d === 'string' && DIGEST_RE.test(d) ? { sha256: d.slice(7) } : null);
+
+/**
+ * Only a stored, enabled USER answers an approval, asks for an image or stops a dev deployment (the system and agents
+ * never consent): `denied` (`user_only`) and audited, before anything else is read.
+ */
+export function requireStoredUser(principals: PrincipalResolver, auth: AuthService, p: Principal, action: PlatformAction, entityType: string,
+  message: string): void {
+  const stored = p && isStr(p.id) ? principals.get(p.id) : null;
+  if (p && stored && stored.kind === 'user' && p.kind === 'user' && stored.disabledAt === null) return;
+  const audited = auth.auditDenial(p, { action, reason: 'user_only', entityType });
+  throw new PlatformError('denied', message, { reason: 'user_only', audited });
+}
 
 /**
  * Whether a request holds anything secret-shaped. The typed digest fields must have their exact shape (else the
@@ -219,12 +238,8 @@ export class ApprovalService {
     return (this.db.prepare('SELECT id, project_id, workspace_id, participation_id, state, on_behalf_of FROM jobs WHERE id = ?').get(id) as JobLite | undefined) ?? null;
   }
 
-  /** Only a stored USER answers or asks (the system and agents never consent): `denied`, audited, before anything else. */
   private requireUser(p: Principal, action: PlatformAction): void {
-    const stored = isStr(p?.id) ? this.principals.get(p.id) : null;
-    if (stored && stored.kind === 'user' && p.kind === 'user' && stored.disabledAt === null) return;
-    const audited = this.deps.auth.auditDenial(p, { action, reason: 'user_only', entityType: 'approval' });
-    throw new PlatformError('denied', 'only a user answers an approval', { reason: 'user_only', audited });
+    requireStoredUser(this.principals, this.deps.auth, p, action, 'approval', 'only a user answers an approval');
   }
 
   /** Authorizes an action on an approval: in its project (with the job's stored workspace), or platform-wide (images). */
@@ -262,14 +277,22 @@ export class ApprovalService {
     const request = { ...binding, registries: [...registries] };
     if (requestHoldsSecret(request)) throw invalid('secret_in_request', 'the approval request would hold a secret-shaped value');
     const id = newId(now);
+    const requestSha = sha256(canonicalJson(binding));
     const what = profile === 'sde-python' ? 'Python' : 'Node';
-    const summary = `Download ${what} dependencies once, from ${registries.join(' and ')}, for the locked list ${lock.slice(0, 12)}`;
+    // Exactly what is enforced (M8): one job, no install scripts, packages matched against the lockfile hashes. The
+    // per-job network has no host allow-list in B2a, so the registries are named as expected, not as the only hosts.
+    const summary = `Network access for this one ${what} dependency install job. Install scripts are disabled and packages must match `
+      + `the lockfile hashes (${lock.slice(0, 12)}). Packages are expected from ${registries.join(' and ')}; other hosts are not blocked in this release.`;
     this.db.prepare(`INSERT INTO approvals (id, project_id, job_id, session_id, reason, summary, request_json, request_sha256, status,
         requested_by, on_behalf_of, requested_at, expires_at, status_changed_at)
       VALUES (?, ?, ?, NULL, 'egress.deps', ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`)
-      .run(id, job.projectId, job.id, summary, JSON.stringify(request), sha256(canonicalJson(binding)), this.system().id, job.onBehalfOf,
+      .run(id, job.projectId, job.id, summary, JSON.stringify(request), requestSha, this.system().id, job.onBehalfOf,
         now, now + APPROVAL_TTL_MS, now);
-    // The core writes the `approval` job event of this request in the same transaction (see RECORDS in the header).
+    appendActivityRow(this.db, { actorKind: 'system', actorId: this.system().id, onBehalfOf: job.onBehalfOf, jobId: job.id, attemptN: attempt.n,
+      projectId: job.projectId, workspaceId: j.workspace_id, entityType: 'approval', entityId: id, action: 'approval.request', status: 'succeeded',
+      details: { reason: 'egress.deps', recipeId: recipe.id, recipeVersion: recipe.version, profile, registries: [...registries],
+        lockfile: { sha256: lock }, request: { sha256: requestSha }, expiresAt: now + APPROVAL_TTL_MS } }, now);
+    // The core writes the `approval` job event of this request in the same transaction.
     return id;
   }
 
@@ -308,12 +331,17 @@ export class ApprovalService {
       const request = { ...binding, freeBytesNow };
       if (requestHoldsSecret(request)) throw invalid('secret_in_request', 'the approval request would hold a secret-shaped value');
       const id = newId(now);
+      const requestSha = sha256(canonicalJson(binding));
       const gib = (ctx.estimatedBytes / 2 ** 30).toFixed(1);
-      const summary = `Prepare the ${profileId} image once: pull its pinned base and install its pinned packages (about ${gib} GiB)`;
+      const summary = `Prepare the ${profileId} sandbox image once: Docker downloads its pinned base image and installs its pinned packages `
+        + `(about ${gib} GiB). Network access for this build is not limited to particular hosts in this release.`;
       this.db.prepare(`INSERT INTO approvals (id, project_id, job_id, session_id, reason, summary, request_json, request_sha256, status,
           requested_by, on_behalf_of, requested_at, expires_at, status_changed_at)
         VALUES (?, NULL, NULL, NULL, 'image.prepare', ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`)
-        .run(id, summary, JSON.stringify(request), sha256(canonicalJson(binding)), p.id, p.id, now, now + APPROVAL_TTL_MS, now);
+        .run(id, summary, JSON.stringify(request), requestSha, p.id, p.id, now, now + APPROVAL_TTL_MS, now);
+      appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, onBehalfOf: p.id, entityType: 'approval', entityId: id, action: 'approval.request',
+        status: 'succeeded', details: { reason: 'image.prepare', profileId, context: { sha256: ctx.contextSha256 }, base: digestDetail(ctx.baseDigest),
+          estimatedBytes: ctx.estimatedBytes, freeBytesNow, request: { sha256: requestSha }, expiresAt: now + APPROVAL_TTL_MS } }, now);
       appendJobEventTx(this.db, { type: 'approval', summary: `image preparation of ${profileId} waits for approval`, projectId: null, approvalId: id,
         data: { status: 'pending', profileId } }, now);
       return { approval: this.view(this.row(id)!), created: true };
@@ -380,12 +408,19 @@ export class ApprovalService {
     this.decideTx(p, a, decision, now, decision === 'once' ? { jobId: j.id, n: live.n } : null);
     appendJobEventTx(this.db, { type: 'approval', summary: decision === 'once' ? 'network access approved once' : 'network access denied',
       projectId: j.project_id, jobId: j.id, attemptN: live.n, approvalId: a.id, data: { status: decision === 'once' ? 'approved' : 'denied' } }, now);
+    let effect: string;
+    let after: (() => void) | null = null;
     if (decision === 'deny') {
       exec.endAwaitingTx(j.id, { code: 'approval_denied', message: 'network access was denied' }, now);
-      return null;
+      effect = 'job_failed_denied';
+    } else {
+      const r = exec.resumeApprovedTx(j.id, now);
+      if ('send' in r) { after = r.send; effect = 'started'; } else if ('wait' in r) effect = r.wait; else effect = `failed:${r.failed}`;
     }
-    const r = exec.resumeApprovedTx(j.id, now);
-    return 'send' in r ? r.send : null;
+    appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, onBehalfOf: j.on_behalf_of, jobId: j.id, attemptN: live.n, projectId: j.project_id,
+      workspaceId: j.workspace_id, entityType: 'approval', entityId: a.id, action: 'approval.respond', status: 'succeeded',
+      details: { reason: a.reason, decision, consumedBy: decision === 'once' ? { jobId: j.id, attemptN: live.n } : null, effect } }, now);
+    return after;
   }
 
   /** Image: once -> consume and insert the running build (sent after commit); deny -> denied. */
@@ -399,10 +434,15 @@ export class ApprovalService {
     this.decideTx(p, a, decision, now, decision === 'once' ? { jobId: null, n: null } : null);
     appendJobEventTx(this.db, { type: 'approval', summary: decision === 'once' ? `image preparation of ${profileId} approved once`
       : `image preparation of ${profileId} denied`, projectId: null, approvalId: a.id, data: { status: decision === 'once' ? 'approved' : 'denied' } }, now);
-    if (decision === 'deny') return null;
-    const buildId = newId(now);
+    const buildId = decision === 'once' ? newId(now) : null;
+    appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, onBehalfOf: a.on_behalf_of, entityType: 'approval', entityId: a.id,
+      action: 'approval.respond', status: 'succeeded', details: { reason: a.reason, decision, profileId, buildId } }, now);
+    if (!buildId) return null;
     this.db.prepare(`INSERT INTO image_builds (id, profile_id, approval_id, status, context_sha256, base_digest, log_path, requested_by, started_at)
       VALUES (?, ?, ?, 'running', ?, ?, ?, ?, ?)`).run(buildId, profileId, a.id, contextSha256, baseDigest, `logs/images/${buildId}.log`, a.on_behalf_of, now);
+    appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, onBehalfOf: a.on_behalf_of, entityType: 'image_build', entityId: buildId,
+      action: 'image_build.start', status: 'started', details: { buildId, profileId, approvalId: a.id, context: { sha256: contextSha256 },
+        base: digestDetail(baseDigest) } }, now);
     appendJobEventTx(this.db, { type: 'image_build', summary: `image build of ${profileId} started`, projectId: null, imageBuildId: buildId,
       approvalId: a.id, data: { status: 'running', profileId } }, now);
     const exec = this.exec();
@@ -421,9 +461,12 @@ export class ApprovalService {
     const j = a.job_id ? this.job(a.job_id) : null;
     appendJobEventTx(this.db, { type: 'approval', summary: 'approval expired: it was not answered in 15 minutes', projectId: a.project_id,
       jobId: j?.id ?? null, approvalId: a.id, data: { status: 'expired' } }, now);
-    if (j && j.state === 'awaiting_approval') {
-      this.exec().endAwaitingTx(j.id, { code: 'approval_expired', message: 'the approval was not answered in time' }, now);
-    }
+    const failsJob = !!j && j.state === 'awaiting_approval';
+    if (failsJob) this.exec().endAwaitingTx(j!.id, { code: 'approval_expired', message: 'the approval was not answered in time' }, now);
+    appendActivityRow(this.db, { actorKind: 'system', actorId: this.system().id, onBehalfOf: a.on_behalf_of, jobId: j?.id ?? null,
+      projectId: a.project_id, workspaceId: j?.workspace_id ?? null, entityType: 'approval', entityId: a.id, action: 'approval.expire',
+      status: 'succeeded', details: { approvalId: a.id, reason: a.reason, expiredAt: a.expires_at,
+        job: failsJob ? { outcome: 'denied', error: 'approval_expired' } : null } }, now);
   }
 
   /** Expires every pending approval past `expires_at` (at most MAX_EXPIRE_PER_SWEEP per call). Returns how many. Never throws. */
@@ -455,7 +498,7 @@ export class ApprovalService {
     return withdrawPendingApprovalsTx(this.db, p, j, now, reason);
   }
 
-  // ---------- image builds (runner reports) ----------
+  // ---------- image builds (runner reports, the scheduler's pass, the user's cancel) ----------
 
   /** `image.build.progress`: one event per new phase of a running build. */
   onImageBuildProgress(m: Extract<RunnerToMain, { op: 'image.build.progress' }>): void {
@@ -478,26 +521,103 @@ export class ApprovalService {
     else this.finishBuild(b.id, 'cancelled', { error: { code: 'cancelled', message: 'the image build was cancelled' } });
   }
 
+  /**
+   * The runner is lost (a runner-wide fault, the port left `ready` or was replaced): a `docker build` it ran cannot
+   * report, so every running build ends `interrupted` in one transaction. Returns how many. Never throws.
+   */
+  onRunnerLost(): number {
+    const now = this.deps.now();
+    let ids: string[] = [];
+    try {
+      ids = immediateTx(this.db, () => {
+        const rows = this.db.prepare("SELECT * FROM image_builds WHERE status = 'running' ORDER BY started_at, id").all() as ImageBuildRow[];
+        for (const b of rows) this.finishBuildTx(b, 'interrupted', { error: { code: 'runner_lost', message: 'the runner stopped while the image was being built' } }, now);
+        return rows.map((b) => b.id);
+      });
+    } catch (e) {
+      this.log(`[nexus] approvals: interrupted builds not recorded: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
+      return 0;
+    }
+    this.afterBuildsEnded(ids);
+    return ids.length;
+  }
+
+  /** The scheduler's pass: a build running for IMAGE_BUILD_DEADLINE_MS is cancelled at the runner and fails `timeout`. Never throws. */
+  tick(now: number): void {
+    let ids: string[] = [];
+    try {
+      ids = immediateTx(this.db, () => {
+        const rows = this.db.prepare("SELECT * FROM image_builds WHERE status = 'running' AND started_at <= ? ORDER BY started_at, id")
+          .all(now - IMAGE_BUILD_DEADLINE_MS) as ImageBuildRow[];
+        for (const b of rows) this.finishBuildTx(b, 'failed', { error: { code: 'timeout', message: 'the image build ran longer than 60 minutes' } }, now);
+        return rows.map((b) => b.id);
+      });
+    } catch (e) {
+      this.log(`[nexus] approvals: image build deadline not applied: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
+      return;
+    }
+    for (const id of ids) this.sendBuildCancel(id);
+    this.afterBuildsEnded(ids);
+  }
+
+  /** A user (owner) cancels a running build: `cancelled` now, and the runner is told `image.build.cancel`. */
+  cancelImageBuild(p: Principal, buildId: string): ImageBuildRecord {
+    requireStoredUser(this.principals, this.deps.auth, p, 'approval.respond', 'image_build', 'only a user cancels an image build');
+    this.deps.auth.require(p, 'approval.respond', PLATFORM, { entityType: 'image_build' });
+    const b = isStr(buildId) ? this.db.prepare('SELECT * FROM image_builds WHERE id = ?').get(buildId) as ImageBuildRow | undefined : undefined;
+    if (!b) throw new PlatformError('not_found', 'image build not found');
+    const now = this.deps.now();
+    immediateTx(this.db, () => {
+      const cur = this.db.prepare('SELECT * FROM image_builds WHERE id = ?').get(b.id) as ImageBuildRow;
+      if (cur.status !== 'running') throw new PlatformError('illegal_transition', `a ${cur.status} image build cannot be cancelled`, { from: cur.status });
+      this.finishBuildTx(cur, 'cancelled', { error: { code: 'cancelled', message: 'cancelled by the user' } }, now, p);
+    });
+    this.sendBuildCancel(b.id);
+    this.afterBuildsEnded([b.id]);
+    return toImageBuild(this.db.prepare('SELECT * FROM image_builds WHERE id = ?').get(b.id) as ImageBuildRow);
+  }
+
+  private sendBuildCancel(buildId: string): void {
+    try { this.execPort?.sendToRunner({ op: 'image.build.cancel', buildId }); } catch { /* the runner is gone; nothing more to stop */ }
+  }
+
+  private afterBuildsEnded(ids: readonly string[]): void {
+    if (ids.length === 0) return;
+    for (const id of ids) this.buildPhase.delete(id);
+    try { this.execPort?.refreshImages(); } catch { /* the next probe judges the images again */ }
+  }
+
   private finishBuild(buildId: string, status: 'succeeded' | 'failed' | 'cancelled',
     o: { imageId?: string; sizeBytes?: number; error?: { code: string; message: string } }): void {
     const now = this.deps.now();
     try {
       immediateTx(this.db, () => {
         const b = this.db.prepare('SELECT * FROM image_builds WHERE id = ?').get(buildId) as ImageBuildRow | undefined;
-        if (!b || b.status !== 'running') return;
-        const errorJson = o.error ? redactedErrorJson(o.error) : null;
-        this.db.prepare(`UPDATE image_builds SET status = ?, image_id = ?, size_bytes = ?, error_json = ?, finished_at = ? WHERE id = ? AND status = 'running'`)
-          .run(status, status === 'succeeded' ? o.imageId ?? null : null, status === 'succeeded' ? o.sizeBytes ?? null : null, errorJson, now, b.id);
-        const code = o.error?.code ?? null;
-        appendJobEventTx(this.db, { type: 'image_build', summary: `image build of ${b.profile_id} ${status}`, projectId: null, imageBuildId: b.id,
-          approvalId: b.approval_id, data: { status, error: code, sizeBytes: status === 'succeeded' ? o.sizeBytes ?? null : null } }, now);
+        if (b && b.status === 'running') this.finishBuildTx(b, status, o, now);
       });
     } catch (e) {
       this.log(`[nexus] approvals: image build end not recorded: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
       return;
     }
-    this.buildPhase.delete(buildId);
-    try { this.execPort?.refreshImages(); } catch { /* the next probe judges the images again */ }
+    this.afterBuildsEnded([buildId]);
+  }
+
+  /** Inside a transaction: a running build ends, with its activity row and event. */
+  private finishBuildTx(b: ImageBuildRow, status: Exclude<ImageBuildStatus, 'running'>,
+    o: { imageId?: string; sizeBytes?: number; error?: { code: string; message: string } }, now: number, by?: Principal): void {
+    const errorJson = o.error ? redactedErrorJson(o.error) : null;
+    const ok = status === 'succeeded';
+    const r = this.db.prepare(`UPDATE image_builds SET status = ?, image_id = ?, size_bytes = ?, error_json = ?, finished_at = ? WHERE id = ? AND status = 'running'`)
+      .run(status, ok ? o.imageId ?? null : null, ok ? o.sizeBytes ?? null : null, errorJson, now, b.id);
+    if (r.changes !== 1) return;
+    const code = o.error?.code ?? null;
+    const actor = by ?? this.system();
+    appendActivityRow(this.db, { actorKind: actor.kind, actorId: actor.id, onBehalfOf: b.requested_by, entityType: 'image_build', entityId: b.id,
+      action: 'image_build.finish', status: ok ? 'succeeded' : status === 'cancelled' ? 'cancelled' : 'failed',
+      details: { buildId: b.id, profileId: b.profile_id, status, image: ok ? digestDetail(o.imageId) : null, sizeBytes: ok ? o.sizeBytes ?? null : null,
+        error: code, durationMs: Math.max(0, now - b.started_at) } }, now);
+    appendJobEventTx(this.db, { type: 'image_build', summary: `image build of ${b.profile_id} ${status}`, projectId: null, imageBuildId: b.id,
+      approvalId: b.approval_id, data: { status, error: code, sizeBytes: ok ? o.sizeBytes ?? null : null } }, now);
   }
 
   // ---------- reads ----------

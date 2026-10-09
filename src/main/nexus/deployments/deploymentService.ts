@@ -6,10 +6,10 @@
  *
  * - Start (`startTx`, inside the execution core's lease transaction): the row starts `starting`, on 127.0.0.1, with no
  *   port. Its subject is the application version (a draft may be previewed); the job's input is the build version the
- *   application was assembled from. A job requeued before its container started keeps its row.
- * - Port (`onProvisionedTx`): the runner picks the forwarder's loopback port from its ephemeral range and reports it with
- *   `attempt.provisioned`; it is stored once. Two live deployments never share a port: the core refuses a port another
- *   live deployment holds, and `ux_deployments_port_live` is the backstop.
+ *   application was assembled from.
+ * - Port (`onProvisionedTx`): the runner picks the forwarder's loopback port from the ephemeral range (49152-65535) and
+ *   reports it with `attempt.provisioned`; it is stored once. Two live deployments never share a port: the core refuses
+ *   a port another live deployment holds, and `ux_deployments_port_live` is the backstop.
  * - Health (`onHealth`, from the runner's `service.health`): `starting -> healthy` on the first 200 (judged by
  *   `app.preview_health` over the recorded probes: a 200 on the health path within 60 s of the container start, the
  *   container running, bound to 127.0.0.1; the result is recorded on the subject, bound to the job's attempt, and the
@@ -21,19 +21,24 @@
  *   lease fails `start_timeout` (the check could not run: `error`). The job fails with the same outcome.
  * - Lifetime: idle traffic is not measurable in B2a, so a dev deployment has a fixed 2 h lifetime (stated in the UI);
  *   then it is stopped (`idle`).
- * - Stop (`stop`, a user with `deployment.stop`): `stopped` (`user`), and the runner is told `attempt.cancel { reason:
- *   'user' }`. A deployment that had passed its health check keeps its job running until the runner reports the exit;
- *   then the job completes with outcome `stopped`. One that never did ends its job `cancelled` at once. A finished
- *   deployment cannot be stopped again (`illegal_transition`).
+ * - Stop (`stop`, a stored USER with `deployment.stop`; the system or an agent is `denied`, audited): `stopped`
+ *   (`user`), and the runner is told `attempt.cancel { reason: 'user' }`. A deployment that had passed its health check
+ *   keeps its job running (phase `stopping`) until the runner reports the exit; then the job completes with outcome
+ *   `stopped`. If no exit arrives within STOPPING_LIMIT_MS the job fails `exit_not_reported` (the slot is freed). One
+ *   that never passed ends its job `cancelled` at once. A finished deployment cannot be stopped again.
  * - Exit (the core's `attempt.exited` for a service attempt, `onExitedTx`): a live deployment fails (`exited`); the job
- *   completes `stopped` only if the deployment had passed its health check, else it fails.
- * - Any other end of the job (cancel, timeout, recovery, an infrastructure failure) ends a live deployment
- *   (`endForJobTx`); quitting the app stops every live deployment (`app_quit`) in one bounded transaction.
- * - Every transition writes one `job_events` row (type `deployment`) in its transaction; who started it and who
- *   stopped it are the row's `created_by` and `stopped_by`, the reason its `stop_reason`. (Activity rows for deployment
- *   actions wait for their renderer sentences, B2a Task 14: every action written to the activity log must have one.)
- *   Nothing secret is stored: the probes are numbers and the container state; the app's environment is refused before
- *   a job exists.
+ *   completes `stopped` only if the deployment had passed its health check; one stopped before its check (the user,
+ *   the lifetime, the app quitting) ends its job `cancelled` with that cause; else the job fails.
+ * - Any other end of the job ends a live deployment (`endForJobTx`) with the job's true cause: cancel, timeout,
+ *   recovery, a runner refusal (`refused`), a refused preflight (`preflight_failed`), a lost runner (`runner_lost`).
+ *   `deployments.stop_reason` keeps the frozen v9 vocabulary (a deployment that never started is `start_timeout`); the
+ *   precise cause is the `reason` of its `deployment.transition` activity row and of its `deployment` event.
+ * - Quitting the app stops every live deployment (`app_quit`) in one bounded transaction (MAX_QUIT_STOPS rows).
+ * - Records (constraint 13): `deployment.start` (deployment, job and attempt, subject and build versions, profile and
+ *   image ids, local-preview on 127.0.0.1, lifetime), `deployment.transition` (from, to, reason, port, whether it ever
+ *   passed its check, the last probe status, the `app.preview_health` result it recorded) and `deployment.stop` (the
+ *   user's stop and what happens to the job) activity rows, plus one `deployment` event per change. Nothing secret is
+ *   stored: probes are numbers and the container state; the app's environment is refused before a job exists.
  */
 import type Database from 'better-sqlite3';
 import type { DeploymentStatus, Principal, ScopeRef } from '../../../shared/nexus/platform';
@@ -41,6 +46,7 @@ import type { MainToRunner } from '../../../shared/nexus/runnerProtocol';
 import { PREVIEW_IDLE_TTL_MS } from '../../../shared/nexus/recipes';
 import type { AuthService } from '../auth/authService';
 import { PrincipalResolver } from '../auth/principals';
+import { appendActivityRow } from '../activity/writer';
 import { newId } from '../db/ids';
 import { immediateTx } from '../db/tx';
 import { PlatformError } from '../errors';
@@ -51,6 +57,7 @@ import type { ValidationService } from '../validation/validationService';
 import { errored, type ValidatorOutcome } from '../validation/normalized';
 import * as preview from '../validation/validators/appPreviewHealth';
 import { readAppManifest, previewBlocker, type AppManifest } from '../repo/repoService';
+import { requireStoredUser } from '../approvals/approvalService';
 import { DEPLOYMENT_STATUSES, LIVE_DEPLOYMENT_STATUSES } from './deploymentRules';
 
 /** The fixed lifetime of a dev deployment in B2a (idle traffic is not measurable). */
@@ -64,8 +71,12 @@ export const MAX_DEPLOYMENT_LIST = 500;
 /** The most build files a dev deployment stages (the build ingest's tree bound). */
 export const MAX_STAGED_FILES = 5000;
 const CANCEL_GRACE_MS = 10_000;
+/** A stopped deployment's job waits this long for the runner's exit report (the cancel grace plus a margin). */
+export const STOPPING_LIMIT_MS = CANCEL_GRACE_MS + 50_000;
 
 export type StopReason = 'user' | 'idle' | 'cancel' | 'app_quit' | 'recovery' | 'exited' | 'probe_failed' | 'start_timeout';
+/** The true cause of an end, beyond the frozen `stop_reason` vocabulary (activity and event `reason`). */
+export type EndCause = StopReason | 'refused' | 'preflight_failed' | 'runner_lost';
 export interface HealthProbeReport { status: number | null; ms: number | null; container: 'running' | 'exited' | 'missing' }
 interface StoredProbe { at: number; status: number | null; ms: number | null; container: string }
 
@@ -75,6 +86,9 @@ export interface DeploymentView {
   lastProbe: { at: number; status: number | null; ms: number | null } | null; probes: number;
   startedAt: number; stoppedAt: number | null; lifetimeMs: number; endsAt: number;
 }
+
+/** What the lease knows about a dev deployment's start (recorded on `deployment.start`). */
+export interface DeploymentStartFacts { buildVersionId: string | null; profile: string | null; appImageId: string | null; forwarderImageId: string | null }
 
 /** What this service needs from the execution core (late-bound: the core is built after this service). */
 export interface DeploymentExecPort {
@@ -93,13 +107,21 @@ interface DeploymentRow {
   stopped_by: string | null; created_by: string; started_at: number; stopped_at: number | null; status_changed_at: number; updated_at: number;
 }
 interface LiveAttempt { id: string; n: number; state: string; started_at: number | null; sandbox_json: string | null }
+type AttemptFacts = { n: number; started_at: number | null; sandbox_json: string | null };
+interface MoveOptions { reason?: StopReason; cause?: EndCause; by?: Principal; check?: { id: string; status: string } | null; job?: string }
 
 const PLATFORM: ScopeRef = { type: 'platform' };
 const LIVE = new Set<string>(LIVE_DEPLOYMENT_STATUSES);
 const LIVE_SQL = `('${LIVE_DEPLOYMENT_STATUSES.join("','")}')`;
+/** The runner's refusals of a start (runnerProtocol REFUSAL_REASONS) and the core's own "not sent". */
+const REFUSED_CODES = new Set(['docker_missing', 'docker_stopped', 'image_missing', 'image_mismatch', 'disk_low', 'network_not_approved',
+  'bad_plan', 'busy', 'unknown_attempt']);
 const isStr = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const parse = (t: string | null): unknown => { if (t === null) return null; try { return JSON.parse(t) as unknown; } catch { return null; } };
+const DIGEST_RE = /^sha256:[0-9a-f]{64}$/;
+/** A `sha256:<hex>` image id as `{ sha256: <hex> }` (the activity redactor keeps a hex digest only under a `sha256` key). */
+const digestDetail = (d: string | null | undefined): { sha256: string } | null => (typeof d === 'string' && DIGEST_RE.test(d) ? { sha256: d.slice(7) } : null);
 
 function probesOf(healthJson: string): StoredProbe[] {
   const v = parse(healthJson);
@@ -112,6 +134,23 @@ export function trailing(probes: readonly { status: number | null }[], pred: (p:
   let n = 0;
   for (let i = probes.length - 1; i >= 0 && pred(probes[i]); i--) n++;
   return n;
+}
+
+/** The true cause of a dev deployment's end from its job's end (`to`, the job error code) and whether its container started. */
+export function endCause(to: string, code: string | null, started: boolean): EndCause {
+  if (to === 'cancelled') return 'cancel';
+  if (to === 'timed_out') return 'idle';
+  if (to === 'interrupted') return 'recovery';
+  if (code === 'limits_not_applied') return 'preflight_failed';
+  if (code !== null && REFUSED_CODES.has(code)) return 'refused';
+  if (code === 'not_sent' || code === 'runner_lost') return 'runner_lost';
+  return started ? 'exited' : 'start_timeout';
+}
+
+/** The frozen v9 `stop_reason` for a cause (a deployment that never started is `start_timeout`). */
+function stopReasonFor(cause: EndCause, started: boolean): StopReason {
+  if (cause === 'refused' || cause === 'preflight_failed' || cause === 'runner_lost') return started ? 'exited' : 'start_timeout';
+  return cause;
 }
 
 export class DeploymentService {
@@ -160,9 +199,8 @@ export class DeploymentService {
 
   /**
    * Before the lease transaction (the plan needs it): the subject's manifest, the build's files and the deployment id
-   * (the job's existing `starting` row, kept across a requeue, or a new id). Throws PlatformError 'invalid'
-   * (`subject_unavailable`, `bad_manifest`, `deployment_ended`, `tree_too_large`) or 'unavailable'
-   * (`secrets_not_supported`).
+   * (the job's existing `starting` row, or a new id). Throws PlatformError 'invalid' (`subject_unavailable`,
+   * `bad_manifest`, `deployment_ended`, `tree_too_large`) or 'unavailable' (`secrets_not_supported`).
    */
   prepareStart(jobId: string, subjectVersionId: string | null, now: number): { deploymentId: string; manifest: AppManifest; files: { sha256: string; path: string }[] } {
     const subject = isStr(subjectVersionId) ? this.db.prepare(`SELECT v.id, v.status, v.storage_ref_json, a.kind FROM artifact_versions v
@@ -185,9 +223,9 @@ export class DeploymentService {
     return { deploymentId: existing?.id ?? newId(now), manifest, files };
   }
 
-  /** @internal Inside the lease transaction: the job's deployment row (`starting`, no port), kept across a requeue. */
+  /** @internal Inside the lease transaction: the job's deployment row (`starting`, no port), with its activity row. */
   startTx(j: { id: string; project_id: string; participation_id: string | null; workspace_id: string; on_behalf_of: string },
-    attempt: { n: number }, deploymentId: string, subjectVersionId: string, now: number): string {
+    attempt: { n: number }, deploymentId: string, subjectVersionId: string, now: number, facts?: DeploymentStartFacts): string {
     if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'startTx runs inside the lease transaction');
     const existing = this.byJob(j.id);
     if (existing) {
@@ -203,9 +241,19 @@ export class DeploymentService {
         status, health_json, created_by, started_at, status_changed_at, updated_at)
       VALUES (?, ?, ?, ?, ?, 'local-preview', '127.0.0.1', NULL, 'starting', '[]', ?, ?, ?, ?)`)
       .run(deploymentId, j.project_id, j.participation_id, subjectVersionId, j.id, j.on_behalf_of, now, now, now);
+    appendActivityRow(this.db, { actorKind: 'system', actorId: this.system().id, onBehalfOf: j.on_behalf_of, jobId: j.id, attemptN: attempt.n,
+      projectId: j.project_id, workspaceId: j.workspace_id, artifactId: this.artifactOf(subjectVersionId), versionId: subjectVersionId,
+      entityType: 'deployment', entityId: deploymentId, action: 'deployment.start', status: 'started',
+      details: { deploymentId, jobId: j.id, attemptN: attempt.n, subjectVersionId, buildVersionId: facts?.buildVersionId ?? null,
+        profile: facts?.profile ?? null, image: digestDetail(facts?.appImageId), forwarderImage: digestDetail(facts?.forwarderImageId),
+        environment: 'local-preview', bindAddress: '127.0.0.1', lifetimeMs: PREVIEW_LIFETIME_MS } }, now);
     appendJobEventTx(this.db, { type: 'deployment', summary: 'dev deployment starting on 127.0.0.1', projectId: j.project_id, jobId: j.id,
       attemptN: attempt.n, deploymentId, data: { status: 'starting', subjectVersionId, environment: 'local-preview', lifetimeMs: PREVIEW_LIFETIME_MS } }, now);
     return deploymentId;
+  }
+
+  private artifactOf(versionId: string): string | null {
+    return (this.db.prepare('SELECT artifact_id FROM artifact_versions WHERE id = ?').get(versionId) as { artifact_id: string } | undefined)?.artifact_id ?? null;
   }
 
   /** Whether another live deployment holds this port. */
@@ -225,10 +273,10 @@ export class DeploymentService {
   // ---------- transitions ----------
 
   /**
-   * One deployment transition with its event (inside the caller's transaction). Who stopped it is the row's
-   * `stopped_by` (the user, or the system for every automatic end).
+   * One deployment transition (inside the caller's transaction) with its activity row (`deployment.stop` for a user's
+   * stop, else `deployment.transition`) and its event. Who stopped it is also the row's `stopped_by`.
    */
-  private moveTx(d: DeploymentRow, to: DeploymentStatus, now: number, o: { reason?: StopReason; by?: Principal } = {}): void {
+  private moveTx(d: DeploymentRow, to: DeploymentStatus, now: number, o: MoveOptions = {}): void {
     const ending = to === 'stopped' || to === 'failed';
     const by = o.by ?? this.system();
     const r = ending
@@ -236,18 +284,29 @@ export class DeploymentService {
           WHERE id = ? AND status = ?`).run(to, o.reason ?? 'exited', to === 'stopped' ? by.id : null, now, now, now, d.id, d.status)
       : this.db.prepare('UPDATE deployments SET status = ?, status_changed_at = ?, updated_at = ? WHERE id = ? AND status = ?').run(to, now, now, d.id, d.status);
     if (r.changes !== 1) throw new PlatformError('conflict', 'the dev deployment changed before the update', { deploymentId: d.id });
-    const j = this.db.prepare('SELECT attempts FROM jobs WHERE id = ?').get(d.job_id) as { attempts: number };
-    appendJobEventTx(this.db, { type: 'deployment', summary: `dev deployment ${d.status} -> ${to}${o.reason ? ` (${o.reason})` : ''}`,
-      projectId: d.project_id, jobId: d.job_id, attemptN: j.attempts > 0 ? j.attempts : null, deploymentId: d.id,
-      data: { from: d.status, to, reason: o.reason ?? null, hostPort: d.host_port, by: by.kind } }, now);
+    const j = this.db.prepare('SELECT workspace_id, on_behalf_of, attempts FROM jobs WHERE id = ?').get(d.job_id) as { workspace_id: string; on_behalf_of: string; attempts: number };
+    const n = j.attempts > 0 ? j.attempts : null;
+    const reason: EndCause | null = o.cause ?? o.reason ?? null;
+    const probes = probesOf(d.health_json);
+    const userStop = to === 'stopped' && by.kind === 'user';
+    appendActivityRow(this.db, { actorKind: by.kind, actorId: by.id, onBehalfOf: j.on_behalf_of, jobId: d.job_id, attemptN: n, projectId: d.project_id,
+      workspaceId: j.workspace_id, artifactId: this.artifactOf(d.subject_version_id), versionId: d.subject_version_id, entityType: 'deployment',
+      entityId: d.id, action: userStop ? 'deployment.stop' : 'deployment.transition', status: 'succeeded',
+      details: userStop
+        ? { deploymentId: d.id, from: d.status, to, reason: 'user', job: o.job ?? null, hostPort: d.host_port }
+        : { deploymentId: d.id, from: d.status, to, reason, hostPort: d.host_port, healthyEver: this.healthyEver(d.job_id, n),
+          lastProbeStatus: probes.length ? probes[probes.length - 1].status : null, check: o.check ?? null } }, now);
+    appendJobEventTx(this.db, { type: 'deployment', summary: `dev deployment ${d.status} -> ${to}${reason ? ` (${reason})` : ''}`,
+      projectId: d.project_id, jobId: d.job_id, attemptN: n, deploymentId: d.id,
+      data: { from: d.status, to, reason, hostPort: d.host_port, by: by.kind } }, now);
   }
 
   /**
    * `app.preview_health` over the recorded facts (or a given outcome), recorded on the subject bound to the job's
-   * attempt, then the subject is finalized. Inside the caller's transaction.
+   * attempt, then the subject is finalized. Inside the caller's transaction. Returns the outcome and the result row.
    */
-  private judgeTx(d: DeploymentRow, a: { n: number; started_at: number | null; sandbox_json: string | null }, container: string,
-    now: number, given?: ValidatorOutcome): ValidatorOutcome {
+  private judgeTx(d: DeploymentRow, a: AttemptFacts, container: string, now: number, given?: ValidatorOutcome):
+    { outcome: ValidatorOutcome; check: { id: string; status: string } } {
     const sb = parse(a.sandbox_json);
     const sbPath = isObj(sb) && isObj(sb.health) && typeof sb.health.path === 'string' ? sb.health.path : null;
     const subject = this.db.prepare('SELECT storage_ref_json FROM artifact_versions WHERE id = ?').get(d.subject_version_id) as { storage_ref_json: string } | undefined;
@@ -256,9 +315,9 @@ export class DeploymentService {
     const facts = { path, startedAt, container, bindAddress: d.bind_address,
       probes: probesOf(d.health_json).map((p) => ({ at: p.at, status: p.status, ms: p.ms })) };
     const outcome = given ?? preview.run(facts);
-    this.deps.validation.recordOutcomeTx(d.subject_version_id, preview.ID, outcome, { jobId: d.job_id, attemptN: a.n, startedAt });
+    const res = this.deps.validation.recordOutcomeTx(d.subject_version_id, preview.ID, outcome, { jobId: d.job_id, attemptN: a.n, startedAt });
     this.deps.validation.finalizeIfReady(this.system(), d.subject_version_id);
-    return outcome;
+    return { outcome, check: { id: res.id, status: res.status } };
   }
 
   /** The health of a running deployment from the runner's `service.health` (see the module header). Never throws. */
@@ -278,9 +337,9 @@ export class DeploymentService {
         if (probe.container !== 'running') { this.containerGoneTx(d, a, probe.container, now); return; }
         if (d.status === 'starting') {
           if (probe.status !== 200) return;
-          const o = this.judgeTx(d, a, 'running', now);
-          if (o.status === 'passed') { this.moveTx(d, 'healthy', now); return; }
-          this.moveTx(d, 'failed', now, { reason: 'probe_failed' });
+          const j = this.judgeTx(d, a, 'running', now);
+          if (j.outcome.status === 'passed') { this.moveTx(d, 'healthy', now, { check: j.check }); return; }
+          this.moveTx(d, 'failed', now, { reason: 'probe_failed', check: j.check });
           this.exec().endServiceJobTx(d.job_id, { state: 'failed', outcome: 'probe_failed',
             error: { code: 'probe_failed', message: 'the app did not answer its health check within 60 s' } }, now);
           cancel = a.id;
@@ -297,70 +356,82 @@ export class DeploymentService {
 
   /** The app container is no longer running: the deployment fails (`exited`). */
   private containerGoneTx(d: DeploymentRow, a: LiveAttempt, container: string, now: number): void {
-    const healthy = this.healthyEver(d.job_id, a.n);
-    this.moveTx(d, 'failed', now, { reason: 'exited' });
-    if (healthy) {
+    if (this.healthyEver(d.job_id, a.n)) {
       // It had passed its health check: the job completes `stopped` when the runner reports the exit.
+      this.moveTx(d, 'failed', now, { reason: 'exited' });
       this.exec().setJobPhaseTx(d.job_id, 'stopping', now);
       return;
     }
-    this.judgeTx(d, a, container, now);
+    const j = this.judgeTx(d, a, container, now);
+    this.moveTx(d, 'failed', now, { reason: 'exited', check: j.check });
     this.exec().endServiceJobTx(d.job_id, { state: 'failed', outcome: 'exited',
       error: { code: 'exited', message: 'the app container exited before it answered its health check' } }, now);
   }
 
   /**
-   * @internal Inside the core's exit transaction for a service attempt: a live deployment fails (`exited`). Returns
-   * `complete` when the deployment had passed its health check (the job completes `stopped`), else `fail`.
+   * @internal Inside the core's exit transaction for a service attempt. A live deployment fails (`exited`).
+   * `complete`: it had passed its health check (the job completes `stopped`). `stopped`: it was stopped before its check
+   * (the user, the lifetime, the app quitting); the job ends `cancelled` with that cause. `fail`: it exited on its own.
    */
-  onExitedTx(jobId: string, a: { n: number; started_at: number | null; sandbox_json: string | null }, now: number): 'complete' | 'fail' {
+  onExitedTx(jobId: string, a: AttemptFacts, now: number): { decision: 'complete' | 'stopped' | 'fail'; cause: string } {
     const d = this.byJob(jobId);
     const healthy = this.healthyEver(jobId, a.n);
     if (d && LIVE.has(d.status)) {
-      this.moveTx(d, 'failed', now, { reason: 'exited' });
-      if (!healthy) this.judgeTx({ ...d, status: 'failed' }, a, 'exited', now);
+      if (healthy) this.moveTx(d, 'failed', now, { reason: 'exited' });
+      else {
+        const j = this.judgeTx(d, a, 'exited', now);
+        this.moveTx(d, 'failed', now, { reason: 'exited', check: j.check });
+      }
+      return { decision: healthy ? 'complete' : 'fail', cause: 'exited' };
     }
-    return healthy ? 'complete' : 'fail';
+    if (healthy) return { decision: 'complete', cause: d?.stop_reason ?? 'exited' };
+    if (d && d.status === 'stopped' && d.stop_reason) return { decision: 'stopped', cause: d.stop_reason };
+    return { decision: 'fail', cause: 'exited' };
   }
 
   /**
    * @internal The core's hook on every terminal move of a dev deployment's job: a deployment still live ends with the
-   * job (cancel -> stopped `cancel`, timeout -> stopped `idle`, interrupted -> stopped `recovery`, any other end ->
-   * failed `exited`, or `start_timeout` when its container never started). One that never passed its health check
-   * and was not cancelled records that the check could not run.
+   * job's true cause (`endCause`). One that never passed its health check and did not end by a cancel records that
+   * the check could not run.
    */
-  endForJobTx(jobId: string, to: string, now: number): void {
+  endForJobTx(jobId: string, to: string, now: number, cause?: { outcome: string | null; code: string | null }): void {
     const d = this.byJob(jobId);
     if (!d || !LIVE.has(d.status)) return;
     const a = this.db.prepare('SELECT a.n, a.started_at, a.sandbox_json FROM job_attempts a JOIN jobs j ON j.id = a.job_id AND a.n = j.attempts WHERE j.id = ?')
-      .get(jobId) as { n: number; started_at: number | null; sandbox_json: string | null } | undefined;
-    if (to === 'cancelled') { this.moveTx(d, 'stopped', now, { reason: 'cancel' }); return; }
-    if (to === 'timed_out') { this.moveTx(d, 'stopped', now, { reason: 'idle' }); return; }
-    if (to === 'interrupted') { this.moveTx(d, 'stopped', now, { reason: 'recovery' }); return; }
+      .get(jobId) as AttemptFacts | undefined;
     const started = !!a && a.started_at !== null;
-    this.moveTx(d, 'failed', now, { reason: started ? 'exited' : 'start_timeout' });
-    if (a && !this.healthyEver(jobId, a.n)) {
-      this.judgeTx({ ...d, status: 'failed' }, a, started ? 'exited' : 'missing', now,
-        errored('preview_not_run', 'Checks could not run: the dev deployment ended before its health check.'));
+    const why = endCause(to, cause?.code ?? null, started);
+    if (to === 'cancelled' || to === 'timed_out' || to === 'interrupted') {
+      this.moveTx(d, 'stopped', now, { reason: stopReasonFor(why, started), cause: why });
+      return;
     }
+    const check = a && !this.healthyEver(jobId, a.n)
+      ? this.judgeTx(d, a, started ? 'exited' : 'missing', now, errored('preview_not_run', 'Checks could not run: the dev deployment ended before its health check.')).check
+      : null;
+    this.moveTx(d, 'failed', now, { reason: stopReasonFor(why, started), cause: why, check });
   }
 
   /** @internal The core's cancel (a user cancelled the job): a live deployment stops (`cancel`), recorded as that user's act. */
   stopForCancelTx(p: Principal, jobId: string, now: number): void {
     const d = this.byJob(jobId);
-    if (d && LIVE.has(d.status)) this.moveTx(d, 'stopped', now, { reason: 'cancel', by: p });
+    if (d && LIVE.has(d.status)) this.moveTx(d, 'stopped', now, { reason: 'cancel', by: p, job: 'cancelled' });
   }
 
   // ---------- the scheduler's pass ----------
 
-  /** Start-window failures and the fixed lifetime (see the module header). Never throws. */
+  /** Start windows, the fixed lifetime and the bounded wait for an exit after a stop (see the module header). Never throws. */
   tick(now: number): void {
     let rows: (DeploymentRow & { attempt_id: string | null; attempt_n: number | null; attempt_state: string | null; attempt_started_at: number | null;
       attempt_sandbox: string | null })[];
+    let stopping: { deployment_id: string; job_id: string; stopped_at: number; attempt_id: string | null }[];
     try {
       rows = this.db.prepare(`SELECT d.*, a.id AS attempt_id, a.n AS attempt_n, a.state AS attempt_state, a.started_at AS attempt_started_at,
           a.sandbox_json AS attempt_sandbox FROM deployments d LEFT JOIN job_attempts a ON a.job_id = d.job_id AND a.state IN ('starting','running')
         WHERE d.status IN ${LIVE_SQL} ORDER BY d.started_at, d.id`).all() as typeof rows;
+      stopping = this.db.prepare(`SELECT d.id AS deployment_id, d.job_id, d.stopped_at, a.id AS attempt_id FROM jobs j JOIN deployments d ON d.job_id = j.id
+          LEFT JOIN job_attempts a ON a.job_id = j.id AND a.state IN ('starting','running')
+        WHERE j.state = 'running' AND j.phase = 'stopping' AND d.status IN ('stopped','failed') AND d.stopped_at <= ?`)
+        .all(now - STOPPING_LIMIT_MS) as typeof stopping;
     } catch (e) {
       this.log(`[nexus] deployments: pass stopped: ${(e as Error)?.name ?? 'error'}`);
       return;
@@ -376,6 +447,16 @@ export class DeploymentService {
         this.log(`[nexus] deployments: ${r.id.slice(0, 8)} not moved: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
       }
     }
+    for (const s of stopping) {
+      try {
+        // The runner never reported the exit after the stop: the job ends now and its slot is freed.
+        immediateTx(this.db, () => this.exec().endServiceJobTx(s.job_id, { state: 'failed', outcome: 'exit_not_reported',
+          error: { code: 'exit_not_reported', message: 'the runner did not report the exit of the stopped dev deployment' } }, now));
+        if (s.attempt_id) this.sendCancel(s.attempt_id, 'timeout');
+      } catch (e) {
+        this.log(`[nexus] deployments: stopped job not ended: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
+      }
+    }
   }
 
   /** No 200 within the start window: `probe_failed` (judged: the draft fails) or `start_timeout` (the check could not run). */
@@ -385,12 +466,10 @@ export class DeploymentService {
       const d = this.row(deploymentId);
       if (!d || d.status !== 'starting') return;
       const a = this.liveAttempt(d.job_id);
-      this.moveTx(d, 'failed', now, { reason });
-      if (a) {
-        this.judgeTx({ ...d, status: 'failed' }, a, 'running', now, reason === 'start_timeout'
-          ? errored('start_timeout', 'Checks could not run: the dev deployment did not start within 60 s.') : undefined);
-        cancel = a.id;
-      }
+      const check = a ? this.judgeTx(d, a, 'running', now, reason === 'start_timeout'
+        ? errored('start_timeout', 'Checks could not run: the dev deployment did not start within 60 s.') : undefined).check : null;
+      this.moveTx(d, 'failed', now, { reason, check });
+      if (a) cancel = a.id;
       const message = reason === 'probe_failed' ? 'the app did not answer 200 on its health path within 60 s' : 'the dev deployment did not start within 60 s';
       this.exec().endServiceJobTx(d.job_id, { state: 'failed', outcome: reason, error: { code: reason, message } }, now);
     });
@@ -413,9 +492,10 @@ export class DeploymentService {
     if (!d) throw new PlatformError('not_found', 'deployment not found');
     if (!LIVE.has(d.status)) throw new PlatformError('illegal_transition', `a ${d.status} deployment cannot be stopped`, { from: d.status });
     const a = this.liveAttempt(d.job_id);
-    this.moveTx(d, 'stopped', now, { reason, by });
+    const healthy = !!a && this.healthyEver(d.job_id, a.n);
+    this.moveTx(d, 'stopped', now, { reason, by, job: !a ? 'none' : healthy ? 'completes_on_exit' : 'cancelled' });
     if (!a) return null;
-    if (this.healthyEver(d.job_id, a.n)) this.exec().setJobPhaseTx(d.job_id, 'stopping', now);
+    if (healthy) this.exec().setJobPhaseTx(d.job_id, 'stopping', now);
     else {
       this.exec().endServiceJobTx(d.job_id, { state: 'cancelled', outcome: 'stopped',
         error: { code: 'stopped', message: 'the dev deployment was stopped before it answered its health check' } }, now);
@@ -429,8 +509,9 @@ export class DeploymentService {
 
   // ---------- user operations ----------
 
-  /** A user stops a live deployment (`deployment.stop`); a finished one is `illegal_transition`. */
+  /** A user stops a live deployment (`deployment.stop`); a finished one is `illegal_transition`. The system and agents are `denied`. */
   stop(p: Principal, deploymentId: string): DeploymentView {
+    requireStoredUser(this.principals, this.deps.auth, p, 'deployment.stop', 'deployment', 'only a user stops a dev deployment');
     const d = isStr(deploymentId) ? this.row(deploymentId) : null;
     if (!d) {
       this.deps.auth.require(p, 'deployment.stop', PLATFORM, { entityType: 'deployment' });
@@ -450,24 +531,24 @@ export class DeploymentService {
    */
   stopAllForQuit(): number {
     const now = this.deps.now();
-    let attempts: string[] = [];
+    let out: { stopped: number; attempts: string[] } = { stopped: 0, attempts: [] };
     try {
-      attempts = immediateTx(this.db, () => {
+      out = immediateTx(this.db, () => {
         const rows = this.db.prepare(`SELECT * FROM deployments WHERE status IN ${LIVE_SQL} ORDER BY started_at, id LIMIT ?`).all(MAX_QUIT_STOPS) as DeploymentRow[];
-        const out: string[] = [];
+        const attempts: string[] = [];
         for (const d of rows) {
           this.moveTx(d, 'stopped', now, { reason: 'app_quit' });
           const a = this.liveAttempt(d.job_id);
-          if (a) out.push(a.id);
+          if (a) attempts.push(a.id);
         }
-        return out;
+        return { stopped: rows.length, attempts };
       });
     } catch (e) {
       this.log(`[nexus] deployments: quit stop not recorded: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
       return 0;
     }
-    for (const id of attempts) this.sendCancel(id, 'shutdown');
-    return attempts.length;
+    for (const id of out.attempts) this.sendCancel(id, 'shutdown');
+    return out.stopped;
   }
 
   /** Deployments the caller may read (`job.read`), newest first. */

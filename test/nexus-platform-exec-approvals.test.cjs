@@ -25,6 +25,8 @@ const { requestHoldsSecret } = loadTs('src/main/nexus/approvals/approvalService.
 const { acceptManifestReport, APP_MANIFEST_MAX_BYTES } = loadTs('src/main/nexus/repo/repoService.ts');
 const { trailing } = loadTs('src/main/nexus/deployments/deploymentService.ts');
 const { createNexusPlatform } = loadTs('src/main/nexus/platform.ts');
+const { hasProviderKey } = loadTs('src/shared/nexus/secretShape.ts');
+const { endCause } = loadTs('src/main/nexus/deployments/deploymentService.ts');
 
 const code = (c, reason) => (e) => e.code === c && (reason === undefined || e.detail?.reason === reason);
 const MIN = 60_000;
@@ -33,6 +35,25 @@ const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const MANIFEST = { version: 1, profile: 'sde-node', run: ['node', 'dist/server.js'], port: 3000, healthPath: '/health', env: [] };
 const CTX = { contextSha256: 'c4'.repeat(32), baseDigest: 'sha256:' + 'b5'.repeat(32), estimatedBytes: 3 * GIB };
 const count = (w, sql, ...a) => w.db.prepare(`SELECT COUNT(*) AS n FROM ${sql}`).get(...a).n;
+// The renderer's sentences for activity rows (src/renderer/src/nexus/project/activityModel.ts), loaded as the UI does.
+const ACT = loadTs('src/renderer/src/nexus/project/activityModel.ts');
+const ACT_CTX = { names: new Map(), versionNos: new Map(), workspaceLabel: (x) => x, now: h.NOW };
+/** An activity row as the activity channel shows it (no principal ids; the model reads only allow-listed details). */
+const actView = (r) => ({ seq: r.seq, ts: r.ts, action: r.action, status: r.status, actorKind: r.actor_kind, onBehalfOfUser: r.on_behalf_of !== null,
+  entityType: r.entity_type, entityId: r.entity_id, projectId: r.project_id, workspaceId: r.workspace_id, artifactId: r.artifact_id,
+  versionId: r.version_id, details: JSON.parse(r.details_json) });
+const acts = (w, action, entityId) => w.db.prepare(`SELECT * FROM activity WHERE action = ?${entityId ? ' AND entity_id = ?' : ''} ORDER BY seq`)
+  .all(...(entityId ? [action, entityId] : [action]));
+/** Every text column of the execution records, for secret scans. */
+function recordTexts(w) {
+  const out = [];
+  for (const [t, cols] of [['approvals', ['summary', 'request_json']], ['image_builds', ['error_json', 'log_path']], ['deployments', ['health_json']],
+    ['job_events', ['summary', 'data_json']], ['activity', ['details_json']], ['jobs', ['error_json', 'params_json', 'phase']],
+    ['job_attempts', ['error_json', 'sandbox_json', 'environment_json']]]) {
+    for (const r of w.db.prepare(`SELECT ${cols.join(', ')} FROM ${t}`).all()) for (const c of cols) if (typeof r[c] === 'string') out.push(`${t}.${c}: ${r[c]}`);
+  }
+  return out;
+}
 const approvalOf = (w, jobId) => w.db.prepare('SELECT * FROM approvals WHERE job_id = ? ORDER BY requested_at DESC, rowid DESC').get(jobId);
 
 function healthy(w) {
@@ -81,8 +102,14 @@ test('A1 a dependency install waits in awaiting_approval with one pending approv
   // Observability: who asked (the system), for whom (the user), why (egress.deps), and the event of the wait.
   const ev = w.db.prepare("SELECT * FROM job_events WHERE approval_id = ? AND type = 'approval'").all(ap.id);
   assert.equal(ev.length, 1); assert.equal(ev[0].job_id, d.id); assert.equal(ev[0].attempt_n, 1);
-  // No activity action the renderer cannot phrase yet (nexus-activity-model AC1): the approval row is the record.
-  assert.equal(count(w, "activity WHERE action LIKE 'approval.%' AND status <> 'denied'"), 0);
+  // The activity row (constraint 13): the system asked, on the user's behalf, with the request's facts (fix round 1, AR1).
+  const act = w.db.prepare("SELECT * FROM activity WHERE action = 'approval.request' AND entity_id = ?").all(ap.id);
+  assert.equal(act.length, 1);
+  assert.equal(act[0].actor_kind, 'system'); assert.equal(act[0].on_behalf_of, w.me.id); assert.equal(act[0].job_id, d.id);
+  assert.equal(act[0].attempt_n, 1); assert.equal(act[0].project_id, 'p-ledger'); assert.equal(act[0].workspace_id, 'sde');
+  assert.deepEqual(JSON.parse(act[0].details_json), { reason: 'egress.deps', recipeId: 'sde.deps.node', recipeVersion: '1', profile: 'sde-node',
+    registries: ['registry.npmjs.org'], lockfile: { sha256: LOCK }, request: { sha256: ap.request_sha256 }, expiresAt: ap.expires_at });
+  assert.equal(ACT.activityText(actView(act[0]), ACT_CTX), 'Approval asked: network access for one dependency install');
   // The view names no principal and shows the request's known fields.
   const view = w.nx.approvals.list(w.me, { projectId: 'p-ledger' }).approvals[0];
   assert.equal(view.id, ap.id); assert.deepEqual(view.request.registries, ['registry.npmjs.org']); assert.equal(view.request.lockfileSha256, LOCK);
@@ -590,11 +617,27 @@ test('D6 two live deployments never share a port: the core refuses a held port a
   assert.throws(() => w.db.prepare('UPDATE deployments SET host_port = 49299 WHERE job_id = ?').run(j3.id), /immutable/);
   const b = w.exec.start(w.me, w.req('sde.build.run')).job; w.exec.tick(w.now());
   const ba = w.liveAttempt(b.id);
-  r.report({ op: 'attempt.provisioned', attemptId: ba.id, containerId: 'b'.repeat(64), imageDigest: w.IMAGE['sde-node'], preflight: passingPreflight(), hostPort: 40000 });
+  r.report({ op: 'attempt.provisioned', attemptId: ba.id, containerId: 'b'.repeat(64), imageDigest: w.IMAGE['sde-node'], preflight: passingPreflight(), hostPort: 50000 });
   assert.equal(w.jobState(b.id), 'failed'); assert.match(JSON.parse(w.job(b.id).error_json).message, /published port/);
-  // The protocol carries a port only with a container, in 1024-65535.
-  assert.equal(parseRunnerMessage({ op: 'attempt.provisioned', attemptId: ba.id, hostPort: 40000 }), null);
-  assert.equal(parseRunnerMessage({ op: 'attempt.provisioned', attemptId: ba.id, containerId: 'b'.repeat(64), preflight: passingPreflight(), hostPort: 80 }), null);
+  // The protocol carries a port only with a container, in the ephemeral range 49152-65535 (M3).
+  assert.equal(parseRunnerMessage({ op: 'attempt.provisioned', attemptId: ba.id, hostPort: 50000 }), null);
+  const prov = (port) => parseRunnerMessage({ op: 'attempt.provisioned', attemptId: ba.id, containerId: 'b'.repeat(64), preflight: passingPreflight(), hostPort: port });
+  for (const port of [80, 1024, 3306, 8080, 49151, 65536]) assert.equal(prov(port), null, `port ${port}`);
+  for (const port of [49152, 60000, 65535]) assert.ok(prov(port), `port ${port}`);
+  healthy(w); w.close();
+});
+
+test('M3 a dev deployment whose runner reports a port outside the ephemeral range (3306) never runs', async () => {
+  const { w, r, app } = await deployWorld();
+  const j = preview(w, app); w.exec.tick(w.now());
+  const a = w.liveAttempt(j.id);
+  // Dropped by the protocol: nothing is recorded, the deployment never gets the port, and its start window ends it.
+  r.report({ op: 'attempt.provisioned', attemptId: a.id, containerId: 'e'.repeat(64), imageDigest: w.IMAGE['sde-node'], preflight: passingPreflight(), hostPort: 3306 });
+  assert.equal(w.attempt(a.id).state, 'starting'); assert.equal(dep(w, j.id).host_port, null);
+  assert.ok(w.logs.some((l) => /dropped runner message \?: malformed/.test(l)));
+  w.run(r, 65_000);
+  assert.equal(dep(w, j.id).status, 'failed'); assert.equal(dep(w, j.id).stop_reason, 'start_timeout'); assert.equal(w.jobState(j.id), 'failed');
+  assert.equal(count(w, 'deployments WHERE host_port = 3306'), 0);
   healthy(w); w.close();
 });
 
@@ -628,9 +671,10 @@ test('D9 the fixed 2 h lifetime stops a healthy deployment (idle); a cancelled p
   for (let i = 0; i < 24 * 5; i++) probe(w, r, a, 200);       // 10 min of probes
   w.run(r, 2 * 60 * MIN - 11 * MIN);
   assert.equal(dep(w, j.id).status, 'healthy');
-  w.run(r, 2 * MIN);
+  w.run(r, 75_000);
   assert.equal(dep(w, j.id).status, 'stopped'); assert.equal(dep(w, j.id).stop_reason, 'idle');
   assert.equal(w.job(j.id).phase, 'stopping');
+  assert.ok(r.sentOf('attempt.cancel').some((m) => m.attemptId === a.id && m.reason === 'timeout'));
   const j2 = preview(w, app); w.exec.tick(w.now());
   w.exec.cancel(w.me, j2.id);
   assert.equal(dep(w, j2.id).status, 'stopped'); assert.equal(dep(w, j2.id).stop_reason, 'cancel'); assert.equal(dep(w, j2.id).stopped_by, w.me.id);
@@ -686,11 +730,9 @@ test('R2 two snapshot requests at once leave one live job: the second returns it
   assert.equal(x.job.id, y.job.id);
   assert.deepEqual([x.created, y.created].sort(), [false, true]);
   assert.equal(count(w, "jobs WHERE recipe_id = 'repo.snapshot'"), 1);
-  // While it is live, a later request returns it too, also through the core's own start; once it ended, a new one is created.
+  // While it is live, a later request returns it too; once it ended, a new one is created.
   const z = await req('s-3');
   assert.equal(z.created, false); assert.equal(z.job.id, x.job.id);
-  const direct = w.exec.start(w.me, w.req('sde.repository.snapshot'));
-  assert.equal(direct.created, false); assert.equal(direct.job.id, x.job.id);
   assert.equal(count(w, "jobs WHERE recipe_id = 'repo.snapshot'"), 1);
   w.exec.cancel(w.me, x.job.id);
   const n = await req('s-4');
@@ -787,5 +829,386 @@ test('S3 state is rebuilt from SQLite alone: a second platform on the same datab
   w.advance(16 * MIN);
   assert.equal(nx2.approvals.expireDue(w.now()), 1);
   assert.equal(approvalOf(w, d.id).status, 'expired'); assert.equal(w.jobState(d.id), 'failed');
+  healthy(w); w.close();
+});
+
+// ---------- fix round 1 (review of e212fca2) ----------
+
+test('AR1 approval answers, expiry and image builds write their activity rows with their facts and plain sentences', () => {
+  const gate = { ok: true };
+  const { w, r } = egressWorld({ acceptFsRoot: (root) => (gate.ok ? root : null), imageContexts: (id) => (id === 'sde-node' ? CTX : null),
+    freeBytes: 45 * GIB });
+  // Five installs wait for approval (an awaiting job holds no slot).
+  const [d1, d2, d3, d4, d5] = [0, 1, 2, 3, 4].map(() => depsJob(w));
+  // once, started
+  w.nx.approvals.respond(w.me, approvalOf(w, d1.id).id, 'once');
+  const r1 = acts(w, 'approval.respond', approvalOf(w, d1.id).id)[0];
+  assert.equal(r1.actor_kind, 'user'); assert.equal(r1.actor_id, w.me.id); assert.equal(r1.job_id, d1.id); assert.equal(r1.attempt_n, 1);
+  assert.deepEqual(JSON.parse(r1.details_json), { reason: 'egress.deps', decision: 'once', consumedBy: { jobId: d1.id, attemptN: 1 }, effect: 'started' });
+  assert.equal(ACT.activityText(actView(r1), ACT_CTX), 'Network access approved once, for one dependency install');
+  // once while the slots are full: waiting:slots
+  const builds = [0, 1].map(() => w.exec.start(w.me, w.req('sde.build.run')).job); w.exec.tick(w.now());
+  assert.ok(builds.every((b) => w.jobState(b.id) === 'leased'));
+  w.nx.approvals.respond(w.me, approvalOf(w, d2.id).id, 'once');
+  assert.equal(JSON.parse(acts(w, 'approval.respond', approvalOf(w, d2.id).id)[0].details_json).effect, 'waiting:slots');
+  // deny
+  w.nx.approvals.respond(w.me, approvalOf(w, d3.id).id, 'deny');
+  const r3 = acts(w, 'approval.respond', approvalOf(w, d3.id).id)[0];
+  assert.deepEqual(JSON.parse(r3.details_json), { reason: 'egress.deps', decision: 'deny', consumedBy: null, effect: 'job_failed_denied' });
+  assert.equal(ACT.activityText(actView(r3), ACT_CTX), 'Approval denied');
+  // once when the plan cannot be built (the project folder is gone): failed:<code>
+  w.exec.cancel(w.me, builds[0].id);
+  gate.ok = false;
+  w.nx.approvals.respond(w.me, approvalOf(w, d5.id).id, 'once');
+  assert.equal(JSON.parse(acts(w, 'approval.respond', approvalOf(w, d5.id).id)[0].details_json).effect, 'failed:project_folder_unavailable');
+  assert.equal(w.jobState(d5.id), 'failed');
+  gate.ok = true;
+  // expiry
+  w.advance(15 * MIN);
+  assert.equal(w.nx.approvals.expireDue(w.now()), 1);
+  const ex = acts(w, 'approval.expire', approvalOf(w, d4.id).id)[0];
+  assert.equal(ex.actor_kind, 'system'); assert.equal(ex.job_id, d4.id);
+  assert.deepEqual(JSON.parse(ex.details_json), { approvalId: approvalOf(w, d4.id).id, reason: 'egress.deps', expiredAt: approvalOf(w, d4.id).expires_at,
+    job: { outcome: 'denied', error: 'approval_expired' } });
+  assert.equal(ACT.activityText(actView(ex), ACT_CTX), 'Approval request expired: it was not answered within 15 minutes');
+  // Image: request (the user), answer, start (the deciding user, for the requester), finish (the system).
+  const { approval } = w.nx.approvals.requestImage(w.me, 'sde-node', 'img-ar1');
+  const rq = acts(w, 'approval.request', approval.id)[0];
+  const rqRow = w.db.prepare('SELECT * FROM approvals WHERE id = ?').get(approval.id);
+  assert.equal(rq.actor_id, w.me.id);
+  assert.deepEqual(JSON.parse(rq.details_json), { reason: 'image.prepare', profileId: 'sde-node', context: { sha256: CTX.contextSha256 },
+    base: { sha256: CTX.baseDigest.slice(7) }, estimatedBytes: CTX.estimatedBytes, freeBytesNow: 45 * GIB, request: { sha256: rqRow.request_sha256 },
+    expiresAt: rqRow.expires_at });
+  assert.equal(ACT.activityText(actView(rq), ACT_CTX), 'Approval asked: prepare a sandbox image');
+  w.nx.approvals.respond(w.me, approval.id, 'once');
+  const b = w.db.prepare('SELECT * FROM image_builds WHERE approval_id = ?').get(approval.id);
+  assert.deepEqual(JSON.parse(acts(w, 'approval.respond', approval.id)[0].details_json), { reason: 'image.prepare', decision: 'once', profileId: 'sde-node', buildId: b.id });
+  const st = acts(w, 'image_build.start', b.id)[0];
+  assert.equal(st.actor_id, w.me.id); assert.equal(st.on_behalf_of, w.me.id); assert.equal(st.status, 'started');
+  assert.deepEqual(JSON.parse(st.details_json), { buildId: b.id, profileId: 'sde-node', approvalId: approval.id, context: { sha256: CTX.contextSha256 },
+    base: { sha256: CTX.baseDigest.slice(7) } });
+  w.advance(90_000);
+  r.report({ op: 'image.build.done', buildId: b.id, outcome: 'succeeded', imageId: 'sha256:' + 'e6'.repeat(32), sizeBytes: 2 * GIB });
+  const fin = acts(w, 'image_build.finish', b.id)[0];
+  assert.equal(fin.actor_kind, 'system'); assert.equal(fin.status, 'succeeded');
+  assert.deepEqual(JSON.parse(fin.details_json), { buildId: b.id, profileId: 'sde-node', status: 'succeeded', image: { sha256: 'e6'.repeat(32) },
+    sizeBytes: 2 * GIB, error: null, durationMs: 90_000 });
+  assert.equal(ACT.activityText(actView(fin), ACT_CTX), 'Sandbox image prepared');
+  assert.equal(ACT.activityText(actView(st), ACT_CTX), 'Sandbox image preparation started');
+  for (const t of recordTexts(w)) assert.ok(!hasProviderKey(t), t.slice(0, 120));
+  healthy(w); w.close();
+});
+
+test('AR1 dev deployments write deployment.start, deployment.transition and deployment.stop rows with their facts', async () => {
+  const { w, r, app, build } = await deployWorld();
+  const j = preview(w, app); w.exec.tick(w.now());
+  const d = dep(w, j.id);
+  const start = acts(w, 'deployment.start', d.id)[0];
+  assert.equal(start.actor_kind, 'system'); assert.equal(start.on_behalf_of, w.me.id); assert.equal(start.job_id, j.id); assert.equal(start.attempt_n, 1);
+  assert.equal(start.version_id, app);
+  assert.deepEqual(JSON.parse(start.details_json), { deploymentId: d.id, jobId: j.id, attemptN: 1, subjectVersionId: app, buildVersionId: build,
+    profile: 'sde-node', image: { sha256: w.IMAGE['sde-node'].slice(7) }, forwarderImage: { sha256: w.IMAGE['nexus-fwd'].slice(7) },
+    environment: 'local-preview', bindAddress: '127.0.0.1', lifetimeMs: 2 * 60 * MIN });
+  assert.equal(ACT.activityText(actView(start), ACT_CTX), 'Dev deployment started, reachable from this computer only');
+  const a = provisionService(w, r, j.id, 49300);
+  probe(w, r, a, 503); probe(w, r, a, 200);
+  const healthyRow = acts(w, 'deployment.transition', d.id)[0];
+  const check = w.latest(app, 'app.preview_health');
+  assert.deepEqual(JSON.parse(healthyRow.details_json), { deploymentId: d.id, from: 'starting', to: 'healthy', reason: null, hostPort: 49300,
+    healthyEver: true, lastProbeStatus: 200, check: { id: check.id, status: 'passed' } });
+  assert.equal(ACT.activityText(actView(healthyRow), ACT_CTX), 'Dev deployment answered its health check');
+  probe(w, r, a, 500); probe(w, r, a, 500); probe(w, r, a, 500);
+  const unhealthy = acts(w, 'deployment.transition', d.id)[1];
+  assert.deepEqual(JSON.parse(unhealthy.details_json), { deploymentId: d.id, from: 'healthy', to: 'unhealthy', reason: null, hostPort: 49300,
+    healthyEver: true, lastProbeStatus: 500, check: null });
+  w.nx.deployments.stop(w.me, d.id);
+  const stop = acts(w, 'deployment.stop', d.id)[0];
+  assert.equal(stop.actor_kind, 'user'); assert.equal(stop.actor_id, w.me.id);
+  assert.deepEqual(JSON.parse(stop.details_json), { deploymentId: d.id, from: 'unhealthy', to: 'stopped', reason: 'user', job: 'completes_on_exit', hostPort: 49300 });
+  assert.equal(ACT.activityText(actView(stop), ACT_CTX), 'Dev deployment stopped; its job finishes when the app has exited');
+  // A failure in words: the start window passes without a 200.
+  const j2 = preview(w, app); w.exec.tick(w.now());
+  const a2 = provisionService(w, r, j2.id, 49301, 'f');
+  for (let i = 0; i < 13; i++) probe(w, r, a2, 503);
+  const failed = acts(w, 'deployment.transition', dep(w, j2.id).id).pop();
+  assert.equal(JSON.parse(failed.details_json).reason, 'probe_failed'); assert.equal(JSON.parse(failed.details_json).check.status, 'failed');
+  assert.equal(ACT.activityText(actView(failed), ACT_CTX), 'Dev deployment failed: it did not answer its health check within 60 seconds');
+  for (const t of recordTexts(w)) assert.ok(!hasProviderKey(t), t.slice(0, 120));
+  healthy(w); w.close();
+});
+
+test('AR2 unavailable is a shared error code with its own plain sentence; the services answer with it', () => {
+  const fs = require('node:fs'); const path = require('node:path');
+  const E = loadTs('src/renderer/src/nexus/data/errorCopy.ts');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'shared', 'nexus', 'platform.ts'), 'utf8');
+  assert.match(src.match(/export type PlatformErrorCode =([^;]+);/)[1], /'unavailable'/);
+  assert.ok(E.NEXUS_ERROR_CODES.includes('unavailable'));
+  const c = E.errorCopy('unavailable', 'setup:disk_low');
+  assert.equal(c.kind, 'refused'); assert.equal(c.retry, false);
+  assert.equal(c.text, 'That cannot run on this computer right now. Check the setup notes for what it needs.');
+  const { w } = imageWorld({ freeBytes: 20 * GIB });
+  assert.throws(() => w.nx.approvals.requestImage(w.me, 'sde-node', 'u-1'), (e) => e.code === 'unavailable' && e.detail.reason === 'setup:disk_low');
+  w.close();
+});
+
+test('I1 image builds always end: a runner-wide fault or a port leaving ready interrupts them; a deadline fails them; a user cancels one', () => {
+  const { w, r } = imageWorld({ freeBytes: 45 * GIB });
+  const build = (profile, k) => {
+    const { approval } = w.nx.approvals.requestImage(w.me, profile, k);
+    w.nx.approvals.respond(w.me, approval.id, 'once');
+    return w.db.prepare('SELECT * FROM image_builds WHERE approval_id = ?').get(approval.id);
+  };
+  const statusOf = (b) => w.db.prepare('SELECT status, error_json FROM image_builds WHERE id = ?').get(b.id);
+  // A runner-wide fault: interrupted, and a new request is accepted again.
+  const b1 = build('sde-node', 'i-1');
+  r.report({ op: 'fault', message: 'the runner lost its Docker connection' });
+  assert.equal(statusOf(b1).status, 'interrupted'); assert.equal(JSON.parse(statusOf(b1).error_json).code, 'runner_lost');
+  assert.equal(JSON.parse(acts(w, 'image_build.finish', b1.id)[0].details_json).status, 'interrupted');
+  // The port leaves ready (a crash) while a build runs.
+  const b2 = build('sde-node', 'i-2');
+  w.exec.tick(w.now());                                       // the scheduler sees the port ready
+  r.setState('crashed'); w.exec.tick(w.now());
+  assert.equal(statusOf(b2).status, 'interrupted');
+  r.setState('ready'); w.exec.tick(w.now());
+  // The deadline: cancelled at the runner, failed `timeout`.
+  const b3 = build('sde-node', 'i-3');
+  w.run(r, 59 * MIN);
+  assert.equal(statusOf(b3).status, 'running');
+  w.run(r, 2 * MIN);
+  assert.equal(statusOf(b3).status, 'failed'); assert.equal(JSON.parse(statusOf(b3).error_json).code, 'timeout');
+  assert.ok(r.sentOf('image.build.cancel').some((m) => m.buildId === b3.id));
+  // A late report changes nothing.
+  r.report({ op: 'image.build.done', buildId: b3.id, outcome: 'succeeded', imageId: 'sha256:' + 'e6'.repeat(32), sizeBytes: 1 });
+  assert.equal(statusOf(b3).status, 'failed');
+  // A user cancels a running build; the system cannot; a second cancel is refused.
+  const b4 = build('nexus-fwd', 'i-4');
+  assert.throws(() => w.nx.approvals.cancelImageBuild(w.sys, b4.id), code('denied', 'user_only'));
+  assert.equal(w.nx.approvals.cancelImageBuild(w.me, b4.id).status, 'cancelled');
+  assert.ok(r.sentOf('image.build.cancel').some((m) => m.buildId === b4.id));
+  assert.throws(() => w.nx.approvals.cancelImageBuild(w.me, b4.id), code('illegal_transition'));
+  const fin = acts(w, 'image_build.finish', b4.id)[0];
+  assert.equal(fin.actor_id, w.me.id); assert.equal(fin.status, 'cancelled');
+  // A replaced runner port interrupts what the old one was building.
+  const b5 = build('sde-node', 'i-5');
+  w.exec.attachRunner(new FakeRunner(), w.bootId);
+  assert.equal(statusOf(b5).status, 'interrupted');
+  assert.equal(count(w, "image_builds WHERE status = 'running'"), 0);
+  healthy(w); w.close();
+});
+
+test('M1 only a user stops a dev deployment: the system and an agent with a project role are denied and audited', async () => {
+  const { w, r, app } = await deployWorld();
+  const j = preview(w, app); w.exec.tick(w.now());
+  const a = provisionService(w, r, j.id, 49310); probe(w, r, a, 200);
+  const d = dep(w, j.id);
+  assert.throws(() => w.nx.deployments.stop(w.sys, d.id), code('denied', 'user_only'));
+  assert.equal(count(w, "activity WHERE status = 'denied' AND actor_id = 'system' AND action = 'deployment.stop'"), 1);
+  w.db.prepare("INSERT INTO principals VALUES ('agent:bot', 'agent', 'bot', NULL, ?)").run(h.NOW);
+  w.db.prepare("INSERT INTO memberships VALUES ('agent:bot', 'project', 'p-ledger', 'owner', ?)").run(h.NOW);
+  assert.throws(() => w.nx.deployments.stop({ id: 'agent:bot', kind: 'agent', displayName: 'bot' }, d.id), code('denied', 'user_only'));
+  assert.throws(() => w.nx.deployments.stop({ id: 'system', kind: 'user', displayName: 'forged' }, d.id), code('denied', 'user_only'));
+  assert.throws(() => w.nx.deployments.stop(null, d.id), code('denied', 'user_only'));
+  assert.equal(dep(w, j.id).status, 'healthy'); assert.equal(r.sentOf('attempt.cancel').length, 0);
+  healthy(w); w.close();
+});
+
+test('M2 a dev deployment ends with its true cause: a refused preflight, a runner refusal, the app quitting', async () => {
+  const { w, r, app } = await deployWorld();
+  const reasonOf = (j) => JSON.parse(acts(w, 'deployment.transition', dep(w, j.id).id).pop().details_json).reason;
+  // A port conflict at preflight.
+  const j1 = preview(w, app); const j2 = preview(w, app); w.exec.tick(w.now());
+  provisionService(w, r, j1.id, 49320); provisionService(w, r, j2.id, 49320, 'f');
+  assert.equal(reasonOf(j2), 'preflight_failed'); assert.equal(dep(w, j2.id).stop_reason, 'start_timeout', 'the frozen v9 vocabulary: it never started');
+  assert.equal(ACT.activityText(actView(acts(w, 'deployment.transition', dep(w, j2.id).id).pop()), ACT_CTX),
+    'Dev deployment failed: its sandbox did not pass the safety checks');
+  // A runner refusal.
+  const j3 = preview(w, app); w.exec.tick(w.now());
+  r.report({ op: 'attempt.refused', attemptId: w.liveAttempt(j3.id).id, reason: 'docker_stopped' });
+  assert.equal(reasonOf(j3), 'refused');
+  // The app quits: a deployment that never passed its check ends its job cancelled (app_quit), not "exited".
+  w.nx.deployments.stop(w.me, dep(w, j1.id).id);
+  const j4 = preview(w, app); w.exec.tick(w.now());
+  const a4 = provisionService(w, r, j4.id, 49321, 'a');
+  w.nx.deployments.stopAllForQuit();
+  r.report({ op: 'attempt.exited', attemptId: a4.id, exit: { code: 143, oomKilled: false, finishedAt: w.now() }, outputs: [], parsed: [], logBytes: 1 });
+  assert.equal(w.jobState(j4.id), 'cancelled'); assert.equal(w.job(j4.id).outcome, 'app_quit'); assert.equal(dep(w, j4.id).stop_reason, 'app_quit');
+  assert.equal(w.attempt(a4.id).state, 'cancelled'); assert.equal(w.attempt(a4.id).exit_code, 143);
+  // The pure mapping.
+  assert.equal(endCause('failed', 'limits_not_applied', false), 'preflight_failed');
+  assert.equal(endCause('failed', 'busy', false), 'refused');
+  assert.equal(endCause('failed', 'not_sent', false), 'runner_lost');
+  assert.equal(endCause('failed', 'container_vanished', true), 'exited');
+  assert.equal(endCause('failed', null, false), 'start_timeout');
+  assert.equal(endCause('interrupted', null, true), 'recovery');
+  healthy(w); w.close();
+});
+
+test('M4 with a repository check configured a snapshot starts only through the snapshot request; a retry is refused too', async () => {
+  const w = execWorld({ isRepository: async () => true }); w.attach();
+  assert.throws(() => w.exec.start(w.me, w.req('sde.repository.snapshot')), code('invalid', 'repository_check_required'));
+  assert.equal(count(w, "jobs WHERE recipe_id = 'repo.snapshot'"), 0);
+  const { job, created } = await w.nx.repo.requestSnapshot(w.me, { projectId: 'p-ledger', workspaceId: 'sde', intentId: 'm4-1' });
+  assert.equal(created, true);
+  w.exec.cancel(w.me, job.id);
+  assert.throws(() => w.exec.retry(w.me, job.id, 'm4-2'), code('invalid', 'repository_check_required'));
+  // A forged token is not the token.
+  assert.throws(() => w.exec.start(w.me, w.req('sde.repository.snapshot'), Symbol('nexus.repository-checked')), code('invalid', 'repository_check_required'));
+  // Without a repository check (no checker in the composition) the core still keeps one live snapshot per project.
+  const w2 = execWorld(); w2.attach();
+  const s1 = w2.exec.start(w2.me, w2.req('sde.repository.snapshot'));
+  const s2 = w2.exec.start(w2.me, w2.req('sde.repository.snapshot'));
+  assert.equal(s1.created, true); assert.equal(s2.created, false); assert.equal(s2.job.id, s1.job.id);
+  healthy(w); w.close(); w2.close();
+});
+
+test('M5 a stopped deployment whose exit is never reported frees its slot: the job fails exit_not_reported after the bound', async () => {
+  const { w, r, app } = await deployWorld();
+  const j = preview(w, app); w.exec.tick(w.now());
+  const a = provisionService(w, r, j.id, 49330); probe(w, r, a, 200);
+  w.nx.deployments.stop(w.me, dep(w, j.id).id);
+  assert.equal(w.job(j.id).phase, 'stopping');
+  w.run(r, 55_000);
+  assert.equal(w.jobState(j.id), 'running');
+  w.run(r, 10_000);
+  assert.equal(w.jobState(j.id), 'failed'); assert.equal(w.job(j.id).outcome, 'exit_not_reported');
+  assert.equal(w.attempt(a.id).state, 'failed');
+  assert.equal(r.sentOf('attempt.cancel').filter((m) => m.attemptId === a.id).length, 2, 'told again');
+  // The slot is free: two new previews both lease.
+  const k = [preview(w, app), preview(w, app)]; w.exec.tick(w.now());
+  assert.deepEqual(k.map((x) => w.jobState(x.id)), ['leased', 'leased']);
+  healthy(w); w.close();
+});
+
+test('M6 a consumed approval never starts network work much later: a job not started within 15 minutes fails approval_stale', () => {
+  const { w, r } = egressWorld();
+  const d = depsJob(w); const ap = approvalOf(w, d.id);
+  r.setState('starting');                                     // the runner is not ready: the job cannot start
+  w.nx.approvals.respond(w.me, ap.id, 'once');
+  assert.equal(w.jobState(d.id), 'awaiting_approval'); assert.equal(w.job(d.id).phase, 'waiting:runner');
+  w.run(r, 14 * MIN);
+  assert.equal(w.jobState(d.id), 'awaiting_approval');
+  w.run(r, 90_000);
+  assert.equal(w.jobState(d.id), 'failed'); assert.equal(w.job(d.id).outcome, 'denied');
+  assert.equal(JSON.parse(w.job(d.id).error_json).code, 'approval_stale');
+  r.setState('ready'); w.run(r, MIN);
+  assert.equal(r.sentOf('attempt.start').length, 0, 'never started');
+  assert.throws(() => w.exec.resumeApproved(d.id), code('illegal_transition'));
+  healthy(w); w.close();
+});
+
+test('M7 an attempt another boot owns is never started from this process: the job waits (waiting:runner)', () => {
+  const { w, r } = egressWorld();
+  const d = depsJob(w);
+  w.exec.attachRunner(r, newId(w.now() + 1));                 // this process is now another boot
+  w.nx.approvals.respond(w.me, approvalOf(w, d.id).id, 'once');
+  assert.equal(w.jobState(d.id), 'awaiting_approval'); assert.equal(w.job(d.id).phase, 'waiting:runner');
+  assert.equal(approvalOf(w, d.id).consumed_by_attempt_n, 1);
+  w.exec.tick(w.now());
+  assert.equal(r.sentOf('attempt.start').length, 0);
+  assert.throws(() => w.exec.resumeApproved(d.id), code('conflict', 'waiting:runner'));
+  w.close();
+});
+
+test('M8 the consent says exactly what is enforced: one job, no install scripts, lockfile hashes; the hosts are expected, not blocked', () => {
+  const { w } = egressWorld({ imageContexts: (id) => (id === 'sde-node' ? CTX : null), freeBytes: 45 * GIB });
+  const d = depsJob(w);
+  assert.equal(approvalOf(w, d.id).summary, 'Network access for this one Node dependency install job. Install scripts are disabled and packages must match '
+    + `the lockfile hashes (${LOCK.slice(0, 12)}). Packages are expected from registry.npmjs.org; other hosts are not blocked in this release.`);
+  assert.doesNotMatch(approvalOf(w, d.id).summary, /only from|once, from/i);
+  const { approval } = w.nx.approvals.requestImage(w.me, 'sde-node', 'm8');
+  assert.match(approval.summary, /not limited to particular hosts/);
+  w.close();
+});
+
+test('M9 the deployment service job helpers act on dev deployment jobs only', () => {
+  const w = execWorld(); w.attach();
+  const b = w.exec.start(w.me, w.req('sde.build.run')).job; w.exec.tick(w.now());
+  assert.throws(() => w.db.transaction(() => w.exec.endServiceJobTx(b.id, { state: 'failed', outcome: 'x', error: { code: 'x', message: 'x' } }, w.now())).immediate(),
+    code('invalid', 'not_a_service_job'));
+  assert.throws(() => w.db.transaction(() => w.exec.setJobPhaseTx(b.id, 'stopping', w.now())).immediate(), code('invalid', 'not_a_service_job'));
+  assert.equal(w.jobState(b.id), 'leased'); assert.equal(w.job(b.id).phase, 'provisioning');
+  w.close();
+});
+
+test('M10 (A6) the runner refuses an approval id bound to another job: a genuinely mismatched plan fails its job, never retried', () => {
+  /** A runner that binds each approval id to the (job, attempt) it first carried, refusing it for any other. */
+  class BindingRunner extends FakeRunner {
+    constructor() { super(); this.bound = new Map(); this.tamper = null; }
+    send(msg) {
+      if (msg.op === 'attempt.start' && this.tamper) msg = this.tamper(JSON.parse(JSON.stringify(msg)));
+      super.send(msg);
+      const net = msg.op === 'attempt.start' && msg.plan.kind === 'tool' ? msg.plan.container.network : null;
+      if (!net || net.mode !== 'egress-approved') return;
+      const key = `${msg.plan.jobId}/${msg.plan.attemptN}`;
+      const seen = this.bound.get(net.approvalId);
+      if (seen && seen !== key) {
+        this.report({ op: 'attempt.refused', attemptId: msg.attemptId, reason: 'network_not_approved', detail: 'approval id bound to another job' });
+        return;
+      }
+      this.bound.set(net.approvalId, key);
+    }
+  }
+  const w = execWorld({ approvals: 'real', repoMeta: { lockfile: { sha256: LOCK } }, dockerMemoryBytes: 64 * GIB });
+  const r = new BindingRunner(); w.exec.attachRunner(r, w.bootId);
+  const A = depsJob(w); const B = depsJob(w);
+  const apA = approvalOf(w, A.id);
+  w.nx.approvals.respond(w.me, apA.id, 'once');
+  assert.equal(w.jobState(A.id), 'running');
+  // The transport (not main) swaps B's approval id for A's: the runner refuses the mismatch.
+  r.tamper = (m) => { if (m.plan.jobId === B.id) m.plan.container.network.approvalId = apA.id; return m; };
+  w.nx.approvals.respond(w.me, approvalOf(w, B.id).id, 'once');
+  assert.equal(r.lastStart().plan.container.network.approvalId, apA.id, 'the tampered plan reached the runner');
+  assert.equal(w.jobState(B.id), 'failed'); assert.equal(w.attempts(B.id)[0].outcome, 'network_not_approved');
+  assert.equal(JSON.parse(w.job(B.id).error_json).code, 'network_not_approved');
+  w.run(r, 2 * MIN);
+  assert.equal(w.jobState(B.id), 'failed', 'never retried'); assert.equal(w.jobState(A.id), 'running');
+  healthy(w); w.close();
+});
+
+test('M10 (S2) planted secrets in every free-text report never reach approvals, builds, deployments, events, activity, jobs or attempts', async () => {
+  const token = 'ghp_' + 'Q1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h6J7k8';
+  const { w, r, app } = await deployWorld({ approvals: 'real', repoMeta: { lockfile: { sha256: LOCK } }, imageContexts: (id) => (id === 'sde-node' ? CTX : null) });
+  // Image build: progress phase and failure text.
+  const { approval } = w.nx.approvals.requestImage(w.me, 'sde-node', 's2');
+  w.nx.approvals.respond(w.me, approval.id, 'once');
+  const b = w.db.prepare('SELECT id FROM image_builds WHERE approval_id = ?').get(approval.id);
+  r.report({ op: 'image.build.progress', buildId: b.id, at: w.now(), phase: `pulling with token=${token}` });
+  r.report({ op: 'image.build.done', buildId: b.id, outcome: 'failed', error: `npm said: //registry/:_authToken=${token}` });
+  // A dev deployment: a refusal detail and a runner-wide fault message.
+  const j = preview(w, app); w.exec.tick(w.now());
+  r.report({ op: 'attempt.refused', attemptId: w.liveAttempt(j.id).id, reason: 'busy', detail: `daemon said ${token}` });
+  const j2 = preview(w, app); w.exec.tick(w.now());
+  const a2 = provisionService(w, r, j2.id, 49340); probe(w, r, a2, 200);
+  r.report({ op: 'fault', message: `fatal: ${token}` });
+  w.nx.deployments.stop(w.me, dep(w, j2.id).id);
+  // An egress approval and its answer.
+  const d = depsJob(w); w.nx.approvals.respond(w.me, approvalOf(w, d.id).id, 'deny');
+  const texts = recordTexts(w);
+  assert.ok(texts.length > 50, `the scan sees the records (${texts.length})`);
+  for (const t of texts) {
+    assert.ok(!t.includes(token) && !t.includes('ghp_'), t.slice(0, 160));
+    assert.ok(!hasProviderKey(t), t.slice(0, 160));
+  }
+  healthy(w); w.close();
+});
+
+test('M10 (D8) app quit stops at most 100 deployments in one bounded pass; the next pass stops the rest', async () => {
+  const { w, app } = await deployWorld();
+  const ins = w.db.prepare(`INSERT INTO deployments (id, project_id, participation_id, subject_version_id, job_id, environment, bind_address, host_port,
+    status, health_json, created_by, started_at, status_changed_at, updated_at) VALUES (?, 'p-ledger', ?, ?, ?, 'local-preview', '127.0.0.1', NULL, 'starting', '[]',
+    'user:local', ?, ?, ?)`);
+  for (let i = 0; i < 101; i++) {
+    const job = w.nx.jobs.create(w.me, { kind: 'tool.run', projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: `quit-${i}` }).job;
+    ins.run(newId(w.now() + i), w.pw.id, app, job.id, w.now() + i, w.now(), w.now());
+  }
+  const t = performance.now();
+  assert.equal(w.nx.deployments.stopAllForQuit(), 100);
+  const ms = performance.now() - t;
+  assert.ok(ms < 2_000, `one bounded pass (${ms.toFixed(0)} ms)`);
+  assert.equal(count(w, "deployments WHERE status = 'stopped' AND stop_reason = 'app_quit'"), 100);
+  assert.equal(count(w, "deployments WHERE status = 'starting'"), 1, 'the 101st waits for the next pass');
+  assert.equal(count(w, "activity WHERE action = 'deployment.transition'"), 100);
+  assert.equal(w.nx.deployments.stopAllForQuit(), 1);
+  assert.equal(count(w, "deployments WHERE status = 'starting'"), 0);
   healthy(w); w.close();
 });

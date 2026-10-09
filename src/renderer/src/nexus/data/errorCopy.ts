@@ -18,7 +18,7 @@ export interface ErrorCopy {
 /** Every error code a nexus:* channel can answer with. */
 export const NEXUS_ERROR_CODES: readonly NexusErrorCode[] = Object.freeze([
   'denied', 'not_found', 'invalid', 'conflict', 'immutable', 'cycle', 'not_owner', 'not_participating',
-  'participation_inactive', 'input_not_granted', 'storage_unavailable', 'illegal_transition', 'platform_unavailable', 'internal'
+  'participation_inactive', 'input_not_granted', 'storage_unavailable', 'illegal_transition', 'platform_unavailable', 'unavailable', 'internal'
 ] as NexusErrorCode[]);
 
 const CODE_TEXT: Record<NexusErrorCode, string> = {
@@ -35,6 +35,7 @@ const CODE_TEXT: Record<NexusErrorCode, string> = {
   storage_unavailable: 'The stored content could not be read.',
   illegal_transition: 'That step is not possible from the current status.',
   platform_unavailable: 'Workspace data is not available right now.',
+  unavailable: 'That cannot run on this computer right now. Check the setup notes for what it needs.',
   internal: 'The request could not be completed. Try again.'
 };
 

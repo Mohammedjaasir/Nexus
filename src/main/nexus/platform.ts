@@ -155,6 +155,8 @@ export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformO
     auth, jobs, now, log, available: executionAvailable, unavailableReason, blobs,
     dataHome: opts?.dataHome ?? null, profiles: opts?.profiles ?? [], acceptFsRoot: opts?.acceptFsRoot ?? null,
     approvals: opts?.approvals !== undefined ? opts.approvals : approvals, images: approvals, deployments,
+    // With main's repository check wired in, a snapshot starts only through RepoService (which runs it first).
+    snapshotsNeedRepositoryCheck: !!opts?.isRepository,
     ingest, validation, appVersion: opts?.appVersion ?? null
   });
   validation?.setSender((msg) => exec.sendToRunner(msg));

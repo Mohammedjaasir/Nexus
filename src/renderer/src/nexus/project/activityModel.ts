@@ -13,7 +13,9 @@ export const ACTIVITY_PAGE = 20;
 
 /** The only detail keys a sentence ever reads. Everything else in `details` is never looked at. */
 export const ACTIVITY_DETAIL_ALLOW: readonly string[] = Object.freeze([
-  'versionNo', 'to', 'rollback', 'source', 'reactivated', 'subjects', 'toWorkspaceId', 'withNote', 'kind', 'workspaceId'
+  'versionNo', 'to', 'rollback', 'source', 'reactivated', 'subjects', 'toWorkspaceId', 'withNote', 'kind', 'workspaceId',
+  // B2a Task 9: approvals, image builds and dev deployments (each read only as one of a fixed set of values).
+  'reason', 'decision', 'status', 'job'
 ]);
 
 /** Every action the platform services write to the activity log. */
@@ -26,7 +28,9 @@ export const ACTIVITY_ACTIONS: readonly string[] = Object.freeze([
   'job.create', 'job.cancel', 'job.recover', 'job.transition',
   'session.open', 'session.cancel', 'session.recover', 'session.transition',
   'db.migrated', 'workspace.catalog_ensured', 'project_workspace.primary_synced',
-  'blob.gc', 'approval.withdraw'
+  'blob.gc', 'approval.withdraw',
+  'approval.request', 'approval.respond', 'approval.expire', 'image_build.start', 'image_build.finish',
+  'deployment.start', 'deployment.transition', 'deployment.stop'
 ]);
 
 /** Plain words for an action a person may be refused (every platform action). */
@@ -70,6 +74,12 @@ const ACTION_WORDS: Record<string, string> = {
   'approval.read': 'read approvals',
   'approval.respond': 'answer an approval',
   'approval.withdraw': 'withdraw an approval',
+  'approval.request': 'ask for an approval',
+  'approval.expire': 'let an approval request expire',
+  'image_build.start': 'start preparing a sandbox image',
+  'image_build.finish': 'prepare a sandbox image',
+  'deployment.start': 'start a dev deployment',
+  'deployment.transition': 'update a dev deployment',
   'deployment.stop': 'stop a dev deployment',
   'version.revalidate': 'run the checks again',
   'platform.health': 'read the platform health'
@@ -157,6 +167,31 @@ function stateMove(subject: string, to: unknown): string {
   return words ? `${subject} ${words}` : `${subject} changed status`;
 }
 
+/** Why a dev deployment ended, in words (the `reason` of a `deployment.transition` row). */
+const DEPLOYMENT_FAILED_WORDS: Record<string, string> = {
+  probe_failed: 'Dev deployment failed: it did not answer its health check within 60 seconds',
+  exited: 'Dev deployment failed: the app stopped running',
+  start_timeout: 'Dev deployment failed: it did not start in time',
+  refused: 'Dev deployment failed: it could not be started on this computer',
+  preflight_failed: 'Dev deployment failed: its sandbox did not pass the safety checks',
+  runner_lost: 'Dev deployment failed: the process that ran it stopped'
+};
+const DEPLOYMENT_STOPPED_WORDS: Record<string, string> = {
+  idle: 'Dev deployment stopped at the end of its 2-hour lifetime',
+  app_quit: 'Dev deployment stopped when the app quit',
+  recovery: 'Dev deployment stopped after a restart',
+  cancel: 'Dev deployment stopped with its job',
+  user: 'Dev deployment stopped'
+};
+const IMAGE_BUILD_WORDS: Record<string, string> = {
+  succeeded: 'Sandbox image prepared',
+  interrupted: 'Sandbox image preparation was interrupted',
+  failed: 'Sandbox image preparation failed',
+  cancelled: 'Sandbox image preparation stopped'
+};
+const pick = (table: Record<string, string>, key: unknown): string | null =>
+  typeof key === 'string' && Object.prototype.hasOwnProperty.call(table, key) ? table[key] : null;
+
 /** The sentence for a succeeded (or started) row of a known action; null for an unknown action. */
 function sentence(row: ActivityView, ctx: ActivityContext): string | null {
   const name = artifactName(row, ctx);
@@ -215,6 +250,38 @@ function sentence(row: ActivityView, ctx: ActivityContext): string | null {
     case 'workspace.catalog_ensured': return 'Workspace list updated';
     case 'blob.gc': return row.status === 'started' ? 'Clean-up of unused stored files started' : 'Unused stored files cleaned up';
     case 'approval.withdraw': return 'Approval request withdrawn: the job was stopped';
+    case 'approval.request': {
+      const reason = detail(row, 'reason');
+      if (reason === 'egress.deps') return 'Approval asked: network access for one dependency install';
+      if (reason === 'image.prepare') return 'Approval asked: prepare a sandbox image';
+      return 'Approval asked';
+    }
+    case 'approval.respond': {
+      const decision = detail(row, 'decision');
+      const reason = detail(row, 'reason');
+      if (decision === 'deny') return 'Approval denied';
+      if (decision === 'once') {
+        if (reason === 'egress.deps') return 'Network access approved once, for one dependency install';
+        if (reason === 'image.prepare') return 'Sandbox image preparation approved once';
+        return 'Approved once';
+      }
+      return 'Approval answered';
+    }
+    case 'approval.expire': return 'Approval request expired: it was not answered within 15 minutes';
+    case 'image_build.start': return 'Sandbox image preparation started';
+    case 'image_build.finish': return pick(IMAGE_BUILD_WORDS, detail(row, 'status')) ?? 'Sandbox image preparation ended';
+    case 'deployment.start': return 'Dev deployment started, reachable from this computer only';
+    case 'deployment.transition': {
+      const to = detail(row, 'to');
+      const reason = detail(row, 'reason');
+      if (to === 'healthy') return 'Dev deployment answered its health check';
+      if (to === 'unhealthy') return 'Dev deployment stopped answering its health check';
+      if (to === 'stopped') return pick(DEPLOYMENT_STOPPED_WORDS, reason) ?? 'Dev deployment stopped';
+      if (to === 'failed') return pick(DEPLOYMENT_FAILED_WORDS, reason) ?? 'Dev deployment failed';
+      return 'Dev deployment changed status';
+    }
+    case 'deployment.stop':
+      return detail(row, 'job') === 'completes_on_exit' ? 'Dev deployment stopped; its job finishes when the app has exited' : 'Dev deployment stopped';
     case 'project_workspace.primary_synced': {
       const ws = workspacePhrase(detail(row, 'workspaceId'), ctx);
       return ws ? `Main workspace set to ${ws}, from the project's domain` : "Main workspace set from the project's domain";

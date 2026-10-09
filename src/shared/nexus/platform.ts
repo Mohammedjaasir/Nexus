@@ -88,7 +88,9 @@ export interface ActivityEntry { seq: number; id: ActivityId; ts: number; actorK
   projectId: ProjectId | null; artifactId: ArtifactId | null; versionId: VersionId | null; entityType: string; entityId: string | null; action: string;
   status: ActivityStatus; details: Record<string, unknown>; prevHash: string; hash: string }
 export type PlatformErrorCode = 'denied' | 'not_found' | 'invalid' | 'conflict' | 'immutable' | 'cycle' | 'not_owner'
-  | 'not_participating' | 'participation_inactive' | 'input_not_granted' | 'storage_unavailable' | 'illegal_transition' | 'platform_unavailable';
+  | 'not_participating' | 'participation_inactive' | 'input_not_granted' | 'storage_unavailable' | 'illegal_transition' | 'platform_unavailable'
+  // B2a: an action that cannot run on this machine now (a setup:* reason, or a product limit such as secrets for dev deployments).
+  | 'unavailable';
 // Execution (schema v9): the vocabularies seeded in attempt_states, approval_states and deployment_states.
 export type AttemptState = 'starting' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'timed_out' | 'abandoned';
 export type ApprovalStatus = 'pending' | 'approved' | 'denied' | 'expired' | 'withdrawn';

@@ -66,7 +66,11 @@
  *   build of their profile (a different context label: `image_mismatch`). A dev deployment (`sde.preview.start`) gets
  *   its deployment row at lease (DeploymentPort.startTx), its loopback port from `attempt.provisioned`, its health from
  *   `service.health`; it is never requeued, its exit is judged by the deployment (completed `stopped` only after a
- *   passed health check), and any terminal move of its job ends a deployment that is still live.
+ *   passed health check), and any terminal move of its job ends a deployment that is still live, with the job's cause.
+ *   A consumed approval whose job has not started within 15 minutes fails it (`denied`, `approval_stale`); an attempt
+ *   another boot owns is never started here (`waiting:runner`). A runner-wide fault interrupts running image builds.
+ *   With a repository check configured, the snapshot action starts only through RepoService (its REPOSITORY_CHECKED
+ *   token); otherwise the core still keeps one live snapshot job per project.
  */
 import type Database from 'better-sqlite3';
 import type { ImageStatus, SandboxProfile, SandboxProfileId, StagedOutput, ParsedOutput, ExitInfo, ResourceLimits } from '../../../shared/nexus/execution';
@@ -75,9 +79,9 @@ import type { Job, JobKind, JobState, Principal, ScopeRef } from '../../../share
 import { getUserAction, type UserActionDef } from '../../../shared/nexus/actions';
 import type { ParamsSchema } from '../../../shared/nexus/domainSpec';
 import { getRecipe, PREVIEW_IDLE_TTL_MS, RETRY_BACKOFF_MS, type RecipeDef } from '../../../shared/nexus/recipes';
-import { EXPIRY_SWEEP_MS, latestSucceededBuild, withdrawPendingApprovalsTx } from '../approvals/approvalService';
-import { previewBlocker, readAppManifest, type AppManifest } from '../repo/repoService';
-import { parseRunnerMessage, type CancelReason, type RunnerToMain } from '../../../shared/nexus/runnerProtocol';
+import { APPROVAL_TTL_MS, EXPIRY_SWEEP_MS, latestSucceededBuild, withdrawPendingApprovalsTx } from '../approvals/approvalService';
+import { previewBlocker, readAppManifest, REPOSITORY_CHECKED, type AppManifest } from '../repo/repoService';
+import { EPHEMERAL_PORT_MAX, EPHEMERAL_PORT_MIN, parseRunnerMessage, type CancelReason, type RunnerToMain } from '../../../shared/nexus/runnerProtocol';
 import { evaluateGate, leaseFloorBytes, type GateResult } from '../../../shared/nexus/resourceGate';
 import type { AuthService } from '../auth/authService';
 import { PrincipalResolver } from '../auth/principals';
@@ -142,10 +146,15 @@ export interface EgressApprovalPort {
   expireDue?(now: number): number;
 }
 
-/** Image builds (Task 9: ApprovalService): the runner's `image.build.*` reports. */
+/**
+ * Image builds (Task 9: ApprovalService): the runner's `image.build.*` reports, the runner being lost (running builds
+ * end `interrupted`), and the scheduler's pass (the build deadline).
+ */
 export interface ImageBuildPort {
   onImageBuildProgress(m: Extract<RunnerToMain, { op: 'image.build.progress' }>): void;
   onImageBuildDone(m: Extract<RunnerToMain, { op: 'image.build.done' }>): void;
+  onRunnerLost?(): number;
+  tick?(now: number): void;
 }
 
 /** Local dev deployments (Task 9: DeploymentService). Every `...Tx` runs inside the core's transaction. */
@@ -153,12 +162,14 @@ export interface DeploymentPort {
   byJob(jobId: string): { id: string } | null;
   prepareStart(jobId: string, subjectVersionId: string | null, now: number): { deploymentId: string; manifest: AppManifest; files: { sha256: string; path: string }[] };
   startTx(j: { id: string; project_id: string; participation_id: string | null; workspace_id: string; on_behalf_of: string },
-    attempt: { n: number }, deploymentId: string, subjectVersionId: string, now: number): string;
+    attempt: { n: number }, deploymentId: string, subjectVersionId: string, now: number,
+    facts?: { buildVersionId: string | null; profile: string | null; appImageId: string | null; forwarderImageId: string | null }): string;
   portHeld(port: number, jobId: string): boolean;
   onProvisionedTx(jobId: string, attemptN: number, hostPort: number, now: number): void;
   onHealth(deploymentId: string, probe: { status: number | null; ms: number | null; container: 'running' | 'exited' | 'missing' }): void;
-  onExitedTx(jobId: string, a: { n: number; started_at: number | null; sandbox_json: string | null }, now: number): 'complete' | 'fail';
-  endForJobTx(jobId: string, to: string, now: number): void;
+  onExitedTx(jobId: string, a: { n: number; started_at: number | null; sandbox_json: string | null }, now: number):
+    { decision: 'complete' | 'stopped' | 'fail'; cause: string };
+  endForJobTx(jobId: string, to: string, now: number, cause?: { outcome: string | null; code: string | null }): void;
   stopForCancelTx(p: Principal, jobId: string, now: number): void;
   tick(now: number): void;
 }
@@ -212,6 +223,11 @@ export interface ExecutionDeps {
   images?: ImageBuildPort | null;
   /** Dev deployments (Task 9); null: the preview action is `not_in_this_build`. */
   deployments?: DeploymentPort | null;
+  /**
+   * True when snapshot requests go through RepoService's repository check (the platform has `isRepository`): the
+   * public `start` then refuses the snapshot action (`repository_check_required`) unless RepoService passes its token.
+   */
+  snapshotsNeedRepositoryCheck?: boolean;
   ingest?: IngestPort | null;
   validation?: ValidationHooks | null;
   caps?: Partial<SchedulerCaps>;
@@ -388,6 +404,7 @@ export class ExecutionService {
   /** When the expiry sweep and the dev deployments' pass last ran (cadence only; the rows decide). */
   private lastExpiryAt: number | null = null;
   private lastDeploymentPassAt: number | null = null;
+  private lastImagePassAt: number | null = null;
 
   constructor(private readonly db: Database.Database, private readonly deps: ExecutionDeps) {
     this.access = new ProjectAccess(db, { auth: deps.auth });
@@ -412,7 +429,7 @@ export class ExecutionService {
   attachRunner(port: RunnerPort | null, bootId: string): void {
     if (this.unsubscribe) { try { this.unsubscribe(); } catch { /* the old port is gone */ } }
     // A replaced or detached port: whatever it was asked to re-hash will not be answered.
-    if (this.port) this.deps.validation?.onRunnerFault();
+    if (this.port) this.runnerWideFault();
     this.unsubscribe = null; this.port = null; this.probe = null; this.probeSentAt = null; this.lastPortState = null;
     if (!this.deps.available) { if (port) this.log('[nexus] exec: runner not attached: execution is not available'); return; }
     if (!port) return;
@@ -538,6 +555,7 @@ export class ExecutionService {
       // A dev deployment's forwarder publishes exactly one loopback port, reported here; no other container publishes one.
       if (service) {
         if (m.hostPort === undefined) problems.push('the forwarder reported no loopback port');
+        else if (m.hostPort < EPHEMERAL_PORT_MIN || m.hostPort > EPHEMERAL_PORT_MAX) problems.push(`port ${m.hostPort} is outside the ephemeral range`);
         else if (!this.deps.deployments) problems.push('dev deployments are not available in this build');
         else if (this.deps.deployments.portHeld(m.hostPort, j.id)) problems.push(`port ${m.hostPort} is held by another live dev deployment`);
       } else if (m.hostPort !== undefined) problems.push('a tool container reported a published port');
@@ -711,10 +729,15 @@ export class ExecutionService {
       immediateTx(this.db, () => {
         const cur = attemptRow(this.db, a.id)!;
         if (cur.state !== 'running') return;
-        const decision = this.deps.deployments ? this.deps.deployments.onExitedTx(j.id, cur, now) : 'fail';
+        const { decision, cause } = this.deps.deployments ? this.deps.deployments.onExitedTx(j.id, cur, now) : { decision: 'fail', cause: 'exited' };
         if (decision === 'complete' && exit.code !== null && this.hasEvidence(j.id, cur.n)) {
           transitionAttemptTx(this.db, cur, 'succeeded', now, j.project_id, { exit, outcome: 'stopped', logBytes: m.logBytes });
           this.moveJobTx(j.id, 'completed', now, { outcome: 'stopped' });
+        } else if (decision === 'stopped') {
+          // Stopped before its health check (the user, the lifetime, the app quitting): the job ends with that cause.
+          const error = { code: 'stopped', message: `the dev deployment was stopped (${cause}) before it answered its health check` };
+          transitionAttemptTx(this.db, cur, 'cancelled', now, j.project_id, { exit, outcome: cause, error, logBytes: m.logBytes });
+          this.moveJobTx(j.id, 'cancelled', now, { outcome: cause, error });
         } else {
           const error = decision === 'complete'
             ? { code: 'exit_unknown', message: 'the dev deployment stopped but its exit code is unknown' }
@@ -890,6 +913,18 @@ export class ExecutionService {
     this.deps.validation?.runPending(now);
   }
 
+  /**
+   * A runner-wide fault (a fault naming no attempt, the port leaving `ready`, the port replaced or detached): re-hashes
+   * in flight cannot be answered (their checks could not run) and a `docker build` it ran cannot report (the image
+   * builds end `interrupted`).
+   */
+  private runnerWideFault(): void {
+    this.deps.validation?.onRunnerFault();
+    try { this.deps.images?.onRunnerLost?.(); } catch (e) {
+      this.log(`[nexus] exec: image builds not interrupted: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
+    }
+  }
+
   /** @internal For the validation framework (blob.verify): send one message to the runner; false when it did not go. */
   sendToRunner(msg: Parameters<RunnerPort['send']>[0]): boolean { return this.send(msg); }
 
@@ -900,7 +935,7 @@ export class ExecutionService {
       this.log('[nexus] exec: runner fault (not attributed to a starting attempt of this boot)');
       // A runner-wide fault (it names no attempt): re-hashes in flight cannot be trusted to answer, so those checks
       // could not run. A fault about one attempt says nothing about the runner's other work.
-      if (m.attemptId === undefined) this.deps.validation?.onRunnerFault();
+      if (m.attemptId === undefined) this.runnerWideFault();
       return;
     }
     const cls = m.failureClass;
@@ -932,7 +967,7 @@ export class ExecutionService {
     if (TERMINAL_JOB_STATES.has(to) && after.kind === 'validate') this.deps.validation?.onJobEnded?.();
     // A dev deployment's job that ends ends its deployment if that is still live (cancel, timeout, any failure).
     if (TERMINAL_JOB_STATES.has(to) && after.recipe_id !== null && this.deps.deployments && getRecipe(after.recipe_id)?.executor === 'service') {
-      this.deps.deployments.endForJobTx(id, to, now);
+      this.deps.deployments.endForJobTx(id, to, now, { outcome: d?.outcome ?? null, code: d?.error?.code ?? null });
     }
     appendJobEventTx(this.db, { type: 'job.transition', summary: `job ${before.state} -> ${to}${d?.outcome ? ` (${d.outcome})` : ''}`,
       projectId: after.project_id, jobId: id,
@@ -985,7 +1020,7 @@ export class ExecutionService {
       // The port left `ready` (crashed, restarting): re-hashes it was asked for will not be answered.
       let portState: string | null = null;
       try { portState = this.port ? this.port.state() : null; } catch { portState = 'unavailable'; }
-      if (this.lastPortState === 'ready' && portState !== 'ready') this.deps.validation?.onRunnerFault();
+      if (this.lastPortState === 'ready' && portState !== 'ready') this.runnerWideFault();
       this.lastPortState = portState;
       // The validation framework's pass: it does work only when some is due (queued checks, an ended check job,
       // a re-hash waiting for its timeout, or its periodic safety pass).
@@ -1000,6 +1035,12 @@ export class ExecutionService {
       if (dep && (this.lastDeploymentPassAt === null || now - this.lastDeploymentPassAt >= DEPLOYMENT_TICK_MS || now < this.lastDeploymentPassAt)) {
         this.lastDeploymentPassAt = now;
         dep.tick(now);
+      }
+      // Image builds past their deadline are cancelled and fail `timeout` (they never stay `running`).
+      const img = this.deps.images;
+      if (img?.tick && (this.lastImagePassAt === null || now - this.lastImagePassAt >= EXPIRY_SWEEP_MS || now < this.lastImagePassAt)) {
+        this.lastImagePassAt = now;
+        img.tick(now);
       }
       // The blob store contract: no lease and no start while GC holds its exclusive lock.
       if (this.deps.blobs?.isExclusiveHeld()) return;
@@ -1301,7 +1342,9 @@ export class ExecutionService {
       }
       if (service && plan && !planError) {
         try {
-          immediateTx(this.db, () => this.deps.deployments!.startTx(this.row(j.id)!, { n }, service!.deploymentId, cap.subjectVersionId!, now));
+          const facts = { buildVersionId: inputs.find((i) => i.slot === 'build')?.versionId ?? null, profile: cap.profile,
+            appImageId: image?.imageId ?? null, forwarderImageId: service!.forwarderImageId };
+          immediateTx(this.db, () => this.deps.deployments!.startTx(this.row(j.id)!, { n }, service!.deploymentId, cap.subjectVersionId!, now, facts));
         } catch (e) {
           planError = e instanceof PlatformError ? refused(e) : { code: 'deployment_refused', message: 'the dev deployment could not be recorded' };
         }
@@ -1349,29 +1392,38 @@ export class ExecutionService {
     // consumed and the scheduler resumes the job on a later tick once the guards pass (resumeConsumed).
     this.requireAvailable();
     const r = this.resumeTx(jobId, this.deps.now());
+    if ('stale' in r) throw new PlatformError('illegal_transition', 'the approval is stale: the job did not start within 15 minutes of it', { reason: 'approval_stale' });
     if ('wait' in r) throw new PlatformError('conflict', `the job cannot start now (${r.wait})`, { reason: r.wait });
     return r.send;
   }
 
   /** awaiting_approval -> running with the consumed approval in the plan, when the guards pass; else the wait reason. */
-  private resumeTx(jobId: string, now: number): { send: () => void } | { wait: string } {
-    return immediateTx(this.db, () => {
+  private resumeTx(jobId: string, now: number): { send: () => void } | { wait: string } | { stale: true } {
+    return immediateTx(this.db, (): { send: () => void } | { wait: string } | { stale: true } => {
       const j = this.row(jobId);
       if (!j || j.state !== 'awaiting_approval') throw new PlatformError('illegal_transition', 'the job is not waiting for approval');
       const a = liveAttemptOf(this.db, j.id);
       const recipe = getRecipe(j.recipe_id ?? '');
       const cap = this.capabilityOf(j);
       if (!a || !recipe || !cap || !this.deps.dataHome) throw new PlatformError('illegal_transition', 'the job has no attempt to resume');
+      // Only an approval of THIS job consumed by its CURRENT attempt can carry its plan (the plan builder checks it again).
+      const approval = this.db.prepare(`SELECT id, job_id, status, consumed_at, consumed_by_job_id, consumed_by_attempt_n FROM approvals
+        WHERE job_id = ? AND status = 'approved' AND consumed_by_job_id = ? AND consumed_by_attempt_n = ?
+        ORDER BY status_changed_at DESC LIMIT 1`).get(j.id, j.id, a.n) as PlanApproval | undefined;
+      // A consent is for now, not for later: a job that could not start within the approval's 15 minutes after it was
+      // consumed fails `denied` (approval_stale); the user asks again. A consumed approval never starts network work later.
+      if (approval && approval.consumed_at !== null && now - approval.consumed_at >= APPROVAL_TTL_MS) {
+        this.endAwaitingTx(j.id, { code: 'approval_stale', message: 'the job did not start within 15 minutes of the approval' }, now);
+        return { stale: true };
+      }
+      // An attempt another boot owns is not this process's to start (restart recovery re-owns it first).
+      if (a.lease_owner !== this.bootId) return { wait: 'waiting:runner' };
       // A job waiting for approval held no slot or memory: the caps are checked again before it starts.
       const limits = parseJson(j.limits_json) as Partial<ResourceLimits> | null;
       const wait = this.deps.blobs?.isExclusiveHeld() ? 'waiting:gc'
         : leaseGuard({ recipe, profile: cap.profile, memoryMb: typeof limits?.memoryMb === 'number' ? limits.memoryMb : 0 },
           this.runnerReady(), this.probe, this.liveUse(), this.caps);
       if (wait !== null) return { wait };
-      // Only an approval of THIS job consumed by its CURRENT attempt can carry its plan (the plan builder checks it again).
-      const approval = this.db.prepare(`SELECT id, job_id, status, consumed_at, consumed_by_job_id, consumed_by_attempt_n FROM approvals
-        WHERE job_id = ? AND status = 'approved' AND consumed_by_job_id = ? AND consumed_by_attempt_n = ?
-        ORDER BY status_changed_at DESC LIMIT 1`).get(j.id, j.id, a.n) as PlanApproval | undefined;
       const profile = (this.deps.profiles ?? []).find((pr) => pr.id === cap.profile) ?? null;
       const image = usableImage(this.probe, cap.profile);
       const plan = buildPlan({ job: { id: j.id, projectId: j.project_id }, attempt: { id: a.id, n: a.n }, bootId: this.bootId ?? '', recipe,
@@ -1398,6 +1450,7 @@ export class ExecutionService {
     if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'resumeApprovedTx runs inside the approval transaction');
     try {
       const r = this.resumeTx(jobId, now);
+      if ('stale' in r) return { failed: 'approval_stale' };
       if ('wait' in r) this.setPhaseTx(jobId, r.wait, now);
       return r;
     } catch (e) {
@@ -1432,8 +1485,8 @@ export class ExecutionService {
    */
   endServiceJobTx(jobId: string, end: { state: 'failed' | 'cancelled'; outcome: string; error: { code: string; message: string } }, now: number): void {
     if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'endServiceJobTx runs inside the deployment transaction');
-    const j = this.row(jobId);
-    if (!j || TERMINAL_JOB_STATES.has(j.state)) return;
+    const j = this.requireServiceJob(jobId);
+    if (TERMINAL_JOB_STATES.has(j.state)) return;
     const a = liveAttemptOf(this.db, jobId);
     if (a) transitionAttemptTx(this.db, a, end.state === 'cancelled' ? 'cancelled' : 'failed', now, j.project_id, { outcome: end.outcome, error: end.error });
     const to: JobState = end.state === 'cancelled' || j.state === 'queued' || j.state === 'retry_scheduled' ? 'cancelled' : 'failed';
@@ -1444,7 +1497,18 @@ export class ExecutionService {
   /** @internal DeploymentService only, INSIDE its transaction: a job's phase (e.g. `stopping`). */
   setJobPhaseTx(jobId: string, phase: string | null, now: number): void {
     if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'setJobPhaseTx runs inside a transaction');
+    this.requireServiceJob(jobId);
     this.setPhaseTx(jobId, phase, now);
+  }
+
+  /** The deployment service's helpers act on dev deployment jobs only (a service recipe); anything else is refused. */
+  private requireServiceJob(jobId: string): ExecJobRow {
+    const j = this.row(jobId);
+    if (!j) throw new PlatformError('not_found', 'job not found');
+    if (getRecipe(j.recipe_id ?? '')?.executor !== 'service') {
+      throw new PlatformError('invalid', 'only a dev deployment job is ended by the deployment service', { reason: 'not_a_service_job' });
+    }
+    return j;
   }
 
   /**
@@ -1476,7 +1540,7 @@ export class ExecutionService {
       try {
         const r = this.resumeTx(id, now);
         if ('send' in r) r.send();
-        else this.setPhaseIfChanged(id, r.wait, now);
+        else if ('wait' in r) this.setPhaseIfChanged(id, r.wait, now);
       } catch (e) {
         this.log(`[nexus] exec: approved job not resumed: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
       }
@@ -1490,7 +1554,12 @@ export class ExecutionService {
 
   // ---------- user operations ----------
 
-  start(p: Principal, r: StartJobRequest): { job: ExecJob; created: boolean } {
+  /**
+   * Starts a recipe action. With a repository check configured (`snapshotsNeedRepositoryCheck`), the snapshot action
+   * is refused here (`repository_check_required`) unless RepoService passes its REPOSITORY_CHECKED token: a snapshot
+   * never starts without main's own check that the project folder is a git repository.
+   */
+  start(p: Principal, r: StartJobRequest, checked?: symbol): { job: ExecJob; created: boolean } {
     this.requireAvailable();
     if (!isPlainObject(r)) throw new PlatformError('invalid', 'request must be an object');
     if (!isStr(r.projectId) || !isStr(r.workspaceId)) throw new PlatformError('invalid', 'projectId and workspaceId are required');
@@ -1500,6 +1569,9 @@ export class ExecutionService {
     const action = typeof r.actionId === 'string' ? getUserAction(r.actionId) : null;
     if (!action || !('recipes' in action.run)) return invalid('unknown_action', 'unknown action');
     if (action.domain !== r.workspaceId) return invalid('action_not_in_domain', 'the action belongs to another domain');
+    if (this.needsRepositoryCheck(action) && checked !== REPOSITORY_CHECKED) {
+      return invalid('repository_check_required', 'a repository snapshot is requested through the snapshot request, which checks the folder first');
+    }
     const params = checkParams(action.params, r.params ?? {});
     const inputs = this.validateInputShape(action, r.inputs);
     return this.createExecJob(p, { action, projectId: pw.project_id, workspaceId: pw.workspace_id, key, params, inputs, retryOf: null });
@@ -1512,6 +1584,10 @@ export class ExecutionService {
     const cap = this.capabilityOf(j);
     const action = cap ? getUserAction(cap.action) : null;
     if (!action || !('recipes' in action.run)) throw new PlatformError('invalid', 'only a job started from an action can be retried', { reason: 'unknown_action' });
+    // A snapshot is requested again through the snapshot request (the folder is checked again), never retried blind.
+    if (this.needsRepositoryCheck(action)) {
+      throw new PlatformError('invalid', 'a repository snapshot is requested again through the snapshot request', { reason: 'repository_check_required' });
+    }
     if (!['failed', 'timed_out', 'cancelled', 'interrupted'].includes(j.state)) {
       throw new PlatformError('illegal_transition', `a ${j.state} job is not retried`, { from: j.state });
     }
@@ -1526,6 +1602,10 @@ export class ExecutionService {
         { versionId: string; slot: string }[]).map((x) => ({ ...x }));
     const params = (parseJson(j.params_json) ?? {}) as Record<string, unknown>;
     return { job: this.createExecJob(p, { action, projectId: pw.project_id, workspaceId: pw.workspace_id, key, params, inputs, retryOf: j.id }).job };
+  }
+
+  private needsRepositoryCheck(action: UserActionDef): boolean {
+    return this.deps.snapshotsNeedRepositoryCheck === true && 'recipes' in action.run && action.run.recipes.includes('repo.snapshot');
   }
 
   private validateInputShape(action: UserActionDef, raw: unknown): { versionId: string; slot: string }[] {

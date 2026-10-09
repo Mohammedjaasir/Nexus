@@ -63,7 +63,7 @@ export type RunnerToMain =
   | { op: 'probe.result'; probe: SandboxProbe; images: ImageStatus[]; freeBytes: number | null;
       runtimes: { kind: RuntimeKind; health: RuntimeHealth }[] }
   | { op: 'attempt.provisioned'; attemptId: string; containerId?: string; imageDigest?: string; preflight?: ReportedPreflight;
-      /** A dev deployment's forwarder: the loopback port the runner chose from its ephemeral range (only with a container). */
+      /** A dev deployment's forwarder: the loopback port the runner chose from the ephemeral range 49152-65535 (only with a container). */
       hostPort?: number }
   | { op: 'attempt.refused'; attemptId: string; reason: RefusalReason; detail?: string }
   | { op: 'attempt.event'; attemptId: string; seq: number; event: ProgressEvent }
@@ -89,6 +89,10 @@ export type AttemptFailureClass = 'disk_full' | 'docker_resources' | 'docker_err
 export const ATTEMPT_FAILURE_CLASSES: readonly AttemptFailureClass[] = ['disk_full', 'docker_resources', 'docker_error'];
 
 // ----- bounds -----
+
+/** The ephemeral range (IANA dynamic ports) a dev deployment's forwarder port is picked from by the runner. */
+export const EPHEMERAL_PORT_MIN = 49152;
+export const EPHEMERAL_PORT_MAX = 65535;
 
 export const MAX_STRING_BYTES = 4096;
 export const MAX_ARRAY_ITEMS = 20_000;
@@ -297,11 +301,11 @@ const preflight: Check<ReportedPreflight> = (x) => {
 };
 /**
  * A container exists only with its preflight report, and a report exists only for a container. A published host port
- * (a dev deployment's forwarder, 1024-65535) is reported only with a container.
+ * (a dev deployment's forwarder, from the ephemeral range 49152-65535) is reported only with a container.
  */
 const provisioned: Check<RunnerToMain> = (x) => {
   const m = obj<Extract<RunnerToMain, { op: 'attempt.provisioned' }>>({ op: lit('attempt.provisioned'), attemptId: ulid },
-    { containerId: str({ re: CONTAINER_ID_RE }), imageDigest: str({ re: DIGEST_RE }), preflight, hostPort: intIn(1024, 65535) })(x);
+    { containerId: str({ re: CONTAINER_ID_RE }), imageDigest: str({ re: DIGEST_RE }), preflight, hostPort: intIn(EPHEMERAL_PORT_MIN, EPHEMERAL_PORT_MAX) })(x);
   if (m === NO) return NO;
   if (m.hostPort !== undefined && m.containerId === undefined) return NO;
   return (m.containerId === undefined) === (m.preflight === undefined) ? m : NO;

@@ -31,6 +31,11 @@ import { appManifestErrors } from '../validation/normalized';
 export const APP_MANIFEST_PATH = 'nexus.app.json';
 export const APP_MANIFEST_MAX_BYTES = 16 * 1024;
 export const SNAPSHOT_RECIPE = 'repo.snapshot';
+/**
+ * The token RepoService passes to the execution core's start: proof that the repository check ran. With a repository
+ * check configured, the core refuses the snapshot action without it (`repository_check_required`).
+ */
+export const REPOSITORY_CHECKED: unique symbol = Symbol('nexus.repository-checked');
 const LIVE_JOB_STATES = ['queued', 'leased', 'running', 'awaiting_approval', 'retry_scheduled'] as const;
 
 export interface AppManifest {
@@ -76,7 +81,7 @@ export function previewBlocker(m: AppManifest): { reason: 'secrets_not_supported
 /** What the repository service needs from the execution core (late-bound). */
 export interface RepoExecPort {
   start(p: Principal, r: { projectId: string; workspaceId: string; actionId: string; inputs: { versionId: string; slot: string }[];
-    params: Record<string, unknown>; intentId: string }): { job: { id: string; state: string }; created: boolean };
+    params: Record<string, unknown>; intentId: string }, checked?: symbol): { job: { id: string; state: string }; created: boolean };
   get(p: Principal, jobId: string): { id: string; state: string };
 }
 
@@ -135,7 +140,7 @@ export class RepoService {
     if (again) return { job: exec.get(p, again), created: false };
     // The user action (src/shared/nexus/actions.ts) whose one recipe is repo.snapshot.
     return exec.start(p, { projectId: pw.project_id, workspaceId: pw.workspace_id, actionId: 'sde.repository.snapshot', inputs: [], params: {},
-      intentId: r.intentId });
+      intentId: r.intentId }, REPOSITORY_CHECKED);
   }
 
   /** A repository version as the UI shows it: its commit, branch, dirty flag and the checkout note driven by `dirty`. */
