@@ -1154,3 +1154,120 @@ test('R15 undiscovered_ids: a file OR an id absent from the discovery; a framewo
   assert.equal(testsPass.run({ ...base, discovery: { files, ids: files }, junit: big }).status, 'passed');
   assert.ok(Number(process.hrtime.bigint() - t) / 1e6 < 1000);
 });
+
+// ---------- fix round 2 (re-review of 9fa0a4cb): S1-S4 ----------
+
+test('S1 GC: an evidence item without a sha256 never keeps every blob; a report a test run\'s evidence names is still kept', async () => {
+  const w = execWorld({ realIngest: true });
+  const loose = w.file('loose.bin', 'loose bytes');
+  await w.nx.blobs.withIngestLock((t) => { w.nx.blobs.recordBlobsTx(t, [{ sha256: loose.sha256, bytes: loose.bytes, mediaType: loose.mediaType }]); });
+  w.advance(BLOB_GC_MIN_AGE_MS + 60_000);
+  const candidate = () => w.nx.blobs.gcCandidates().candidates.some((c) => c.sha256 === loose.sha256);
+  assert.ok(candidate());
+  const ins = w.db.prepare(`INSERT INTO validations (id, version_id, validator_id, validator_version, stage, status, blocking, advisory, summary, evidence_json,
+      job_id, attempt_n, created_by, started_at, finished_at) VALUES (?, ?, ?, '1', 'candidate', 'failed', 0, 1, 'raw', ?, NULL, NULL, 'system', ?, ?)`);
+  // Raw rows (the service would refuse them): a junit hash item with no sha256, or a null one.
+  ins.run('v-null-1', w.suiteV, 'sde.tests_pass', JSON.stringify([{ type: 'hash', label: 'junit' }]), w.now(), w.now());
+  ins.run('v-null-2', w.suiteV, 'sde.tests_pass', JSON.stringify([{ type: 'hash', label: 'junit', sha256: null }]), w.now(), w.now());
+  ins.run('v-null-3', w.suiteV, 'build.exit_zero', JSON.stringify([{ type: 'hash', label: 'junit' }]), w.now(), w.now());
+  assert.ok(candidate(), 'a missing sha256 does not stop GC from collecting');
+  // Only a test run's advisory row keeps a report.
+  ins.run('v-other', w.suiteV, 'build.exit_zero', JSON.stringify([{ type: 'hash', label: 'junit', sha256: loose.sha256 }]), w.now(), w.now());
+  assert.ok(candidate());
+  ins.run('v-keep', w.suiteV, 'sde.tests_pass', JSON.stringify([{ type: 'hash', label: 'junit', sha256: loose.sha256 }]), w.now(), w.now());
+  assert.ok(!candidate(), 'named by a test run\'s evidence: kept');
+  w.close();
+});
+
+test('S2 a provider-key shape in a build output file name is refused (secret_in_output); a long hex chunk name is accepted', async () => {
+  const w = execWorld({ realIngest: true });
+  const key = 'sk-' + 'q'.repeat(40);
+  const names = [`${key}.js`, `cfg/ghp_${'a1'.repeat(18)}.json`, `AKIA${'A'.repeat(16)}.txt`, `xoxb-${'1'.repeat(12)}.js`,
+    'eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.c2lnbmF0dXJlMTI.js'];
+  for (const name of names) {
+    const r = await w.runBuild({ files: ['app.js', name] });
+    assert.equal(r.buildVersionId, null, name); assert.equal(w.jobState(r.buildJobId), 'failed');
+    assert.equal(w.job(r.buildJobId).outcome, 'invalid_output'); assert.equal(JSON.parse(w.job(r.buildJobId).error_json).code, 'secret_in_output');
+  }
+  assert.equal(count(w, 'blobs'), 0);
+  const text = storedText(w);
+  for (const name of names) assert.ok(!text.includes(name), name);
+  // A content hash in a chunk name (64 hex, as some bundlers write) is not a secret.
+  const chunk = `assets/index.${'0123456789abcdef'.repeat(4)}.js`;
+  const ok = await w.runBuild({ files: [chunk, 'app.js'] });
+  assert.ok(ok.buildVersionId); assert.equal(w.jobState(ok.buildJobId), 'completed');
+  assert.ok(w.db.prepare('SELECT 1 FROM version_blobs WHERE version_id = ? AND path = ?').get(ok.buildVersionId, chunk));
+  healthy(w); w.close();
+});
+
+test('S3 a recipe check the scheduler can never lease (no capability) fails invalid_check once; revalidate never returns it as live', async () => {
+  const w = execWorld({ realIngest: true });
+  const r = await w.runTests({ skipTests: true });
+  w.exec.cancel(w.me, w.validateJobs(r.suiteVersionId, 'sde.tests_pass')[0].id);
+  const stuck = (key) => w.nx.jobs.create(w.sys, { kind: 'validate', projectId: 'p-ledger', workspaceId: 'sde', idempotencyKey: key,
+    validatorId: 'sde.tests_pass', recipeId: 'sde.test.node', params: { versionId: r.suiteVersionId } }).job.id;
+  const s1 = stuck('k-stuck-1');
+  const { jobs } = w.nx.validation.revalidate(w.me, r.suiteVersionId);
+  assert.ok(!jobs.includes(s1), 'not taken as the live check');
+  assert.equal(w.jobState(s1), 'failed'); assert.equal(w.job(s1).outcome, 'invalid_check'); assert.equal(JSON.parse(w.job(s1).error_json).code, 'no_capability');
+  assert.equal(w.attempts(s1)[0].state, 'failed');
+  // One made after every pass is found by the scheduler's own pass (here the periodic one), never left queued.
+  const s2 = stuck('k-stuck-2');
+  for (let i = 0; i < 3; i++) { w.advance(5000); w.exec.tick(w.now()); }
+  w.advance(FULL_PASS_MS); w.exec.tick(w.now());
+  assert.equal(w.jobState(s2), 'failed'); assert.equal(JSON.parse(w.job(s2).error_json).code, 'no_capability');
+  // The revalidation's own check (with its capability) is not touched.
+  const real = jobs.find((id) => w.job(id).validator_id === 'sde.tests_pass');
+  assert.notEqual(w.jobState(real), 'failed');
+  assert.equal(w.orphans().O17, 0);
+  w.close();
+});
+
+test('S4 a report must cover the discovery: an unattributed report on a file-level list is never a pass; an id-level subset fails', async () => {
+  // P13b: two discovered files, a report that names no file and covers one of them.
+  const w = execWorld({ realIngest: true });
+  const r = await w.runTests({ discovery: ['test/a.test.js', 'test/b.test.js'], junit: junit([{ name: 'a1', file: null, classname: 'A' }]), exit: 0 });
+  const tp = w.latest(r.suiteVersionId, 'sde.tests_pass');
+  assert.equal(tp.status, 'error'); assert.match(tp.summary, /unattributed_report/);
+  assert.equal(w.version(r.suiteVersionId).status, 'draft'); assert.equal(w.version(r.suiteVersionId).validation_state, 'error');
+  assert.equal(w.stepState('sde', 'tests'), 'failed', 'needs attention, never done');
+  // An id-level list (test ids, not only files): a report missing one of them fails.
+  const w2 = execWorld({ realIngest: true });
+  const ids = ['tests/test_a.py::test_x', 'tests/test_a.py::test_y'];
+  const r2 = await w2.runTests({ discovery: ['tests/test_a.py'], ids, junit: junit([{ name: 'test_x', file: null, classname: 'tests.test_a' }]), exit: 0 });
+  assert.match(w2.latest(r2.suiteVersionId, 'sde.tests_pass').summary, /discovered_not_run/);
+  assert.equal(w2.version(r2.suiteVersionId).status, 'failed');
+  // The pure rule.
+  const base = { junitSha256: 'a'.repeat(64), exit: { code: 0, oomKilled: false }, imageId: null, lockfileSha256: null };
+  const report = (cases) => ({ sha256: 'a'.repeat(64), total: cases.length, passed: cases.filter((c) => (c.outcome ?? 'passed') === 'passed').length,
+    failed: cases.filter((c) => c.outcome === 'failed').length, errored: 0, skipped: 0,
+    cases: cases.map((c) => ({ id: `${c.file ?? ''}::${c.classname}::${c.name}`, ...(c.file ? { file: c.file } : {}), classname: c.classname, name: c.name,
+      outcome: c.outcome ?? 'passed', ms: 1 })) });
+  const two = { files: ['test/a.test.js', 'test/b.test.js'], ids: ['test/a.test.js', 'test/b.test.js'] };
+  assert.equal(testsPass.run({ ...base, discovery: two, junit: report([{ classname: 'A', name: 'a' }, { classname: 'B', name: 'b' }]) }).reason, 'unattributed_report');
+  // Failures are definitive whatever the attribution.
+  assert.equal(testsPass.run({ ...base, exit: { code: 1, oomKilled: false }, discovery: two, junit: report([{ classname: 'A', name: 'a', outcome: 'failed' }]) }).reason, 'tests_failed');
+  // A full attributed run still passes; an id-level list fully reported passes; an id-level subset fails.
+  assert.equal(testsPass.run({ ...base, discovery: two, junit: report([{ file: 'test/a.test.js', classname: 'A', name: 'a' },
+    { file: 'test/b.test.js', classname: 'B', name: 'b' }]) }).status, 'passed');
+  const pyIds = { files: ['tests/test_a.py'], ids };
+  assert.equal(testsPass.run({ ...base, discovery: pyIds, junit: report([{ classname: 'tests.test_a', name: 'test_x' }, { classname: 'tests.test_a', name: 'test_y' }]) }).status, 'passed');
+  assert.equal(testsPass.run({ ...base, discovery: pyIds, junit: report([{ classname: 'tests.test_a', name: 'test_y' }]) }).reason, 'discovered_not_run');
+  healthy(w); healthy(w2); w.close(); w2.close();
+});
+
+test('S5 one version\'s checks run in one pass even on a slow machine: the slice budget only cuts a backlog', async () => {
+  const w = execWorld({ realIngest: true }); const runner = w.attach();
+  const b = await w.runBuild({ files: ['a.js'] });
+  runner.report({ op: 'fault', message: 'the docker daemon went away' }); await w.settle();
+  // Every recorded result costs 60 ms (a loaded machine): the four checks take far longer than one slice.
+  const cr = w.nx.validation.runner; const record = cr.h.recordOutcomeTx;
+  cr.h.recordOutcomeTx = (...a) => { const until = Date.now() + 60; while (Date.now() < until) { /* busy */ } return record(...a); };
+  const sent = runner.sentOf('blob.verify').length;
+  w.nx.validation.revalidate(w.me, b.buildVersionId);
+  assert.equal(runner.sentOf('blob.verify').length, sent + 1, 'the re-hash was asked in the same pass');
+  cr.h.recordOutcomeTx = record;
+  w.answerVerifies(runner, true); await w.settle();
+  assert.equal(w.version(b.buildVersionId).status, 'candidate');
+  healthy(w); w.close();
+});

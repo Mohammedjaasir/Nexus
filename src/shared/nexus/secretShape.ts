@@ -29,6 +29,15 @@ function entropy(s: string): number {
 }
 
 /**
+ * True when the text contains a known provider-key shape (the prefixed patterns above: `sk-`, `ghp_`, `AKIA`,
+ * `xox*`, a JWT, credentials in a URL, a private-key header, ...). No entropy or long-hex rule: for names that
+ * routinely carry content hashes (build output file names), where a hex chunk name is not a secret.
+ */
+export function hasProviderKey(text: string): boolean {
+  return typeof text === 'string' && PREFIXED.some((re) => re.test(text));
+}
+
+/**
  * True when the text contains a known key prefix, or a long run of token
  * characters (32+) with high entropy that mixes letters and digits. Plain hex
  * digests stay below the entropy bound (at most 4 bits per character).

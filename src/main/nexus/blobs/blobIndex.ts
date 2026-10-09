@@ -175,14 +175,17 @@ const liveAttemptCount = (db: Database.Database): number =>
 
 /**
  * The unreferenced blobs whose last reference is older than 24 h, by sha256. A blob is referenced by a version
- * (`version_blobs`) or as a JUnit report a validation's evidence names (`{ type: 'hash', label: 'junit' }`: the
- * report of a test run on a suite that was no longer a draft is kept that way).
+ * (`version_blobs`) or as the JUnit report of a test run on a suite that was no longer a draft: its advisory
+ * `sde.tests_pass` row names it (`{ type: 'hash', label: 'junit' }`). The match is a correlated NOT EXISTS (an
+ * evidence item without a sha256 never matches, so it can never keep every blob), over those rows only.
  */
 export function listGcCandidates(db: Database.Database, now: number): BlobGcCandidate[] {
   const rows = db.prepare(`SELECT b.sha256, b.bytes, b.last_referenced_at FROM blobs b
     WHERE b.last_referenced_at < ? AND NOT EXISTS (SELECT 1 FROM version_blobs vb WHERE vb.sha256 = b.sha256)
-      AND b.sha256 NOT IN (SELECT json_extract(e.value, '$.sha256') FROM validations x, json_each(x.evidence_json) e
-        WHERE json_extract(e.value, '$.type') = 'hash' AND json_extract(e.value, '$.label') = 'junit')
+      AND NOT EXISTS (SELECT 1 FROM validations x, json_each(x.evidence_json) e
+        WHERE x.validator_id = 'sde.tests_pass' AND x.blocking = 0
+          AND json_extract(e.value, '$.type') = 'hash' AND json_extract(e.value, '$.label') = 'junit'
+          AND json_extract(e.value, '$.sha256') = b.sha256)
     ORDER BY b.sha256`).all(now - BLOB_GC_MIN_AGE_MS) as { sha256: string; bytes: number; last_referenced_at: number }[];
   return rows.map((r) => ({ sha256: r.sha256, bytes: r.bytes, lastReferencedAt: r.last_referenced_at }));
 }

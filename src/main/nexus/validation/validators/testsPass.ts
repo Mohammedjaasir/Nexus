@@ -9,10 +9,13 @@
  * - an executed test the discovery did not list          -> failed `undiscovered_ids`: a case naming a file the
  *   discovery never listed, or, when the discovery lists test ids (not only files), a case whose id or name is
  *   not among them; a framework that attributes no file is judged by id only, and only against such a list
- * - a discovered file with no case in the report         -> failed `discovered_not_run` (when the framework
- *   attributes files: the run covered a subset)
+ * - a discovered test with no case in the report         -> failed `discovered_not_run`: for an id-level list, a
+ *   discovered id with no case (by id or test name); for a file-level list and a report that attributes files, a
+ *   discovered file with no case (the run covered a subset)
  * - exit 0 with failures, or non-zero with all passing   -> failed `exit_inconsistent`
  * - any failure or error                                 -> failed `tests_failed`
+ * - otherwise passing, but a file-level list of several files and a report that names no file -> error
+ *   `unattributed_report` (a subset cannot be told from a full run; never a pass)
  * Lookups are by Set: the check stays linear in cases + discovered names.
  */
 import type { Evidence } from '../../../../shared/nexus/evidence';
@@ -79,9 +82,16 @@ export function run(f: TestsPassFacts): ValidatorOutcome {
     return idLevel && !idNames.has(c.name);                                           // a test an id-level discovery never listed
   });
   if (undiscovered.length > 0) return failed('undiscovered_ids', `${undiscovered.length} executed test(s) were not in the discovered list.`, evidence);
-  if (r.cases.some((c) => c.file !== null)) {
-    // A framework that attributes files: every discovered file must appear in the report (a skip is the framework's
-    // own word that it loaded the file); a file with no case at all was not run.
+  // Coverage: everything the discovery listed must appear in the report (a skip is the framework's own word that it
+  // loaded the test), or the run may have covered a subset.
+  const attributed = r.cases.some((c) => c.file !== null);
+  if (idLevel) {
+    // An id-level list: every discovered id has a case (by id, or by its test name).
+    const caseIds = new Set(r.cases.map((c) => c.id)); const caseNames = new Set(r.cases.map((c) => c.name));
+    const notRun = f.discovery.ids.filter((id) => !caseIds.has(id) && !caseNames.has(id.includes('::') ? id.slice(id.lastIndexOf('::') + 2) : id));
+    if (notRun.length > 0) return failed('discovered_not_run', `${notRun.length} discovered test(s) have no case in the report.`, evidence);
+  } else if (attributed) {
+    // A file-level list and a report that attributes files: every discovered file has a case.
     const reported = new Set(r.cases.map((c) => c.file).filter((x): x is string => x !== null));
     const notRun = f.discovery.files.filter((x) => !reported.has(x));
     if (notRun.length > 0) return failed('discovered_not_run', `${notRun.length} discovered test file(s) have no test in the report.`, evidence);
@@ -91,5 +101,11 @@ export function run(f: TestsPassFacts): ValidatorOutcome {
     return failed('exit_inconsistent', `The exit code (${f.exit.code}) disagrees with the test results.`, evidence);
   }
   if (bad > 0) return failed('tests_failed', `${bad} of ${executed} executed test(s) failed.`, evidence);
+  // A file-level list of several files and a report that names no file (pytest xunit2, jest-junit by default, unless
+  // the runner's normalization attributed them): a run of a subset cannot be told from a full run, so never a pass.
+  // (One discovered file with executed tests is the whole list.)
+  if (!idLevel && !attributed && f.discovery.files.length > 1) {
+    return errored('unattributed_report', 'Checks could not run: the report names no file for its tests, so it cannot show that every discovered file ran.', evidence);
+  }
   return passed(`${executed} test${executed === 1 ? '' : 's'} passed.`, evidence);
 }

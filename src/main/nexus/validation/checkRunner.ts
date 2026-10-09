@@ -4,8 +4,9 @@
  * jobs; their ingest records the result, and a recipe check that ENDED without one is recorded here.
  *
  * - A job that cannot be a check never completes: an unknown validator, no `params.versionId`, a version that is
- *   gone, a version of another project, a kind the validator does not judge, or a validator main and the runner
- *   do not execute fails the job (`invalid_check`) in one transaction, with its attempt. It is never retried.
+ *   gone, a version of another project, a kind the validator does not judge, a validator main and the runner
+ *   do not execute, or a recipe check without the capability the scheduler leases it by, fails the job
+ *   (`invalid_check`) in one transaction, with its attempt. It is never retried.
  * - A main check runs in ONE IMMEDIATE transaction: lease (attempt n, executor `main`), run, record the result
  *   bound to (job, n), succeed, complete, finalize.
  * - `blob.integrity` sends one `blob.verify` per stored object, then completes when every answer is in. Answers
@@ -15,7 +16,8 @@
  * - The scheduler's pass (`tick`, every second) does work only when there is some: checks were queued, a check
  *   job ended, a re-hash waits for its timeout, or the periodic safety pass is due (FULL_PASS_MS). `runPending`
  *   (called after ingest commits, by a revalidation, and by tests) always runs a full pass.
- * - Bounded slices (constraint 7): one pass stops after SLICE_MS of work and continues on a later turn.
+ * - Bounded slices (constraint 7): past its first MIN_JOBS_PER_SLICE checks, a pass stops after SLICE_MS of work and
+ *   continues on a later turn (a backlog is cut; one version's handful of checks always runs together).
  */
 import { performance } from 'node:perf_hooks';
 import type Database from 'better-sqlite3';
@@ -45,6 +47,8 @@ export const VERIFY_TIMEOUT_MS = 60_000;
 export const FULL_PASS_MS = 60_000;
 /** One synchronous slice of check work; the rest continues on a later turn. */
 export const SLICE_MS = 100;
+/** A pass always runs at least this many queued checks before its budget applies (one version's checks fit). */
+export const MIN_JOBS_PER_SLICE = 8;
 
 export type ResolveCommit = (root: string, sha: string) => Promise<{ commit: string } | { error: string }>;
 
@@ -128,12 +132,17 @@ export class CheckRunner {
     const start = performance.now();
     let rows: ValidateJobRow[];
     try {
+      // Recipe-less checks, plus any recipe check the scheduler can never lease (no capability): those are refused.
       this.queuedStmt ??= this.h.db.prepare(`SELECT id, project_id, state, validator_id, recipe_id, params_json, created_at FROM jobs
-        WHERE state = 'queued' AND kind = 'validate' AND recipe_id IS NULL ORDER BY created_at, rowid`);
+        WHERE state = 'queued' AND kind = 'validate'
+          AND (recipe_id IS NULL OR json_type(capabilities_json, '$[0].recipe') IS NOT 'text' OR json_type(capabilities_json, '$[0].action') IS NOT 'text')
+        ORDER BY created_at, rowid`);
       rows = this.queuedStmt.all() as ValidateJobRow[];
     } catch { return; }
-    for (const j of rows) {
-      if (performance.now() - start > SLICE_MS) { this.continueLater(); break; }
+    for (let i = 0; i < rows.length; i++) {
+      const j = rows[i];
+      // The budget bounds a backlog; the checks of one version (a handful) always run in one pass.
+      if (i >= MIN_JOBS_PER_SLICE && performance.now() - start > SLICE_MS) { this.continueLater(); break; }
       try { this.step(j, now); } catch (e) {
         this.h.log(`[nexus] validation: check not run: ${codeOf(e)}`);
       }
@@ -157,6 +166,8 @@ export class CheckRunner {
     if (this.inflight.has(j.id)) return;
     const waiting = this.verifies.get(j.id);
     if (waiting) { if (this.verifyDone(waiting, now)) this.finishVerify(waiting, now); return; }
+    // A recipe check with no capability is never leased by the scheduler: it would wait forever.
+    if (j.recipe_id !== null) { this.failTx(j.id, 'no_capability', 'the recipe check carries no capability to run with', now); return; }
     const def = getValidator(j.validator_id ?? '');
     const params = parse(j.params_json);
     const versionId = isObj(params) && typeof params.versionId === 'string' ? params.versionId : null;

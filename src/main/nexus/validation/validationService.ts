@@ -349,8 +349,11 @@ export class ValidationService {
       const pw = this.db.prepare('SELECT project_id, workspace_id FROM project_workspaces WHERE id = ?').get(pwId) as { project_id: string; workspace_id: string } | undefined;
       if (!pw) return [];
       const out: string[] = [];
+      // A live check that can run: a recipe check counts only with the capability the scheduler leases it by.
       const live = this.db.prepare(`SELECT id FROM jobs WHERE kind = 'validate' AND validator_id = ? AND state IN ${LIVE_JOB_STATES}
-        AND project_id = ? AND json_extract(params_json, '$.versionId') = ? ORDER BY rowid DESC LIMIT 1`);
+        AND project_id = ? AND json_extract(params_json, '$.versionId') = ?
+        AND (recipe_id IS NULL OR (json_type(capabilities_json, '$[0].recipe') = 'text' AND json_type(capabilities_json, '$[0].action') = 'text'))
+        ORDER BY rowid DESC LIMIT 1`);
       for (const d of defs) {
         if (!d.kinds.includes(v.kind) || d.executes === 'deployment') continue;
         const recipe = d.executes === 'child-job' ? testRecipeFor(parse(v.metadata_json), d) : null;

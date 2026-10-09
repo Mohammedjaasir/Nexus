@@ -7,7 +7,8 @@
  * In the transaction, per recipe:
  * - contract: the outputs the recipe needs are re-read from the report (shapes re-validated, never trusted);
  * - refusals, deterministic and never retried (`invalid_output` with the reason): a secret-shaped value in what
- *   would be stored (`secret_in_output`: a branch, a discovered test name, a manifest argument), a discovered list
+ *   would be stored (`secret_in_output`: a branch, a discovered test name, a manifest argument, a provider-key shape
+ *   in a build output file name), a discovered list
  *   a test run cannot take whole (`discovery_too_large`: more than MAX_DISCOVERED_FILES files, or more than a
  *   version's metadata holds), an output tree over MAX_TREE_FILES files (`tree_too_large`), the project's
  *   repository archived (`repository_archived`);
@@ -35,6 +36,7 @@ import type Database from 'better-sqlite3';
 import type { StagedOutput } from '../../../shared/nexus/execution';
 import type { Principal } from '../../../shared/nexus/platform';
 import { containsSecret } from '../activity/redact';
+import { hasProviderKey } from '../../../shared/nexus/secretShape';
 import type { ArtifactService } from '../artifact/artifactService';
 import { INLINE_MAX_BYTES } from '../artifact/versionRules';
 import type { BlobIndex, IngestToken } from '../blobs/blobIndex';
@@ -322,6 +324,9 @@ export class IngestService implements IngestPort {
     if (staged.length > MAX_TREE_FILES) {
       return refuse('invalid_output', 'tree_too_large', `the build output holds ${staged.length} files; at most ${MAX_TREE_FILES} are stored`);
     }
+    // File names are stored (version_blobs paths): a provider-key shape in one is refused. A long hex chunk name is
+    // not a secret, so the long-hex rule does not apply here.
+    if (staged.some((o) => hasProviderKey(o.relPath))) return secretRefusal('build output file names');
     const files: TreeFile[] = staged.map((o) => ({ path: o.relPath.slice(5), sha256: o.sha256, bytes: o.bytes }));
     const tree = { kind: 'tree' as const, manifestSha256: manifestSha256(files), files: files.length, bytes: files.reduce((s, f) => s + f.bytes, 0) };
     const contentHash = `tree:${tree.manifestSha256}`;
