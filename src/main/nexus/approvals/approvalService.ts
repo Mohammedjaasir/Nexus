@@ -1,8 +1,8 @@
 /**
  * Approvals (B2a A1, A2): a user's once-only consent, recorded in SQLite (schema v9 `approvals`), and the image builds
  * an image approval starts (`image_builds`). SQLite is the only authority: nothing here keeps state in memory that a
- * restart would need (constraint 9); the only in-memory value is the last recorded build phase, used to skip writing
- * repeated progress events.
+ * restart would need (constraint 9); the only in-memory value is a cache of each running build's last recorded
+ * progress event, which a fresh process reads back from `job_events`.
  *
  * - A1 egress (dependency install). At the lease of an egress recipe the execution core calls `requestEgressTx` INSIDE
  *   its lease transaction: a pending approval (`egress.deps`) bound to the job, naming the registries the packages are
@@ -31,7 +31,8 @@
  *   `denied` (`approval_expired`). The core calls it every 30 s while this service is its egress port.
  * - Image builds always end. A build ends `succeeded` / `failed` / `cancelled` on the runner's `image.build.done`;
  *   `interrupted` when the runner is lost (a runner-wide fault, the port leaving `ready` or being replaced:
- *   `onRunnerLost`); `failed: timeout` after IMAGE_BUILD_DEADLINE_MS (the scheduler's pass, `tick`, which also tells the
+ *   `onRunnerLost`, which also tells a still-attached runner `image.build.cancel`); `failed: timeout` after 10 minutes
+ *   without progress or 180 minutes in all (the scheduler's pass, `tick`, which also tells the
  *   runner `image.build.cancel`); `cancelled` when the user cancels it (`cancelImageBuild`).
  * - `withdrawForJobTx` (cancel): a pending approval of the job becomes `withdrawn`.
  * - Secrets (constraint 6): `request_json` holds only main-derived values in fixed shapes (ids, enums, registry host
@@ -63,8 +64,12 @@ import { APPROVAL_STATUSES } from './approvalRules';
 export const APPROVAL_TTL_MS = 15 * 60_000;
 /** How often the execution core runs the expiry sweep and the image builds' pass. */
 export const EXPIRY_SWEEP_MS = 30_000;
-/** A running image build is cancelled and failed (`timeout`) after this long. */
-export const IMAGE_BUILD_DEADLINE_MS = 60 * 60_000;
+/** A running image build with no progress for this long is cancelled and failed (`timeout`). */
+export const IMAGE_BUILD_INACTIVITY_MS = 10 * 60_000;
+/** A running image build is cancelled and failed (`timeout`) after this long, whatever its progress. */
+export const IMAGE_BUILD_MAX_MS = 180 * 60_000;
+/** While progress keeps arriving in one phase, a progress event is written at least this often (the durable last progress). */
+export const PROGRESS_EVENT_MS = 60_000;
 export const MAX_EXPIRE_PER_SWEEP = 100;
 export const DEFAULT_APPROVAL_LIST = 100;
 export const MAX_APPROVAL_LIST = 500;
@@ -211,8 +216,8 @@ export class ApprovalService {
   private readonly access: ProjectAccess;
   private readonly log: (line: string) => void;
   private execPort: ApprovalExecPort | null = null;
-  /** The last progress phase recorded per running build (only to skip repeated events; not authoritative). */
-  private readonly buildPhase = new Map<string, string>();
+  /** The last recorded progress per running build: a cache of its newest `image_build` event (not authoritative). */
+  private readonly buildProgress = new Map<string, { phase: string | null; at: number }>();
 
   constructor(private readonly db: Database.Database, private readonly deps: ApprovalDeps) {
     this.principals = new PrincipalResolver(db);
@@ -500,16 +505,35 @@ export class ApprovalService {
 
   // ---------- image builds (runner reports, the scheduler's pass, the user's cancel) ----------
 
-  /** `image.build.progress`: one event per new phase of a running build. */
+  /**
+   * `image.build.progress`: an event per new phase of a running build, and at least one per PROGRESS_EVENT_MS while
+   * progress keeps arriving in the same phase, so the build's last progress is durable (the inactivity deadline reads it).
+   */
   onImageBuildProgress(m: Extract<RunnerToMain, { op: 'image.build.progress' }>): void {
     const b = this.db.prepare('SELECT * FROM image_builds WHERE id = ?').get(m.buildId) as ImageBuildRow | undefined;
     if (!b || b.status !== 'running') { this.log('[nexus] approvals: dropped image.build.progress for a build that is not running'); return; }
     const phase = m.phase.slice(0, 64);
-    if (this.buildPhase.get(b.id) === phase) return;
-    this.buildPhase.set(b.id, phase);
     const now = this.deps.now();
+    const last = this.lastProgress(b);
+    if (last.phase === phase && now - last.at < PROGRESS_EVENT_MS) return;
     immediateTx(this.db, () => appendJobEventTx(this.db, { type: 'image_build', summary: `image build of ${b.profile_id}: ${phase}`, projectId: null,
       imageBuildId: b.id, approvalId: b.approval_id, data: { phase, bytes: m.bytes ?? null } }, now));
+    this.buildProgress.set(b.id, { phase, at: now });
+  }
+
+  /**
+   * The last recorded progress of a running build: its newest `image_build` event (the start event at the latest).
+   * Kept in memory only as a cache of that row; a fresh process reads it back from `job_events`.
+   */
+  private lastProgress(b: ImageBuildRow): { phase: string | null; at: number } {
+    const cached = this.buildProgress.get(b.id);
+    if (cached) return cached;
+    const r = this.db.prepare("SELECT ts, data_json FROM job_events WHERE image_build_id = ? AND type = 'image_build' ORDER BY seq DESC LIMIT 1")
+      .get(b.id) as { ts: number; data_json: string } | undefined;
+    const data = parse(r?.data_json ?? null);
+    const out = { phase: isObj(data) && typeof data.phase === 'string' ? data.phase : null, at: Math.max(r?.ts ?? b.started_at, b.started_at) };
+    this.buildProgress.set(b.id, out);
+    return out;
   }
 
   /** `image.build.done`: the running build ends succeeded (with its image id and size), failed (error stored redacted) or cancelled. */
@@ -523,7 +547,9 @@ export class ApprovalService {
 
   /**
    * The runner is lost (a runner-wide fault, the port left `ready` or was replaced): a `docker build` it ran cannot
-   * report, so every running build ends `interrupted` in one transaction. Returns how many. Never throws.
+   * report, so every running build ends `interrupted` in one transaction. A port that is still attached is then told
+   * `image.build.cancel` for each (best effort), so an interrupted build never keeps running beside a new one of its
+   * profile. Returns how many. Never throws.
    */
   onRunnerLost(): number {
     const now = this.deps.now();
@@ -538,19 +564,29 @@ export class ApprovalService {
       this.log(`[nexus] approvals: interrupted builds not recorded: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
       return 0;
     }
+    for (const id of ids) this.sendBuildCancel(id);
     this.afterBuildsEnded(ids);
     return ids.length;
   }
 
-  /** The scheduler's pass: a build running for IMAGE_BUILD_DEADLINE_MS is cancelled at the runner and fails `timeout`. Never throws. */
+  /**
+   * The scheduler's pass: a running build with no progress for IMAGE_BUILD_INACTIVITY_MS, or running for
+   * IMAGE_BUILD_MAX_MS whatever its progress, is cancelled at the runner and fails `timeout`. Never throws.
+   */
   tick(now: number): void {
     let ids: string[] = [];
     try {
       ids = immediateTx(this.db, () => {
-        const rows = this.db.prepare("SELECT * FROM image_builds WHERE status = 'running' AND started_at <= ? ORDER BY started_at, id")
-          .all(now - IMAGE_BUILD_DEADLINE_MS) as ImageBuildRow[];
-        for (const b of rows) this.finishBuildTx(b, 'failed', { error: { code: 'timeout', message: 'the image build ran longer than 60 minutes' } }, now);
-        return rows.map((b) => b.id);
+        const rows = this.db.prepare("SELECT * FROM image_builds WHERE status = 'running' ORDER BY started_at, id").all() as ImageBuildRow[];
+        const ended: string[] = [];
+        for (const b of rows) {
+          const message = now - b.started_at >= IMAGE_BUILD_MAX_MS ? 'the image build ran longer than 180 minutes'
+            : now - this.lastProgress(b).at >= IMAGE_BUILD_INACTIVITY_MS ? 'the image build reported no progress for 10 minutes' : null;
+          if (!message) continue;
+          this.finishBuildTx(b, 'failed', { error: { code: 'timeout', message } }, now);
+          ended.push(b.id);
+        }
+        return ended;
       });
     } catch (e) {
       this.log(`[nexus] approvals: image build deadline not applied: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
@@ -583,7 +619,7 @@ export class ApprovalService {
 
   private afterBuildsEnded(ids: readonly string[]): void {
     if (ids.length === 0) return;
-    for (const id of ids) this.buildPhase.delete(id);
+    for (const id of ids) this.buildProgress.delete(id);
     try { this.execPort?.refreshImages(); } catch { /* the next probe judges the images again */ }
   }
 

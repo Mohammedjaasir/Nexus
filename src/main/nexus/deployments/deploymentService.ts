@@ -284,7 +284,9 @@ export class DeploymentService {
     const n = j.attempts > 0 ? j.attempts : null;
     const reason: EndCause | null = o.cause ?? o.reason ?? null;
     const probes = probesOf(d.health_json);
-    const userStop = to === 'stopped' && by.kind === 'user';
+    // `deployment.stop` is a user's stop of the deployment itself; any other end, a user's cancel of its job included,
+    // is a `deployment.transition` whose reason is the row's stop_reason.
+    const userStop = to === 'stopped' && by.kind === 'user' && o.reason === 'user';
     appendActivityRow(this.db, { actorKind: by.kind, actorId: by.id, onBehalfOf: j.on_behalf_of, jobId: d.job_id, attemptN: n, projectId: d.project_id,
       workspaceId: j.workspace_id, artifactId: this.artifactOf(d.subject_version_id), versionId: d.subject_version_id, entityType: 'deployment',
       entityId: d.id, action: userStop ? 'deployment.stop' : 'deployment.transition', status: 'succeeded',

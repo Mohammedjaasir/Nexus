@@ -964,17 +964,18 @@ test('I1 image builds always end: a runner-wide fault or a port leaving ready in
   r.report({ op: 'fault', message: 'the runner lost its Docker connection' });
   assert.equal(statusOf(b1).status, 'interrupted'); assert.equal(JSON.parse(statusOf(b1).error_json).code, 'runner_lost');
   assert.equal(JSON.parse(acts(w, 'image_build.finish', b1.id)[0].details_json).status, 'interrupted');
+  assert.ok(r.sentOf('image.build.cancel').some((m) => m.buildId === b1.id), 'the still-attached runner is told to stop it');
   // The port leaves ready (a crash) while a build runs.
   const b2 = build('sde-node', 'i-2');
   w.exec.tick(w.now());                                       // the scheduler sees the port ready
   r.setState('crashed'); w.exec.tick(w.now());
   assert.equal(statusOf(b2).status, 'interrupted');
   r.setState('ready'); w.exec.tick(w.now());
-  // The deadline: cancelled at the runner, failed `timeout`.
+  // The inactivity deadline (fix round 3): no progress for 10 minutes -> cancelled at the runner, failed `timeout`.
   const b3 = build('sde-node', 'i-3');
-  w.run(r, 59 * MIN);
+  w.run(r, 9 * MIN);
   assert.equal(statusOf(b3).status, 'running');
-  w.run(r, 2 * MIN);
+  w.run(r, 90_000);
   assert.equal(statusOf(b3).status, 'failed'); assert.equal(JSON.parse(statusOf(b3).error_json).code, 'timeout');
   assert.ok(r.sentOf('image.build.cancel').some((m) => m.buildId === b3.id));
   // A late report changes nothing.
@@ -1246,5 +1247,96 @@ test('F2 deployments.stop_reason holds the true cause: the v9 CHECK takes refuse
   assert.equal(endCause('failed', 'exit_not_reported', true), 'exit_not_reported');
   assert.equal(ACT.activityText(actView({ ...acts(w, 'deployment.transition', dep(w, j.id).id).pop(),
     details_json: JSON.stringify({ to: 'failed', reason: 'exit_not_reported' }) }), ACT_CTX), 'Dev deployment failed: its exit was never reported');
+  healthy(w); w.close();
+});
+
+// ---------- fix round 3 ----------
+
+test('N1 cancelling a healthy preview job records deployment.transition (cancel), matching the row; only a user stop is deployment.stop', async () => {
+  const { w, r, app } = await deployWorld();
+  const j = preview(w, app); w.exec.tick(w.now());
+  const a = provisionService(w, r, j.id, 49360); probe(w, r, a, 200);
+  const d = dep(w, j.id);
+  w.exec.cancel(w.me, j.id);
+  assert.equal(dep(w, j.id).status, 'stopped'); assert.equal(dep(w, j.id).stop_reason, 'cancel'); assert.equal(dep(w, j.id).stopped_by, w.me.id);
+  assert.equal(acts(w, 'deployment.stop', d.id).length, 0, 'not a stop of the deployment itself');
+  const t = acts(w, 'deployment.transition', d.id).pop();
+  assert.equal(t.actor_id, w.me.id);
+  assert.equal(JSON.parse(t.details_json).to, 'stopped'); assert.equal(JSON.parse(t.details_json).reason, 'cancel');
+  assert.equal(ACT.activityText(actView(t), ACT_CTX), 'Dev deployment stopped with its job');
+  // A user's stop of a deployment is still deployment.stop with reason user.
+  const j2 = preview(w, app); w.exec.tick(w.now());
+  const a2 = provisionService(w, r, j2.id, 49361, 'f'); probe(w, r, a2, 200);
+  w.nx.deployments.stop(w.me, dep(w, j2.id).id);
+  assert.equal(JSON.parse(acts(w, 'deployment.stop', dep(w, j2.id).id)[0].details_json).reason, 'user');
+  healthy(w); w.close();
+});
+
+test('N2 builds interrupted by a runner-wide fault are cancelled at the runner that is still attached, so none keeps running', () => {
+  const { w, r } = imageWorld({ freeBytes: 45 * GIB });
+  const build = (profile, k) => {
+    const { approval } = w.nx.approvals.requestImage(w.me, profile, k);
+    w.nx.approvals.respond(w.me, approval.id, 'once');
+    return w.db.prepare('SELECT * FROM image_builds WHERE approval_id = ?').get(approval.id);
+  };
+  const b1 = build('sde-node', 'n2-1'); const b2 = build('nexus-fwd', 'n2-2');
+  r.report({ op: 'fault', message: 'the runner lost its Docker connection' });
+  for (const b of [b1, b2]) {
+    assert.equal(w.db.prepare('SELECT status FROM image_builds WHERE id = ?').get(b.id).status, 'interrupted');
+    assert.equal(r.sentOf('image.build.cancel').filter((m) => m.buildId === b.id).length, 1, 'told once, best effort');
+  }
+  // A new build of the same profile is accepted and is the only one the runner was not told to stop.
+  const b3 = build('sde-node', 'n2-3');
+  assert.equal(r.sentOf('image.build.cancel').filter((m) => m.buildId === b3.id).length, 0);
+  assert.equal(count(w, "image_builds WHERE status = 'running'"), 1);
+  // A port that throws on send does not stop the interruption (best effort).
+  r.o.failSend = (m) => m.op === 'image.build.cancel';
+  r.report({ op: 'fault', message: 'again' });
+  assert.equal(w.db.prepare('SELECT status FROM image_builds WHERE id = ?').get(b3.id).status, 'interrupted');
+  r.o.failSend = null;
+  healthy(w); w.close();
+});
+
+test('N3 a build that keeps reporting progress is not killed at 60 minutes; no progress for 10 minutes or 180 minutes in all fails it', () => {
+  const { w, r } = imageWorld({ freeBytes: 45 * GIB });
+  const build = (profile, k) => {
+    const { approval } = w.nx.approvals.requestImage(w.me, profile, k);
+    w.nx.approvals.respond(w.me, approval.id, 'once');
+    return w.db.prepare('SELECT * FROM image_builds WHERE approval_id = ?').get(approval.id);
+  };
+  const statusOf = (b) => w.db.prepare('SELECT status, error_json FROM image_builds WHERE id = ?').get(b.id);
+  const progress = (b, minutes, phase = 'installing packages') => {
+    for (let m = 0; m < minutes; m += 5) {
+      w.run(r, 5 * MIN, 60_000);
+      r.report({ op: 'image.build.progress', buildId: b.id, at: w.now(), phase, bytes: m });
+    }
+  };
+  // Progress in one phase every 5 minutes for 65 minutes: still running (the old absolute 60 minutes is gone).
+  const b1 = build('sde-node', 'n3-1');
+  progress(b1, 65);
+  assert.equal(statusOf(b1).status, 'running');
+  assert.ok(count(w, "job_events WHERE image_build_id = ? AND type = 'image_build'", b1.id) >= 13, 'the progress is durable');
+  // Then silence: 9 minutes later still running, 10 minutes later failed and cancelled.
+  w.run(r, 9 * MIN, 30_000);
+  assert.equal(statusOf(b1).status, 'running');
+  w.run(r, 90_000, 30_000);
+  assert.equal(statusOf(b1).status, 'failed'); assert.equal(JSON.parse(statusOf(b1).error_json).code, 'timeout');
+  assert.match(JSON.parse(statusOf(b1).error_json).message, /no progress for 10 minutes/);
+  assert.ok(r.sentOf('image.build.cancel').some((m) => m.buildId === b1.id));
+  // Progress the whole time: failed at the 180 minute cap, and cancelled.
+  const b2 = build('nexus-fwd', 'n3-2');
+  progress(b2, 175);
+  assert.equal(statusOf(b2).status, 'running');
+  progress(b2, 10);
+  assert.equal(statusOf(b2).status, 'failed'); assert.match(JSON.parse(statusOf(b2).error_json).message, /longer than 180 minutes/);
+  assert.ok(r.sentOf('image.build.cancel').some((m) => m.buildId === b2.id));
+  // The last progress is read back from the rows: a fresh composition judges a silent build the same way.
+  const b3 = build('sde-node', 'n3-3');
+  progress(b3, 5);
+  const nx2 = createNexusPlatform(w.db, { now: () => w.now(), execution: true, imageContexts: () => CTX });
+  w.advance(9 * MIN); nx2.approvals.tick(w.now());
+  assert.equal(statusOf(b3).status, 'running', 'its last progress, read from job_events, is 9 minutes old');
+  w.advance(2 * MIN); nx2.approvals.tick(w.now());
+  assert.equal(statusOf(b3).status, 'failed');
   healthy(w); w.close();
 });
