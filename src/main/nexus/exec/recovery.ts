@@ -26,7 +26,7 @@
  *   - a container attempt whose container was never recorded (never provisioned): abandoned; a leased tool job goes
  *     back to queued (nothing ran; the count is kept, so the next lease is n + 1), a dev deployment or a running job to
  *     retry_scheduled or interrupted;
- *   - an attempt with a recorded container: left for phase B (`pending`).
+ *   - an attempt with a recorded container: left for phase B (`pending`; its job reads `waiting:runner`).
  *   Then pending approvals past `expires_at` that no waiting job holds (image preparation) expire, and image builds left
  *   `running` are `interrupted` (RC17: a leftover row would block `requestImage` until its deadline).
  *   Hold mode: on a v9 database whose execution is off (v9 not enabled, held, or its shape failed), only jobs WITHOUT a
@@ -35,46 +35,58 @@
  *   on a v9 file: it would end jobs whose attempts are live, which the v9 backstop refuses.
  *
  * Phase B (`recoverPhaseB`): at every runner `ready`, with the runner's `reconcile.result` for `reconcileList()`.
- * Every live attempt with a recorded container, by the container's state (an attempt the runner did not report, or a
- * different container id, is `missing`; Docker not running makes every one `missing`, reason
- * `docker_unavailable_at_recovery`):
- *   - running: adopted (lease_owner := this boot, one fresh LEASE_MS), `attempt.adopt` sent; heartbeats, events and the
- *     exit are then accepted from this boot's runner and the job finishes normally; a dev deployment keeps its status
- *     and its probes resume (one that had already been stopped is told `attempt.cancel`);
- *   - exited: the exit is known from inspect. When the staged outputs show the attempt cannot pass (OOM, a non-zero
- *     exit of a non-test recipe, a missing contract output, all exactly as `exitFailure`), it fails now and its container
- *     is released. Otherwise it is adopted for finalization (phase `collecting`) and `attempt.adopt` is sent: the runner
- *     re-hashes `/out` and reports `attempt.exited` again, with its parser results, and the exit is ingested exactly as a
- *     live exit (idempotent by (job, output path); never completed without ingest);
- *   - created (never started) or missing: abandoned; a tool job goes to retry_scheduled when idempotent with attempts
- *     left, else interrupted; a dev deployment's job is interrupted and its deployment stopped (`recovery`), except one
- *     whose deployment was already stopped before the restart (its job waited for the exit): that job fails
- *     `exit_not_reported`. A created container is released (the runner removes it).
+ * Every live attempt with a recorded container that this process is not ingesting right now:
+ *   - a DURABLE exit (job phase `collecting`, or an `attempt.output` event for (job, n)): its outputs live under the data
+ *     home (`work/<job>/<n>/out`, kept until `attempt.release`), never in Docker, so it is adopted for finalization
+ *     WHATEVER the container's or Docker's state; the runner re-hashes `/out` without Docker and reports the exit again;
+ *   - otherwise, by the container's state (an attempt the runner did not report, or reported without its recorded
+ *     container id or with another one, is `missing`; Docker not running makes every one `missing`, reason
+ *     `docker_unavailable_at_recovery`):
+ *     - running: adopted (lease_owner := this boot, one fresh LEASE_MS), `attempt.adopt` sent; heartbeats, events and
+ *       the exit are then accepted from this boot's runner and the job finishes normally; a dev deployment keeps its
+ *       status and its probes resume (one that had already been stopped is told `attempt.cancel`);
+ *     - exited: when inspect and the staged outputs show the attempt cannot pass (OOM, a non-zero exit of a non-test
+ *       recipe, a missing contract output, all exactly as `exitFailure`), it fails now and its container is released;
+ *       otherwise it is adopted for finalization (as a durable exit) and ingested from the runner's re-reported exit,
+ *       exactly as a live exit (idempotent by (job, output path); never completed without ingest);
+ *     - created (never started) or missing: abandoned; a tool job goes to retry_scheduled when idempotent with attempts
+ *       left, else interrupted; a dev deployment's job is interrupted and its deployment stopped (`recovery`), except
+ *       one whose deployment was already stopped before the restart (its job waited for the exit): that job fails
+ *       `exit_not_reported`. A created container is released (the runner removes it).
  *   Approval waits still owned by another boot are re-owned (phase A ran with another boot id).
  *   Then `orphanDecisions`: the labelled resources to stop and remove.
  *
+ * The reconcile bound (`failUnreconciled`, from the scheduler): an attempt phase A left for phase B that no phase B
+ * adopted or decided within RECONCILE_BOUND_MS (10 minutes) of phase A fails `runner_lost` (retried only when
+ * idempotent), unless its exit is durable: that one keeps waiting for finalization.
+ *
  * Leases and stall history (carried decision 8): the old process's in-memory stall record is gone at a restart, so
  * every attempt recovery adopts or re-owns gets exactly ONE fresh LEASE_MS from the recovery's `now`, and the wall
- * clock of an adopted attempt counts the downtime (only approval waits are excluded). An adopted attempt that is not
- * heard from (no heartbeat, no exit) within that lease fails `runner_lost` in the scheduler's sweep (retried only when
- * idempotent); one adopted for finalization is exempt from its wall clock (it already exited) but not from its lease.
+ * clock of an adopted running attempt counts the downtime (only approval waits are excluded). An adopted attempt that
+ * is not heard from (no heartbeat, no exit) within that lease fails `runner_lost` in the scheduler's sweep (retried only
+ * when idempotent); one adopted for finalization is exempt from its wall clock (it already exited) but not its lease.
  *
- * Orphans (`orphanDecisions`, pure): only resources carrying a `nexus.*` label are ever listed; an unlabelled resource
- * is never touched, whatever its name. A labelled resource is kept when its `nexus.attempt` is a live attempt owned by
- * this boot (adopted or started here) or when it is a dependency cache volume (`nexus-deps-*`, shared across attempts);
- * every other one is listed for stop and removal (`no_live_attempt`, or `not_adopted` for a live attempt of another boot).
+ * Orphans (`orphanDecisions`, pure; B2a Task 10 fix round 1, superseding the plan's "no live attempt of this
+ * database"): a resource is listed for removal ONLY when it carries this install's `nexus.home` label AND a
+ * `nexus.attempt` label naming an attempt of this database that is no longer live. Never listed: a resource of another
+ * install (another data home on the same Docker daemon), an unlabelled resource or one labelled only with other keys
+ * (a user's `nexus.note`), a dependency cache volume (`nexus-deps-*`, shared across attempts), and any resource of a
+ * live attempt (whatever its owner: SQLite says it may still run; a failed decision leaves it live, so it is kept). A
+ * resource of this install whose attempt id is unknown to this database is never removed: it is reported (`unknown`,
+ * one `exec.recover` row and a log line).
  *
  * Blob store hygiene (`recoverBlobStore`, async, under the blob store's EXCLUSIVE lock, so no ingest and no GC runs
- * meanwhile): `objects/tmp` files older than 24 h are removed; unindexed `objects/<2>/<62>` files older than 24 h are
- * removed only while no attempt is live (GC's own rule: a landing object is never raced). A blob.gc run whose last row
- * is `started` (its process stopped before it recorded the file delete) is finished by that sweep and closed by its
- * row. A file that cannot be deleted (a hard link, a link, a refused path) is reported: a `blob.gc` row `failed` with
- * `fileDeleteFailed` and `hardLinked`, and a log line. Never silently.
+ * meanwhile; it never rejects past its authorization check): `objects/tmp` files older than 24 h are removed;
+ * unindexed `objects/<2>/<62>` files older than 24 h are removed only while no attempt is live (GC's own rule: a landing
+ * object is never raced). A GC whose last `started` row has no closing row is finished, and closed by the sweep's row
+ * (`finishedGc`), only when no unindexed object remains at all (none younger than 24 h, none undeletable). A file that
+ * cannot be deleted, and an INDEXED object with a second hard link (a writable second name for stored bytes), is
+ * reported: a `blob.gc` row `failed` with `fileDeleteFailed`, `hardLinked` and `hardLinkedIndexed`, and a log line.
  */
 import type Database from 'better-sqlite3';
 import type { JobState, Principal, ScopeRef } from '../../../shared/nexus/platform';
 import type { ExitInfo, ParsedOutput, StagedOutput } from '../../../shared/nexus/execution';
-import { parseRunnerMessage, type LabelledResource, type MainToRunner, type ReconciledAttempt } from '../../../shared/nexus/runnerProtocol';
+import { MAX_ARRAY_ITEMS, parseRunnerMessage, type LabelledResource, type MainToRunner, type ReconciledAttempt } from '../../../shared/nexus/runnerProtocol';
 import { getRecipe, type RecipeDef } from '../../../shared/nexus/recipes';
 import { getKind } from '../../../shared/nexus/kinds';
 import type { AuthService } from '../auth/authService';
@@ -82,11 +94,46 @@ import { appendActivityRow } from '../activity/writer';
 import type { BlobIndex } from '../blobs/blobIndex';
 import { immediateTx } from '../db/tx';
 import { PlatformError } from '../errors';
-import { canRetry } from '../jobs/jobRules';
 import { redactedErrorJson, type JobRow, type JobService } from '../jobs/jobService';
 import { adoptAttemptTx, attemptRow, liveAttemptOf, transitionAttemptTx, type AttemptRow } from './attempts';
 import { appendJobEventTx } from './events';
-import { backoffMs } from './scheduler';
+
+/**
+ * The runner's side of restart recovery: what B2a Task 11 (the runner host, `src/runner/reconcile.ts`, the main-side
+ * wiring) must implement. Main relies on every line; a runner that breaks one loses work to `runner_lost`, never
+ * completes anything falsely.
+ */
+export const RUNNER_RECOVERY_CONTRACT: readonly string[] = Object.freeze([
+  'Boot id: main attaches the runner with platform.bootId (the boot id phase A re-owned for), never a fresh one.',
+  'At every runner `ready` (app start and every runner restart) main sends `reconcile.list` = exec.reconcileList(); the '
+    + 'runner answers one `reconcile.result`, which main routes to exec.recoverPhaseB(system, platform.bootId, result) '
+    + '(ExecutionService.onRunnerMessage does not handle `reconcile.result` itself).',
+  '`reconcile.result.attempts[i].containerId` is the id of the container found under the attempt\'s labels; an entry '
+    + 'without it, or with another id than main recorded, counts as `missing`.',
+  '`reconcile.result.attempts[i].staged` is the COMPLETE list of `/out` (re-hashed) or is omitted; it is never truncated. '
+    + 'Main drops a list over 20,000 entries for that attempt only (the attempt is then adopted to re-report).',
+  '`reconcile.result.labelled` lists every container, volume and network with a `nexus.home` label equal to this '
+    + 'install\'s (planBuilder.homeLabel of the data home); main decides what to remove and never removes a resource '
+    + 'without this install\'s `nexus.home` and a `nexus.attempt` of an ended attempt of its database.',
+  'Every container, volume and network the runner creates for an attempt carries the plan\'s labels: containers their '
+    + 'spec labels, volumes and networks `plan.resourceLabels` (`nexus.job`, `nexus.attempt`, `nexus.boot`, '
+    + '`nexus.project`, `nexus.home`).',
+  'Removal needs a new MainToRunner op, `reconcile.remove { resources: { kind, id }[] }` (from PhaseBReport.remove): '
+    + 'stop (-t 10) and remove each, by id only; main then records `exec.orphan_removed`.',
+  '`attempt.adopt` of a RUNNING container: reattach its log, resume heartbeats (and a service\'s probe loop); its exit '
+    + 'is reported as usual.',
+  '`attempt.adopt` of an attempt whose exit is durable or whose container exited (also with the container gone or '
+    + 'Docker down): re-hash `<dataHome>/work/<job>/<n>/out` from the data home (no Docker needed), re-run the '
+    + 'parsers and report `attempt.exited` again, with the exit recorded at collect time (keep it beside /out, e.g. '
+    + '`work/<job>/<n>/exit.json`, so no Docker is needed). Within one LEASE_MS (60 s) of the adoption, or heartbeat '
+    + 'meanwhile; never report `container: \'missing\'` in a heartbeat of an attempt being finalized (use `exited`).',
+  'The runner deletes nothing of an attempt (container, /out, workspace volume) before main sends `attempt.release`.',
+  'exec.recoverBlobStore(system) runs once per app start: after phase B and before the scheduler\'s first tick. Not at a '
+    + 'mid-session runner restart: the scheduler is running then, and the pass holds the blob store\'s exclusive lock '
+    + '(leases and ingests would wait); what a dead runner left in objects/tmp is swept at the next app start.',
+  'If no phase B adopts or decides an attempt phase A left pending within 10 minutes of phase A, it fails '
+    + '`runner_lost` (a durable exit keeps waiting for finalization).'
+]);
 
 /** The activity action of every recovery decision. */
 export const RECOVER_ACTION = 'exec.recover';
@@ -94,6 +141,8 @@ export const RECOVER_ACTION = 'exec.recover';
 export const STALE_OBJECT_MS = 24 * 60 * 60 * 1000;
 /** The most object files one hygiene pass looks at. */
 export const MAX_SWEEP_OBJECTS = 100_000;
+/** An attempt phase A left for phase B that no phase B reconciled within this long fails `runner_lost`. */
+export const RECONCILE_BOUND_MS = 10 * 60_000;
 const CANCEL_GRACE_MS = 10_000;
 const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const PLATFORM: ScopeRef = { type: 'platform' };
@@ -107,7 +156,8 @@ export interface ReconcileResult {
 }
 
 export type RecoveryDecision =
-  | 'requeue' | 'retry' | 'interrupt' | 'reown' | 'expire' | 'adopt' | 'finalize' | 'fail' | 'exit_lost' | 'image_interrupted' | 'orphans';
+  | 'requeue' | 'retry' | 'interrupt' | 'reown' | 'expire' | 'adopt' | 'finalize' | 'fail' | 'exit_lost' | 'image_interrupted'
+  | 'orphans' | 'unknown_resources' | 'unreconciled';
 
 export interface PhaseAReport {
   /** Execution is off on this v9 database: only jobs without a live attempt were recovered (B1's rule). */
@@ -126,33 +176,46 @@ export interface PhaseAReport {
   errors: number;
 }
 
-export interface OrphanRemoval { kind: LabelledResource['kind']; id: string; reason: 'no_live_attempt' | 'not_adopted' }
+export interface OrphanRemoval { kind: LabelledResource['kind']; id: string; reason: 'attempt_ended' }
+export interface OrphanReport {
+  /** This install's resources of ended attempts of this database: stop and remove. */
+  remove: OrphanRemoval[];
+  /** This install's resources naming an attempt this database does not know: never removed, reported. */
+  unknown: { kind: LabelledResource['kind']; id: string }[];
+}
 
 export interface PhaseBReport {
   adopted: number;
-  /** Exited attempts finalized: adopted for their re-reported exit, or failed from inspect and the staged outputs. */
+  /** Exited attempts finalized: adopted for their re-reported exit (durable exits included), or failed from inspect. */
   finalized: number;
   requeued: number;
   interrupted: number;
+  /** Jobs failed by phase B for a lost outcome (a stopped dev deployment whose exit was never reported). */
+  failed: number;
   reowned: number;
   decisions: number;
   errors: number;
-  /** Labelled resources to stop and remove (the runner applies the list). */
+  /** Labelled resources to stop and remove (the runner applies the list: `reconcile.remove`). */
   remove: OrphanRemoval[];
+  /** This install's labelled resources whose attempt this database does not know (never removed). */
+  unknown: { kind: LabelledResource['kind']; id: string }[];
 }
 
 export interface BlobSweepReport {
   ran: boolean;
-  /** Why it did not run: `not_available` or `busy` (an ingest or a GC holds the store). */
+  /** Why it did not run or stopped: `not_available`, `busy` (an ingest or a GC holds the store) or `error`. */
   reason: string | null;
   tmpRemoved: number;
   tmpFailed: number;
   objectsRemoved: number;
   objectsFailed: number;
+  /** Unindexed objects older than 24 h with a second hard link (their delete is refused). */
   hardLinked: number;
+  /** Indexed objects with a second hard link: stored bytes with a writable second name, surfaced. */
+  hardLinkedIndexed: number;
   /** Unindexed objects were not swept because an attempt is live. */
   objectsDeferred: boolean;
-  /** A blob.gc run left `started` was finished and closed. */
+  /** A blob.gc run left `started` was finished (no unindexed object remains) and closed. */
   finishedGc: boolean;
 }
 
@@ -172,13 +235,19 @@ export interface RecoveryHost {
   readonly log: (line: string) => void;
   readonly blobs: BlobIndex | null;
   readonly files: BlobStoreFiles | null;
+  /** This install's `nexus.home` label (planBuilder.homeLabel of the data home); null without a data home (nothing is removed). */
+  readonly home: string | null;
   /** The validation framework's replacement of an interrupted main check (null without validation). */
   readonly requeueCheckTx: ((system: Principal, jobId: string) => string[]) | null;
   moveJobTx(id: string, to: JobState, now: number, d?: { outcome?: string; error?: { code: string; message: string } }, expect?: JobState): void;
-  failJobTx(id: string, outcome: string, error: { code: string; message: string }, now: number): void;
+  /** The core's one failure-and-retry rule (ExecutionService.failJobTx). Returns the job's end state. */
+  failJobTx(id: string, outcome: string, error: { code: string; message: string }, now: number,
+    o?: { retry?: 'by_code' | 'always'; otherwise?: 'failed' | 'interrupted' }): 'failed' | 'retry_scheduled' | 'interrupted';
   setPhaseTx(id: string, phase: string | null, now: number): void;
   endAwaitingTx(jobId: string, error: { code: string; message: string }, now: number): void;
   send(msg: MainToRunner): boolean;
+  /** Whether this process is ingesting the attempt's exit right now (its in-memory `collecting` set). */
+  isCollecting(attemptId: string): boolean;
   /** The log path `attempt.adopt` carries (under the data home). */
   logPathOf(a: AttemptRow): string;
   /** An attempt adopted for finalization: it already exited, so its wall clock no longer runs (its lease still does). */
@@ -199,7 +268,9 @@ const REASON_TEXT: Record<string, string> = {
   container_missing: 'the container was gone after the app restarted',
   container_running: 'the container was still running after the app restarted',
   container_exited: 'the container exited while the app was closed',
+  exit_durable: 'the exit was recorded before the restart; its outputs are collected again',
   docker_unavailable_at_recovery: 'Docker was not running when the app restarted',
+  unreconciled: 'the runner did not reconcile the attempt within 10 minutes of the restart',
   restarted: 'the app restarted while the image was being built'
 };
 const reasonError = (reason: string): { code: string; message: string } => ({ code: reason, message: REASON_TEXT[reason] ?? 'the app restarted' });
@@ -244,43 +315,53 @@ export function exitFailure(recipe: RecipeDef, exit: { code: number | null; oomK
 }
 
 /**
- * The labelled resources to stop and remove (see the module header). Pure. `liveAttempts` maps every live attempt id of
- * this database to its lease owner, AFTER phase B's decisions.
+ * The labelled resources to stop and remove, and the ones of this install whose attempt is unknown (see the module
+ * header). Pure. `liveAttempts`: every live attempt id of this database, AFTER phase B's decisions; `knownAttempts`:
+ * the attempt ids among the labels that this database holds; `home`: this install's `nexus.home` (null: none).
  */
 export function orphanDecisions(reconcile: { labelled: readonly LabelledResource[] },
-  ctx: { liveAttempts: ReadonlyMap<string, string>; bootId: string }): OrphanRemoval[] {
-  const out: OrphanRemoval[] = [];
+  ctx: { home: string | null; liveAttempts: ReadonlySet<string>; knownAttempts: ReadonlySet<string> }): OrphanReport {
+  const out: OrphanReport = { remove: [], unknown: [] };
+  if (ctx.home === null) return out;
   const seen = new Set<string>();
   const kinds: readonly string[] = ['container', 'volume', 'network'];
   for (const r of (Array.isArray(reconcile?.labelled) ? reconcile.labelled : []) as LabelledResource[]) {
     if (!isObj(r) || !isObj(r.labels) || typeof r.id !== 'string' || !kinds.includes(r.kind)) continue;
     const labels = r.labels as Record<string, unknown>;
-    // Only Nexus's own resources: an unlabelled resource is never listed, whatever it is called.
-    if (!Object.keys(labels).some((k) => k.startsWith('nexus.'))) continue;
+    // Only this install's own resources: another data home, an unlabelled one or a user's `nexus.*` label never qualify.
+    if (labels['nexus.home'] !== ctx.home) continue;
+    const attempt = typeof labels['nexus.attempt'] === 'string' && labels['nexus.attempt'].length > 0 ? labels['nexus.attempt'] : null;
+    if (attempt === null) continue;
     // A dependency cache is shared by later attempts (written once by an approved install): never an orphan here.
     if (r.kind === 'volume' && (r.id.startsWith('nexus-deps-') || labels['nexus.kind'] === 'deps')) continue;
-    const attempt = typeof labels['nexus.attempt'] === 'string' ? labels['nexus.attempt'] : null;
-    const owner = attempt !== null ? ctx.liveAttempts.get(attempt) : undefined;
-    if (owner !== undefined && owner === ctx.bootId) continue;
+    // SQLite says a live attempt may still run (adopted, waiting, or its decision failed): its resources stay.
+    if (ctx.liveAttempts.has(attempt)) continue;
     const key = `${r.kind}\u0000${r.id}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ kind: r.kind, id: r.id, reason: owner === undefined ? 'no_live_attempt' : 'not_adopted' });
+    if (!ctx.knownAttempts.has(attempt)) out.unknown.push({ kind: r.kind, id: r.id });
+    else out.remove.push({ kind: r.kind, id: r.id, reason: 'attempt_ended' });
   }
   return out;
+}
+
+/** Whether an attempt's exit is durable: its job collects outputs, or the exit's `attempt.output` event was written. */
+export function durableExit(db: Database.Database, j: { id: string; phase: string | null }, a: { n: number }): boolean {
+  if (j.phase === 'collecting') return true;
+  return db.prepare("SELECT 1 FROM job_events WHERE job_id = ? AND attempt_n = ? AND type = 'attempt.output' LIMIT 1").get(j.id, a.n) !== undefined;
 }
 
 // ---------- internals ----------
 
 interface Counters {
   requeued: number; interrupted: number; expired: number; pending: number; reowned: number; adopted: number; finalized: number;
-  jobsRequeued: number; jobsInterrupted: number; decisions: number; errors: number;
+  failed: number; jobsRequeued: number; jobsInterrupted: number; decisions: number; errors: number;
 }
-type Count = 'requeued' | 'interrupted' | 'expired' | 'pending' | 'adopted' | 'finalized' | 'reowned' | 'images';
+type Count = 'requeued' | 'interrupted' | 'expired' | 'pending' | 'adopted' | 'finalized' | 'failed' | 'reowned' | 'images';
 interface Outcome { decision: RecoveryDecision | null; count: Count | null; after?: () => void }
 
 const counters = (): Counters => ({ requeued: 0, interrupted: 0, expired: 0, pending: 0, reowned: 0, adopted: 0, finalized: 0,
-  jobsRequeued: 0, jobsInterrupted: 0, decisions: 0, errors: 0 });
+  failed: 0, jobsRequeued: 0, jobsInterrupted: 0, decisions: 0, errors: 0 });
 
 function tally(c: Counters, o: Outcome): void {
   if (o.decision !== null) c.decisions++;
@@ -293,23 +374,25 @@ function tally(c: Counters, o: Outcome): void {
     case 'reowned': c.reowned++; c.pending++; break;
     case 'adopted': c.adopted++; break;
     case 'finalized': c.finalized++; break;
+    case 'failed': c.failed++; break;
     default: break;
   }
 }
 
 /** One decision: its own IMMEDIATE transaction; its sends after commit; a throw rolls back that decision only. */
-function decide(host: RecoveryHost, c: Counters, what: string, fn: () => Outcome | null): void {
+function decide(host: RecoveryHost, c: Counters, what: string, fn: () => Outcome | null): boolean {
   let o: Outcome | null;
   try {
     o = immediateTx(host.db, fn);
   } catch (e) {
     c.errors++;
     host.log(`[nexus] execution recovery: a decision about ${what} was not applied (${codeOf(e)}); it is left as it was`);
-    return;
+    return false;
   }
-  if (!o) return;
+  if (!o) return true;
   tally(c, o);
   if (o.after) { try { o.after(); } catch { /* a send that fails is the runner's to retry (lease expiry) */ } }
+  return true;
 }
 
 function requireSystem(host: RecoveryHost, system: Principal, op: string): void {
@@ -372,18 +455,19 @@ function requeueTx(host: RecoveryHost, system: Principal, j: JobRow, a: AttemptR
   return { decision: 'requeue', count: 'requeued' };
 }
 
-/** A job whose attempt is lost: retried when idempotent with attempts left and runnable again, else interrupted. */
+/**
+ * A job whose attempt is lost: the core's own failure rule (failJobTx), told that a lost attempt is retryable: retried
+ * when idempotent with attempts left and runnable again, else interrupted.
+ */
 function retryOrInterruptTx(host: RecoveryHost, system: Principal, j: JobRow, a: AttemptRow, reason: string, now: number,
   data?: Record<string, unknown>): Outcome {
-  const retry = host.jobs.toJob(j).retry;
-  if (!canRetry({ kind: j.kind, attempts: j.attempts, retry }) || !host.jobs.runnableAgain(j)) return interruptTx(host, system, j, a, reason, now, data);
   abandonTx(host, j, a, reason, now);
-  // The v7 state table reaches retry_scheduled through failed (as every infrastructure retry does).
-  host.moveJobTx(j.id, 'failed', now, { outcome: 'interrupted', error: reasonError(reason) });
-  host.moveJobTx(j.id, 'retry_scheduled', now);
-  host.db.prepare('UPDATE jobs SET next_attempt_at = ?, phase = NULL WHERE id = ?').run(now + backoffMs(retry.backoffMs, j.attempts), j.id);
-  recordTx(host, system, { decision: 'retry', reason, job: j, attemptN: a.n, summary: `job will be tried again: ${REASON_TEXT[reason] ?? reason}`, data }, now);
-  return { decision: 'retry', count: 'requeued' };
+  const end = host.failJobTx(j.id, 'interrupted', reasonError(reason), now, { retry: 'always', otherwise: 'interrupted' });
+  if (end !== 'retry_scheduled') host.setPhaseTx(j.id, null, now);
+  const retried = end === 'retry_scheduled';
+  recordTx(host, system, { decision: retried ? 'retry' : 'interrupt', reason, job: j, attemptN: a.n,
+    summary: `${retried ? 'job will be tried again' : 'job interrupted'}: ${REASON_TEXT[reason] ?? reason}`, data }, now);
+  return retried ? { decision: 'retry', count: 'requeued' } : { decision: 'interrupt', count: 'interrupted' };
 }
 
 /** Re-own a live attempt for this boot (no write when it is already this boot's). */
@@ -538,25 +622,57 @@ export function reconcileList(db: Database.Database): { attemptId: string; conta
     kind: getRecipe(r.recipe_id ?? '')?.executor === 'service' ? 'service' as const : 'tool' as const }));
 }
 
+/** Adopted for finalization: the runner re-hashes `/out` and reports the exit again; it is ingested like a live one. */
+function finalizeTx(host: RecoveryHost, system: Principal, bootId: string, j: JobRow, a: AttemptRow, reason: string, now: number,
+  data: Record<string, unknown>, service: boolean): Outcome {
+  adoptAttemptTx(host.db, a, bootId, now, j.project_id, { summary: `attempt ${a.n} exited while the app was closed; collecting its outputs`,
+    data: { decision: 'finalize', reason, ...data } });
+  if (!service) host.setPhaseTx(j.id, 'collecting', now);
+  recordTx(host, system, { decision: 'finalize', reason, job: j, attemptN: a.n, summary: '', event: false, data }, now);
+  const msg: MainToRunner = { op: 'attempt.adopt', attemptId: a.id, containerId: a.container_id!, logPath: host.logPathOf(a) };
+  return { decision: 'finalize', count: 'finalized', after: () => { host.awaitExit(a.id); host.send(msg); } };
+}
+
+/**
+ * A dev deployment stopped before the restart (the user, its lifetime, the app quitting) whose job waited for the exit,
+ * and whose containers are gone: the job fails `exit_not_reported`, as the deployment pass ends it when no exit arrives
+ * in time. Never completed: the exit that would have completed it was never observed. The deployment keeps its end.
+ */
+function exitLostTx(host: RecoveryHost, system: Principal, j: JobRow, a: AttemptRow, reason: string, now: number, short: string): Outcome {
+  abandonTx(host, j, a, reason, now);
+  const error = { code: 'exit_not_reported', message: 'the dev deployment was stopped before the restart and its exit was never reported' };
+  host.moveJobTx(j.id, 'failed', now, { outcome: 'exit_not_reported', error });
+  host.setPhaseTx(j.id, null, now);
+  recordTx(host, system, { decision: 'exit_lost', reason, job: j, attemptN: a.n, summary: 'the stopped dev deployment\'s exit was never reported',
+    data: { container: short } }, now);
+  return { decision: 'exit_lost', count: 'failed' };
+}
+
 function phaseBContainerTx(host: RecoveryHost, system: Principal, bootId: string, attemptId: string, entry: ReconciledAttempt | undefined,
   dockerDown: boolean, now: number): Outcome | null {
   const db = host.db;
   const a = attemptRow(db, attemptId);
   if (!a || (a.state !== 'starting' && a.state !== 'running') || a.container_id === null) return null;
+  // This process is ingesting its exit right now (a runner restart mid-ingest): the ingest decides, not recovery.
+  if (host.isCollecting(a.id)) return null;
   const j = jobRow(db, a.job_id)!;
   const recipe = j.recipe_id ? getRecipe(j.recipe_id) : null;
   const service = recipe?.executor === 'service';
-  // The runner's word informs the decision only: an unreported attempt, or another container under its label, is missing.
-  const sameContainer = !entry?.containerId || entry.containerId === a.container_id;
+  const short = a.container_id.slice(0, 12);
+  // A durable exit: its outputs live under the data home, not in Docker. Adopted for finalization whatever Docker says.
+  if (!service && durableExit(db, j, a)) {
+    return finalizeTx(host, system, bootId, j, a, 'exit_durable', now, { container: short, docker: dockerDown ? 'down' : 'running' }, false);
+  }
+  // The runner's word informs the decision only: an unreported attempt, or an entry without the recorded container id or
+  // with another one, is missing.
+  const sameContainer = entry?.containerId === a.container_id;
   const state = dockerDown || !entry || !sameContainer ? 'missing' : entry.container;
   const reason = dockerDown ? 'docker_unavailable_at_recovery' : `container_${state}`;
-  const short = a.container_id.slice(0, 12);
-  const adoptMsg: MainToRunner = { op: 'attempt.adopt', attemptId: a.id, containerId: a.container_id, logPath: host.logPathOf(a) };
   if (state === 'running') {
     adoptAttemptTx(db, a, bootId, now, j.project_id, { summary: `attempt ${a.n} adopted: its container is still running`,
       data: { decision: 'adopt', reason, container: short } });
     recordTx(host, system, { decision: 'adopt', reason, job: j, attemptN: a.n, summary: '', event: false, data: { container: short } }, now);
-    const msgs: MainToRunner[] = [adoptMsg];
+    const msgs: MainToRunner[] = [{ op: 'attempt.adopt', attemptId: a.id, containerId: a.container_id, logPath: host.logPathOf(a) }];
     // A dev deployment stopped before the restart (its job waited for the exit): the runner stops what still runs.
     const dep = service ? db.prepare('SELECT status FROM deployments WHERE job_id = ?').get(j.id) as { status: string } | undefined : undefined;
     if (dep && (dep.status === 'stopped' || dep.status === 'failed')) msgs.push({ op: 'attempt.cancel', attemptId: a.id, graceMs: CANCEL_GRACE_MS, reason: 'timeout' });
@@ -571,19 +687,14 @@ function phaseBContainerTx(host: RecoveryHost, system: Principal, bootId: string
         transitionAttemptTx(db, a, 'failed', now, j.project_id, { exit: { code: exit.code, signal: exit.signal, oomKilled: exit.oomKilled },
           outcome: fail.outcome, error: fail.error });
         host.failJobTx(j.id, fail.outcome, fail.error, now);
+        // `status` names the failure for the activity sentence (oom, nonzero_exit, invalid_output).
         recordTx(host, system, { decision: 'fail', reason, job: j, attemptN: a.n, summary: `exited while the app was closed; ${fail.error.message}`,
-          data: { exit: exit.code, oomKilled: exit.oomKilled, staged: entry.staged.length, outcome: fail.outcome } }, now);
+          data: { status: fail.outcome, exit: exit.code, oomKilled: exit.oomKilled, staged: entry.staged.length } }, now);
         return { decision: 'fail', count: 'finalized', after: () => { host.send({ op: 'attempt.release', attemptId: a.id }); } };
       }
     }
-    // Adopted for finalization: the runner re-hashes `/out` and reports the exit again; it is ingested like a live one.
-    adoptAttemptTx(db, a, bootId, now, j.project_id, { summary: `attempt ${a.n} exited while the app was closed; collecting its outputs`,
-      data: { decision: 'finalize', reason, container: short, exit: exit ? exit.code : null, oomKilled: exit ? exit.oomKilled : null,
-        staged: entry?.staged ? entry.staged.length : null } });
-    if (!service) host.setPhaseTx(j.id, 'collecting', now);
-    recordTx(host, system, { decision: 'finalize', reason, job: j, attemptN: a.n, summary: '', event: false,
-      data: { container: short, exit: exit ? exit.code : null } }, now);
-    return { decision: 'finalize', count: 'finalized', after: () => { host.awaitExit(a.id); host.send(adoptMsg); } };
+    return finalizeTx(host, system, bootId, j, a, reason, now, { container: short, exit: exit ? exit.code : null, oomKilled: exit ? exit.oomKilled : null,
+      staged: entry?.staged ? entry.staged.length : null }, service);
   }
   // created (never started) or missing.
   let out: Outcome;
@@ -599,21 +710,6 @@ function phaseBContainerTx(host: RecoveryHost, system: Principal, bootId: string
   return out;
 }
 
-/**
- * A dev deployment stopped before the restart (the user, its lifetime, the app quitting) whose job waited for the exit,
- * and whose containers are gone: the job fails `exit_not_reported`, as the deployment pass ends it when no exit arrives
- * in time. Never completed: the exit that would have completed it was never observed. The deployment keeps its end.
- */
-function exitLostTx(host: RecoveryHost, system: Principal, j: JobRow, a: AttemptRow, reason: string, now: number, short: string): Outcome {
-  abandonTx(host, j, a, reason, now);
-  const error = { code: 'exit_not_reported', message: 'the dev deployment was stopped before the restart and its exit was never reported' };
-  host.moveJobTx(j.id, 'failed', now, { outcome: 'exit_not_reported', error });
-  host.setPhaseTx(j.id, null, now);
-  recordTx(host, system, { decision: 'exit_lost', reason, job: j, attemptN: a.n, summary: 'the stopped dev deployment\'s exit was never reported',
-    data: { container: short } }, now);
-  return { decision: 'exit_lost', count: 'interrupted' };
-}
-
 function phaseBApprovalWaitTx(host: RecoveryHost, system: Principal, bootId: string, attemptId: string, now: number): Outcome | null {
   const a = attemptRow(host.db, attemptId);
   if (!a || (a.state !== 'starting' && a.state !== 'running') || a.lease_owner === bootId) return null;
@@ -623,15 +719,38 @@ function phaseBApprovalWaitTx(host: RecoveryHost, system: Principal, bootId: str
   return o.decision ? o : null;
 }
 
+/** The attempt ids among `ids` that this database holds. */
+function knownAttemptIds(db: Database.Database, ids: readonly string[]): Set<string> {
+  const out = new Set<string>();
+  const list = [...new Set(ids)];
+  for (let i = 0; i < list.length; i += 500) {
+    const part = list.slice(i, i + 500);
+    for (const r of db.prepare(`SELECT id FROM job_attempts WHERE id IN (${part.map(() => '?').join(', ')})`).all(...part) as { id: string }[]) out.add(r.id);
+  }
+  return out;
+}
+
 /** Phase B (see the module header). System only; needs execution. Never throws past its checks. */
 export function recoverPhaseB(host: RecoveryHost, system: Principal, bootId: string, reconcile: ReconcileResult, now: number): PhaseBReport {
   requireSystem(host, system, 'recover_phase_b');
   checkBoot(bootId);
   if (!host.available) throw new PlatformError('platform_unavailable', 'execution is not available on this database', { reason: 'not_enabled' });
-  // The same validation as the runner's own message (exact keys, shapes and bounds): a malformed answer decides nothing.
+  // A staged list over the protocol's array bound is dropped for its attempt only (that attempt is adopted to report its
+  // exit again); everything else is validated as the runner's own message (exact keys, shapes and bounds).
+  const rawAttempts: unknown = isObj(reconcile) ? reconcile.attempts : undefined;
+  let stagedDropped = 0;
+  const attempts = Array.isArray(rawAttempts) ? rawAttempts.map((x: unknown) => {
+    if (isObj(x) && Array.isArray(x.staged) && x.staged.length > MAX_ARRAY_ITEMS) {
+      stagedDropped++;
+      const { staged: _dropped, ...rest } = x;
+      return rest;
+    }
+    return x;
+  }) : rawAttempts;
   const parsed = isObj(reconcile)
-    ? parseRunnerMessage({ op: 'reconcile.result', docker: reconcile.docker, attempts: reconcile.attempts, labelled: reconcile.labelled }) : null;
+    ? parseRunnerMessage({ op: 'reconcile.result', docker: reconcile.docker, attempts, labelled: reconcile.labelled }) : null;
   if (!parsed || parsed.op !== 'reconcile.result') throw new PlatformError('invalid', 'the reconcile result is malformed', { reason: 'bad_reconcile' });
+  if (stagedDropped > 0) host.log(`[nexus] execution recovery: ${stagedDropped} staged list(s) over ${MAX_ARRAY_ITEMS} entries ignored; those attempts report their exit again`);
   const c = counters();
   const db = host.db;
   const dockerDown = parsed.docker !== 'running';
@@ -642,34 +761,78 @@ export function recoverPhaseB(host: RecoveryHost, system: Principal, bootId: str
     if (a.container_id !== null) decide(host, c, 'an attempt', () => phaseBContainerTx(host, system, bootId, a.id, byId.get(a.id), dockerDown, now));
     else decide(host, c, 'an approval wait', () => phaseBApprovalWaitTx(host, system, bootId, a.id, now));
   }
-  const after = new Map((db.prepare("SELECT id, lease_owner FROM job_attempts WHERE state IN ('starting','running')").all() as
-    { id: string; lease_owner: string }[]).map((r) => [r.id, r.lease_owner]));
-  const remove = orphanDecisions(parsed, { liveAttempts: after, bootId });
-  if (remove.length > 0) {
-    const n = (k: string): number => remove.filter((r) => r.kind === k).length;
+  // After the decisions: an attempt still live (adopted, waiting, or whose decision failed) keeps every resource.
+  const liveAfter = new Set((db.prepare("SELECT id FROM job_attempts WHERE state IN ('starting','running')").all() as { id: string }[]).map((r) => r.id));
+  const labelledAttempts = parsed.labelled.map((r) => r.labels['nexus.attempt']).filter((x): x is string => typeof x === 'string' && x.length > 0);
+  const orphans = orphanDecisions(parsed, { home: host.home, liveAttempts: liveAfter, knownAttempts: knownAttemptIds(db, labelledAttempts) });
+  const n = (list: readonly { kind: string }[], k: string): number => list.filter((r) => r.kind === k).length;
+  if (orphans.remove.length > 0) {
     decide(host, c, 'the leftover resources', () => {
-      recordTx(host, system, { decision: 'orphans', reason: 'labelled_without_live_attempt', summary: '', event: false,
-        data: { containers: n('container'), volumes: n('volume'), networks: n('network') } }, now);
+      recordTx(host, system, { decision: 'orphans', reason: 'attempt_ended', summary: '', event: false,
+        data: { containers: n(orphans.remove, 'container'), volumes: n(orphans.remove, 'volume'), networks: n(orphans.remove, 'network') } }, now);
       return { decision: 'orphans', count: null };
     });
   }
+  if (orphans.unknown.length > 0) {
+    // Never removed: this install's label, but an attempt this database does not know (a restored or replaced database).
+    host.log(`[nexus] execution recovery: ${orphans.unknown.length} labelled resource(s) of this install name an attempt this database does not know; left in place`);
+    decide(host, c, 'the unknown resources', () => {
+      recordTx(host, system, { decision: 'unknown_resources', reason: 'attempt_unknown', summary: '', event: false,
+        data: { containers: n(orphans.unknown, 'container'), volumes: n(orphans.unknown, 'volume'), networks: n(orphans.unknown, 'network') } }, now);
+      return { decision: 'unknown_resources', count: null };
+    });
+  }
   host.log(`[nexus] execution recovery at runner ready: adopted=${c.adopted} finalized=${c.finalized} requeued=${c.requeued} `
-    + `interrupted=${c.interrupted} reowned=${c.reowned} orphans=${remove.length} docker=${parsed.docker}${c.errors ? ` errors=${c.errors}` : ''}`);
-  return { adopted: c.adopted, finalized: c.finalized, requeued: c.requeued, interrupted: c.interrupted, reowned: c.reowned,
-    decisions: c.decisions, errors: c.errors, remove };
+    + `interrupted=${c.interrupted} failed=${c.failed} reowned=${c.reowned} orphans=${orphans.remove.length} unknown=${orphans.unknown.length} `
+    + `docker=${parsed.docker}${c.errors ? ` errors=${c.errors}` : ''}`);
+  return { adopted: c.adopted, finalized: c.finalized, requeued: c.requeued, interrupted: c.interrupted, failed: c.failed, reowned: c.reowned,
+    decisions: c.decisions, errors: c.errors, remove: orphans.remove, unknown: orphans.unknown };
+}
+
+// ---------- the reconcile bound ----------
+
+/**
+ * The scheduler's pass once RECONCILE_BOUND_MS have passed since phase A: every live attempt with a recorded container
+ * that is owned by none of `owners` (this process's boot ids) was never adopted or decided by a phase B. It fails
+ * `runner_lost` (the core's failure rule: retried only when idempotent), one decision each, unless its exit is durable:
+ * that one keeps waiting for finalization. Returns how many failed and how many still wait. Never throws.
+ */
+export function failUnreconciled(host: RecoveryHost, system: Principal, owners: readonly string[], now: number): { failed: number; waiting: number } {
+  const c = counters();
+  let rows: { id: string; lease_owner: string }[];
+  try {
+    rows = host.db.prepare("SELECT id, lease_owner FROM job_attempts WHERE state IN ('starting','running') AND container_id IS NOT NULL ORDER BY created_at, id")
+      .all() as { id: string; lease_owner: string }[];
+  } catch { return { failed: 0, waiting: 0 }; }
+  for (const r of rows) {
+    if (owners.includes(r.lease_owner)) continue;
+    decide(host, c, 'an unreconciled attempt', () => {
+      const a = attemptRow(host.db, r.id);
+      if (!a || (a.state !== 'starting' && a.state !== 'running') || owners.includes(a.lease_owner) || host.isCollecting(a.id)) return null;
+      const j = jobRow(host.db, a.job_id)!;
+      if (durableExit(host.db, j, a)) return { decision: null, count: 'pending' };
+      const error = reasonError('unreconciled');
+      transitionAttemptTx(host.db, a, 'failed', now, j.project_id, { outcome: 'runner_lost', error: { code: 'runner_lost', message: error.message } });
+      host.failJobTx(j.id, 'infra_error', { code: 'runner_lost', message: error.message }, now);
+      recordTx(host, system, { decision: 'unreconciled', reason: 'unreconciled', job: j, attemptN: a.n,
+        summary: 'the runner did not pick the attempt up again within 10 minutes of the restart' }, now);
+      return { decision: 'unreconciled', count: 'failed' };
+    });
+  }
+  return { failed: c.failed, waiting: c.pending };
 }
 
 // ---------- blob store hygiene ----------
 
 /**
- * Whether the latest `started` blob.gc row has no later closing row: a GC whose process stopped before it recorded its
- * file delete. A hygiene row that deferred the object sweep (`objectsDeferred`) does not close it: it did not finish it.
+ * Whether the latest `started` blob.gc row has no closing row: a GC whose process stopped before it recorded its file
+ * delete. A GC's own row closes it; a hygiene row (`recovered`) closes it only when it finished it (`finishedGc`).
  */
 function unfinishedGc(db: Database.Database): boolean {
   const s = db.prepare("SELECT seq FROM activity WHERE action = 'blob.gc' AND status = 'started' ORDER BY seq DESC LIMIT 1").get() as { seq: number } | undefined;
   if (!s) return false;
   return !db.prepare(`SELECT 1 FROM activity WHERE action = 'blob.gc' AND seq > ? AND status <> 'started'
-    AND json_extract(details_json, '$.objectsDeferred') IS NOT 1 LIMIT 1`).get(s.seq);
+    AND (json_extract(details_json, '$.recovered') IS NOT 1 OR json_extract(details_json, '$.finishedGc') = 1) LIMIT 1`).get(s.seq);
 }
 
 function indexedShas(db: Database.Database, shas: readonly string[]): Set<string> {
@@ -681,53 +844,64 @@ function indexedShas(db: Database.Database, shas: readonly string[]): Set<string
   return out;
 }
 
+async function sweep(host: RecoveryHost, files: BlobStoreFiles, now: number, out: BlobSweepReport): Promise<void> {
+  const db = host.db;
+  const cutoff = now - STALE_OBJECT_MS;
+  try {
+    const tmp = await files.sweepObjectsTmp(cutoff);
+    out.tmpRemoved = tmp.removed; out.tmpFailed = tmp.failed;
+  } catch { out.tmpFailed++; }
+  const open = unfinishedGc(db);
+  const listed = await files.listObjectFiles(MAX_SWEEP_OBJECTS);
+  const indexed = indexedShas(db, listed.objects.map((o) => o.sha256));
+  // Stored bytes with a second (writable) name are surfaced whatever their age; they are never deleted here.
+  out.hardLinkedIndexed = listed.objects.filter((o) => indexed.has(o.sha256) && o.nlink > 1).length;
+  const liveAttempts = (db.prepare("SELECT COUNT(*) AS n FROM job_attempts WHERE state IN ('starting','running')").get() as { n: number }).n;
+  if (liveAttempts > 0) { out.objectsDeferred = true; return; }
+  const unindexed = listed.objects.filter((o) => !indexed.has(o.sha256));
+  const old = unindexed.filter((o) => o.mtimeMs < cutoff);
+  out.hardLinked = old.filter((o) => o.nlink > 1).length;
+  if (old.length > 0) {
+    let failed: readonly string[];
+    try { failed = (await files.deleteObjects(old.map((o) => o.sha256))).failed; } catch { failed = old.map((o) => o.sha256); }
+    out.objectsFailed = failed.length;
+    out.objectsRemoved = old.length - failed.length;
+  }
+  // A GC is finished only when nothing it may have left remains: no unindexed object at all (younger ones included).
+  out.finishedGc = open && !listed.truncated && unindexed.length - out.objectsRemoved === 0;
+}
+
 /** Blob store hygiene (see the module header). System only. Resolves with what it did; never rejects past its checks. */
 export async function recoverBlobStore(host: RecoveryHost, system: Principal, now: number): Promise<BlobSweepReport> {
   requireSystem(host, system, 'recover_blob_store');
   const none: BlobSweepReport = { ran: false, reason: null, tmpRemoved: 0, tmpFailed: 0, objectsRemoved: 0, objectsFailed: 0, hardLinked: 0,
-    objectsDeferred: false, finishedGc: false };
+    hardLinkedIndexed: 0, objectsDeferred: false, finishedGc: false };
   const files = host.files; const blobs = host.blobs;
   if (!host.available || !files || !blobs) return { ...none, reason: 'not_available' };
   const release = blobs.lock.tryExclusive();
   if (!release) return { ...none, reason: 'busy' };
+  const out: BlobSweepReport = { ...none, ran: true };
   try {
-    const db = host.db;
-    const cutoff = now - STALE_OBJECT_MS;
-    const out: BlobSweepReport = { ...none, ran: true };
     try {
-      const tmp = await files.sweepObjectsTmp(cutoff);
-      out.tmpRemoved = tmp.removed; out.tmpFailed = tmp.failed;
-    } catch { out.tmpFailed++; }
-    const open = unfinishedGc(db);
-    const liveAttempts = (db.prepare("SELECT COUNT(*) AS n FROM job_attempts WHERE state IN ('starting','running')").get() as { n: number }).n;
-    if (liveAttempts > 0) out.objectsDeferred = true;
-    else {
-      const listed = await files.listObjectFiles(MAX_SWEEP_OBJECTS);
-      const old = listed.objects.filter((o) => o.mtimeMs < cutoff);
-      const indexed = indexedShas(db, old.map((o) => o.sha256));
-      const unindexed = old.filter((o) => !indexed.has(o.sha256));
-      out.hardLinked = unindexed.filter((o) => o.nlink > 1).length;
-      if (unindexed.length > 0) {
-        let failed: readonly string[];
-        try { failed = (await files.deleteObjects(unindexed.map((o) => o.sha256))).failed; } catch { failed = unindexed.map((o) => o.sha256); }
-        out.objectsFailed = failed.length;
-        out.objectsRemoved = unindexed.length - failed.length;
-      }
-      out.finishedGc = open;
+      await sweep(host, files, now, out);
+    } catch (e) {
+      out.reason = 'error';
+      host.log(`[nexus] blob store hygiene stopped (${codeOf(e)}); it runs again at the next start`);
     }
-    const problems = out.objectsFailed + out.tmpFailed;
+    const problems = out.objectsFailed + out.tmpFailed + out.hardLinkedIndexed;
     if (out.tmpRemoved > 0 || out.objectsRemoved > 0 || problems > 0 || out.finishedGc) {
       try {
-        immediateTx(db, () => appendActivityRow(db, { actorKind: system.kind, actorId: system.id, entityType: 'blob', action: 'blob.gc',
+        immediateTx(host.db, () => appendActivityRow(host.db, { actorKind: system.kind, actorId: system.id, entityType: 'blob', action: 'blob.gc',
           status: problems > 0 ? 'failed' : 'succeeded',
-          details: { recovered: true, removed: out.objectsRemoved, fileDeleteFailed: problems, hardLinked: out.hardLinked, tmpRemoved: out.tmpRemoved,
-            objectsDeferred: out.objectsDeferred, finishedGc: out.finishedGc } }, now));
+          details: { recovered: true, removed: out.objectsRemoved, fileDeleteFailed: out.objectsFailed + out.tmpFailed, hardLinked: out.hardLinked,
+            hardLinkedIndexed: out.hardLinkedIndexed, tmpRemoved: out.tmpRemoved, objectsDeferred: out.objectsDeferred, finishedGc: out.finishedGc } }, now));
       } catch (e) {
         host.log(`[nexus] blob store hygiene: its activity row was not recorded (${codeOf(e)})`);
       }
     }
-    host.log(`[nexus] blob store hygiene: tmpRemoved=${out.tmpRemoved} objectsRemoved=${out.objectsRemoved} fileDeleteFailed=${problems} `
-      + `hardLinked=${out.hardLinked}${out.objectsDeferred ? ' objects=deferred (attempts live)' : ''}${out.finishedGc ? ' unfinishedGc=finished' : ''}`);
+    host.log(`[nexus] blob store hygiene: tmpRemoved=${out.tmpRemoved} objectsRemoved=${out.objectsRemoved} `
+      + `fileDeleteFailed=${out.objectsFailed + out.tmpFailed} hardLinked=${out.hardLinked} hardLinkedIndexed=${out.hardLinkedIndexed}`
+      + `${out.objectsDeferred ? ' objects=deferred (attempts live)' : ''}${out.finishedGc ? ' unfinishedGc=finished' : ''}`);
     return out;
   } finally {
     release();

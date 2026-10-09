@@ -201,11 +201,18 @@ const RECOVER_WORDS: Record<string, string> = {
   reown: 'Job still waits for approval after a restart',
   expire: 'Approval ran out while the app was closed; the job did not run',
   adopt: 'Running job picked up again after a restart',
-  finalize: 'Job finished while the app was closed; its outputs are being collected',
-  fail: 'Job failed: it finished while the app was closed without the outputs it needs',
-  exit_lost: 'Dev deployment\'s job ended after a restart: its exit was never reported',
+  finalize: 'Job stopped while the app was closed; its result is being checked',
+  exit_lost: 'Dev deployment\'s job failed after a restart: its exit was never reported',
+  unreconciled: 'Job failed: the sandbox runner did not pick it up again within 10 minutes of a restart',
+  unknown_resources: 'Sandbox resources naming a job this app does not know were found after a restart and left in place',
   image_interrupted: 'Sandbox image preparation was interrupted by a restart',
   orphans: 'Leftover sandbox resources from before a restart were found and set for removal'
+};
+/** A job restart recovery failed from what its stopped container showed (the `status` of a `fail` decision). */
+const RECOVER_FAIL_WORDS: Record<string, string> = {
+  oom: 'Job failed: it ran out of memory while the app was closed',
+  nonzero_exit: 'Job failed: it exited with an error while the app was closed',
+  invalid_output: 'Job failed: it stopped while the app was closed without the outputs it needs'
 };
 const pick = (table: Record<string, string>, key: unknown): string | null =>
   typeof key === 'string' && Object.prototype.hasOwnProperty.call(table, key) ? table[key] : null;
@@ -300,7 +307,11 @@ function sentence(row: ActivityView, ctx: ActivityContext): string | null {
     }
     case 'deployment.stop':
       return detail(row, 'job') === 'completes_on_exit' ? 'Dev deployment stopped; its job finishes when the app has exited' : 'Dev deployment stopped';
-    case 'exec.recover': return pick(RECOVER_WORDS, detail(row, 'decision')) ?? 'Work recovered after a restart';
+    case 'exec.recover': {
+      const decision = detail(row, 'decision');
+      if (decision === 'fail') return pick(RECOVER_FAIL_WORDS, detail(row, 'status')) ?? 'Job failed: it stopped while the app was closed';
+      return pick(RECOVER_WORDS, decision) ?? 'Work recovered after a restart';
+    }
     case 'project_workspace.primary_synced': {
       const ws = workspacePhrase(detail(row, 'workspaceId'), ctx);
       return ws ? `Main workspace set to ${ws}, from the project's domain` : "Main workspace set from the project's domain";

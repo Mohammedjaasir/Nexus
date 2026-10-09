@@ -100,12 +100,12 @@ import { canRetry, isJobState, TERMINAL_JOB_STATES } from '../jobs/jobRules';
 import { JOB_KINDS, requireActiveParticipation, storedWorkspace, validateKey, type JobRow, type JobService } from '../jobs/jobService';
 import { attemptRow, HEARTBEAT_GAP_MS, LEASE_MS, heartbeatTx, insertAttemptTx, liveAttemptOf, transitionAttemptTx, type AttemptRow } from './attempts';
 import { appendJobEventTx, toJobEvent, type JobEvent, type JobEventRow } from './events';
-import { buildPlan, lockfileSha256Of, sandboxRecord, underDataHome, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
+import { buildPlan, homeLabel, lockfileSha256Of, sandboxRecord, underDataHome, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
 import type { RunnerPort } from './runnerPort';
 import { backoffMs, DEFAULT_CAPS, leaseGuard, SOLO_MEMORY_SHARE, usableImage, type LiveUse, type ProbeCache, type SchedulerCaps } from './scheduler';
 import {
-  contractMet, exitFailure, recoverBlobStore, recoverPhaseA, recoverPhaseB, reconcileList, type BlobStoreFiles, type BlobSweepReport,
-  type PhaseAReport, type PhaseBReport, type ReconcileResult, type RecoveryHost
+  contractMet, exitFailure, failUnreconciled, RECONCILE_BOUND_MS, recoverBlobStore, recoverPhaseA, recoverPhaseB, reconcileList,
+  type BlobStoreFiles, type BlobSweepReport, type PhaseAReport, type PhaseBReport, type ReconcileResult, type RecoveryHost
 } from './recovery';
 
 export { contractMet };
@@ -348,7 +348,8 @@ export function checkParams(schema: ParamsSchema, params: unknown): Record<strin
 
 /** The headline of a job (see ExecutionService.headline): never a bare "completed". */
 export function headlineFrom(f: { state: JobState; phase: string | null; liveAttempt: string | null;
-  checks?: { failed: number; error: number; passed: number; pending: number } }): Headline {
+  checks?: { failed: number; error: number; passed: number; pending: number }; waitingRunner?: boolean }): Headline {
+  if (f.waitingRunner === true && (f.state === 'leased' || (f.state === 'running' && f.phase !== 'approval'))) return 'waiting:runner';
   switch (f.state) {
     case 'queued': return f.phase && /^waiting:(runner|docker|image|disk|slots|memory)$/.test(f.phase) ? f.phase as Headline : 'queued';
     case 'retry_scheduled': return 'waiting:retry';
@@ -399,6 +400,9 @@ export class ExecutionService {
   private readonly awaitingExit = new Set<string>();
   /** The boot id phase A re-owned approval waits for (main attaches the runner with the same one). */
   private recoveryBootId: string | null = null;
+  /** When phase A ran (the reconcile bound counts from it) and when the bound's pass last ran. */
+  private recoveredAt: number | null = null;
+  private lastUnreconciledAt: number | null = null;
   /** Ingests that went asynchronous (main's git answers, a wait for blob GC, or a large output list). */
   private readonly pendingIngest = new Set<Promise<unknown>>();
   /** The port state the last tick saw (leaving `ready` is a runner-wide fault for outstanding re-hashes). */
@@ -982,17 +986,27 @@ export class ExecutionService {
     this.db.prepare('UPDATE jobs SET phase = ?, updated_at = ? WHERE id = ? AND phase IS NOT ?').run(phase, now, id, phase);
   }
 
-  /** The job fails; an idempotent recipe failed for an infrastructure reason is scheduled for another attempt. */
-  private failJobTx(id: string, outcome: string, error: { code: string; message: string }, now: number): void {
+  /**
+   * The job fails, and is scheduled for another attempt when its recipe is idempotent with attempts left, it may run
+   * again (no resurrection) and the failure is retryable: an infrastructure code (RETRYABLE) by default, or any cause
+   * with `retry: 'always'` (restart recovery: the attempt was lost to the restart, not failed by its work). With
+   * `otherwise: 'interrupted'` a job that is not retried ends `interrupted` instead of `failed`. Returns the end state.
+   */
+  private failJobTx(id: string, outcome: string, error: { code: string; message: string }, now: number,
+    o: { retry?: 'by_code' | 'always'; otherwise?: 'failed' | 'interrupted' } = {}): 'failed' | 'retry_scheduled' | 'interrupted' {
+    const j0 = this.row(id)!;
+    const retry = this.deps.jobs.toJob(j0).retry;
+    const retryable = (o.retry === 'always' || RETRYABLE.has(error.code)) && canRetry({ kind: j0.kind, attempts: j0.attempts, retry })
+      && this.deps.jobs.runnableAgain(j0);
+    if (!retryable && o.otherwise === 'interrupted') {
+      this.moveJobTx(id, 'interrupted', now, { outcome: 'interrupted', error });
+      return 'interrupted';
+    }
     const j = this.moveJobTx(id, 'failed', now, { outcome, error });
-    if (!RETRYABLE.has(error.code)) return;
-    const retry = this.deps.jobs.toJob(j).retry;
-    if (!canRetry({ kind: j.kind, attempts: j.attempts, retry })) return;
-    const pw = j.participation_id === null ? undefined
-      : this.db.prepare('SELECT status FROM project_workspaces WHERE id = ?').get(j.participation_id) as { status: string } | undefined;
-    if (!pw || pw.status !== 'active') return;
+    if (!retryable) return 'failed';
     this.moveJobTx(id, 'retry_scheduled', now);
     this.db.prepare('UPDATE jobs SET next_attempt_at = ?, phase = NULL WHERE id = ?').run(now + backoffMs(retry.backoffMs, j.attempts), id);
+    return 'retry_scheduled';
   }
 
   // ---------- scheduler ----------
@@ -1036,6 +1050,13 @@ export class ExecutionService {
       if (dep && (this.lastDeploymentPassAt === null || now - this.lastDeploymentPassAt >= DEPLOYMENT_TICK_MS || now < this.lastDeploymentPassAt)) {
         this.lastDeploymentPassAt = now;
         dep.tick(now);
+      }
+      // Restart recovery's bound: attempts phase A left for phase B that no phase B reconciled within 10 minutes.
+      if (this.recoveredAt !== null && now - this.recoveredAt >= RECONCILE_BOUND_MS
+        && (this.lastUnreconciledAt === null || now - this.lastUnreconciledAt >= EXPIRY_SWEEP_MS || now < this.lastUnreconciledAt)) {
+        this.lastUnreconciledAt = now;
+        const owners = [this.recoveryBootId, this.bootId].filter((x): x is string => x !== null);
+        failUnreconciled(this.recoveryHost(), this.system(), owners, now);
       }
       // Image builds past their deadline are cancelled and fail `timeout` (they never stay `running`).
       const img = this.deps.images;
@@ -1566,9 +1587,11 @@ export class ExecutionService {
     const v = this.deps.validation;
     return {
       db: this.db, auth: this.deps.auth, jobs: this.deps.jobs, available: this.deps.available, log: this.log, blobs: this.deps.blobs, files,
+      home: dh ? homeLabel(dh.root) : null,
       requeueCheckTx: v && v.requeueCheckTx ? (system, jobId) => v.requeueCheckTx!(system, jobId) : null,
       moveJobTx: (id, to, now, d, expect) => { this.moveJobTx(id, to, now, d, expect); },
-      failJobTx: (id, outcome, error, now) => this.failJobTx(id, outcome, error, now),
+      failJobTx: (id, outcome, error, now, o) => this.failJobTx(id, outcome, error, now, o),
+      isCollecting: (id) => this.collecting.has(id),
       setPhaseTx: (id, phase, now) => this.setPhaseTx(id, phase, now),
       endAwaitingTx: (jobId, error, now) => this.endAwaitingTx(jobId, error, now),
       send: (msg) => this.send(msg),
@@ -1600,7 +1623,7 @@ export class ExecutionService {
   recoverPhaseA(system: Principal, bootId: string, now: number = this.deps.now()): PhaseAReport {
     this.requireRecoveryBoot(bootId);
     const r = recoverPhaseA(this.recoveryHost(), system, bootId, now);
-    if (this.deps.available) this.recoveryBootId = bootId;
+    if (this.deps.available) { this.recoveryBootId = bootId; this.recoveredAt = now; this.lastUnreconciledAt = null; }
     return r;
   }
 
@@ -2047,7 +2070,9 @@ export class ExecutionService {
         pending: outs.filter((x) => x.status === 'draft').length + liveChildren
       };
     }
-    return headlineFrom({ state: j.state, phase: j.phase, liveAttempt: live?.state ?? null, checks });
+    // A live attempt this process does not own yet (left for restart recovery's phase B): it waits for the runner.
+    const waitingRunner = !!live && live.lease_owner !== this.bootId && (j.state === 'running' || j.state === 'leased');
+    return headlineFrom({ state: j.state, phase: j.phase, liveAttempt: live?.state ?? null, checks, waitingRunner });
   }
 
   private toExecJob(j: ExecJobRow): ExecJob {

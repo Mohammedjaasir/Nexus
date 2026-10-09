@@ -57,6 +57,19 @@ export interface ContainerLabels {
   'nexus.job': string; 'nexus.attempt': string; 'nexus.boot': string; 'nexus.project': string;
   /** What the container is for (`tool`, `service`, `forwarder`); main sets it on every container it plans. */
   'nexus.kind'?: string;
+  /**
+   * This install: the first 16 hex characters of the sha256 of the resolved data-home root. Restart recovery removes
+   * only resources that carry this install's value (another Nexus on the same Docker daemon is never touched).
+   */
+  'nexus.home'?: string;
+}
+
+/**
+ * The labels the runner puts on every volume and network it creates for an attempt (`nexus-ws-*`, `nexus-egress-*`,
+ * `nexus-svc-*`, `nexus-pub-*`), exactly as given: restart recovery scopes its removals by `nexus.home` and `nexus.attempt`.
+ */
+export interface ResourceLabels {
+  'nexus.job': string; 'nexus.attempt': string; 'nexus.boot': string; 'nexus.project': string; 'nexus.home': string;
 }
 
 export interface ContainerSpec {
@@ -172,6 +185,8 @@ export interface ToolPlan extends PlanBase {
     blobs: { sha256: string; relPath: string }[];
     depsVolume?: { name: string; readOnly: boolean };
   };
+  /** The labels of every volume and network the runner creates for this attempt (with `nexus.home`). */
+  resourceLabels: ResourceLabels;
   /** Files under `/out` that must exist for the attempt to count as having produced its outputs. */
   outputContract: { required: string[]; maxFiles: number };
   parse: { parser: ParserId; relPath: string }[];
@@ -184,6 +199,8 @@ export interface ServicePlan extends PlanBase {
   app: ContainerSpec;
   forwarder: ContainerSpec;
   networks: { internal: string; publish: string };
+  /** The labels of every volume and network the runner creates for this attempt (with `nexus.home`). */
+  resourceLabels: ResourceLabels;
   health: { path: string; startTimeoutMs: number; intervalMs: number };
   idleTtlMs: number;
   staging: ToolPlan['staging'];

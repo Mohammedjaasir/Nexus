@@ -25,6 +25,10 @@ const { newId } = loadTs('src/main/nexus/db/ids.ts');
 const { LEASE_MS, insertAttemptTx, transitionAttemptTx, attemptRow } = loadTs('src/main/nexus/exec/attempts.ts');
 const R = loadTs('src/main/nexus/exec/recovery.ts');
 const ACT = loadTs('src/renderer/src/nexus/project/activityModel.ts');
+const { homeLabel } = loadTs('src/main/nexus/exec/planBuilder.ts');
+/** The labels the runner puts on an attempt's resources, as planBuilder plans them (fix round 1: with `nexus.home`). */
+const labelsOf = (w, attemptId, jobId, extra = {}) => ({ 'nexus.job': jobId, 'nexus.attempt': attemptId, 'nexus.boot': w.bootId,
+  'nexus.project': 'p-ledger', 'nexus.home': homeLabel(w.dataHome.root), ...extra });
 
 const MIN = 60_000;
 const LOCK = '3f'.repeat(32);
@@ -63,7 +67,7 @@ const count = (w, sql, ...a) => w.db.prepare(`SELECT COUNT(*) AS n FROM ${sql}`)
 function restart(w, o = {}) {
   const logs = [];
   const nx = createNexusPlatform(w.db, { now: () => w.now(), log: (l) => logs.push(l), execution: o.execution ?? true,
-    dataHome: w.dataHome, profiles: o.fwd ? [...PROFILES, FWD_PROFILE] : PROFILES, acceptFsRoot: (r) => r,
+    dataHome: o.dataHome ?? w.dataHome, profiles: o.fwd ? [...PROFILES, FWD_PROFILE] : PROFILES, acceptFsRoot: (r) => r,
     approvals: o.approvals === 'real' ? undefined : null, imageContexts: o.imageContexts ?? null, executionUnavailableReason: o.unavailableReason });
   const sys = nx.principals.system();
   const report = o.skipStartup ? null : nx.startup();
@@ -232,9 +236,9 @@ test('RC3 provisioning, container created but never started: the job is queued a
   const c0 = completions(w);
   const t = restart(w);
   assert.equal(w.attempt(a1.id).state, 'abandoned'); assert.equal(w.jobState(j.id), 'queued');
-  const created = { kind: 'container', id: 'c'.repeat(64), labels: { 'nexus.job': j.id, 'nexus.attempt': a1.id, 'nexus.boot': w.bootId, 'nexus.project': 'p-ledger', 'nexus.kind': 'tool' } };
+  const created = { kind: 'container', id: 'c'.repeat(64), labels: labelsOf(w, a1.id, j.id, { 'nexus.kind': 'tool' }) };
   const b = t.exec.recoverPhaseB(t.sys, t.nx.bootId, rec([{ attemptId: a1.id, container: 'created', containerId: 'c'.repeat(64) }], [created]));
-  assert.deepEqual(b.remove, [{ kind: 'container', id: 'c'.repeat(64), reason: 'no_live_attempt' }], 'the runner is told to remove it');
+  assert.deepEqual(b.remove, [{ kind: 'container', id: 'c'.repeat(64), reason: 'attempt_ended' }], 'the runner is told to remove it');
   assert.equal(w.jobState(j.id), 'queued'); assert.equal(w.attempt(a1.id).state, 'abandoned');
   assert.deepEqual(completions(w), c0);
   healthy(w); w.close();
@@ -352,6 +356,9 @@ test('RC7 running (tool execution), container missing: attempt abandoned; an ide
   assert.equal(b.requeued, 1); assert.equal(b.interrupted, 1);
   assert.equal(w.attempt(d.attempt.id).state, 'abandoned'); assert.equal(w.attempt(d.attempt.id).outcome, 'container_missing');
   assert.equal(w.jobState(d.job.id), 'retry_scheduled');
+  assert.equal(w.job(d.job.id).next_attempt_at, w.now() + 10_000); assert.equal(w.job(d.job.id).phase, null);
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src/main/nexus/exec/recovery.ts'), 'utf8');
+  assert.doesNotMatch(src, /'retry_scheduled', now\)|backoffMs|canRetry\(/, 'recovery reuses failJobTx (fix round 1, finding 10)');
   assert.equal(w.attempt(bj.attempt.id).state, 'abandoned');
   assert.equal(w.jobState(bj.job.id), 'interrupted'); assert.equal(JSON.parse(w.job(bj.job.id).error_json).code, 'container_missing');
   assert.deepEqual(recoverActs(w, d.job.id).map(decisionOf), ['retry']); assert.deepEqual(recoverActs(w, bj.job.id).map(decisionOf), ['interrupt']);
@@ -538,7 +545,8 @@ test('RC14 service: container missing: the deployment is stopped (recovery), the
   assert.equal(w2.jobState(s2.job.id), 'running'); assert.equal(w2.job(s2.job.id).phase, 'stopping');
   const c2 = completions(w2);
   const t2 = restart(w2, { fwd: true });
-  t2.exec.recoverPhaseB(t2.sys, t2.nx.bootId, rec([entry(w2, s2.attempt.id, 'missing')]));
+  const b2 = t2.exec.recoverPhaseB(t2.sys, t2.nx.bootId, rec([entry(w2, s2.attempt.id, 'missing')]));
+  assert.equal(b2.failed, 1, 'exit_lost counts as failed'); assert.equal(b2.interrupted, 0);
   assert.equal(w2.jobState(s2.job.id), 'failed'); assert.equal(w2.job(s2.job.id).outcome, 'exit_not_reported');
   assert.equal(w2.attempt(s2.attempt.id).state, 'abandoned');
   assert.equal(dep(w2, s2.job.id).status, 'stopped'); assert.equal(dep(w2, s2.job.id).stop_reason, 'user');
@@ -570,33 +578,55 @@ test('RC15 Docker unreachable during phase B: every container-backed attempt is 
   healthy(w); w.close();
 });
 
-test('RC16 orphans: an old boot\'s labelled container and a labelled volume without an attempt are removed; an unlabelled container named nexus-x never is', () => {
+test('RC16 orphans (fix round 1: scoped to this install): an ended attempt\'s labelled container and volume are removed; another install\'s, an unlabelled nexus-x, a user\'s nexus.note, a live attempt\'s and an unknown attempt\'s never are', () => {
   const w = execWorld({ realIngest: true }); const r = w.attach();
   const kept = provisioned(w, r, 'sde.build.run', 'd');
+  const ended = provisioned(w, r, 'sde.build.run', 'b');
+  w.exec.cancel(w.me, ended.job.id);
+  // The plans carry this install's nexus.home on every container and on the labels of every volume and network.
+  const plan = r.sentOf('attempt.start').find((m) => m.attemptId === kept.attempt.id).plan;
+  assert.equal(plan.container.labels['nexus.home'], homeLabel(w.dataHome.root)); assert.match(plan.container.labels['nexus.home'], /^[0-9a-f]{16}$/);
+  assert.deepEqual(plan.resourceLabels, labelsOf(w, kept.attempt.id, kept.job.id));
   const t = restart(w);
-  const oldAttempt = newId(w.now());
+  const unknownAttempt = newId(w.now());
+  const otherHome = homeLabel(h.tmpDir('nx-other-home-'));
+  assert.notEqual(otherHome, homeLabel(w.dataHome.root));
   const labelled = [
-    { kind: 'container', id: 'd'.repeat(64), labels: { 'nexus.job': kept.job.id, 'nexus.attempt': kept.attempt.id, 'nexus.boot': w.bootId, 'nexus.kind': 'tool' } },
-    { kind: 'volume', id: `nexus-ws-${kept.attempt.id}`, labels: { 'nexus.attempt': kept.attempt.id, 'nexus.boot': w.bootId } },
-    { kind: 'container', id: 'f'.repeat(64), labels: { 'nexus.job': newId(w.now()), 'nexus.attempt': oldAttempt, 'nexus.boot': w.bootId, 'nexus.kind': 'tool' } },
-    { kind: 'volume', id: 'nexus-ws-leftover', labels: { 'nexus.project': 'p-ledger', 'nexus.kind': 'workspace' } },
+    { kind: 'container', id: 'd'.repeat(64), labels: labelsOf(w, kept.attempt.id, kept.job.id, { 'nexus.kind': 'tool' }) },            // live: kept
+    { kind: 'volume', id: `nexus-ws-${kept.attempt.id}`, labels: labelsOf(w, kept.attempt.id, kept.job.id) },                         // live: kept
+    { kind: 'container', id: 'b'.repeat(64), labels: labelsOf(w, ended.attempt.id, ended.job.id, { 'nexus.kind': 'tool' }) },          // ended: removed
+    { kind: 'volume', id: `nexus-ws-${ended.attempt.id}`, labels: labelsOf(w, ended.attempt.id, ended.job.id) },                      // ended: removed
+    { kind: 'container', id: 'a'.repeat(64), labels: labelsOf(w, ended.attempt.id, ended.job.id, { 'nexus.home': otherHome }) },     // another install
+    { kind: 'container', id: 'f'.repeat(64), labels: labelsOf(w, unknownAttempt, newId(w.now())) },                                  // unknown attempt
+    { kind: 'volume', id: 'nexus-ws-leftover', labels: { 'nexus.project': 'p-ledger', 'nexus.home': homeLabel(w.dataHome.root) } }, // no attempt label
     { kind: 'container', id: 'nexus-x', labels: {} },
-    { kind: 'container', id: '9'.repeat(64), labels: { 'com.example.name': 'nexus-x' } },
-    { kind: 'volume', id: `nexus-deps-sde-node-${LOCK.slice(0, 12)}`, labels: { 'nexus.attempt': oldAttempt, 'nexus.kind': 'deps' } }
+    { kind: 'container', id: '9'.repeat(64), labels: { 'nexus.note': 'mine', 'com.example.name': 'nexus-x' } },
+    { kind: 'volume', id: `nexus-deps-sde-node-${LOCK.slice(0, 12)}`, labels: labelsOf(w, ended.attempt.id, ended.job.id, { 'nexus.kind': 'deps' }) }
   ];
   const b = t.exec.recoverPhaseB(t.sys, t.nx.bootId, rec([entry(w, kept.attempt.id, 'running')], labelled));
   assert.equal(b.adopted, 1);
-  assert.deepEqual(b.remove, [{ kind: 'container', id: 'f'.repeat(64), reason: 'no_live_attempt' }, { kind: 'volume', id: 'nexus-ws-leftover', reason: 'no_live_attempt' }]);
-  assert.ok(!b.remove.some((x) => x.id === 'nexus-x' || x.id === '9'.repeat(64)), 'an unlabelled container is never listed');
-  const orphanRow = recoverActs(w).find((x) => decisionOf(x) === 'orphans');
-  assert.deepEqual(JSON.parse(orphanRow.details_json), { decision: 'orphans', reason: 'labelled_without_live_attempt', containers: 1, volumes: 1, networks: 0 });
-  // The rule itself (pure): a live attempt of another boot that was not adopted is not this boot's.
-  const live = new Map([['A1', 'BOOT_NEW'], ['A2', 'BOOT_OLD']]);
-  assert.deepEqual(R.orphanDecisions({ labelled: [
-    { kind: 'container', id: 'x1', labels: { 'nexus.attempt': 'A1' } }, { kind: 'container', id: 'x2', labels: { 'nexus.attempt': 'A2' } },
-    { kind: 'network', id: 'nexus-svc-a3', labels: { 'nexus.attempt': 'A3' } }, { kind: 'container', id: 'nexus-y', labels: { 'other.attempt': 'A3' } }
-  ] }, { liveAttempts: live, bootId: 'BOOT_NEW' }), [
-    { kind: 'container', id: 'x2', reason: 'not_adopted' }, { kind: 'network', id: 'nexus-svc-a3', reason: 'no_live_attempt' }]);
+  assert.deepEqual(b.remove, [{ kind: 'container', id: 'b'.repeat(64), reason: 'attempt_ended' }, { kind: 'volume', id: `nexus-ws-${ended.attempt.id}`, reason: 'attempt_ended' }]);
+  assert.deepEqual(b.unknown, [{ kind: 'container', id: 'f'.repeat(64) }], 'an unknown attempt is reported, never removed');
+  for (const never of ['a'.repeat(64), 'nexus-x', '9'.repeat(64), 'nexus-ws-leftover', 'd'.repeat(64)]) assert.ok(!b.remove.some((x) => x.id === never), never);
+  const rows = recoverActs(w).filter((x) => ['orphans', 'unknown_resources'].includes(decisionOf(x)));
+  assert.deepEqual(rows.map((x) => JSON.parse(x.details_json)), [
+    { decision: 'orphans', reason: 'attempt_ended', containers: 1, volumes: 1, networks: 0 },
+    { decision: 'unknown_resources', reason: 'attempt_unknown', containers: 1, volumes: 0, networks: 0 }]);
+  assert.ok(t.logs.some((l) => /1 labelled resource\(s\) of this install name an attempt this database does not know; left in place/.test(l)));
+  // The rule itself (pure).
+  const home = 'h'.repeat(16);
+  const rule = R.orphanDecisions({ labelled: [
+    { kind: 'container', id: 'x1', labels: { 'nexus.home': home, 'nexus.attempt': 'LIVE' } },
+    { kind: 'container', id: 'x2', labels: { 'nexus.home': home, 'nexus.attempt': 'ENDED' } },
+    { kind: 'network', id: 'nexus-svc-x', labels: { 'nexus.home': home, 'nexus.attempt': 'ENDED' } },
+    { kind: 'container', id: 'x3', labels: { 'nexus.home': 'other', 'nexus.attempt': 'ENDED' } },
+    { kind: 'container', id: 'x4', labels: { 'nexus.home': home, 'nexus.attempt': 'GONE' } },
+    { kind: 'container', id: 'userdb', labels: { 'nexus.note': 'mine' } }
+  ] }, { home, liveAttempts: new Set(['LIVE']), knownAttempts: new Set(['LIVE', 'ENDED']) });
+  assert.deepEqual(rule, { remove: [{ kind: 'container', id: 'x2', reason: 'attempt_ended' }, { kind: 'network', id: 'nexus-svc-x', reason: 'attempt_ended' }],
+    unknown: [{ kind: 'container', id: 'x4' }] });
+  assert.deepEqual(R.orphanDecisions({ labelled: [{ kind: 'container', id: 'x2', labels: { 'nexus.home': home, 'nexus.attempt': 'ENDED' } }] },
+    { home: null, liveAttempts: new Set(), knownAttempts: new Set(['ENDED']) }), { remove: [], unknown: [] }, 'no data home: nothing is removed');
   healthy(w); w.close();
 });
 
@@ -645,7 +675,7 @@ test('RC18 an ingest crash (exit durable, ingest never committed): phase B final
   // A second restart: the finished attempt's container is a leftover; nothing is ingested again.
   const t2 = restart(w);
   const b2 = t2.exec.recoverPhaseB(t2.sys, t2.nx.bootId, rec([{ attemptId: attempt.id, container: 'exited', containerId: 'd'.repeat(64) }],
-    [{ kind: 'container', id: 'd'.repeat(64), labels: { 'nexus.attempt': attempt.id, 'nexus.boot': w.bootId } }]));
+    [{ kind: 'container', id: 'd'.repeat(64), labels: labelsOf(w, attempt.id, job.id) }]));
   assert.deepEqual(b2.remove.map((x) => x.id), ['d'.repeat(64)]); assert.equal(b2.finalized, 0);
   // The dead process's ingest, if it ever ran, finds the attempt finished and writes nothing.
   hold(); await w.exec.settled();
@@ -840,6 +870,7 @@ test('D10 the runner\'s reconcile only informs: a finished attempt reported runn
   const done = provisioned(w, r, 'sde.build.run', 'a');
   w.exec.cancel(w.me, done.job.id);
   const live = provisioned(w, r, 'sde.build.run', 'b');
+  const bare = provisioned(w, r, 'sde.build.run', 'c');
   const t = restart(w);
   const before = { jobs: w.db.prepare('SELECT id, state FROM jobs ORDER BY id').all(), acts: count(w, 'activity') };
   assert.throws(() => t.exec.recoverPhaseB(t.sys, t.nx.bootId, { docker: 'running', attempts: [{ attemptId: 'x', container: 'running' }], labelled: [] }),
@@ -850,16 +881,18 @@ test('D10 the runner\'s reconcile only informs: a finished attempt reported runn
   const b = t.exec.recoverPhaseB(t.sys, t.nx.bootId, rec([
     { attemptId: done.attempt.id, container: 'running', containerId: 'a'.repeat(64) },        // cancelled in SQLite: stays cancelled
     { attemptId: newId(w.now()), container: 'running', containerId: 'c'.repeat(64) },        // not this database's
-    { attemptId: live.attempt.id, container: 'running', containerId: 'e'.repeat(64) }         // not the recorded container
+    { attemptId: live.attempt.id, container: 'running', containerId: 'e'.repeat(64) },        // not the recorded container
+    { attemptId: bare.attempt.id, container: 'running' }                                     // no container id at all (finding 4)
   ]));
   assert.equal(b.adopted, 0);
+  assert.equal(w.attempt(bare.attempt.id).state, 'abandoned'); assert.equal(w.attempt(bare.attempt.id).outcome, 'container_missing');
   assert.equal(w.attempt(done.attempt.id).state, 'cancelled'); assert.equal(w.jobState(done.job.id), 'cancelled');
   assert.equal(w.attempt(live.attempt.id).state, 'abandoned'); assert.equal(w.attempt(live.attempt.id).outcome, 'container_missing');
   assert.equal(t.runner.sentOf('attempt.adopt').length, 0);
   healthy(w); w.close();
 });
 
-test('D7 blob store hygiene: stale tmp files and unindexed objects older than 24 h go; indexed and fresh ones stay; an unfinished GC is closed; a hard link is reported', async () => {
+test('D7 blob store hygiene: stale tmp files and unindexed objects older than 24 h go; indexed and fresh ones stay; an unfinished GC is closed only once nothing it may have left remains; a hard link is reported', async () => {
   const w = execWorld({ realIngest: true }); w.attach();
   await w.dataHome.ensure();
   const root = w.dataHome.root;
@@ -893,29 +926,46 @@ test('D7 blob store hygiene: stale tmp files and unindexed objects older than 24
   assert.equal((await t.exec.recoverBlobStore(t.sys)).reason, 'busy');
   hold();
   const r2 = await t.exec.recoverBlobStore(t.sys);
-  assert.equal(r2.objectsRemoved, 1); assert.equal(r2.objectsFailed, 1); assert.equal(r2.hardLinked, 1); assert.equal(r2.finishedGc, true);
+  assert.equal(r2.objectsRemoved, 1); assert.equal(r2.objectsFailed, 1); assert.equal(r2.hardLinked, 1); assert.equal(r2.hardLinkedIndexed, 0);
+  assert.equal(r2.finishedGc, false, 'a GC is not finished while unindexed files remain (one too young, one undeletable)');
   assert.equal(fs.existsSync(oldUnindexed), false);
   assert.equal(fs.existsSync(freshUnindexed), true); assert.equal(fs.existsSync(indexed), true); assert.equal(fs.existsSync(linked), true);
   assert.equal(fs.readFileSync(path.join(outside, 'e'.repeat(62)), 'utf8'), 'keep', 'nothing behind a junction');
-  const last = w.db.prepare("SELECT * FROM activity WHERE action = 'blob.gc' ORDER BY seq DESC LIMIT 1").get();
-  assert.equal(last.status, 'failed', 'an undeletable file is reported, never silent');
-  assert.deepEqual(JSON.parse(last.details_json), { recovered: true, removed: 1, fileDeleteFailed: 1, hardLinked: 1, tmpRemoved: 0, objectsDeferred: false, finishedGc: true });
+  const last = () => w.db.prepare("SELECT * FROM activity WHERE action = 'blob.gc' ORDER BY seq DESC LIMIT 1").get();
+  assert.equal(last().status, 'failed', 'an undeletable file is reported, never silent');
+  assert.deepEqual(JSON.parse(last().details_json), { recovered: true, removed: 1, fileDeleteFailed: 1, hardLinked: 1, hardLinkedIndexed: 0, tmpRemoved: 0,
+    objectsDeferred: false, finishedGc: false });
   assert.ok(t.logs.some((l) => /blob store hygiene: .*hardLinked=1/.test(l)));
-  // The hard link still cannot be deleted: reported again; the GC run is closed already.
+  // Once nothing the GC may have left remains (the second name gone, the young file aged), it is finished and closed.
+  fs.unlinkSync(path.join(root, 'work', 'second-name')); age(freshUnindexed, 25 * 3600_000);
   const r3 = await t.exec.recoverBlobStore(t.sys);
-  assert.equal(r3.objectsFailed, 1); assert.equal(r3.finishedGc, false);
+  assert.equal(r3.objectsRemoved, 2); assert.equal(r3.objectsFailed, 0); assert.equal(r3.finishedGc, true);
+  assert.equal(fs.existsSync(linked), false); assert.equal(fs.existsSync(freshUnindexed), false); assert.equal(fs.existsSync(indexed), true);
+  assert.equal(last().status, 'succeeded'); assert.equal(JSON.parse(last().details_json).finishedGc, true);
+  const r4 = await t.exec.recoverBlobStore(t.sys);
+  assert.equal(r4.finishedGc, false); assert.equal(r4.objectsRemoved, 0);
   await assert.rejects(t.exec.recoverBlobStore(w.me), code('denied'));
   healthy(w); w.close();
 });
 
 test('D11 every recovery decision reads as a sentence; none says completed', () => {
-  for (const d of ['requeue', 'retry', 'interrupt', 'reown', 'expire', 'adopt', 'finalize', 'fail', 'exit_lost', 'image_interrupted', 'orphans']) {
+  for (const d of ['requeue', 'retry', 'interrupt', 'reown', 'expire', 'adopt', 'finalize', 'fail', 'exit_lost', 'image_interrupted', 'orphans',
+    'unknown_resources', 'unreconciled']) {
     const text = ACT.activityText({ seq: 1, ts: h.NOW, action: 'exec.recover', status: 'succeeded', actorKind: 'system', onBehalfOfUser: false,
       entityType: 'job', entityId: 'j', projectId: 'p', workspaceId: 'sde', artifactId: null, versionId: null, details: { decision: d, reason: 'x' } }, ACT_CTX);
     assert.ok(text.length > 0 && !text.startsWith('Recorded'), `${d}: ${text}`);
     assert.doesNotMatch(text, /\bcompleted\b/i, d);
   }
   assert.ok(ACT.ACTIVITY_ACTIONS.includes('exec.recover'));
+  const say = (details) => ACT.activityText({ seq: 1, ts: h.NOW, action: 'exec.recover', status: 'succeeded', actorKind: 'system', onBehalfOfUser: false,
+    entityType: 'job', entityId: 'j', projectId: 'p', workspaceId: 'sde', artifactId: null, versionId: null, details }, ACT_CTX);
+  // finalize is said before the result is known (a non-zero exit too): it never reads as success.
+  assert.doesNotMatch(say({ decision: 'finalize' }), /finish|success|succeed|complete|done|passed/i);
+  assert.equal(say({ decision: 'fail', status: 'oom' }), 'Job failed: it ran out of memory while the app was closed');
+  assert.equal(say({ decision: 'fail', status: 'nonzero_exit' }), 'Job failed: it exited with an error while the app was closed');
+  assert.equal(say({ decision: 'fail', status: 'invalid_output' }), 'Job failed: it stopped while the app was closed without the outputs it needs');
+  assert.equal(say({ decision: 'fail' }), 'Job failed: it stopped while the app was closed');
+  assert.match(say({ decision: 'exit_lost' }), /failed/);
   // Rows written by a real phase A read through the model.
   const w = execWorld({ realIngest: true }); w.attach();
   const j = w.exec.start(w.me, w.req('sde.build.run')).job; w.exec.tick(w.now());
@@ -923,5 +973,158 @@ test('D11 every recovery decision reads as a sentence; none says completed', () 
   const row = recoverActs(w, j.id)[0];
   assert.equal(ACT.activityText(actView(row), ACT_CTX), 'Job queued again after a restart: it had not started yet');
   assert.equal(row.on_behalf_of, w.me.id);
+  healthy(w); w.close();
+});
+
+// ---------- fix round 1 (review of b8b9bebd) ----------
+
+test('F1 a durable exit is adopted for finalization whatever Docker says: Docker not up at the app restart, its container gone, a runner restart mid-ingest', async () => {
+  // (a) RC18's state (exit durable, ingest never committed) and Docker not yet running at reconcile (the Windows boot order).
+  const w = execWorld({ realIngest: true }); const r = w.attach();
+  const d = provisioned(w, r, 'sde.tests.discover', 'a');
+  const bj = provisioned(w, r, 'sde.build.run', 'b');
+  const out = discoveryOutputs(w);
+  const files = [w.file('dist/app.js', 'built')];
+  const hold = w.nx.blobs.lock.tryExclusive();
+  w.exitWith(r, d.job.id, { outputs: out.outputs, parsed: out.parsed });
+  w.exitWith(r, bj.job.id, { code: 0, outputs: files });
+  assert.equal(w.job(d.job.id).phase, 'collecting'); assert.equal(w.job(bj.job.id).phase, 'collecting');
+  const c0 = completions(w);
+  const t = restart(w);
+  const b = t.exec.recoverPhaseB(t.sys, t.nx.bootId, rec([], [], 'stopped'));
+  assert.equal(b.finalized, 2); assert.equal(b.interrupted, 0); assert.equal(b.requeued, 0);
+  for (const a of [d.attempt, bj.attempt]) { assert.equal(w.attempt(a.id).state, 'running'); assert.equal(w.attempt(a.id).lease_owner, t.nx.bootId); }
+  assert.deepEqual(t.runner.sentOf('attempt.adopt').map((m) => m.attemptId).sort(), [d.attempt.id, bj.attempt.id].sort());
+  const ev = JSON.parse(recoveryEvents(w, bj.job.id)[0].data_json);
+  assert.equal(ev.decision, 'finalize'); assert.equal(ev.reason, 'exit_durable'); assert.equal(ev.docker, 'down');
+  assert.deepEqual(completions(w), c0);
+  // The runner re-hashes /out from the data home (no Docker) and reports the exits again: each ingested once.
+  reportExit(w, t.runner, d.attempt.id, out.outputs, out.parsed); reportExit(w, t.runner, bj.attempt.id, files);
+  await settle(w, t);
+  assert.equal(w.jobState(d.job.id), 'completed'); assert.equal(w.jobState(bj.job.id), 'completed');
+  assert.equal(count(w, 'artifact_versions WHERE produced_by_job_id = ?', bj.job.id), 1);
+  hold(); await w.exec.settled();
+  assert.equal(count(w, 'artifact_versions WHERE produced_by_job_id = ?', bj.job.id), 1, 'the dead process\'s ingest writes nothing');
+  healthy(w); w.close();
+  // (b) Docker running, the container gone: a durable exit is still finalized, never abandoned.
+  const w2 = execWorld({ realIngest: true }); const r2 = w2.attach();
+  const d2 = provisioned(w2, r2, 'sde.tests.discover', 'a');
+  const o2 = discoveryOutputs(w2);
+  const hold2 = w2.nx.blobs.lock.tryExclusive();
+  w2.exitWith(r2, d2.job.id, { outputs: o2.outputs, parsed: o2.parsed });
+  const t2 = restart(w2);
+  const b2 = t2.exec.recoverPhaseB(t2.sys, t2.nx.bootId, rec([entry(w2, d2.attempt.id, 'missing')]));
+  assert.equal(b2.finalized, 1); assert.equal(w2.attempt(d2.attempt.id).state, 'running');
+  reportExit(w2, t2.runner, d2.attempt.id, o2.outputs, o2.parsed); await settle(w2, t2);
+  assert.equal(w2.jobState(d2.job.id), 'completed');
+  hold2(); await w2.exec.settled();
+  healthy(w2); w2.close();
+  // (c) Mid-session: the runner restarts while this process ingests an exit; Docker reported stopped, then an empty staged
+  // list for the same container. Recovery leaves the exit to the ingest in flight.
+  const w3 = execWorld({ realIngest: true }); const r3 = w3.attach();
+  const d3 = provisioned(w3, r3, 'sde.tests.discover', 'a');
+  const o3 = discoveryOutputs(w3);
+  const hold3 = w3.nx.blobs.lock.tryExclusive();
+  w3.exitWith(r3, d3.job.id, { outputs: o3.outputs, parsed: o3.parsed });
+  const b3 = w3.exec.recoverPhaseB(w3.sys, w3.bootId, rec([], [], 'stopped'));
+  assert.equal(b3.decisions, 0);
+  w3.exec.recoverPhaseB(w3.sys, w3.bootId, rec([entry(w3, d3.attempt.id, 'exited', { exit: exitAt(w3), staged: [] })]));
+  assert.equal(w3.attempt(d3.attempt.id).state, 'running'); assert.equal(w3.jobState(d3.job.id), 'running');
+  hold3(); await w3.settle();
+  assert.equal(w3.jobState(d3.job.id), 'completed'); assert.ok(suiteOf(w3, d3.job.id));
+  healthy(w3); w3.close();
+});
+
+test('F8 an attempt no phase B reconciled reads waiting:runner and fails runner_lost after 10 minutes; a durable exit keeps waiting', async () => {
+  const w = execWorld({ realIngest: true }); const r = w.attach();
+  const lost = provisioned(w, r, 'sde.tests.discover', 'a');
+  const done = provisioned(w, r, 'sde.build.run', 'b');
+  const files = [w.file('dist/app.js', 'x')];
+  const hold = w.nx.blobs.lock.tryExclusive();
+  w.exitWith(r, done.job.id, { code: 0, outputs: files });
+  const t = restart(w);                                     // the runner is attached, but no reconcile answer ever comes
+  assert.equal(t.exec.get(w.me, lost.job.id).headline, 'waiting:runner');
+  assert.equal(t.exec.get(w.me, done.job.id).headline, 'waiting:runner');
+  t.exec.tick(w.now());
+  w.advance(R.RECONCILE_BOUND_MS - 5_000); t.exec.tick(w.now());
+  assert.equal(w.attempt(lost.attempt.id).state, 'running', 'within the bound');
+  w.advance(5_000); t.exec.tick(w.now());
+  assert.equal(w.attempt(lost.attempt.id).state, 'failed'); assert.equal(w.attempt(lost.attempt.id).outcome, 'runner_lost');
+  assert.equal(w.jobState(lost.job.id), 'retry_scheduled', 'runner_lost is retried when idempotent');
+  assert.deepEqual(recoverActs(w, lost.job.id).map(decisionOf), ['unreconciled']);
+  assert.deepEqual(recoveryEvents(w, lost.job.id).map(decisionOf), ['unreconciled']);
+  assert.equal(w.attempt(done.attempt.id).state, 'running', 'a durable exit keeps waiting for finalization');
+  w.advance(60_000); t.exec.tick(w.now());
+  assert.equal(w.attempt(done.attempt.id).state, 'running');
+  // A late phase B still finalizes it; its re-reported exit is ingested.
+  t.exec.recoverPhaseB(t.sys, t.nx.bootId, rec());
+  reportExit(w, t.runner, done.attempt.id, files); await settle(w, t);
+  assert.equal(w.jobState(done.job.id), 'completed');
+  hold(); await w.exec.settled();
+  healthy(w); w.close();
+});
+
+test('F3 a phase B decision that fails keeps its attempt\'s resources (never listed for removal); the reconcile bound ends the attempt later', () => {
+  const w = execWorld({ realIngest: true }); const r = w.attach();
+  const stuck = provisioned(w, r, 'sde.build.run', 'a');
+  const t = restart(w);
+  w.db.exec(`CREATE TEMP TRIGGER t10_busy BEFORE UPDATE OF lease_owner ON job_attempts WHEN NEW.id = '${stuck.attempt.id}'
+    BEGIN SELECT RAISE(ABORT, 'busy'); END`);
+  const b = t.exec.recoverPhaseB(t.sys, t.nx.bootId, rec([entry(w, stuck.attempt.id, 'running')],
+    [{ kind: 'container', id: 'a'.repeat(64), labels: labelsOf(w, stuck.attempt.id, stuck.job.id, { 'nexus.kind': 'tool' }) }]));
+  w.db.exec('DROP TRIGGER t10_busy');
+  assert.equal(b.errors, 1); assert.deepEqual(b.remove, []);
+  assert.equal(w.attempt(stuck.attempt.id).state, 'running'); assert.equal(w.attempt(stuck.attempt.id).lease_owner, w.bootId);
+  assert.equal(t.exec.get(w.me, stuck.job.id).headline, 'waiting:runner');
+  t.exec.tick(w.now()); w.advance(R.RECONCILE_BOUND_MS); t.exec.tick(w.now());
+  assert.equal(w.attempt(stuck.attempt.id).state, 'failed'); assert.equal(w.attempt(stuck.attempt.id).outcome, 'runner_lost');
+  assert.equal(w.jobState(stuck.job.id), 'failed');
+  healthy(w); w.close();
+});
+
+test('F6 blob hygiene: an indexed object with a second hard link is surfaced and kept; a failing listing never rejects and frees the lock', async () => {
+  const w = execWorld({ realIngest: true }); w.attach();
+  await w.dataHome.ensure();
+  const root = w.dataHome.root;
+  const sha = 'c'.repeat(64);
+  const dir = path.join(root, 'objects', 'cc'); fs.mkdirSync(dir, { recursive: true });
+  const p = path.join(dir, sha.slice(2)); fs.writeFileSync(p, 'bytes');
+  w.db.prepare('INSERT INTO blobs (sha256, bytes, media_type, created_at, last_referenced_at) VALUES (?, 5, ?, ?, ?)').run(sha, 'text/plain', w.now(), w.now());
+  fs.linkSync(p, path.join(root, 'work', 'writable-second-name'));
+  const t = restart(w);
+  const r1 = await t.exec.recoverBlobStore(t.sys);
+  assert.equal(r1.hardLinkedIndexed, 1); assert.equal(r1.objectsRemoved, 0); assert.equal(fs.existsSync(p), true);
+  const last = w.db.prepare("SELECT * FROM activity WHERE action = 'blob.gc' ORDER BY seq DESC LIMIT 1").get();
+  assert.equal(last.status, 'failed'); assert.equal(JSON.parse(last.details_json).hardLinkedIndexed, 1);
+  assert.ok(t.logs.some((l) => /hardLinkedIndexed=1/.test(l)));
+  const broken = { ...w.dataHome, listObjectFiles: () => Promise.reject(new Error('EIO')) };
+  const t2 = restart(w, { dataHome: broken });
+  const r2 = await t2.exec.recoverBlobStore(t2.sys);
+  assert.equal(r2.ran, true); assert.equal(r2.reason, 'error');
+  assert.equal(t2.nx.blobs.isExclusiveHeld(), false);
+  assert.ok(t2.logs.some((l) => /blob store hygiene stopped \(Error\)/.test(l)));
+  healthy(w); w.close();
+});
+
+test('F7 a staged list over 20,000 entries is dropped for its attempt only (it is adopted to report again); the runner contract is exported', () => {
+  const w = execWorld({ realIngest: true }); const r = w.attach();
+  const big = provisioned(w, r, 'sde.build.run', 'a');
+  const other = provisioned(w, r, 'sde.build.run', 'b');
+  const t = restart(w);
+  const staged = Array.from({ length: 20_001 }, (_, i) => ({ relPath: `dist/f${i}.js`, sha256: 'a'.repeat(64), bytes: 1, mediaType: 'text/plain' }));
+  const b = t.exec.recoverPhaseB(t.sys, t.nx.bootId, rec([entry(w, big.attempt.id, 'exited', { exit: exitAt(w), staged }), entry(w, other.attempt.id, 'running')]));
+  assert.equal(b.finalized, 1); assert.equal(b.adopted, 1);
+  assert.equal(JSON.parse(recoveryEvents(w, big.job.id)[0].data_json).staged, null);
+  assert.ok(t.logs.some((l) => /1 staged list\(s\) over 20000 entries ignored/.test(l)));
+  // A malformed staged entry still refuses the whole answer: nothing is decided from it.
+  const acts = count(w, 'activity');
+  assert.throws(() => t.exec.recoverPhaseB(t.sys, t.nx.bootId, rec([entry(w, other.attempt.id, 'exited', { exit: exitAt(w),
+    staged: [{ relPath: '../evil', sha256: 'a'.repeat(64), bytes: 1, mediaType: 'text/plain' }] })])), code('invalid', 'bad_reconcile'));
+  assert.equal(count(w, 'activity'), acts);
+  const contract = R.RUNNER_RECOVERY_CONTRACT.join('\n');
+  for (const needle of ['platform.bootId', 'reconcile.result', 'recoverPhaseB', 'never truncated', '20,000', 'nexus.home', 'resourceLabels',
+    'reconcile.remove', 'no Docker needed', 'container: \'missing\'', 'recoverBlobStore', 'mid-session runner restart', '10 minutes']) {
+    assert.ok(contract.includes(needle), needle);
+  }
   healthy(w); w.close();
 });

@@ -33,7 +33,7 @@
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import type {
-  AttemptPlan, ContainerSpec, EnginePlan, MountSpec, NetworkMode, ResourceLimits, SandboxProfile, ServicePlan, ToolPlan
+  AttemptPlan, ContainerSpec, EnginePlan, MountSpec, NetworkMode, ResourceLabels, ResourceLimits, SandboxProfile, ServicePlan, ToolPlan
 } from '../../../shared/nexus/execution';
 import type { RecipeDef } from '../../../shared/nexus/recipes';
 import { looksSecret } from '../../../shared/nexus/secretShape';
@@ -141,6 +141,20 @@ const DISCOVERED_RE = /^(?![./-])[A-Za-z0-9_@+=,.\- /]{1,512}$/;
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/**
+ * This install's `nexus.home` label: the first 16 hex characters of the sha256 of the resolved data-home root. Every
+ * container, volume and network of an attempt carries it; restart recovery removes only resources with this value.
+ */
+export function homeLabel(root: string): string {
+  return createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 16);
+}
+
+/** The labels of an attempt's volumes and networks (and the base of its containers' labels). */
+function attemptLabels(ctx: PlanContext): ResourceLabels {
+  return { 'nexus.job': ctx.job.id, 'nexus.attempt': ctx.attempt.id, 'nexus.boot': ctx.bootId, 'nexus.project': ctx.job.projectId,
+    'nexus.home': homeLabel(ctx.dataHomeRoot) };
 }
 
 /** A bind-mount source (and an adopted attempt's log path): `<root>/<rel>`, which must stay inside the data home. */
@@ -289,7 +303,7 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
   if (deps) mounts.push({ kind: 'deps', hostPath: deps, containerPath: profile.id === 'sde-python' ? '/deps' : '/workspace/node_modules', readOnly: !egress });
   const container: ContainerSpec = {
     name: `nexus-${attempt.id.toLowerCase()}`,
-    labels: { 'nexus.job': job.id, 'nexus.attempt': attempt.id, 'nexus.boot': ctx.bootId, 'nexus.project': job.projectId, 'nexus.kind': 'tool' },
+    labels: { ...attemptLabels(ctx), 'nexus.kind': 'tool' },
     profile: profile.id,
     image: { ref: `${profile.image.repository}@${profile.image.digest}`, id: ctx.imageId },
     entrypoint: [...profile.entrypoint],
@@ -304,7 +318,7 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
     noNewPrivileges: true
   };
   const plan: ToolPlan = {
-    ...base, kind: 'tool', container,
+    ...base, kind: 'tool', container, resourceLabels: attemptLabels(ctx),
     staging: {
       ...(source && ctx.repoPath ? { source: { repoPath: ctx.repoPath, commit: source.commit } } : {}),
       blobs: [],
@@ -329,7 +343,7 @@ export function checkRunArgv(run: unknown): string[] {
   return out;
 }
 
-type ServiceBase = Omit<ServicePlan, 'kind' | 'deploymentId' | 'app' | 'forwarder' | 'networks' | 'health' | 'idleTtlMs' | 'staging'>;
+type ServiceBase = Omit<ServicePlan, 'kind' | 'deploymentId' | 'app' | 'forwarder' | 'networks' | 'resourceLabels' | 'health' | 'idleTtlMs' | 'staging'>;
 
 function buildServicePlan(ctx: PlanContext, base: ServiceBase): ServicePlan {
   const { recipe, job, attempt } = ctx;
@@ -362,8 +376,7 @@ function buildServicePlan(ctx: PlanContext, base: ServiceBase): ServicePlan {
   const deps = depsVolume(profile.id, ctx.inputs);
   const internal = `nexus-svc-${job.id.toLowerCase()}`;
   const publish = `nexus-pub-${job.id.toLowerCase()}`;
-  const labels = (kind: string): ContainerSpec['labels'] =>
-    ({ 'nexus.job': job.id, 'nexus.attempt': attempt.id, 'nexus.boot': ctx.bootId, 'nexus.project': job.projectId, 'nexus.kind': kind });
+  const labels = (kind: string): ContainerSpec['labels'] => ({ ...attemptLabels(ctx), 'nexus.kind': kind });
   const mounts: MountSpec[] = [
     { kind: 'input', hostPath: underDataHome(ctx.dataHomeRoot, `${ctx.workRel}/in`), containerPath: '/in', readOnly: true },
     { kind: 'out', hostPath: underDataHome(ctx.dataHomeRoot, `${ctx.workRel}/out`), containerPath: '/out', readOnly: false },
@@ -389,7 +402,7 @@ function buildServicePlan(ctx: PlanContext, base: ServiceBase): ServicePlan {
     publish: { hostIp: '127.0.0.1', hostPort: 0, containerPort: FORWARDER_PORT }
   };
   return {
-    ...base, kind: 'service', deploymentId: s.deploymentId, app, forwarder, networks: { internal, publish },
+    ...base, kind: 'service', deploymentId: s.deploymentId, app, forwarder, networks: { internal, publish }, resourceLabels: attemptLabels(ctx),
     health: { path: healthPath, startTimeoutMs: SERVICE_START_TIMEOUT_MS, intervalMs: SERVICE_HEALTH_INTERVAL_MS },
     idleTtlMs: lifetime,
     staging: {
