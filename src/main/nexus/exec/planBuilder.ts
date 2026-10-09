@@ -143,8 +143,8 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-/** A bind-mount source: `<root>/<rel>`, which must stay inside the data home. */
-function underDataHome(root: string, rel: string): string {
+/** A bind-mount source (and an adopted attempt's log path): `<root>/<rel>`, which must stay inside the data home. */
+export function underDataHome(root: string, rel: string): string {
   const base = path.resolve(root);
   const full = path.resolve(base, rel);
   const r = path.relative(base, full);

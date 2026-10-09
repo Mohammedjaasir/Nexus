@@ -520,6 +520,28 @@ export class JobService {
     });
   }
 
+  /**
+   * @internal Restart recovery at schema v9 (src/main/nexus/exec/recovery.ts), INSIDE the caller's transaction: B1's
+   * rule above for ONE job that has no live attempt (a leased job goes back to queued unless it could never run again,
+   * otherwise it is interrupted; running and awaiting_approval jobs are interrupted), with the same `job.recover`
+   * activity row. Returns what it did, or null when the job is not leased, running or awaiting approval. The caller
+   * has authorized the system principal and checked that no attempt of the job is live.
+   */
+  recoverJobTx(system: Principal, id: JobId, now: number): 'requeued' | 'interrupted' | null {
+    if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'recoverJobTx needs an open transaction');
+    const j = this.row(id);
+    if (!j || (j.state !== 'leased' && j.state !== 'running' && j.state !== 'awaiting_approval')) return null;
+    if (j.state === 'leased' && this.resurrectionBlock(j) === null) {
+      this.applyTransition(system, j, 'queued', now, { outcome: null, errorJson: null, runtimeRef: null, action: 'job.recover' });
+      return 'requeued';
+    }
+    this.applyTransition(system, j, 'interrupted', now, { outcome: 'interrupted', errorJson: null, runtimeRef: null, action: 'job.recover' });
+    return 'interrupted';
+  }
+
+  /** @internal Whether a job may become runnable again (no resurrection: its participation is active and its session has not ended). */
+  runnableAgain(j: JobRow): boolean { return this.resurrectionBlock(j) === null; }
+
   // ---------- helpers ----------
 
   private applyTransition(actor: Principal, j: JobRow, to: JobState, now: number,

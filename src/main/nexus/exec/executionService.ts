@@ -7,7 +7,8 @@
  * - Availability. Built by the platform always; when execution is not enabled (schema v9 off,
  *   held, failed, or the caller's `execution` option false) every user-facing method refuses
  *   with 'platform_unavailable' (`detail.reason` = the sub-reason, default 'not_enabled'),
- *   `tick` and `onRunnerMessage` do nothing, and no v9 table is read or written.
+ *   `tick` and `onRunnerMessage` do nothing, and no v9 table is written (restart recovery's hold mode, on a v9 file
+ *   whose execution is off, only reads which jobs have a live attempt; recovery.ts).
  * - Authority. `start` and `retry` authorize `job.create` with the STORED participation
  *   (requireActiveParticipation) before any transaction, so a denial is audited once and
  *   nothing else is written. Inputs must be readable by the caller and be candidate or active
@@ -55,8 +56,11 @@
  *   handler keeps the latest one per attempt in memory; the next tick (every second) writes them
  *   all in one transaction before it sweeps leases. A 45 s gap writes one `attempt.heartbeat_gap` event.
  * - Every job transition writes one activity row (JobService) and one `job_events` row in the
- *   same transaction. Recovery (Task 10) rebuilds from these rows: live attempts are exactly
- *   the `starting` and `running` ones, each with its lease owner.
+ *   same transaction. Recovery (Task 10, recovery.ts) rebuilds from these rows: live attempts are exactly
+ *   the `starting` and `running` ones, each with its lease owner. `recoverPhaseA` runs at platform startup
+ *   (database only), `recoverPhaseB` at every runner `ready` with the runner's answer to `reconcileList()`, and
+ *   `recoverBlobStore` after it; an attempt adopted for finalization (its container exited while the app was
+ *   closed) has no wall clock left and waits, within one fresh lease, for the runner's re-reported exit.
  * - Approvals, image builds and dev deployments (Task 9). An egress recipe's lease asks the approval port for a
  *   pending approval and moves `leased -> running (phase approval) -> awaiting_approval` in the lease transaction; no
  *   plan is built or sent. The user's `once` (ApprovalService.respond) consumes the approval for the current attempt and
@@ -87,7 +91,6 @@ import type { AuthService } from '../auth/authService';
 import { PrincipalResolver } from '../auth/principals';
 import { containsSecret } from '../activity/redact';
 import type { BlobIndex, IngestToken } from '../blobs/blobIndex';
-import { getKind } from '../../../shared/nexus/kinds';
 import { getValidator } from '../../../shared/nexus/validators';
 import { newId } from '../db/ids';
 import { immediateTx } from '../db/tx';
@@ -97,9 +100,15 @@ import { canRetry, isJobState, TERMINAL_JOB_STATES } from '../jobs/jobRules';
 import { JOB_KINDS, requireActiveParticipation, storedWorkspace, validateKey, type JobRow, type JobService } from '../jobs/jobService';
 import { attemptRow, HEARTBEAT_GAP_MS, LEASE_MS, heartbeatTx, insertAttemptTx, liveAttemptOf, transitionAttemptTx, type AttemptRow } from './attempts';
 import { appendJobEventTx, toJobEvent, type JobEvent, type JobEventRow } from './events';
-import { buildPlan, lockfileSha256Of, sandboxRecord, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
+import { buildPlan, lockfileSha256Of, sandboxRecord, underDataHome, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
 import type { RunnerPort } from './runnerPort';
 import { backoffMs, DEFAULT_CAPS, leaseGuard, SOLO_MEMORY_SHARE, usableImage, type LiveUse, type ProbeCache, type SchedulerCaps } from './scheduler';
+import {
+  contractMet, exitFailure, recoverBlobStore, recoverPhaseA, recoverPhaseB, reconcileList, type BlobStoreFiles, type BlobSweepReport,
+  type PhaseAReport, type PhaseBReport, type ReconcileResult, type RecoveryHost
+} from './recovery';
+
+export { contractMet };
 
 export interface StartJobRequest {
   projectId: string; workspaceId: string; actionId: string;
@@ -206,9 +215,14 @@ export interface ValidationHooks {
   onRunnerFault(): void;
   /** A validate job reached a terminal state (a recipe check may need its result recorded). */
   onJobEnded?(): void;
+  /** Restart recovery: a main check interrupted mid-run is queued again (inside the caller's transaction). */
+  requeueCheckTx?(system: Principal, jobId: string): string[];
 }
 
-export interface ExecDataHome { root: string; attemptWorkRel(jobId: string, n: number): string; attemptLogPath(jobId: string, n: number): string }
+/** The data home as the core sees it. The blob store file methods (DataHome has them) serve restart recovery's hygiene pass. */
+export interface ExecDataHome extends Partial<BlobStoreFiles> {
+  root: string; attemptWorkRel(jobId: string, n: number): string; attemptLogPath(jobId: string, n: number): string;
+}
 
 export interface ExecutionDeps {
   auth: AuthService; jobs: JobService; now: () => number; log?: (line: string) => void;
@@ -352,24 +366,6 @@ export function headlineFrom(f: { state: JobState; phase: string | null; liveAtt
   }
 }
 
-/** Whether every required contract path is among the staged outputs (`dir/**` any file below, `dir/*.ext` one level). */
-export function contractMet(required: readonly string[], outputs: readonly StagedOutput[], parsed: readonly ParsedOutput[], engine: boolean): boolean {
-  if (engine) {
-    const facts = parsed.map((p) => p.normalized).find((n) => isPlainObject(n));
-    return !!facts && required.every((k) => Object.prototype.hasOwnProperty.call(facts, k));
-  }
-  const paths = outputs.map((o) => o.relPath);
-  return required.every((req) => {
-    if (req.endsWith('/**')) { const dir = req.slice(0, -2); return paths.some((p) => p.startsWith(dir) && p.length > dir.length); }
-    const star = req.indexOf('*');
-    if (star >= 0) {
-      const pre = req.slice(0, star); const post = req.slice(star + 1);
-      return paths.some((p) => p.startsWith(pre) && p.endsWith(post) && !p.slice(pre.length, p.length - post.length).includes('/'));
-    }
-    return paths.includes(req);
-  });
-}
-
 export class ExecutionService {
   private readonly access: ProjectAccess;
   private readonly principals: PrincipalResolver;
@@ -395,6 +391,14 @@ export class ExecutionService {
   private sendFailures = 0;
   /** Attempts whose exit is durable and whose outputs are being ingested (a replayed exit is dropped meanwhile). */
   private readonly collecting = new Set<string>();
+  /**
+   * Attempts restart recovery adopted for finalization: their container exited while the app was closed, and the runner
+   * reports the exit again after re-hashing `/out`. Their wall clock is over (they exited); their lease still runs.
+   * In memory only: phase B rebuilds it at every runner `ready`.
+   */
+  private readonly awaitingExit = new Set<string>();
+  /** The boot id phase A re-owned approval waits for (main attaches the runner with the same one). */
+  private recoveryBootId: string | null = null;
   /** Ingests that went asynchronous (main's git answers, a wait for blob GC, or a large output list). */
   private readonly pendingIngest = new Set<Promise<unknown>>();
   /** The port state the last tick saw (leaving `ready` is a runner-wide fault for outstanding re-hashes). */
@@ -435,6 +439,9 @@ export class ExecutionService {
     if (!port) return;
     if (typeof bootId !== 'string' || !ULID_RE.test(bootId)) throw new PlatformError('invalid', 'bootId must be a ULID');
     this.port = port; this.bootId = bootId;
+    if (this.recoveryBootId !== null && bootId !== this.recoveryBootId) {
+      this.log('[nexus] exec: the runner is attached with another boot id than restart recovery used; approval waits are re-owned at runner ready');
+    }
     this.unsubscribe = port.onMessage((raw) => this.onRunnerMessage(raw));
     this.send({ op: 'hello', bootId, dataHome: this.deps.dataHome?.root ?? '', profiles: [...(this.deps.profiles ?? [])] });
     this.sendProbe(this.deps.now());
@@ -680,19 +687,13 @@ export class ExecutionService {
     const recipe = getRecipe(j.recipe_id ?? '');
     if (!recipe) { this.drop(m.op, 'job has no recipe'); return; }
     const now = this.deps.now();
+    // An attempt adopted for finalization at restart: this is the exit it was waiting for.
+    this.awaitingExit.delete(a.id);
     if (recipe.executor === 'service') { this.serviceExited(a, j, m, now); return; }
     const exit = { code: m.exit.code, signal: m.exit.signal, oomKilled: m.exit.oomKilled };
-    const tests = recipe.parsers.includes('junit');
-    // A tree output (a build) is judged by its validators (an empty or missing tree fails build.manifest_present,
-    // recorded on the version), not by the bare presence of a path here.
-    const treeOutput = recipe.produces.some((k) => getKind(k)?.storage.includes('tree'));
-    let failure: { outcome: string; error: { code: string; message: string } } | null = null;
-    if (m.outputError) failure = { outcome: 'invalid_output', error: { code: m.outputError, message: `the outputs were refused: ${m.outputError}` } };
-    else if (m.exit.oomKilled) failure = { outcome: 'oom', error: { code: 'oom', message: 'the container ran out of memory' } };
-    else if (!tests && m.exit.code !== 0) failure = { outcome: 'nonzero_exit', error: { code: 'nonzero_exit', message: `exit code ${m.exit.code}` } };
-    else if (!treeOutput && !contractMet(recipe.outputContract.required, m.outputs, m.parsed, recipe.executor === 'engine')) {
-      failure = { outcome: 'invalid_output', error: { code: 'outputs_missing', message: `required outputs missing: ${recipe.outputContract.required.join(', ')}` } };
-    }
+    // Refused outputs, OOM, a non-zero exit without a test report, a missing contract output (a tree output, a build, is
+    // judged by its validators instead): the one rule for every exit, live or recovered (recovery.ts exitFailure).
+    let failure: { outcome: string; error: { code: string; message: string } } | null = exitFailure(recipe, m.exit, m.outputs, m.parsed, m.outputError ?? null);
     if (!failure && !this.deps.ingest) {
       failure = { outcome: 'ingest_unavailable', error: { code: 'ingest_unavailable', message: 'outputs cannot be ingested in this build' } };
     }
@@ -1135,10 +1136,12 @@ export class ExecutionService {
     const liveIds = new Set(live.map((r) => r.attempt_id));
     for (const id of [...this.lastSeq.keys()]) if (!liveIds.has(id)) this.lastSeq.delete(id);
     for (const id of [...this.gapFlagged]) if (!liveIds.has(id)) this.gapFlagged.delete(id);
+    for (const id of [...this.awaitingExit]) if (!liveIds.has(id)) this.awaitingExit.delete(id);
     for (const r of live) {
       const limits = parseJson(r.limits_json) as { wallClockMs?: number } | null;
       const wall = typeof limits?.wallClockMs === 'number' ? limits.wallClockMs : null;
-      if (wall !== null && (r.job_state === 'running' || r.job_state === 'leased')) {
+      // An attempt adopted for finalization already exited: no wall clock, only its lease (the re-reported exit).
+      if (wall !== null && !this.awaitingExit.has(r.attempt_id) && (r.job_state === 'running' || r.job_state === 'leased')) {
         const elapsed = now - r.created_at - this.excludedMs(r.job_id, r.n, r.created_at, now, wall);
         if (elapsed > wall) { this.timeOut(r.job_id, r.attempt_id, now); continue; }
       }
@@ -1550,6 +1553,79 @@ export class ExecutionService {
   private setPhaseIfChanged(id: string, phase: string, now: number): void {
     const j = this.row(id);
     if (j && j.phase !== phase) immediateTx(this.db, () => this.setPhaseTx(id, phase, now));
+  }
+
+  // ---------- restart recovery (recovery.ts) ----------
+
+  /** The core's own helpers, for restart recovery (each runs inside the decision's transaction). */
+  private recoveryHost(): RecoveryHost {
+    const dh = this.deps.dataHome;
+    const files: BlobStoreFiles | null = dh && dh.listObjectFiles && dh.sweepObjectsTmp && dh.deleteObjects
+      ? { listObjectFiles: (l) => dh.listObjectFiles!(l), sweepObjectsTmp: (c) => dh.sweepObjectsTmp!(c), deleteObjects: (s) => dh.deleteObjects!(s) }
+      : null;
+    const v = this.deps.validation;
+    return {
+      db: this.db, auth: this.deps.auth, jobs: this.deps.jobs, available: this.deps.available, log: this.log, blobs: this.deps.blobs, files,
+      requeueCheckTx: v && v.requeueCheckTx ? (system, jobId) => v.requeueCheckTx!(system, jobId) : null,
+      moveJobTx: (id, to, now, d, expect) => { this.moveJobTx(id, to, now, d, expect); },
+      failJobTx: (id, outcome, error, now) => this.failJobTx(id, outcome, error, now),
+      setPhaseTx: (id, phase, now) => this.setPhaseTx(id, phase, now),
+      endAwaitingTx: (jobId, error, now) => this.endAwaitingTx(jobId, error, now),
+      send: (msg) => this.send(msg),
+      logPathOf: (a) => this.adoptLogPath(a),
+      awaitExit: (id) => { this.awaitingExit.add(id); }
+    };
+  }
+
+  /** The log path an `attempt.adopt` carries: the attempt's stored path under the data home, as in its plan. */
+  private adoptLogPath(a: AttemptRow): string {
+    const home = this.deps.dataHome;
+    const rel = a.log_path ?? (home ? home.attemptLogPath(a.job_id, a.n) : `logs/jobs/${a.job_id}/${a.n}.log`);
+    if (!home) return rel;
+    try { return underDataHome(home.root, rel); } catch { return rel; }
+  }
+
+  private requireRecoveryBoot(bootId: string): void {
+    // Adopting for a boot other than the attached runner's would make every adopted attempt's reports "another boot's".
+    if (this.port && this.bootId !== null && bootId !== this.bootId) {
+      throw new PlatformError('invalid', 'recovery runs for the boot id the runner is attached with', { reason: 'boot_mismatch' });
+    }
+  }
+
+  /**
+   * Restart recovery, phase A (recovery.ts): at platform startup, from the database alone. System only. With execution
+   * off on a v9 database it runs in hold mode (only jobs without a live attempt, by B1's rule). Never throws past its
+   * checks: a decision that fails is logged and left as it was.
+   */
+  recoverPhaseA(system: Principal, bootId: string, now: number = this.deps.now()): PhaseAReport {
+    this.requireRecoveryBoot(bootId);
+    const r = recoverPhaseA(this.recoveryHost(), system, bootId, now);
+    if (this.deps.available) this.recoveryBootId = bootId;
+    return r;
+  }
+
+  /**
+   * Restart recovery, phase B (recovery.ts): at every runner `ready`, with the runner's answer to `reconcileList()`.
+   * System only; needs execution and the boot id the runner is attached with. Sends `attempt.adopt` / `attempt.release`
+   * / `attempt.cancel` after each decision commits; returns the labelled resources to remove.
+   */
+  recoverPhaseB(system: Principal, bootId: string, reconcile: ReconcileResult): PhaseBReport {
+    this.requireRecoveryBoot(bootId);
+    return recoverPhaseB(this.recoveryHost(), system, bootId, reconcile, this.deps.now());
+  }
+
+  /** What main sends in `reconcile.list` at runner `ready`: every live attempt whose container is recorded. */
+  reconcileList(): { attemptId: string; containerId: string; kind: 'tool' | 'service' }[] {
+    return this.deps.available ? reconcileList(this.db) : [];
+  }
+
+  /**
+   * Restart recovery's blob store hygiene (recovery.ts): stale `objects/tmp` files, unindexed objects older than 24 h
+   * (only while no attempt is live), an unfinished GC closed, undeletable files reported. Runs under the blob store's
+   * exclusive lock; `busy` when an ingest or a GC holds it. Main calls it after phase B, before the scheduler's first tick.
+   */
+  recoverBlobStore(system: Principal, now: number = this.deps.now()): Promise<BlobSweepReport> {
+    return recoverBlobStore(this.recoveryHost(), system, now);
   }
 
   // ---------- user operations ----------

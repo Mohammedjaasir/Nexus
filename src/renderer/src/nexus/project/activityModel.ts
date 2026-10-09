@@ -30,7 +30,9 @@ export const ACTIVITY_ACTIONS: readonly string[] = Object.freeze([
   'db.migrated', 'workspace.catalog_ensured', 'project_workspace.primary_synced',
   'blob.gc', 'approval.withdraw',
   'approval.request', 'approval.respond', 'approval.expire', 'image_build.start', 'image_build.finish',
-  'deployment.start', 'deployment.transition', 'deployment.stop'
+  'deployment.start', 'deployment.transition', 'deployment.stop',
+  // B2a Task 10: restart recovery's decisions.
+  'exec.recover'
 ]);
 
 /** Plain words for an action a person may be refused (every platform action). */
@@ -81,6 +83,7 @@ const ACTION_WORDS: Record<string, string> = {
   'deployment.start': 'start a dev deployment',
   'deployment.transition': 'update a dev deployment',
   'deployment.stop': 'stop a dev deployment',
+  'exec.recover': 'recover work after a restart',
   'version.revalidate': 'run the checks again',
   'platform.health': 'read the platform health'
 };
@@ -190,6 +193,20 @@ const IMAGE_BUILD_WORDS: Record<string, string> = {
   failed: 'Sandbox image preparation failed',
   cancelled: 'Sandbox image preparation stopped'
 };
+/** What restart recovery decided (the `decision` of an `exec.recover` row). Never a completion: recovery completes nothing. */
+const RECOVER_WORDS: Record<string, string> = {
+  requeue: 'Job queued again after a restart: it had not started yet',
+  retry: 'Job will be tried again: it was cut off by a restart',
+  interrupt: 'Job interrupted by a restart',
+  reown: 'Job still waits for approval after a restart',
+  expire: 'Approval ran out while the app was closed; the job did not run',
+  adopt: 'Running job picked up again after a restart',
+  finalize: 'Job finished while the app was closed; its outputs are being collected',
+  fail: 'Job failed: it finished while the app was closed without the outputs it needs',
+  exit_lost: 'Dev deployment\'s job ended after a restart: its exit was never reported',
+  image_interrupted: 'Sandbox image preparation was interrupted by a restart',
+  orphans: 'Leftover sandbox resources from before a restart were found and set for removal'
+};
 const pick = (table: Record<string, string>, key: unknown): string | null =>
   typeof key === 'string' && Object.prototype.hasOwnProperty.call(table, key) ? table[key] : null;
 
@@ -283,6 +300,7 @@ function sentence(row: ActivityView, ctx: ActivityContext): string | null {
     }
     case 'deployment.stop':
       return detail(row, 'job') === 'completes_on_exit' ? 'Dev deployment stopped; its job finishes when the app has exited' : 'Dev deployment stopped';
+    case 'exec.recover': return pick(RECOVER_WORDS, detail(row, 'decision')) ?? 'Work recovered after a restart';
     case 'project_workspace.primary_synced': {
       const ws = workspacePhrase(detail(row, 'workspaceId'), ctx);
       return ws ? `Main workspace set to ${ws}, from the project's domain` : "Main workspace set from the project's domain";

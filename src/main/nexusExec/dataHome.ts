@@ -22,7 +22,7 @@
  *
  * Async only (fs.promises): no synchronous file-system call here (the main posture ratchet).
  */
-import { lstat, mkdir, realpath, statfs, unlink } from 'node:fs/promises';
+import { lstat, mkdir, readdir, realpath, statfs, unlink } from 'node:fs/promises';
 import * as path from 'node:path';
 import { isUnderRoot } from '../fsRoots';
 import { relSegments } from '../nexusIpc/sources';
@@ -66,7 +66,19 @@ export interface DataHome {
   freeBytesAt(dir?: string): Promise<number | null>;
   /** Create the layout (idempotent). Refuses a data home that is a link. */
   ensure(): Promise<void>;
+  /**
+   * Restart recovery's blob store hygiene: every `objects/<2 hex>/<62 hex>` regular file with its lstat facts, at most
+   * `limit` (links, folders and other names are never listed and never followed).
+   */
+  listObjectFiles(limit: number): Promise<{ objects: ObjectFileFact[]; truncated: boolean }>;
+  /** Removes the regular files in `objects/tmp` last modified before `cutoffMs`, each confined first (links and folders stay). */
+  sweepObjectsTmp(cutoffMs: number): Promise<{ removed: number; failed: number }>;
+  /** The confined object delete (`deleteObjectFiles`): a link, a hard link or a path outside is refused and reported. */
+  deleteObjects(shas: readonly string[]): Promise<{ failed: string[] }>;
 }
+
+/** One object file as the hygiene pass sees it (never its bytes). */
+export interface ObjectFileFact { sha256: string; mtimeMs: number; nlink: number }
 
 function checkId(id: unknown, field: string): string {
   if (typeof id !== 'string' || !ID_RE.test(id)) throw new PlatformError('invalid', `${field} is not a plain id`, { field });
@@ -162,6 +174,55 @@ export async function deleteObjectFiles(home: DataHome, shas: readonly string[])
   return { failed };
 }
 
+const HEX2_RE = /^[0-9a-f]{2}$/;
+const HEX62_RE = /^[0-9a-f]{62}$/;
+
+/** See DataHome.listObjectFiles. The objects folder itself must confine (not a link). */
+export async function listObjectFiles(root: string, limit: number): Promise<{ objects: ObjectFileFact[]; truncated: boolean }> {
+  const objects: ObjectFileFact[] = [];
+  const max = Number.isSafeInteger(limit) && limit > 0 ? limit : 0;
+  const dir = await confineUnder(root, 'objects');
+  if (!dir || max === 0) return { objects, truncated: false };
+  let shards;
+  try { shards = await readdir(dir, { withFileTypes: true }); } catch { return { objects, truncated: false }; }
+  for (const s of shards) {
+    // A junction or symlink reports as a link, never as a folder: it is skipped, never followed.
+    if (!HEX2_RE.test(s.name) || !s.isDirectory()) continue;
+    const sub = path.join(dir, s.name);
+    let files;
+    try { files = await readdir(sub, { withFileTypes: true }); } catch { continue; }
+    for (const f of files) {
+      if (!HEX62_RE.test(f.name) || !f.isFile()) continue;
+      let st;
+      try { st = await lstat(path.join(sub, f.name)); } catch { continue; }
+      if (!st.isFile()) continue;
+      objects.push({ sha256: `${s.name}${f.name}`, mtimeMs: st.mtimeMs, nlink: st.nlink });
+      if (objects.length >= max) return { objects, truncated: true };
+    }
+  }
+  return { objects, truncated: false };
+}
+
+/** See DataHome.sweepObjectsTmp. */
+export async function sweepObjectsTmp(root: string, cutoffMs: number): Promise<{ removed: number; failed: number }> {
+  let removed = 0; let failed = 0;
+  const dir = await confineUnder(root, 'objects/tmp');
+  if (!dir) return { removed, failed };
+  let entries;
+  try { entries = await readdir(dir, { withFileTypes: true }); } catch { return { removed, failed }; }
+  for (const e of entries) {
+    if (!e.isFile()) continue;
+    // Confined immediately before the unlink: a name confinement refuses, or a hard link, is reported, never deleted.
+    const p = await confineUnder(root, `objects/tmp/${e.name}`);
+    if (!p) { failed++; continue; }
+    let st;
+    try { st = await lstat(p); } catch { continue; }
+    if (!st.isFile() || st.mtimeMs >= cutoffMs) continue;
+    try { await unlink(p); removed++; } catch (err) { if (errCode(err) !== 'ENOENT') failed++; }
+  }
+  return { removed, failed };
+}
+
 export function resolveDataHome(userData: string): DataHome {
   if (typeof userData !== 'string' || !userData || userData.includes('\0') || !path.isAbsolute(userData)) {
     throw new PlatformError('invalid', 'userData must be an absolute path');
@@ -171,7 +232,7 @@ export function resolveDataHome(userData: string): DataHome {
   const objectsTmpDir = path.join(objectsDir, 'tmp');
   const logsDir = path.join(root, 'logs');
   const workDir = path.join(root, 'work');
-  return Object.freeze({
+  const home: DataHome = Object.freeze({
     root, objectsDir, objectsTmpDir, logsDir, workDir,
     objectRel,
     objectPath(sha256: string): Promise<string | null> { return confineUnder(root, objectRel(sha256)); },
@@ -185,6 +246,9 @@ export function resolveDataHome(userData: string): DataHome {
     },
     confineToDataHome(rel: string): Promise<string | null> { return confineUnder(root, rel); },
     freeBytesAt(dir?: string): Promise<number | null> { return freeBytesAt(dir ?? root); },
+    listObjectFiles(limit: number) { return listObjectFiles(root, limit); },
+    sweepObjectsTmp(cutoffMs: number) { return sweepObjectsTmp(root, cutoffMs); },
+    deleteObjects(shas: readonly string[]): Promise<{ failed: string[] }> { return deleteObjectFiles(home, shas); },
     async ensure(): Promise<void> {
       const refuse = (why: string): never => { throw new PlatformError('invalid', `the data home layout is refused: ${why}`); };
       // The root first, before anything is created: an existing link or non-directory is refused.
@@ -215,4 +279,5 @@ export function resolveDataHome(userData: string): DataHome {
       }
     }
   });
+  return home;
 }

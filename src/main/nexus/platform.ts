@@ -11,6 +11,12 @@
  * egress and image approvals, image builds), dev deployments and snapshot requests,
  * each late-bound to the execution core.
  *
+ * Restart recovery at startup is chosen by the database FILE's schema version, never by the enableV9 flag: a v9 file
+ * (user_version 9, or execution records present) runs the execution core's phase A (B2a Task 10, exec/recovery.ts;
+ * in hold mode while execution is off), because B1's `jobs.recoverAfterRestart` would end jobs whose attempts are
+ * still live, which the v9 backstop refuses (and which would interrupt adoptable work). v7/v8 files run B1's routine
+ * unchanged. The platform's `bootId` is the boot id phase A re-owns for; main attaches the runner with the same one.
+ *
  * No IPC is registered here. Callers in main pass a Principal resolved through
  * `principals`; the renderer never supplies identity.
  */
@@ -22,6 +28,8 @@ import { HandoffService } from './handoff/handoffService';
 import { JobService } from './jobs/jobService';
 import { BlobIndex } from './blobs/blobIndex';
 import { ExecutionService, type ExecDataHome, type EgressApprovalPort, type IngestPort } from './exec/executionService';
+import type { PhaseAReport } from './exec/recovery';
+import { newId } from './db/ids';
 import { IngestService } from './exec/ingest';
 import { ApprovalService, type ImageContext } from './approvals/approvalService';
 import { DeploymentService } from './deployments/deploymentService';
@@ -72,6 +80,8 @@ export interface NexusPlatform {
   deployments: DeploymentService | null;
   /** Repository snapshot requests and the app manifest contract; null unless execution is available. */
   repo: RepoService | null;
+  /** This process's boot id: restart recovery re-owns for it, and main attaches the runner with it (B2a Task 10/11). */
+  bootId: string;
   startup(): NexusStartupReport;
 }
 
@@ -81,6 +91,8 @@ export interface NexusStartupReport {
   primaries: { set: number; cleared: number };
   sessions: { interrupted: number };
   jobs: { interrupted: number; requeued: number };
+  /** On a v9 database only (the key is absent below v9): what restart recovery's phase A did. */
+  execution?: PhaseAReport;
 }
 
 export interface NexusPlatformOptions {
@@ -108,6 +120,21 @@ export interface NexusPlatformOptions {
   ingestFaults?: { afterRows?: (recipeId: string) => void } | null;
   /** The Nexus app version recorded in each attempt's environment. */
   appVersion?: string | null;
+  /** This process's boot id (a ULID); default: a new one. */
+  bootId?: string;
+}
+
+/**
+ * Whether the database FILE holds schema v9 (its user_version, or the execution records' table): restart recovery
+ * then takes the execution path, whatever this process's enableV9 flag says.
+ */
+export function isV9File(db: Database.Database): boolean {
+  try {
+    if ((db.pragma('user_version', { simple: true }) as number) >= 9) return true;
+    return db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'job_attempts'").get() !== undefined;
+  } catch {
+    return false;
+  }
 }
 
 export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformOptions): NexusPlatform {
@@ -164,9 +191,10 @@ export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformO
   deployments?.bindExecution(exec);
   repo?.bindExecution(exec);
   if (executionAvailable) log('[nexus] execution core ready: runner not attached');
+  const bootId = opts?.bootId ?? newId(now());
   return {
     principals, auth, activity, workspaces, projects, artifacts, lineage, jobs, sessions, handoffs, handoffsAvailable, executionAvailable,
-    exec, blobs, validation, approvals, deployments, repo,
+    exec, blobs, validation, approvals, deployments, repo, bootId,
     startup(): NexusStartupReport {
       // The seeded principals must resolve; a missing one throws platform_unavailable.
       principals.localUser();
@@ -174,16 +202,24 @@ export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformO
       const added = workspaces.ensureCatalog(system);
       // Repairs a primary whose in-save sync failed and rows written by an older build.
       const r = workspaces.reconcileLegacyPrimaries(system);
-      // Nothing executes across a restart: sessions first, then their jobs.
+      // No agent runtime is attached across a restart: sessions first, then the jobs.
       const s = sessions.recoverAfterRestart(system);
-      const j = jobs.recoverAfterRestart(system);
+      // By the FILE's schema version: v9 runs restart recovery's phase A (hold mode while execution is off); v7/v8 B1's routine.
+      const x = isV9File(db) ? exec.recoverPhaseA(system, bootId, now()) : null;
+      const j = x ? x.jobs : jobs.recoverAfterRestart(system);
       log(`[nexus] platform ready: principals ok, workspaces added=${added}, primaries set=${r.set} cleared=${r.cleared}, `
         + `sessions interrupted=${s.interrupted}, jobs interrupted=${j.interrupted} requeued=${j.requeued}`);
+      if (x) {
+        log(`[nexus] execution recovery: adopted=0 finalized=0 requeued=${x.requeued} interrupted=${x.interrupted} expired=${x.expired} pending=${x.pending}`);
+        if (x.held) log(`[nexus] execution recovery held: execution is off (${unavailableReason ?? 'not_enabled'}); jobs with a live attempt are left for the next start with execution on`);
+        if (x.errors > 0) log(`[nexus] execution recovery: ${x.errors} decision(s) not applied; those jobs are left as they were`);
+      }
       return {
         catalogAdded: added,
         primaries: { set: r.set, cleared: r.cleared },
         sessions: { interrupted: s.interrupted },
-        jobs: { interrupted: j.interrupted, requeued: j.requeued }
+        jobs: { interrupted: j.interrupted, requeued: j.requeued },
+        ...(x ? { execution: x } : {})
       };
     }
   };

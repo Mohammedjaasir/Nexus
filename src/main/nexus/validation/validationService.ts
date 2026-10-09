@@ -387,6 +387,24 @@ export class ValidationService {
     });
   }
 
+  /**
+   * @internal Restart recovery (system, inside the caller's transaction): a check main was running when the app stopped
+   * (its job interrupted, its attempt abandoned) is queued again as a new validate job for the same version and
+   * validator, with the same parent and revalidation flag. Results are idempotent: the version stays a draft until a
+   * result row exists. Returns the queued job ids (the live one when a check of that pair is already waiting).
+   */
+  requeueCheckTx(system: Principal, jobId: string): string[] {
+    if (!this.isSystem(system)) throw new PlatformError('denied', 'checks are queued again by the system', { reason: 'system_only' });
+    const j = this.db.prepare("SELECT validator_id, params_json, parent_job_id FROM jobs WHERE id = ? AND kind = 'validate'").get(jobId) as
+      { validator_id: string | null; params_json: string; parent_job_id: string | null } | undefined;
+    const def = j ? getValidator(j.validator_id ?? '') : null;
+    const params = j ? parse(j.params_json) : null;
+    const versionId = isObj(params) && typeof params.versionId === 'string' ? params.versionId : null;
+    if (!j || !def || !versionId || !this.versionFacts(versionId)) return [];
+    const ids = this.createValidateJobs(system, versionId, [def], { parentJobId: j.parent_job_id, revalidate: isObj(params) && params.revalidate === true });
+    return ids.filter((id) => id !== jobId);
+  }
+
   /** User: run every blocking check of a draft again (new rows; old rows stay). Returns the validate jobs. */
   revalidate(p: Principal, versionId: string): { jobs: string[] } {
     const v = typeof versionId === 'string' && versionId.length > 0 ? this.versionFacts(versionId) : null;

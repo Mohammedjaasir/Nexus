@@ -118,13 +118,20 @@ export function transitionAttemptTx(db: Database.Database, a: AttemptRow, to: At
   return attemptRow(db, a.id)!;
 }
 
-/** Inside the caller's transaction (recovery): this boot takes over a live attempt's lease. */
-export function adoptAttemptTx(db: Database.Database, a: AttemptRow, bootId: string, now: number, projectId: string): AttemptRow {
+/**
+ * Inside the caller's transaction (recovery): this boot takes over a live attempt's lease, with ONE fresh LEASE_MS from
+ * `now` (restart recovery's rule: the stall history of the old process is gone). Writes the decision's one `recovery`
+ * event (`ev` names it; default: an adoption).
+ */
+export function adoptAttemptTx(db: Database.Database, a: AttemptRow, bootId: string, now: number, projectId: string,
+  ev?: { summary?: string; data?: Record<string, unknown> }): AttemptRow {
   requireTx(db, 'adoptAttemptTx');
   if (a.state !== 'starting' && a.state !== 'running') throw new PlatformError('illegal_transition', 'only a live attempt is adopted');
-  db.prepare('UPDATE job_attempts SET lease_owner = ?, lease_expires_at = ?, updated_at = ? WHERE id = ?').run(bootId, now + LEASE_MS, now, a.id);
-  appendJobEventTx(db, { type: 'recovery', summary: `attempt ${a.n} adopted`, projectId, jobId: a.job_id, attemptN: a.n,
-    data: { decision: 'adopt' } }, now);
+  const r = db.prepare(`UPDATE job_attempts SET lease_owner = ?, lease_expires_at = ?, updated_at = ? WHERE id = ? AND state IN ('starting','running')`)
+    .run(bootId, now + LEASE_MS, now, a.id);
+  if (r.changes !== 1) throw new PlatformError('conflict', 'the attempt changed before the adoption', { attemptId: a.id });
+  appendJobEventTx(db, { type: 'recovery', summary: ev?.summary ?? `attempt ${a.n} adopted`, projectId, jobId: a.job_id, attemptN: a.n,
+    data: { decision: 'adopt', ...(ev?.data ?? {}) } }, now);
   return attemptRow(db, a.id)!;
 }
 
