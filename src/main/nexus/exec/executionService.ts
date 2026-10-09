@@ -24,8 +24,17 @@
  *   (remove) the container. An engine attempt becomes `running` on a container-less report.
  * - Ending. A live attempt is always ended BEFORE its job is requeued or ended (the v9
  *   backstop trigger). A job completes only through the ingest port after its current attempt
- *   succeeded; without an ingest port (Task 8) an exit with its outputs present fails
+ *   succeeded; without an ingest port an exit with its outputs present fails
  *   `ingest_unavailable`: unfinished work is never marked completed (constraint 4).
+ * - Ingest (Task 8). An accepted exit is made durable first, in its own transaction (phase
+ *   `collecting`, one `attempt.output` event). Then the port's `prepare` may gather facts main
+ *   observes itself (async), and `ingestTx` runs in ONE transaction under the BlobIndex shared
+ *   ingest lock with a live token: synchronously when no GC holds the lock, else after GC
+ *   releases it (never during GC). The attempt and job move in that transaction; the evidence
+ *   backstop (a validation or version bound to (job, n)) still applies. A throw is recorded as
+ *   `ingest_error` (retryable). A replayed exit while collecting is dropped. Recipe checks
+ *   (`validate` jobs with a recipe) lease like tool jobs and read `params.versionId` as input.
+ *   A tree output (a build) is judged by its validators, not by the bare contract paths.
  * - Runner messages are validated by `parseRunnerMessage`, then: the attempt is known, its
  *   lease owner is this boot, `attempt.event` seq is strictly increasing. Anything else is
  *   dropped with one log line and no write. Each handler is one small transaction.
@@ -56,7 +65,8 @@ import type { AuthService } from '../auth/authService';
 import { PrincipalResolver } from '../auth/principals';
 import { appendActivityRow } from '../activity/writer';
 import { containsSecret } from '../activity/redact';
-import type { BlobIndex } from '../blobs/blobIndex';
+import type { BlobIndex, IngestToken } from '../blobs/blobIndex';
+import { getKind } from '../../../shared/nexus/kinds';
 import { newId } from '../db/ids';
 import { immediateTx } from '../db/tx';
 import { PlatformError } from '../errors';
@@ -109,14 +119,35 @@ export interface EgressApprovalPort {
   requestEgressTx(job: { id: string; projectId: string; onBehalfOf: string }, attempt: { id: string; n: number }, recipe: RecipeDef, now: number): string;
 }
 
+/** What the runner reported for an exited attempt (the `attempt.exited` message, validated). */
+export interface AttemptExited { exit: ExitInfo; outputs: StagedOutput[]; parsed: ParsedOutput[]; logBytes: number }
 export interface IngestContext {
   system: Principal; job: JobRow; attempt: AttemptRow; recipe: RecipeDef;
-  exited: { exit: ExitInfo; outputs: StagedOutput[]; parsed: ParsedOutput[]; logBytes: number };
+  exited: AttemptExited;
+  /** The live token of the shared blob ingest lock (null only on a platform without a blob index). */
+  token?: IngestToken | null;
+  /** What `prepare` gathered before the transaction (main's own git answers). */
+  facts?: unknown;
 }
-/** What ingest decided inside the exit transaction. `ok` completes the job; anything else fails it. */
+/** What ingest decided inside its transaction. `ok` completes the job; anything else fails it. */
 export type IngestDecision = { ok: true; outcome?: string } | { ok: false; outcome: string; error: { code: string; message: string } };
-/** Ingest (Task 8) runs INSIDE the exit transaction and writes versions, blobs and validations there. */
-export interface IngestPort { ingestTx(ctx: IngestContext): IngestDecision }
+/**
+ * Ingest (Task 8). After the exit is durable (phase `collecting` and an `attempt.output` event, in their own
+ * transaction), `prepare` may gather facts main observes itself (async, outside any transaction), then `ingestTx`
+ * runs in ONE IMMEDIATE transaction under the shared blob ingest lock and writes versions, blobs and validations;
+ * the core then moves the attempt and the job in that same transaction.
+ */
+export interface IngestPort {
+  prepare?(ctx: IngestContext): unknown;
+  ingestTx(ctx: IngestContext): IngestDecision;
+}
+/** The validation framework's hooks into the scheduler and the runner messages (Task 8). */
+export interface ValidationHooks {
+  tick(now: number): void;
+  runPending(now: number): void;
+  onBlobVerified(sha256: string, ok: boolean): void;
+  onRunnerFault(): void;
+}
 
 export interface ExecDataHome { root: string; attemptWorkRel(jobId: string, n: number): string; attemptLogPath(jobId: string, n: number): string }
 
@@ -130,6 +161,7 @@ export interface ExecutionDeps {
   acceptFsRoot?: ((root: string) => string | null) | null;
   approvals?: EgressApprovalPort | null;
   ingest?: IngestPort | null;
+  validation?: ValidationHooks | null;
   caps?: Partial<SchedulerCaps>;
   hooks?: { afterLeaseTransition?: (jobId: string) => void };
   /** The Nexus app version, recorded in every attempt's environment. */
@@ -261,6 +293,10 @@ export class ExecutionService {
   private lastExtensionAt: number | null = null;
   /** Consecutive `attempt.start` sends that failed while the port said ready. */
   private sendFailures = 0;
+  /** Attempts whose exit is durable and whose outputs are being ingested (a replayed exit is dropped meanwhile). */
+  private readonly collecting = new Set<string>();
+  /** Ingests that went asynchronous (main's git answers, or a wait for blob GC). */
+  private readonly pendingIngest = new Set<Promise<unknown>>();
 
   constructor(private readonly db: Database.Database, private readonly deps: ExecutionDeps) {
     this.access = new ProjectAccess(db, { auth: deps.auth });
@@ -345,6 +381,10 @@ export class ExecutionService {
         case 'attempt.heartbeat': return this.onHeartbeat(m);
         case 'attempt.exited': return this.onExited(m);
         case 'fault': return this.onFault(m);
+        case 'blob.verified':
+          if (this.deps.validation) this.deps.validation.onBlobVerified(m.sha256, m.ok);
+          else this.drop(m.op, 'no validation in this build');
+          return;
         default: this.drop(m.op, 'not handled in this build');
       }
     } catch (e) {
@@ -496,72 +536,182 @@ export class ExecutionService {
       if (a.state !== 'starting') this.send({ op: 'attempt.release', attemptId: a.id });
       return;
     }
+    if (this.collecting.has(a.id)) { this.drop(m.op, 'the exit is already being ingested'); return; }
     const j = this.row(a.job_id)!;
     const recipe = getRecipe(j.recipe_id ?? '');
     if (!recipe) { this.drop(m.op, 'job has no recipe'); return; }
     const now = this.deps.now();
     const exit = { code: m.exit.code, signal: m.exit.signal, oomKilled: m.exit.oomKilled };
     const tests = recipe.parsers.includes('junit');
+    // A tree output (a build) is judged by its validators (an empty or missing tree fails build.manifest_present,
+    // recorded on the version), not by the bare presence of a path here.
+    const treeOutput = recipe.produces.some((k) => getKind(k)?.storage.includes('tree'));
     let failure: { outcome: string; error: { code: string; message: string } } | null = null;
     if (m.outputError) failure = { outcome: 'invalid_output', error: { code: m.outputError, message: `the outputs were refused: ${m.outputError}` } };
     else if (m.exit.oomKilled) failure = { outcome: 'oom', error: { code: 'oom', message: 'the container ran out of memory' } };
     else if (!tests && m.exit.code !== 0) failure = { outcome: 'nonzero_exit', error: { code: 'nonzero_exit', message: `exit code ${m.exit.code}` } };
-    else if (!contractMet(recipe.outputContract.required, m.outputs, m.parsed, recipe.executor === 'engine')) {
+    else if (!treeOutput && !contractMet(recipe.outputContract.required, m.outputs, m.parsed, recipe.executor === 'engine')) {
       failure = { outcome: 'invalid_output', error: { code: 'outputs_missing', message: `required outputs missing: ${recipe.outputContract.required.join(', ')}` } };
     }
-    const decided = failure;
-    let ingestThrew: string | null = null;
-    try {
+    if (!failure && !this.deps.ingest) {
+      failure = { outcome: 'ingest_unavailable', error: { code: 'ingest_unavailable', message: 'outputs cannot be ingested in this build' } };
+    }
+    if (failure) {
+      const fail = failure;
       immediateTx(this.db, () => {
-        const cur = attemptRow(this.db, a.id)!;
-        let fail = decided;
-        if (!fail) {
-          const ingest = this.deps.ingest;
-          if (!ingest) fail = { outcome: 'ingest_unavailable', error: { code: 'ingest_unavailable', message: 'outputs cannot be ingested in this build' } };
-          else {
-            let d: IngestDecision;
-            try {
-              d = ingest.ingestTx({ system: this.system(), job: this.row(j.id)!, attempt: cur, recipe,
-                exited: { exit: m.exit, outputs: m.outputs, parsed: m.parsed, logBytes: m.logBytes } });
-            } catch (e) {
-              ingestThrew = e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error';
-              throw e;                                   // rolls back everything ingest wrote; recorded below
-            }
-            if (d.ok && !this.hasEvidence(j.id, cur.n)) {
-              // Constraint 4 in the core: an ingest that reports success but bound nothing to this attempt completes nothing.
-              d = { ok: false, outcome: 'no_evidence', error: { code: 'no_evidence', message: 'ingest bound no version or validation to the attempt' } };
-            }
-            if (d.ok) {
-              // The attempt succeeds first: the job completes only after its current attempt succeeded (backstop trigger).
-              transitionAttemptTx(this.db, cur, 'succeeded', now, j.project_id, { exit, outcome: d.outcome ?? 'succeeded', logBytes: m.logBytes });
-              this.moveJobTx(j.id, 'completed', now, { outcome: d.outcome ?? 'completed' });
-              return;
-            }
-            fail = { outcome: d.outcome, error: d.error };
-          }
-        }
-        transitionAttemptTx(this.db, cur, 'failed', now, j.project_id, { exit, outcome: fail.outcome, error: fail.error, logBytes: m.logBytes });
+        transitionAttemptTx(this.db, attemptRow(this.db, a.id)!, 'failed', now, j.project_id, { exit, outcome: fail.outcome, error: fail.error, logBytes: m.logBytes });
         this.failJobTx(j.id, fail.outcome, fail.error, now);
       });
+      this.send({ op: 'attempt.release', attemptId: a.id });
+      this.deps.validation?.runPending(now);
+      return;
+    }
+    // 1. The exit is durable first, in its own transaction: phase `collecting` and one `attempt.output` event.
+    immediateTx(this.db, () => {
+      this.setPhaseTx(j.id, 'collecting', now);
+      appendJobEventTx(this.db, { type: 'attempt.output', summary: `attempt ${a.n} exited (code ${m.exit.code ?? 'none'}); collecting outputs`,
+        projectId: j.project_id, jobId: j.id, attemptN: a.n,
+        data: { exit: exit.code, signal: exit.signal ?? null, oomKilled: exit.oomKilled, outputs: m.outputs.length,
+          parsed: m.parsed.map((p) => p.parser), logBytes: m.logBytes } }, now);
+    });
+    // 2. Then ingest, under the shared blob ingest lock (never while GC holds it).
+    this.runIngest(a.id, { exit: m.exit, outputs: m.outputs, parsed: m.parsed, logBytes: m.logBytes });
+  }
+
+  /**
+   * @internal System only (recovery replays an exit the runner reports again): ingest the outputs of a `running`
+   * attempt whose exit is durable. Resolves when the ingest has committed (or its failure was recorded).
+   */
+  async ingestAttempt(system: Principal, attemptId: string, exited: AttemptExited): Promise<void> {
+    this.requireAvailable();
+    if (system?.kind !== 'system' || this.principals.get(system.id)?.kind !== 'system') {
+      throw new PlatformError('denied', 'ingest is performed by the system', { reason: 'system_only' });
+    }
+    const a = attemptRow(this.db, attemptId);
+    if (!a || a.state !== 'running' || this.collecting.has(a.id)) return;
+    this.runIngest(a.id, exited);
+    await this.settled();
+  }
+
+  /** Resolves when every asynchronous ingest started so far has settled (tests and shutdown). */
+  async settled(): Promise<void> {
+    while (this.pendingIngest.size > 0) await Promise.allSettled([...this.pendingIngest]);
+  }
+
+  private trackIngest(p: Promise<unknown>): void {
+    this.pendingIngest.add(p);
+    void p.finally(() => this.pendingIngest.delete(p));
+  }
+
+  /** Prepare (maybe async), then commit under the ingest lock: synchronously when no GC holds it, else after it. */
+  private runIngest(attemptId: string, exited: AttemptExited): void {
+    this.collecting.add(attemptId);
+    const ingest = this.deps.ingest!;
+    const commit = (facts: unknown): void | Promise<void> => {
+      const blobs = this.deps.blobs;
+      if (!blobs) { this.commitIngest(attemptId, exited, null, facts); return; }
+      const r = blobs.tryWithIngestLockSync((token) => this.commitIngest(attemptId, exited, token, facts));
+      if (r.ran) return;
+      // Blob GC holds the store: wait for it (a new ingest never runs during GC).
+      return blobs.withIngestLock((token) => this.commitIngest(attemptId, exited, token, facts));
+    };
+    let prepared: unknown = null;
+    try {
+      const a = attemptRow(this.db, attemptId);
+      const j = a ? this.row(a.job_id) : null;
+      const recipe = j ? getRecipe(j.recipe_id ?? '') : null;
+      prepared = a && j && recipe && ingest.prepare ? ingest.prepare({ system: this.system(), job: j, attempt: a, recipe, exited }) : null;
     } catch (e) {
-      if (ingestThrew === null) throw e;
-      // The exit is never lost: a second small transaction records the ingest failure (retryable infrastructure).
-      const error = { code: 'ingest_error', message: `ingest failed: ${ingestThrew}` };
+      this.ingestFailed(attemptId, exited, e);
+      return;
+    }
+    if (prepared && typeof (prepared as { then?: unknown }).then === 'function') {
+      this.trackIngest(Promise.resolve(prepared as Promise<unknown>)
+        .then((f) => commit(f), (e) => this.ingestFailed(attemptId, exited, e))
+        .catch((e) => this.ingestFailed(attemptId, exited, e)));
+      return;
+    }
+    const r = commit(prepared);
+    if (r) this.trackIngest(r.catch((e) => this.ingestFailed(attemptId, exited, e)));
+  }
+
+  /** The ingest transaction: ingestTx, the evidence backstop, the attempt and job moves. Never throws. */
+  private commitIngest(attemptId: string, exited: AttemptExited, token: IngestToken | null, facts: unknown): void {
+    const now = this.deps.now();
+    let ingestThrew: unknown = null;
+    let ran = false;
+    try {
       immediateTx(this.db, () => {
-        const cur = attemptRow(this.db, a.id)!;
-        if (cur.state !== 'running') return;
-        transitionAttemptTx(this.db, cur, 'failed', now, j.project_id, { exit, outcome: 'ingest_error', error, logBytes: m.logBytes });
+        const cur = attemptRow(this.db, attemptId)!;
+        const j = this.row(cur.job_id)!;
+        // Cancel or a timeout won while the outputs were collected: nothing is ingested.
+        if (cur.state !== 'running' || j.state !== 'running') return;
+        const recipe = getRecipe(j.recipe_id ?? '')!;
+        ran = true;
+        const exit = { code: exited.exit.code, signal: exited.exit.signal, oomKilled: exited.exit.oomKilled };
+        let d: IngestDecision;
+        try {
+          d = this.deps.ingest!.ingestTx({ system: this.system(), job: j, attempt: cur, recipe, exited, token, facts });
+        } catch (e) {
+          ingestThrew = e ?? new Error('ingest threw');
+          throw e;                                   // rolls back everything ingest wrote; recorded below
+        }
+        if (d.ok && !this.hasEvidence(j.id, cur.n)) {
+          // Constraint 4 in the core: an ingest that reports success but bound nothing to this attempt completes nothing.
+          d = { ok: false, outcome: 'no_evidence', error: { code: 'no_evidence', message: 'ingest bound no version or validation to the attempt' } };
+        }
+        if (d.ok) {
+          // The attempt succeeds first: the job completes only after its current attempt succeeded (backstop trigger).
+          transitionAttemptTx(this.db, cur, 'succeeded', now, j.project_id, { exit, outcome: d.outcome ?? 'succeeded', logBytes: exited.logBytes });
+          this.moveJobTx(j.id, 'completed', now, { outcome: d.outcome ?? 'completed' });
+          this.setPhaseTx(j.id, null, now);
+          return;
+        }
+        transitionAttemptTx(this.db, cur, 'failed', now, j.project_id, { exit, outcome: d.outcome, error: d.error, logBytes: exited.logBytes });
+        this.failJobTx(j.id, d.outcome, d.error, now);
+      });
+    } catch (e) {
+      this.ingestFailed(attemptId, exited, ingestThrew ?? e);
+      return;
+    }
+    this.collecting.delete(attemptId);
+    this.send({ op: 'attempt.release', attemptId });
+    if (ran) this.deps.validation?.runPending(now);
+  }
+
+  /** The exit is never lost: a small transaction records the ingest failure (retryable infrastructure). */
+  private ingestFailed(attemptId: string, exited: AttemptExited, e: unknown): void {
+    this.collecting.delete(attemptId);
+    const now = this.deps.now();
+    const why = e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error';
+    const error = { code: 'ingest_error', message: `ingest failed: ${why}` };
+    const exit = { code: exited.exit.code, signal: exited.exit.signal, oomKilled: exited.exit.oomKilled };
+    try {
+      immediateTx(this.db, () => {
+        const cur = attemptRow(this.db, attemptId);
+        if (!cur || cur.state !== 'running') return;
+        const j = this.row(cur.job_id)!;
+        transitionAttemptTx(this.db, cur, 'failed', now, j.project_id, { exit, outcome: 'ingest_error', error, logBytes: exited.logBytes });
         this.failJobTx(j.id, 'infra_error', error, now);
       });
+    } catch (e2) {
+      this.log(`[nexus] exec: ingest failure not recorded: ${e2 instanceof PlatformError ? e2.code : (e2 as Error)?.name ?? 'error'}`);
     }
-    this.send({ op: 'attempt.release', attemptId: a.id });
+    this.log(`[nexus] exec: ingest failed (${why}); the attempt failed ingest_error`);
+    this.send({ op: 'attempt.release', attemptId });
+    this.deps.validation?.runPending(now);
   }
+
+  /** @internal For the validation framework (blob.verify): send one message to the runner; false when it did not go. */
+  sendToRunner(msg: Parameters<RunnerPort['send']>[0]): boolean { return this.send(msg); }
 
   private onFault(m: Extract<RunnerToMain, { op: 'fault' }>): void {
     const a = m.attemptId !== undefined ? attemptRow(this.db, m.attemptId) : null;
     if (!a || !m.failureClass || a.lease_owner !== this.bootId || a.state !== 'starting') {
       this.faults++;
       this.log('[nexus] exec: runner fault (not attributed to a starting attempt of this boot)');
+      // Re-hashes in flight cannot be trusted to answer: those checks could not run.
+      this.deps.validation?.onRunnerFault();
       return;
     }
     const cls = m.failureClass;
@@ -637,6 +787,8 @@ export class ExecutionService {
       this.sweep(now, firstOfStreak);
       // Probing is independent of leasing: a runner that only answers probes recovers from the send-failure flag.
       if ((firstOfStreak && this.port) || (this.portReady() && (this.probeSentAt === null || now - this.probeSentAt >= this.caps.probeRefreshMs))) this.sendProbe(now);
+      // Checks that main runs itself (and re-hash answers that timed out) progress on every pass.
+      this.deps.validation?.tick(now);
       // The blob store contract: no lease and no start while GC holds its exclusive lock.
       if (this.deps.blobs?.isExclusiveHeld()) return;
       this.resumeConsumed(now);
@@ -739,6 +891,7 @@ export class ExecutionService {
       }
       // A lease that ran out without a heartbeat: the runner is gone for this attempt (an approval wait holds no lease).
       if (stalled) continue;               // the first tick after a stall: no lease expiry and no gap event
+      if (this.collecting.has(r.attempt_id)) continue;   // exited: its outputs are being ingested
       if (r.lease_expires_at < now && r.job_state !== 'awaiting_approval' && r.phase !== 'approval') { this.runnerLost(r.attempt_id, now); continue; }
       if (r.attempt_state === 'running') {
         const last = r.heartbeat_at ?? r.started_at ?? r.created_at;
@@ -790,7 +943,8 @@ export class ExecutionService {
   }
 
   private leaseQueued(now: number): void {
-    const queued = this.db.prepare(`SELECT * FROM jobs WHERE state = 'queued' AND kind = 'tool.run' AND recipe_id IS NOT NULL
+    // Tool jobs and recipe checks (a `validate` job with a recipe, e.g. sde.tests_pass) lease the same way.
+    const queued = this.db.prepare(`SELECT * FROM jobs WHERE state = 'queued' AND kind IN ('tool.run','validate') AND recipe_id IS NOT NULL
       ORDER BY priority, created_at, rowid`).all() as ExecJobRow[];
     if (queued.length === 0) return;
     const ready = this.runnerReady();
@@ -819,11 +973,23 @@ export class ExecutionService {
     }
   }
 
-  /** The plan inputs of a job: its job_inputs joined to their versions. */
+  /**
+   * The plan inputs of a job: its job_inputs joined to their versions. A recipe check (`validate` job) has no
+   * job_inputs (it may check a draft): the system reads its `params.versionId` as the recipe's one input slot.
+   */
   private planInputs(jobId: string): PlanInput[] {
-    const rows = this.db.prepare(`SELECT ji.version_id, ji.role, ji.content_hash, v.storage_ref_json, v.metadata_json FROM job_inputs ji
+    let rows = this.db.prepare(`SELECT ji.version_id, ji.role, ji.content_hash, v.storage_ref_json, v.metadata_json FROM job_inputs ji
       JOIN artifact_versions v ON v.id = ji.version_id WHERE ji.job_id = ? ORDER BY ji.rowid`).all(jobId) as
       { version_id: string; role: string; content_hash: string; storage_ref_json: string; metadata_json: string }[];
+    if (rows.length === 0) {
+      const j = this.row(jobId);
+      const params = j && j.kind === 'validate' ? parseJson(j.params_json) : null;
+      const versionId = isPlainObject(params) && typeof params.versionId === 'string' ? params.versionId : null;
+      if (versionId) {
+        rows = this.db.prepare(`SELECT id AS version_id, 'suite' AS role, content_hash, storage_ref_json, metadata_json FROM artifact_versions
+          WHERE id = ? AND project_id = ?`).all(versionId, j!.project_id) as typeof rows;
+      }
+    }
     return rows.map((r) => ({ versionId: r.version_id, slot: r.role, contentHash: r.content_hash,
       storage: (parseJson(r.storage_ref_json) ?? { kind: 'unknown' }) as PlanInput['storage'], metadata: parseJson(r.metadata_json) }));
   }
@@ -1103,7 +1269,8 @@ export class ExecutionService {
   }
 
   private requireQueueRoom(projectId: string): void {
-    const n = (this.db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE project_id = ? AND state IN (${LIVE_JOB_STATES.map(() => '?').join(', ')})`)
+    // Checks the system queues (validate jobs) are not counted against the user's queue.
+    const n = (this.db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE project_id = ? AND kind <> 'validate' AND state IN (${LIVE_JOB_STATES.map(() => '?').join(', ')})`)
       .get(projectId, ...LIVE_JOB_STATES) as { n: number }).n;
     if (n >= this.caps.perProjectQueue) invalid('queue_full', `a project holds at most ${this.caps.perProjectQueue} waiting or running jobs`);
   }
@@ -1313,7 +1480,7 @@ export class ExecutionService {
         OR v.version_id IN (SELECT id FROM artifact_versions WHERE produced_by_job_id = @id))`;
       const latest = this.db.prepare(`SELECT v.status FROM validations v WHERE v.blocking = 1 AND ${rel}
         AND NOT EXISTS (SELECT 1 FROM validations w WHERE w.version_id = v.version_id AND w.validator_id = v.validator_id
-          AND (w.finished_at > v.finished_at OR (w.finished_at = v.finished_at AND w.id > v.id)))`).all({ id: j.id }) as { status: string }[];
+          AND (w.finished_at > v.finished_at OR (w.finished_at = v.finished_at AND w.rowid > v.rowid)))`).all({ id: j.id }) as { status: string }[];
       const outs = this.db.prepare('SELECT status FROM artifact_versions WHERE produced_by_job_id = ?').all(j.id) as { status: string }[];
       const liveChildren = (this.db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE parent_job_id = ? AND state IN (${LIVE_JOB_STATES.map(() => '?').join(', ')})`)
         .get(j.id, ...LIVE_JOB_STATES) as { n: number }).n;

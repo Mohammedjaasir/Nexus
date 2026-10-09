@@ -41,6 +41,10 @@
  *   deduplicated by content hash. markReady is finalize performed by the system
  *   principal on the user's behalf (C4), only for drafts no job or session produced.
  *   listForReader filters cross-project rows with a read-only authorize (no audit rows).
+ * - B2a. `saveInline` saves the user-authorable inline kinds (requirement, problem_statement) with
+ *   their register validators recorded by the system, in one transaction. `insertSystemVersionTx`
+ *   (@internal, system only, ingest only) writes job-made drafts with blob/tree storage and the
+ *   project-owned repository; the public create and registerVersion are unchanged.
  */
 import type Database from 'better-sqlite3';
 import type {
@@ -57,6 +61,9 @@ import { PlatformError } from '../errors';
 import { isKnownRelation, writeEdges, type EdgeSpec } from '../lineage/edgeWriter';
 import { ProjectAccess } from '../project/projectAccess';
 import { assertExactJson, contentHashOf, INLINE_MAX_BYTES, validateStorage } from './versionRules';
+import { getDomain } from '../../../shared/nexus/domains';
+import { requirementErrors } from '../validation/validators/reqSchema';
+import { problemErrors } from '../validation/validators/problemSchema';
 
 export interface CreateArtifactInput {
   projectId: ProjectId; workspaceId: WorkspaceId; kind: string; name: string; description?: string; metadata?: Record<string, unknown>;
@@ -67,6 +74,51 @@ export interface RegisterVersionInput {
   producedByJobId?: JobId; producedBySessionId?: SessionId;
   clientKey?: string; action?: string;
 }
+/** One input of an ingested version: the edge source says whether it was granted to the job or found by ingest. */
+export interface SystemVersionInput {
+  artifactId?: ArtifactId;
+  /** A new artifact in the same transaction: owned by `participation`, or (null) the project's one `repository`. */
+  newArtifact?: { kind: string; name: string; participation: string | null };
+  storage: StorageRef; contentHash: string; metadata: unknown; environment: unknown | null;
+  jobId: JobId; attemptN?: number | null; outputPath: string | null; action: string | null; onBehalfOf: string;
+  inputs: { versionId: VersionId; role: string; relation?: LineageRelation; source: 'job_input' | 'ingest' }[];
+  now: number;
+}
+/** The user-authorable inline kinds of B2a and their schema checks (the register validators' own rules). */
+const INLINE_KINDS = Object.freeze({
+  requirement: { action: 'user.save_requirement', errors: requirementErrors },
+  problem_statement: { action: 'user.save_problem', errors: problemErrors }
+});
+export type InlineKind = keyof typeof INLINE_KINDS;
+export interface SaveInlineInput {
+  projectId: ProjectId; workspaceId: WorkspaceId; kind: InlineKind; target: SaveTarget; content: unknown;
+}
+/** Late-bound by the platform once the validation service exists (schema v9). */
+export interface ArtifactValidatorHooks {
+  recordInlineRegisterTx?: (versionId: VersionId, kind: string, content: unknown, now: number) => void;
+}
+
+/** Storage an ingest may write: the B0b kinds plus `blob` and `tree` (the blob store exists from B2a). */
+function systemStorage(s: unknown): StorageRef {
+  if (!isPlainObject(s) || typeof s.kind !== 'string') throw new PlatformError('invalid', 'storage must be an object with a kind');
+  if (s.kind === 'inline' || s.kind === 'git') return validateStorage(s);
+  if (s.kind === 'blob') {
+    if (typeof s.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(s.sha256) || !Number.isSafeInteger(s.bytes) || (s.bytes as number) < 0
+      || typeof s.mediaType !== 'string' || s.mediaType.length < 3 || s.mediaType.length > 100) {
+      throw new PlatformError('invalid', 'blob storage needs { sha256, bytes, mediaType }');
+    }
+    return { kind: 'blob', sha256: s.sha256, bytes: s.bytes as number, mediaType: s.mediaType };
+  }
+  if (s.kind === 'tree') {
+    if (typeof s.manifestSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(s.manifestSha256) || !Number.isSafeInteger(s.files) || (s.files as number) < 0
+      || !Number.isSafeInteger(s.bytes) || (s.bytes as number) < 0) {
+      throw new PlatformError('invalid', 'tree storage needs { manifestSha256, files, bytes }');
+    }
+    return { kind: 'tree', manifestSha256: s.manifestSha256, files: s.files as number, bytes: s.bytes as number };
+  }
+  throw new PlatformError('invalid', 'unknown storage kind');
+}
+
 export type PromoteResult =
   | { ok: true; version: ArtifactVersion; previous: VersionId | null }
   | { ok: false; code: 'conflict'; currentVersionId: VersionId | null };
@@ -169,7 +221,7 @@ export class ArtifactService {
   private readonly access: ProjectAccess;
   private readonly principals: PrincipalResolver;
 
-  constructor(private readonly db: Database.Database, private readonly deps: { auth: AuthService; now: () => number }) {
+  constructor(private readonly db: Database.Database, private readonly deps: { auth: AuthService; now: () => number; validators?: ArtifactValidatorHooks }) {
     this.access = new ProjectAccess(db, { auth: deps.auth });
     this.principals = new PrincipalResolver(db);
   }
@@ -463,12 +515,19 @@ export class ArtifactService {
     return toVersion(this.versionRow(v.id)!);
   }
 
-  /** @internal The body of promote(): compare-and-set on the current pointer, single-active, one 'version.promote' row. */
-  promoteTx(p: Principal, versionId: VersionId, expectedCurrentVersionId: VersionId | null, now: number): PromoteResult {
+  /**
+   * @internal The body of promote(): compare-and-set on the current pointer, single-active, one 'version.promote' row.
+   * B2a: the stored system principal may also promote a version of the project-owned `repository` (the platform policy
+   * that a validated snapshot becomes active), and `o.onBehalfOf` names the user it acted for on the activity row.
+   */
+  promoteTx(p: Principal, versionId: VersionId, expectedCurrentVersionId: VersionId | null, now: number, o?: { onBehalfOf?: string }): PromoteResult {
     this.requireTx();
     const v = this.versionRow(versionId);
     if (!v) throw new PlatformError('not_found', 'version not found');
-    const art = this.requireWritableArtifact(v.artifact_id);
+    const owned = this.artifactRow(v.artifact_id);
+    const systemOnProject = owned !== null && owned.owner_scope === 'project' && owned.kind === 'repository' && owned.status === 'active'
+      && p?.kind === 'system' && this.principals.get(p.id)?.kind === 'system';
+    const art = systemOnProject ? owned! : this.requireWritableArtifact(v.artifact_id);
     const previous = art.current_version_id;
     if (previous !== expectedCurrentVersionId) return { ok: false, code: 'conflict', currentVersionId: previous };
     const rollback = v.status === 'deprecated' && v.promoted_at !== null;
@@ -485,10 +544,200 @@ export class ArtifactService {
     if (moved.changes !== 1) throw new PlatformError('conflict', 'the current version moved during promotion');
     this.db.prepare("UPDATE artifact_versions SET status = 'deprecated', status_changed_at = ? WHERE artifact_id = ? AND status = 'active' AND id <> ?")
       .run(now, art.id, v.id);
-    appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, projectId: v.project_id, workspaceId: art.owner_workspace_id,
-      artifactId: art.id, versionId: v.id, entityType: 'artifact_version', entityId: v.id, action: 'version.promote',
+    appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, onBehalfOf: o?.onBehalfOf ?? null, projectId: v.project_id,
+      workspaceId: art.owner_workspace_id, artifactId: art.id, versionId: v.id, entityType: 'artifact_version', entityId: v.id, action: 'version.promote',
       status: 'succeeded', details: { from: v.status, previous, rollback } }, now);
     return { ok: true, version: toVersion(this.versionRow(v.id)!), previous };
+  }
+
+  /**
+   * @internal For execution ingest only, INSIDE its IMMEDIATE transaction. Appends a draft version made by a job,
+   * written whole while it is a draft (storage, content hash, metadata, environment, output path): the version is
+   * immutable afterwards. Accepts every storage kind (`blob` and `tree` included) and the project-owned `repository`.
+   * - Only the stored system principal (else 'invalid'); the producing job must exist, be live, be in the artifact's
+   *   project and act for its owning participation (a project-owned repository has none).
+   * - `artifactId` appends to an active artifact (participation-owned: the owner must be active), or `newArtifact`
+   *   creates one in the same transaction (participation-owned, or the project's one repository with `participation: null`).
+   * - Inputs must be out of draft and in the project; an input whose edge source is `job_input` must be granted to
+   *   the job as the same (version, role) in job_inputs, else 'input_not_granted' (the B0b rule).
+   * - Lineage edges are written with their own source (`job_input` or `ingest`); one 'version.register' row (actor
+   *   system, on behalf of the job's user).
+   * The public `create` still refuses `repository`, and the public `registerVersion` still answers
+   * 'storage_unavailable' for blob, tree and external storage.
+   */
+  insertSystemVersionTx(system: Principal, o: SystemVersionInput): ArtifactVersion {
+    this.requireTx();
+    if (system?.kind !== 'system' || this.principals.get(system.id)?.kind !== 'system') {
+      throw new PlatformError('invalid', 'an ingested version is written by the system principal');
+    }
+    const storage = systemStorage(o.storage);
+    if (typeof o.contentHash !== 'string' || o.contentHash.length === 0 || o.contentHash.length > 200) throw new PlatformError('invalid', 'contentHash is required');
+    if (o.outputPath !== null && (typeof o.outputPath !== 'string' || o.outputPath.length === 0 || o.outputPath.length > 1024)) {
+      throw new PlatformError('invalid', 'outputPath must be a short path');
+    }
+    if (o.action !== null && (typeof o.action !== 'string' || !ACTION_RE.test(o.action))) throw new PlatformError('invalid', 'action must be a short lowercase label');
+    assertExactJson(o.metadata, 'metadata');
+    const metadataJson = JSON.stringify(o.metadata);
+    if (Buffer.byteLength(metadataJson, 'utf8') > INLINE_MAX_BYTES) throw new PlatformError('invalid', `metadata exceeds ${INLINE_MAX_BYTES} bytes`);
+    const environmentJson = o.environment === null ? null : JSON.stringify(o.environment);
+    const job = this.db.prepare(`SELECT j.id, j.project_id, j.participation_id, s.terminal FROM jobs j JOIN job_states s ON s.state = j.state
+      WHERE j.id = ?`).get(o.jobId) as { id: string; project_id: string; participation_id: string | null; terminal: number } | undefined;
+    if (!job) throw new PlatformError('not_found', 'producing job not found');
+    if (job.terminal === 1) throw new PlatformError('conflict', 'the producing job has finished');
+    const now = o.now;
+    let art: ArtifactRow;
+    if (o.artifactId !== undefined) {
+      const a = this.artifactRow(o.artifactId);
+      if (!a) throw new PlatformError('not_found', 'artifact not found');
+      art = a.owner_scope === 'project' && a.kind === 'repository' && a.status === 'active' ? a : this.requireWritableArtifact(a.id);
+    } else if (o.newArtifact) {
+      const n = o.newArtifact;
+      if (typeof n.name !== 'string' || n.name.trim().length === 0 || n.name.length > 200) throw new PlatformError('invalid', 'name must be 1 to 200 characters');
+      if (!KIND_RE.test(n.kind)) throw new PlatformError('invalid', 'kind must be a lowercase identifier');
+      if (n.participation === null) {
+        if (n.kind !== 'repository') throw new PlatformError('invalid', 'only the repository is project-owned');
+        const id = newId(now);
+        this.db.prepare(`INSERT INTO artifacts (id, project_id, kind, name, description, owner_scope, owner_participation_id, owner_workspace_id,
+            created_by, status, current_version_id, metadata_json, created_at, updated_at)
+          VALUES (?, ?, 'repository', ?, NULL, 'project', NULL, NULL, ?, 'active', NULL, '{}', ?, ?)`).run(id, job.project_id, n.name, system.id, now, now);
+        appendActivityRow(this.db, { actorKind: system.kind, actorId: system.id, onBehalfOf: o.onBehalfOf, jobId: job.id, projectId: job.project_id,
+          artifactId: id, entityType: 'artifact', entityId: id, action: 'artifact.create', status: 'succeeded',
+          details: { kind: 'repository' } }, now);
+        art = this.artifactRow(id)!;
+      } else {
+        const pw = this.db.prepare("SELECT id, project_id, workspace_id FROM project_workspaces WHERE id = ? AND status = 'active'")
+          .get(n.participation) as { id: string; project_id: string; workspace_id: string } | undefined;
+        if (!pw) throw new PlatformError('participation_inactive', 'the owning participation is not active');
+        art = this.artifactRow(this.insertArtifactTx(system, { participation: pw, kind: n.kind, name: n.name, description: null,
+          metadataJson: '{}', now }).id)!;
+      }
+    } else {
+      throw new PlatformError('invalid', 'an ingested version names its artifact or a new one');
+    }
+    if (art.project_id !== job.project_id) throw new PlatformError('invalid', 'the producing job belongs to another project');
+    if (art.owner_scope === 'participation' && job.participation_id !== art.owner_participation_id) {
+      throw new PlatformError('invalid', "the producing job does not act for the artifact's owning participation");
+    }
+    const inputs = Array.isArray(o.inputs) ? o.inputs : [];
+    const granted = this.db.prepare('SELECT 1 FROM job_inputs WHERE job_id = ? AND version_id = ? AND role = ?');
+    for (const x of inputs) {
+      const v = this.versionRow(x.versionId);
+      if (!v || v.project_id !== job.project_id) throw new PlatformError('invalid', 'an input is not a version of the project');
+      if (v.status === 'draft') throw new PlatformError('invalid', 'a draft cannot be an input');
+      if (x.source === 'job_input' && granted.get(job.id, x.versionId, x.role) === undefined) {
+        throw new PlatformError('input_not_granted', 'an input is not granted to the job as that version and role');
+      }
+      if (x.relation !== undefined && !isKnownRelation(this.db, x.relation)) throw new PlatformError('invalid', 'unknown lineage relation');
+    }
+    const versionNo = (this.db.prepare('SELECT COALESCE(MAX(version_no), 0) + 1 AS n FROM artifact_versions WHERE artifact_id = ?')
+      .get(art.id) as { n: number }).n;
+    const id = newId(now);
+    const inputsJson = JSON.stringify(inputs.filter((x) => x.source === 'job_input').map((x) => ({ versionId: x.versionId, role: x.role })));
+    this.db.prepare(`INSERT INTO artifact_versions (id, artifact_id, version_no, project_id, participation_id, status, draft_flag,
+        storage_kind, storage_ref_json, content_hash, inputs_json, io_contract_json, metadata_json, validation_state,
+        produced_by_job_id, produced_by_session_id, produced_by_action, actor_id, on_behalf_of, environment_json,
+        created_at, status_changed_at, promoted_by, promoted_at, purged_at, client_key, output_path)
+      VALUES (?, ?, ?, ?, ?, 'draft', NULL, ?, ?, ?, ?, NULL, ?, 'pending', ?, NULL, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?)`)
+      .run(id, art.id, versionNo, art.project_id, art.owner_participation_id, storage.kind, JSON.stringify(storage), o.contentHash,
+        inputsJson, metadataJson, job.id, o.action, system.id, o.onBehalfOf, environmentJson, now, now, o.outputPath);
+    let edgeCount = 0;
+    for (const source of ['job_input', 'ingest'] as const) {
+      const edges: EdgeSpec[] = inputs.filter((x) => x.source === source && x.relation !== undefined)
+        .map((x) => ({ toVersionId: x.versionId, relation: x.relation as LineageRelation }));
+      if (edges.length) edgeCount += writeEdges(this.db, { fromVersionId: id, edges, source, jobId: job.id, createdBy: system.id, now });
+    }
+    this.db.prepare('UPDATE artifacts SET updated_at = ? WHERE id = ?').run(now, art.id);
+    appendActivityRow(this.db, { actorKind: system.kind, actorId: system.id, onBehalfOf: o.onBehalfOf, jobId: job.id, attemptN: o.attemptN ?? null,
+      projectId: art.project_id, workspaceId: art.owner_workspace_id, artifactId: art.id, versionId: id, entityType: 'artifact_version',
+      entityId: id, action: 'version.register', status: 'succeeded',
+      details: { versionNo, storageKind: storage.kind, inputs: inputs.length, edges: edgeCount } }, now);
+    return toVersion(this.versionRow(id)!);
+  }
+
+  /**
+   * B2a: saves a user-authored inline kind (`requirement`, `problem_statement`) as a draft version, in ONE transaction
+   * with its activity rows and its register validator results (recorded by the system).
+   * - `kind` must be user-authorable inline ('invalid', reason 'kind_not_authorable') and produced by the domain of
+   *   `workspaceId` ('kind_not_in_domain'). `content` must meet the kind's schema ('bad_content'; a secret-shaped
+   *   value is 'secret_in_metadata') before anything is written.
+   * - New artifact (`target.name`) or append (`target.artifactId`), authorized exactly like saveUserVersion.
+   * - Dedupe: the same content as the latest live version of the target (or of an active artifact with the same owner,
+   *   kind and name) returns that version with `created: false` and writes nothing.
+   * Needs schema v9 (the validations table): otherwise 'platform_unavailable'.
+   */
+  saveInline(p: Principal, i: SaveInlineInput): { artifact: Artifact; version: ArtifactVersion; created: boolean } {
+    if (!isPlainObject(i)) throw new PlatformError('invalid', 'input must be an object');
+    if (p?.kind !== 'user') throw new PlatformError('invalid', 'an inline save is made by a user principal');
+    if (!isStr(i.projectId) || !isStr(i.workspaceId)) throw new PlatformError('invalid', 'projectId and workspaceId are required');
+    const kind = i.kind as string;
+    const rule = INLINE_KINDS[kind as InlineKind];
+    if (!rule) throw new PlatformError('invalid', `kind must be one of ${Object.keys(INLINE_KINDS).join(', ')}`, { reason: 'kind_not_authorable' });
+    const domain = getDomain(i.workspaceId);
+    if (!domain || !domain.kindsProduced.includes(kind)) {
+      throw new PlatformError('invalid', `the ${i.workspaceId.slice(0, 32)} workspace does not produce a ${kind}`, { reason: 'kind_not_in_domain' });
+    }
+    const check = rule.errors(i.content);
+    if (check.secret) throw new PlatformError('invalid', 'the content holds a secret-shaped value', { reason: 'secret_in_metadata' });
+    if (check.errors.length > 0) {
+      throw new PlatformError('invalid', `the ${kind} breaks its schema: ${check.errors[0].path || '/'} ${check.errors[0].message}`,
+        { reason: 'bad_content', errors: check.errors.slice(0, 20) });
+    }
+    const hook = this.deps.validators;
+    if (!hook || typeof hook.recordInlineRegisterTx !== 'function') {
+      throw new PlatformError('platform_unavailable', 'inline saves need the validation records of schema v9', { reason: 'not_enabled' });
+    }
+    const storage = validateStorage({ kind: 'inline', json: i.content });
+    const contentHash = contentHashOf(storage);
+    const t = i.target as unknown;
+    if (!isPlainObject(t)) throw new PlatformError('invalid', 'target must be an object');
+    const byId = Object.prototype.hasOwnProperty.call(t, 'artifactId');
+    const byName = Object.prototype.hasOwnProperty.call(t, 'name');
+    if (byId === byName || Object.keys(t).length !== 1) throw new PlatformError('invalid', 'target names either an artifactId or a name');
+    const version = { storage, contentHash, metadataJson: '{}', ioContractJson: null, inputs: [], jobId: null, sessionId: null,
+      action: rule.action, clientKey: null };
+    const record = (v: ArtifactVersion, now: number): void => hook.recordInlineRegisterTx!(v.id, kind, i.content, now);
+
+    if (byId) {
+      if (!isStr(t.artifactId)) throw new PlatformError('invalid', 'target.artifactId must be an id');
+      const a = this.loadArtifact(p, t.artifactId, 'version.register');
+      if (a.project_id !== i.projectId) throw new PlatformError('invalid', 'the artifact belongs to another project');
+      if (a.kind !== kind) throw new PlatformError('invalid', `the artifact is a ${a.kind}, not a ${kind}`, { reason: 'kind_mismatch' });
+      if (a.owner_workspace_id !== i.workspaceId) throw new PlatformError('invalid', 'the artifact is owned by another workspace');
+      const now = this.deps.now();
+      return immediateTx(this.db, () => {
+        const art = this.requireWritableArtifact(a.id);
+        const latest = this.latestLiveVersion(art.id);
+        if (latest && latest.content_hash === contentHash) return { artifact: toArtifact(art), version: toVersion(latest), created: false };
+        const v = this.insertVersionTx(p, art.id, { ...version, now });
+        record(v, now);
+        return { artifact: toArtifact(this.artifactRow(art.id)!), version: toVersion(this.versionRow(v.id)!), created: true };
+      });
+    }
+    const name = t.name;
+    if (typeof name !== 'string' || name.trim().length === 0 || name.length > 200) throw new PlatformError('invalid', 'name must be 1 to 200 characters');
+    refuseSecretText(name, 'name');
+    const pw = this.activeParticipation(i.projectId, i.workspaceId);
+    if (!pw) {
+      this.access.require(p, i.projectId, 'artifact.create');
+      throw new PlatformError('not_participating', 'the project does not actively take part in that workspace');
+    }
+    this.access.require(p, pw.project_id, 'artifact.create', { workspaceId: pw.workspace_id });
+    this.access.require(p, pw.project_id, 'version.register', { workspaceId: pw.workspace_id });
+    const now = this.deps.now();
+    return immediateTx(this.db, () => {
+      const live = this.activeParticipation(i.projectId, i.workspaceId);
+      if (!live || live.id !== pw.id) throw new PlatformError('not_participating', 'the participation is no longer active');
+      const dup = this.db.prepare(`SELECT a.id AS artifact_id, v.id AS version_id FROM artifacts a
+          JOIN artifact_versions v ON v.id = (SELECT x.id FROM artifact_versions x WHERE x.artifact_id = a.id
+            AND x.status IN ('draft','candidate','active') ORDER BY x.version_no DESC LIMIT 1)
+        WHERE a.owner_participation_id = ? AND a.kind = ? AND a.name = ? AND a.status = 'active' AND v.content_hash = ?
+        ORDER BY a.created_at, a.id LIMIT 1`).get(pw.id, kind, name, contentHash) as { artifact_id: string; version_id: string } | undefined;
+      if (dup) return { artifact: toArtifact(this.artifactRow(dup.artifact_id)!), version: toVersion(this.versionRow(dup.version_id)!), created: false };
+      const artifact = this.insertArtifactTx(p, { participation: pw, kind, name, description: null, metadataJson: '{}', now });
+      const v = this.insertVersionTx(p, artifact.id, { ...version, now });
+      record(v, now);
+      return { artifact: toArtifact(this.artifactRow(artifact.id)!), version: toVersion(this.versionRow(v.id)!), created: true };
+    });
   }
 
   // ---------- B1: summaries and cross-project reads ----------

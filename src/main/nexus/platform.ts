@@ -19,6 +19,9 @@ import { HandoffService } from './handoff/handoffService';
 import { JobService } from './jobs/jobService';
 import { BlobIndex } from './blobs/blobIndex';
 import { ExecutionService, type ExecDataHome, type EgressApprovalPort, type IngestPort } from './exec/executionService';
+import { IngestService } from './exec/ingest';
+import { ValidationService, type ResolveCommit } from './validation/validationService';
+import type { ArtifactValidatorHooks } from './artifact/artifactService';
 import type { SandboxProfile } from '../../shared/nexus/execution';
 import { PrincipalResolver } from './auth/principals';
 import { LineageService } from './lineage/lineageService';
@@ -55,6 +58,8 @@ export interface NexusPlatform {
   exec: ExecutionService;
   /** The one blob index of this platform (ingest and GC share it and its lock); null unless execution is available. */
   blobs: BlobIndex | null;
+  /** Validator results, the finalize rule and the validate jobs (schema v9); null unless execution is available. */
+  validation: ValidationService | null;
   startup(): NexusStartupReport;
 }
 
@@ -75,7 +80,12 @@ export interface NexusPlatformOptions {
   profiles?: readonly SandboxProfile[];
   acceptFsRoot?: ((root: string) => string | null) | null;
   approvals?: EgressApprovalPort | null;
+  /** The ingest of runner outputs: omitted, the platform's own (Task 8); null, none (exits then fail ingest_unavailable). */
   ingest?: IngestPort | null;
+  /** main's own async commit resolution in the project folder (src/main/git.ts resolveCommit), for git.head_resolves. */
+  resolveCommit?: ResolveCommit | null;
+  /** Tests only: fault injection inside the ingest transaction. */
+  ingestFaults?: { afterRows?: (recipeId: string) => void } | null;
   /** The Nexus app version recorded in each attempt's environment. */
   appVersion?: string | null;
 }
@@ -93,7 +103,9 @@ export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformO
   let handoffs: HandoffService | null = null;
   const workspaces = new WorkspaceService(db, { auth, now, log, openHandoffs: (id) => handoffs?.openCountFor(id) ?? 0 });
   const projects = new ProjectAccess(db, { auth });
-  const artifacts = new ArtifactService(db, { auth, now });
+  // Late-bound: inline saves record their register validators once the validation service exists (v9).
+  const artifactHooks: ArtifactValidatorHooks = {};
+  const artifacts = new ArtifactService(db, { auth, now, validators: artifactHooks });
   const lineage = new LineageService(db, { auth, now });
   const jobs = new JobService(db, { auth, now });
   const sessions = new SessionService(db, { auth, jobs, now });
@@ -108,15 +120,22 @@ export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformO
       : !handoffsAvailable ? 'v8_unavailable' : 'shape';
   // Exactly one BlobIndex per platform, shared by ingest and GC (one lock); built only with execution.
   const blobs = executionAvailable ? new BlobIndex(db, { auth, now }) : null;
+  const validation = executionAvailable ? new ValidationService(db, { auth, artifacts, jobs, now, log, blobs,
+    resolveCommit: opts?.resolveCommit ?? null, acceptFsRoot: opts?.acceptFsRoot ?? null, appVersion: opts?.appVersion ?? null }) : null;
+  if (validation) artifactHooks.recordInlineRegisterTx = (versionId, kind, content) => validation.recordInlineRegisterTx(versionId, kind, content);
+  const ingest: IngestPort | null = opts?.ingest !== undefined ? opts.ingest
+    : validation ? new IngestService(db, { artifacts, validation, blobs, now, resolveCommit: opts?.resolveCommit ?? null, faults: opts?.ingestFaults ?? null })
+      : null;
   const exec = new ExecutionService(db, {
     auth, jobs, now, log, available: executionAvailable, unavailableReason, blobs,
     dataHome: opts?.dataHome ?? null, profiles: opts?.profiles ?? [], acceptFsRoot: opts?.acceptFsRoot ?? null,
-    approvals: opts?.approvals ?? null, ingest: opts?.ingest ?? null, appVersion: opts?.appVersion ?? null
+    approvals: opts?.approvals ?? null, ingest, validation, appVersion: opts?.appVersion ?? null
   });
+  validation?.setSender((msg) => exec.sendToRunner(msg));
   if (executionAvailable) log('[nexus] execution core ready: runner not attached');
   return {
     principals, auth, activity, workspaces, projects, artifacts, lineage, jobs, sessions, handoffs, handoffsAvailable, executionAvailable,
-    exec, blobs,
+    exec, blobs, validation,
     startup(): NexusStartupReport {
       // The seeded principals must resolve; a missing one throws platform_unavailable.
       principals.localUser();

@@ -352,8 +352,12 @@ test('F1 ArtifactService exposes exactly its public API plus the four @internal 
   assert.deepEqual(Object.getOwnPropertyNames(proto).filter((k) => k !== 'constructor' && typeof proto[k] === 'function' && !PRIVATE.includes(k)).sort(),
     ['archive', 'create', 'discard', 'finalize', 'get', 'getVersion', 'listByProject', 'listForReader', 'listVersions', 'markReady',
       'promote', 'registerVersion', 'saveUserVersion', 'summariesByProject', 'updateDraft',
+      // B2a Task 8: the inline save of user-authorable kinds (requirement, problem_statement).
+      'saveInline',
       // @internal: in-transaction, authorize nothing; never map them to a transport.
-      'insertArtifactTx', 'insertVersionTx', 'promoteTx', 'setStatusTx'].sort());
+      'insertArtifactTx', 'insertVersionTx', 'promoteTx', 'setStatusTx',
+      // @internal (B2a Task 8): the ingest-only system insert (blob/tree storage, the project-owned repository).
+      'insertSystemVersionTx'].sort());
   // Outside a transaction the helpers refuse; setStatusTx refuses a non-system actor even inside one.
   const { version } = nx.artifacts.saveUserVersion(me, textSave('p-ledger', 'sde', { name: 'Draft' }));
   assert.throws(() => nx.artifacts.setStatusTx(nx.principals.system(), version.id, 'candidate', { now: h.NOW }), (e) => e.code === 'invalid');

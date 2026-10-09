@@ -191,6 +191,14 @@ export class BlobGcLock {
     return () => { if (done) return; done = true; this.shared--; };
   }
 
+  /** Take the lock shared now, or null while a GC holds it (never waits). The returned release is idempotent. */
+  takeSharedNow(): (() => void) | null {
+    if (this.exclusive) return null;
+    this.shared++;
+    let done = false;
+    return () => { if (done) return; done = true; this.shared--; };
+  }
+
   /** Take the lock exclusively now, or null when anyone holds it. The returned release is idempotent. */
   tryExclusive(): (() => void) | null {
     if (this.exclusive || this.shared > 0) return null;
@@ -228,6 +236,20 @@ export class BlobIndex {
     const token: IngestToken = Object.freeze({ ingest: true as const });
     this.live.add(token);
     try { return await fn(token); } finally { this.live.delete(token); release(); }
+  }
+
+  /**
+   * The same lock and token as `withIngestLock`, taken without waiting: when no GC holds the lock it is taken
+   * SHARED now, `fn` runs synchronously with a live token, and the lock is released when `fn` returns or throws.
+   * While a GC holds it nothing runs and `{ ran: false }` comes back (the caller waits with `withIngestLock`).
+   */
+  tryWithIngestLockSync<T>(fn: (token: IngestToken) => T): { ran: true; value: T } | { ran: false } {
+    if (this.lock.exclusiveHeld) return { ran: false };
+    const release = this.lock.takeSharedNow();
+    if (!release) return { ran: false };
+    const token: IngestToken = Object.freeze({ ingest: true as const });
+    this.live.add(token);
+    try { return { ran: true, value: fn(token) }; } finally { this.live.delete(token); release(); }
   }
 
   /** True while a GC apply holds the lock (see the CONTRACT in the module header). */
