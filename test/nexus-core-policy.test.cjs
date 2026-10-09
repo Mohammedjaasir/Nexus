@@ -41,3 +41,25 @@ test('B1 handoff actions: classified exactly once, read for viewers, the three w
   }
   assert.ok(P.SYSTEM_ONLY_ACTIONS.includes('version.finalize'), 'finalize stays system only');
 });
+test('B2a execution actions: each classified exactly once, with its minimum role or system only', () => {
+  const owner = P.OWNER_ACTIONS;
+  const every = [...ALL, ...owner];
+  assert.equal(new Set(every).size, every.length);
+  const rows = [
+    ['approval.read', 'viewer'], ['platform.health', 'viewer'],
+    ['deployment.stop', 'member'], ['version.revalidate', 'member'],
+    ['blob.gc', 'admin'], ['approval.respond', 'owner']
+  ];
+  const below = { viewer: null, member: 'viewer', admin: 'member', owner: 'admin' };
+  for (const [a, role] of rows) {
+    assert.equal(every.filter((x) => x === a).length, 1, a);
+    assert.equal(P.decide({ principal: user, roles: [role], action: a }).allowed, true, a);
+    if (below[role]) assert.deepEqual(P.decide({ principal: user, roles: [below[role]], action: a }), { allowed: false, reason: 'role', needed: role }, a);
+    assert.equal(P.decide({ principal: agent, roles: ['owner'], action: a }).reason, 'agent_requires_token', a);
+  }
+  for (const a of ['approval.create', 'deployment.transition', 'exec.ingest']) {
+    assert.ok(P.SYSTEM_ONLY_ACTIONS.includes(a), a);
+    assert.equal(P.decide({ principal: user, roles: ['owner'], action: a }).reason, 'system_only', a);
+    assert.equal(P.decide({ principal: system, roles: ['admin'], action: a }).allowed, true, a);
+  }
+});

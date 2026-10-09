@@ -26,7 +26,7 @@ export const ACTIVITY_ACTIONS: readonly string[] = Object.freeze([
   'job.create', 'job.cancel', 'job.recover', 'job.transition',
   'session.open', 'session.cancel', 'session.recover', 'session.transition',
   'db.migrated', 'workspace.catalog_ensured', 'project_workspace.primary_synced',
-  'blob.gc'
+  'blob.gc', 'approval.withdraw'
 ]);
 
 /** Plain words for an action a person may be refused (every platform action). */
@@ -66,7 +66,13 @@ const ACTION_WORDS: Record<string, string> = {
   'db.migrated': 'upgrade the database',
   'workspace.catalog_ensured': 'update the workspace list',
   'project_workspace.primary_synced': 'set the main workspace',
-  'blob.gc': 'clean up unused stored files'
+  'blob.gc': 'clean up unused stored files',
+  'approval.read': 'read approvals',
+  'approval.respond': 'answer an approval',
+  'approval.withdraw': 'withdraw an approval',
+  'deployment.stop': 'stop a dev deployment',
+  'version.revalidate': 'run the checks again',
+  'platform.health': 'read the platform health'
 };
 
 const ACTION_SHAPE = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/;
@@ -208,6 +214,7 @@ function sentence(row: ActivityView, ctx: ActivityContext): string | null {
     case 'db.migrated': return 'Database upgraded';
     case 'workspace.catalog_ensured': return 'Workspace list updated';
     case 'blob.gc': return row.status === 'started' ? 'Clean-up of unused stored files started' : 'Unused stored files cleaned up';
+    case 'approval.withdraw': return 'Approval request withdrawn: the job was stopped';
     case 'project_workspace.primary_synced': {
       const ws = workspacePhrase(detail(row, 'workspaceId'), ctx);
       return ws ? `Main workspace set to ${ws}, from the project's domain` : "Main workspace set from the project's domain";

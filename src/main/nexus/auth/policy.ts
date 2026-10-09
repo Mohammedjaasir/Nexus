@@ -22,27 +22,33 @@ export const ROLE_RANK: Record<Role, number> = { viewer: 1, member: 2, admin: 3,
 
 export const READ_ACTIONS: readonly PlatformAction[] = Object.freeze([
   'project.read', 'workspace.read', 'artifact.read', 'lineage.read', 'job.read', 'session.read', 'activity.read',
-  'handoff.read'
+  'handoff.read', 'approval.read', 'platform.health'
 ] as PlatformAction[]);
 
 export const MEMBER_ACTIONS: readonly PlatformAction[] = Object.freeze([
   'participation.attach', 'participation.withdraw', 'artifact.create',
   'version.register', 'version.update_draft', 'version.discard', 'version.promote',
   'lineage.write', 'job.create', 'job.cancel', 'session.open', 'session.cancel',
-  'handoff.send', 'handoff.respond', 'handoff.withdraw'
+  'handoff.send', 'handoff.respond', 'handoff.withdraw', 'deployment.stop', 'version.revalidate'
 ] as PlatformAction[]);
 
 // blob.gc: apply a blob GC (B2a, A6) at platform scope; the local owner and the system principal (admin) may.
 export const ADMIN_ACTIONS: readonly PlatformAction[] = Object.freeze(['artifact.archive', 'blob.gc'] as PlatformAction[]);
 
+// approval.respond: a user's once-only consent (egress, image preparation). Owner today; admin for those in multi-user later.
+export const OWNER_ACTIONS: readonly PlatformAction[] = Object.freeze(['approval.respond'] as PlatformAction[]);
+
+// approval.create, deployment.transition and exec.ingest: written by the execution core as the system principal only.
 export const SYSTEM_ONLY_ACTIONS: readonly PlatformAction[] = Object.freeze([
-  'version.finalize', 'job.transition', 'session.transition', 'system.reconcile'
+  'version.finalize', 'job.transition', 'session.transition', 'system.reconcile',
+  'approval.create', 'deployment.transition', 'exec.ingest'
 ] as PlatformAction[]);
 
 const MIN_ROLE = new Map<PlatformAction, Role>([
   ...READ_ACTIONS.map((a) => [a, 'viewer'] as const),
   ...MEMBER_ACTIONS.map((a) => [a, 'member'] as const),
-  ...ADMIN_ACTIONS.map((a) => [a, 'admin'] as const)
+  ...ADMIN_ACTIONS.map((a) => [a, 'admin'] as const),
+  ...OWNER_ACTIONS.map((a) => [a, 'owner'] as const)
 ]);
 const SYSTEM_ONLY = new Set<PlatformAction>(SYSTEM_ONLY_ACTIONS);
 

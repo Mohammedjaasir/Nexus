@@ -387,18 +387,53 @@ export class JobService {
 
   /** System only. Moves a job along the state table; see the header for the column rules. */
   transition(system: Principal, id: JobId, to: JobState, d?: { outcome?: string; error?: JobError; runtimeRef?: string }): Job {
+    const t = this.prepareTransition(system, id, to, d);
+    const now = this.deps.now();
+    return immediateTx(this.db, () => {
+      const j = this.row(t.stored.id)!;
+      this.applyTransition(system, j, to, now, { ...t.o, action: 'job.transition' });
+      return this.toJob(this.row(j.id)!);
+    });
+  }
+
+  /**
+   * @internal For the execution core only (ExecutionService), INSIDE the caller's IMMEDIATE transaction.
+   * The same rules, byte for byte, as `create`: it IS `create`, whose own immediateTx becomes a savepoint of
+   * the caller's transaction. The caller authorizes BEFORE opening its transaction (a denial raised in here
+   * is audited only after the transaction ends).
+   */
+  createTx(p: Principal, i: CreateJobInput): { job: Job; created: boolean } {
+    if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'createTx needs an open transaction');
+    return this.create(p, i);
+  }
+
+  /**
+   * @internal For the execution core only, INSIDE the caller's IMMEDIATE transaction. The same rules as
+   * `transition` (system only, the state table, canRetry, no resurrection, the column rules and one activity
+   * row). `expectState` makes the UPDATE a compare-and-set (`AND state = ?`, exactly one row changed, else
+   * 'conflict'); `action` names the activity row (default 'job.transition'). `now` defaults to the clock.
+   */
+  transitionTx(system: Principal, id: JobId, to: JobState, d?: { outcome?: string; error?: JobError; runtimeRef?: string },
+    o?: { expectState?: JobState; action?: string; now?: number }): Job {
+    if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'transitionTx needs an open transaction');
+    const t = this.prepareTransition(system, id, to, d);
+    const j = this.row(t.stored.id)!;
+    if (o?.expectState !== undefined && j.state !== o.expectState) {
+      throw new PlatformError('conflict', `the job is ${j.state}, not ${o.expectState}`, { from: j.state, expected: o.expectState });
+    }
+    this.applyTransition(system, j, to, o?.now ?? this.deps.now(), { ...t.o, action: o?.action ?? 'job.transition' }, o?.expectState);
+    return this.toJob(this.row(j.id)!);
+  }
+
+  private prepareTransition(system: Principal, id: JobId, to: JobState, d?: { outcome?: string; error?: JobError; runtimeRef?: string }):
+    { stored: JobRow; o: { outcome: string | null; errorJson: string | null; runtimeRef: string | null } } {
     if (!isJobState(to)) throw new PlatformError('invalid', 'unknown job state');
     if (d !== undefined && !isPlainObject(d)) throw new PlatformError('invalid', 'details must be an object');
     const outcome = d?.outcome === undefined ? null : validateOutcome(d.outcome);
     const errorJson = d?.error === undefined ? null : redactedErrorJson(d.error);
     const runtimeRef = d?.runtimeRef === undefined ? null : validateRef(d.runtimeRef);
     const stored = this.load(system, id, 'job.transition');
-    const now = this.deps.now();
-    return immediateTx(this.db, () => {
-      const j = this.row(stored.id)!;
-      this.applyTransition(system, j, to, now, { outcome, errorJson, runtimeRef, action: 'job.transition' });
-      return this.toJob(this.row(j.id)!);
-    });
+    return { stored, o: { outcome, errorJson, runtimeRef } };
   }
 
   /**
@@ -451,7 +486,7 @@ export class JobService {
   // ---------- helpers ----------
 
   private applyTransition(actor: Principal, j: JobRow, to: JobState, now: number,
-    o: { outcome: string | null; errorJson: string | null; runtimeRef: string | null; action: string }): void {
+    o: { outcome: string | null; errorJson: string | null; runtimeRef: string | null; action: string }, expectState?: JobState): void {
     if (!canTransitionJob(j.state, to)) {
       throw new PlatformError('illegal_transition', `a ${j.state} job cannot move to ${to}`, { from: j.state, to });
     }
@@ -480,7 +515,11 @@ export class JobService {
     }
     if (o.errorJson !== null) { sets.push('error_json = ?'); args.push(o.errorJson); }
     if (o.runtimeRef !== null) { sets.push('runtime_ref = ?'); args.push(o.runtimeRef); }
-    this.db.prepare(`UPDATE jobs SET ${sets.join(', ')} WHERE id = ?`).run(...args, j.id);
+    if (expectState === undefined) {
+      this.db.prepare(`UPDATE jobs SET ${sets.join(', ')} WHERE id = ?`).run(...args, j.id);
+    } else if (this.db.prepare(`UPDATE jobs SET ${sets.join(', ')} WHERE id = ? AND state = ?`).run(...args, j.id, expectState).changes !== 1) {
+      throw new PlatformError('conflict', `the job left ${expectState} before the change`, { expected: expectState });
+    }
     appendActivityRow(this.db, { actorKind: actor.kind, actorId: actor.id, onBehalfOf: j.on_behalf_of, jobId: j.id,
       sessionId: j.session_id, attemptN: attempts, projectId: j.project_id, workspaceId: j.workspace_id, entityType: 'job',
       entityId: j.id, action: o.action, status: 'succeeded',

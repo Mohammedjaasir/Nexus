@@ -18,7 +18,10 @@ export type PlatformAction =
   | 'session.read' | 'session.open' | 'session.cancel' | 'session.transition'
   | 'activity.read' | 'system.reconcile'
   | 'handoff.read' | 'handoff.send' | 'handoff.respond' | 'handoff.withdraw'
-  | 'blob.gc';
+  | 'blob.gc'
+  // B2a execution: approvals, deployments, revalidation, health, and the system-only execution writes.
+  | 'approval.read' | 'approval.respond' | 'approval.create' | 'deployment.stop' | 'deployment.transition'
+  | 'version.revalidate' | 'platform.health' | 'exec.ingest';
 export type AuthDenyReason = 'unknown_principal' | 'disabled_principal' | 'no_membership' | 'role' | 'agent_requires_token' | 'system_only';
 export type AuthDecision = { allowed: true; role: Role | 'system' } | { allowed: false; reason: AuthDenyReason; needed?: Role };
 export type ParticipationStatus = 'active' | 'withdrawn' | 'complete';

@@ -5,7 +5,8 @@
  * workspaces and project participation, project-scoped access checks, artifacts
  * with their versions, the version-level lineage DAG, durable jobs, agent
  * sessions and, at schema v8, handoffs (null below v8 or when v8 is held or
- * failed). Nothing here executes work: there is no executor, scheduler or runtime.
+ * failed). At schema v9, with `execution` on, it also composes the execution core
+ * (ExecutionService, its runner attached later by main) and the one BlobIndex.
  *
  * No IPC is registered here. Callers in main pass a Principal resolved through
  * `principals`; the renderer never supplies identity.
@@ -16,6 +17,9 @@ import { ArtifactService } from './artifact/artifactService';
 import { AuthService } from './auth/authService';
 import { HandoffService } from './handoff/handoffService';
 import { JobService } from './jobs/jobService';
+import { BlobIndex } from './blobs/blobIndex';
+import { ExecutionService, type ExecDataHome, type EgressApprovalPort, type IngestPort } from './exec/executionService';
+import type { SandboxProfile } from '../../shared/nexus/execution';
 import { PrincipalResolver } from './auth/principals';
 import { LineageService } from './lineage/lineageService';
 import { ProjectAccess } from './project/projectAccess';
@@ -40,9 +44,17 @@ export interface NexusPlatform {
   handoffsAvailable: boolean;
   /**
    * True when the caller (main) turned execution on (`opts.execution`, from PersistStore.executionAvailable),
-   * handoffs are built and the v9 shape checks. No execution service is built here yet; false by default.
+   * handoffs are built and the v9 shape checks. False by default.
    */
   executionAvailable: boolean;
+  /**
+   * The execution core. Always built; while `executionAvailable` is false every user-facing method refuses
+   * with platform_unavailable (reason `not_enabled` or the store's sub-reason) and it never touches a v9
+   * table. The runner is attached later by main (null until the runner host exists).
+   */
+  exec: ExecutionService;
+  /** The one blob index of this platform (ingest and GC share it and its lock); null unless execution is available. */
+  blobs: BlobIndex | null;
   startup(): NexusStartupReport;
 }
 
@@ -54,7 +66,19 @@ export interface NexusStartupReport {
   jobs: { interrupted: number; requeued: number };
 }
 
-export function createNexusPlatform(db: Database.Database, opts?: { now?: () => number; log?: (line: string) => void; handoffs?: boolean; execution?: boolean }): NexusPlatform {
+export interface NexusPlatformOptions {
+  now?: () => number; log?: (line: string) => void; handoffs?: boolean; execution?: boolean;
+  /** Why execution is off, as PersistStore says (`held`, `auto_held`, `backup_failed`, `failed`, `shape`); default `not_enabled`. */
+  executionUnavailableReason?: string | null;
+  /** Execution wiring (main): the data home, the pinned sandbox profiles, the project-folder acceptance. */
+  dataHome?: ExecDataHome | null;
+  profiles?: readonly SandboxProfile[];
+  acceptFsRoot?: ((root: string) => string | null) | null;
+  approvals?: EgressApprovalPort | null;
+  ingest?: IngestPort | null;
+}
+
+export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformOptions): NexusPlatform {
   const now = opts?.now ?? Date.now;
   const log = opts?.log ?? (() => {});
   // The caller (main) may turn handoffs off; they are on only when the v8 shape also checks, so a forced `true` on a
@@ -77,8 +101,20 @@ export function createNexusPlatform(db: Database.Database, opts?: { now?: () => 
   // Execution is off unless the caller turns it on (v9 stays off until verified); like handoffs, a forced `true`
   // counts only when the v9 shape also checks. Nothing executes yet: this flag is read by later services.
   const executionAvailable = (opts?.execution ?? false) && handoffsAvailable && v9ShapeProblem(db, true) === null;
+  const unavailableReason = executionAvailable ? null
+    : !(opts?.execution ?? false) ? (opts?.executionUnavailableReason ?? 'not_enabled')
+      : !handoffsAvailable ? 'v8_unavailable' : 'shape';
+  // Exactly one BlobIndex per platform, shared by ingest and GC (one lock); built only with execution.
+  const blobs = executionAvailable ? new BlobIndex(db, { auth, now }) : null;
+  const exec = new ExecutionService(db, {
+    auth, jobs, now, log, available: executionAvailable, unavailableReason, blobs,
+    dataHome: opts?.dataHome ?? null, profiles: opts?.profiles ?? [], acceptFsRoot: opts?.acceptFsRoot ?? null,
+    approvals: opts?.approvals ?? null, ingest: opts?.ingest ?? null
+  });
+  if (executionAvailable) log('[nexus] execution core ready: runner not attached');
   return {
     principals, auth, activity, workspaces, projects, artifacts, lineage, jobs, sessions, handoffs, handoffsAvailable, executionAvailable,
+    exec, blobs,
     startup(): NexusStartupReport {
       // The seeded principals must resolve; a missing one throws platform_unavailable.
       principals.localUser();
