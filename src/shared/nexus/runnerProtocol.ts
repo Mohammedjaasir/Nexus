@@ -28,15 +28,31 @@ export type MainToRunner =
   | { op: 'image.build.cancel'; buildId: string }
   | { op: 'blob.verify'; sha256: string }
   | { op: 'gc.scan'; scanId: string; olderThanMs: number }
-  | { op: 'gc.apply'; scanId: string; objects: string[]; workDirs: { jobId: string; attemptN: number }[] };
+  | { op: 'gc.apply'; scanId: string; objects: string[]; workDirs: { jobId: string; attemptN: number }[] }
+  /**
+   * Restart recovery (B2a Task 11): stop (-t 10) and remove each listed resource, by id only (PhaseBReport.remove). The
+   * runner removes only a resource whose labels carry this install's `nexus.home` and a `nexus.attempt`.
+   */
+  | { op: 'reconcile.remove'; resources: { kind: 'container' | 'volume' | 'network'; id: string }[] }
+  /** App quit: the runner stops its dev deployments' containers, leaves tool containers running (adoptable) and exits. */
+  | { op: 'shutdown' };
 
 // ----- runner → main (reports; parsed by `parseRunnerMessage`) -----
 
 export type RefusalReason =
   | 'docker_missing' | 'docker_stopped' | 'image_missing' | 'image_mismatch' | 'disk_low'
-  | 'network_not_approved' | 'bad_plan' | 'busy' | 'unknown_attempt';
+  | 'network_not_approved' | 'bad_plan' | 'busy' | 'unknown_attempt'
+  /** An input copied from the blob store did not re-hash to its sha256 (or was missing): nothing was created. */
+  | 'input_changed';
 export const REFUSAL_REASONS: readonly RefusalReason[] = ['docker_missing', 'docker_stopped', 'image_missing', 'image_mismatch',
-  'disk_low', 'network_not_approved', 'bad_plan', 'busy', 'unknown_attempt'];
+  'disk_low', 'network_not_approved', 'bad_plan', 'busy', 'unknown_attempt', 'input_changed'];
+
+/**
+ * Why the runner ended a container itself: `timeout` (its own wall-clock backstop) or `cancelled` (main's
+ * `attempt.cancel`). Absent when the container exited on its own.
+ */
+export type ExitReason = 'timeout' | 'cancelled';
+export const EXIT_REASONS: readonly ExitReason[] = ['timeout', 'cancelled'];
 
 export type AttemptPhase = 'staging' | 'creating' | 'preflight' | 'starting' | 'running' | 'collecting' | 'hashing' | 'parsing' | 'cleanup';
 export const ATTEMPT_PHASES: readonly AttemptPhase[] =
@@ -70,7 +86,10 @@ export type RunnerToMain =
   | { op: 'attempt.event'; attemptId: string; seq: number; event: ProgressEvent }
   | { op: 'attempt.heartbeat'; attemptId: string; at: number; logBytes: number; outBytes: number; container?: 'running' | 'exited' | 'missing' }
   | { op: 'attempt.exited'; attemptId: string; exit: ExitInfo; outputs: StagedOutput[]; parsed: ParsedOutput[]; logBytes: number;
-      outputError?: OutputErrorCode }
+      outputError?: OutputErrorCode;
+      /** The `/out` entry an `outputError` names (relative, redacted and escaped by the runner; text only). */
+      outputErrorEntry?: string;
+      reason?: ExitReason }
   | { op: 'reconcile.result'; docker: 'running' | 'stopped' | 'missing'; attempts: ReconciledAttempt[]; labelled: LabelledResource[] }
   | { op: 'service.health'; attemptId: string; at: number; status: number | null; ms: number | null; bodySha256?: string;
       container: 'running' | 'exited' | 'missing' }
@@ -346,8 +365,15 @@ const PARSERS: Record<RunnerOp, Check<RunnerToMain>> = {
   'attempt.event': msg({ op: lit('attempt.event'), attemptId: ulid, seq: count, event: progressEvent }),
   'attempt.heartbeat': msg({ op: lit('attempt.heartbeat'), attemptId: ulid, at: count, logBytes: count, outBytes: count },
     { container: liveState }),
-  'attempt.exited': msg({ op: lit('attempt.exited'), attemptId: ulid, exit: exitInfo, outputs: arr(stagedOutput),
-    parsed: arr(parsedOutput), logBytes: count }, { outputError: oneOf(OUTPUT_ERROR_CODES) }),
+  'attempt.exited': (x) => {
+    const m = msg({ op: lit('attempt.exited'), attemptId: ulid, exit: exitInfo, outputs: arr(stagedOutput),
+      parsed: arr(parsedOutput), logBytes: count }, { outputError: oneOf(OUTPUT_ERROR_CODES), outputErrorEntry: nonEmpty,
+      reason: oneOf(EXIT_REASONS) })(x);
+    if (m === NO) return NO;
+    // An entry is named only with the refusal it explains.
+    const e = m as Extract<RunnerToMain, { op: 'attempt.exited' }>;
+    return e.outputErrorEntry !== undefined && e.outputError === undefined ? NO : m;
+  },
   'reconcile.result': msg({ op: lit('reconcile.result'), docker: oneOf(['running', 'stopped', 'missing'] as const),
     attempts: arr(reconciled), labelled: arr(labelled) }),
   'service.health': msg({ op: lit('service.health'), attemptId: ulid, at: count, status: nullable(intIn(100, 599)),

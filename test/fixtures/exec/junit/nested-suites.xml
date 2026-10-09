@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="outer" tests="3" failures="1" errors="1" file="test/outer.test.js">
+    <testcase classname="outer" name="direct" time="0.5"/>
+    <testsuite name="inner" tests="2" failures="1" errors="1">
+      <testcase classname="outer.inner" name="fails" time="0.25"><failure message="no">no</failure></testcase>
+      <testcase classname="outer.inner" name="breaks" time="0.125"><error message="boom">boom</error></testcase>
+    </testsuite>
+  </testsuite>
+</testsuites>

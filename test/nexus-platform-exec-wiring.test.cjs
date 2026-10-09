@@ -1,0 +1,333 @@
+'use strict';
+// B2a Task 11: the runner host (supervision, the fake fork) and the execution wiring (recovery hand-off, scheduler start,
+// hints, log reads, quit). Real SQLite (test:db); the runner is either a scripted fake child or a real RunnerCore in this
+// process over a MessageChannel with the fake sandbox driver. No Docker, no utilityProcess, no real userData.
+const h = require('./helpers/sqlite.cjs');
+if (!h.realSqliteOrSkip()) return;
+const C = require('./helpers/cleanup.cjs'); C.cleanupAfterAll();
+const test = require('node:test');
+const { after } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const fsp = require('node:fs/promises');
+const path = require('node:path');
+const { MessageChannel } = require('node:worker_threads');
+const loadTs = require('./load-ts.cjs');
+const { execWorld, passingPreflight, PROFILES } = require('./helpers/execWorld.cjs');
+const { FakeSandboxDriver } = require('./helpers/fakeSandboxDriver.cjs');
+const { createNexusPlatform } = loadTs('src/main/nexus/platform.ts');
+const { startRunnerHost, RESTART_DELAYS_MS, MAX_RESTARTS, STOP_TIMEOUT_MS, UNAVAILABLE_MESSAGE } = loadTs('src/main/nexusExec/runnerHost.ts');
+const { startExecution, hintCoalescer, HINT_MIN_INTERVAL_MS, STARTUP_RECONCILE_WAIT_MS } = loadTs('src/main/nexusExec/execWiring.ts');
+const { RunnerCore } = loadTs('src/runner/core.ts');
+const { homeLabel } = loadTs('src/shared/nexus/homeLabel.ts');
+
+const PORTS = [];
+after(() => { for (const p of PORTS) { try { p.close(); } catch { /* closed */ } } });
+
+class FakeClock {
+  constructor(t) { this.now = t; this.q = []; this.n = 0; }
+  setTimeout(fn, ms) { const x = { id: ++this.n, at: this.now + ms, fn, every: 0 }; this.q.push(x); return x; }
+  setInterval(fn, ms) { const x = { id: ++this.n, at: this.now + ms, fn, every: ms }; this.q.push(x); return x; }
+  clearTimeout(x) { this.q = this.q.filter((y) => y !== x); }
+  clearInterval(x) { this.clearTimeout(x); }
+  advance(ms) {
+    const end = this.now + ms;
+    for (;;) {
+      const due = this.q.filter((x) => x.at <= end).sort((a, b) => a.at - b.at || a.id - b.id)[0];
+      if (!due) break;
+      this.now = due.at;
+      if (due.every) due.at += due.every; else this.q = this.q.filter((x) => x !== due);
+      due.fn();
+    }
+    this.now = end;
+  }
+}
+const flush = async (n = 10) => { for (let i = 0; i < n; i++) await new Promise((r) => setImmediate(r)); };
+async function until(pred, what, ms = 5000) {
+  const t0 = Date.now();
+  for (;;) { if (pred()) return; if (Date.now() - t0 > ms) throw new Error(`timed out waiting for ${what}`); await new Promise((r) => setTimeout(r, 2)); }
+}
+
+/** A scripted runner process: records what main posts; answers hello with ready (unless told not to). */
+function scriptedFork(o = {}) {
+  const children = [];
+  const fork = () => {
+    const c = {
+      posted: [], msgFn: null, exitFn: null, killed: false, dead: false,
+      post(m) { if (c.dead) throw new Error('closed'); c.posted.push(m); if (m.op === 'hello' && o.ready !== false) setImmediate(() => c.msgFn?.({ op: 'ready', bootId: m.bootId })); if (m.op === 'shutdown' && o.exitOnShutdown) setImmediate(() => c.die(0)); },
+      onMessage(f) { c.msgFn = f; }, onExit(f) { c.exitFn = f; },
+      kill() { c.killed = true; c.die(null); },
+      die(code) { if (c.dead) return; c.dead = true; c.exitFn?.(code); },
+      say(m) { c.msgFn?.(m); }
+    };
+    if (o.failFork && children.length >= (o.failAfter ?? 0)) { children.push(c); throw new Error('cannot fork'); }
+    children.push(c);
+    return c;
+  };
+  return { fork, children };
+}
+
+/** A real RunnerCore in this process, over a MessageChannel, with the fake sandbox driver: the runner as main sees it. */
+function coreFork(makeDriver) {
+  const children = [];
+  const fork = () => {
+    const { port1, port2 } = new MessageChannel();
+    PORTS.push(port1);
+    let msgFn = null; let exitFn = null; let dead = false;
+    port1.on('message', (m) => msgFn?.(m));
+    const driver = makeDriver();
+    const clock = new FakeClock(1_780_000_000_000);
+    const core = new RunnerCore(port2, { driver, now: () => clock.now, fs: fsp, timers: clock, log: () => {}, freeBytes: async () => 100 * 2 ** 30, sleep: async () => {} });
+    const c = {
+      core, driver, clock,
+      post(m) { if (dead) throw new Error('closed'); port1.postMessage(m); },
+      onMessage(f) { msgFn = f; }, onExit(f) { exitFn = f; },
+      kill() { if (dead) return; dead = true; port1.close(); exitFn?.(null); }
+    };
+    children.push(c);
+    return c;
+  };
+  return { fork, children };
+}
+
+// ---------- the runner host ----------
+
+test('H1 supervision: restarts after 1 s, 5 s, then 30 s; at most 5 restarts in 10 minutes, then unavailable; the last hello is replayed first; listeners survive', async () => {
+  const clock = new FakeClock(1_000_000);
+  const { fork, children } = scriptedFork();
+  const logs = [];
+  const host = startRunnerHost({ fork, log: (l) => logs.push(l), timers: clock, now: () => clock.now });
+  const seen = [];
+  host.port.onMessage((m) => seen.push(m.op));
+  assert.equal(host.state(), 'starting');
+  const hello = { op: 'hello', bootId: '01JABCDEFGHJKMNPQRSTVWXYZ0', dataHome: 'C:\\x\\nexus', home: '0123456789abcdef', profiles: [] };
+  host.port.send(hello);
+  await flush();
+  assert.equal(host.state(), 'ready');
+  assert.deepEqual(seen, ['ready']);
+  const delays = [];
+  for (let i = 0; i < MAX_RESTARTS; i++) {
+    const n = children.length;
+    children[n - 1].die(1);
+    assert.equal(host.state(), 'crashed');
+    assert.throws(() => host.port.send({ op: 'probe' }), /crashed/);
+    const t0 = clock.now;
+    while (children.length === n) clock.advance(500);
+    delays.push(clock.now - t0);
+    assert.deepEqual(children[children.length - 1].posted[0], hello, 'the hello is replayed first');
+    await flush();
+    assert.equal(host.state(), 'ready');
+  }
+  assert.deepEqual(delays, [1000, 5000, 30000, 30000, 30000].map((d) => Math.ceil(d / 500) * 500));
+  assert.equal(RESTART_DELAYS_MS.join(','), '1000,5000,30000');
+  assert.equal(seen.filter((x) => x === 'ready').length, MAX_RESTARTS + 1, 'listeners survive restarts');
+  children[children.length - 1].die(1);
+  clock.advance(10 * 60_000);
+  assert.equal(host.state(), 'unavailable');
+  assert.equal(children.length, MAX_RESTARTS + 1, 'no sixth restart');
+  assert.ok(logs.some((l) => l.includes(UNAVAILABLE_MESSAGE)));
+  assert.equal(host.restarts(), MAX_RESTARTS);
+  assert.throws(() => host.port.send({ op: 'probe' }), /unavailable/);
+});
+
+test('H2 the restart window: crashes older than 10 minutes do not count; the delay starts over at 1 s', async () => {
+  const clock = new FakeClock(1_000_000);
+  const { fork, children } = scriptedFork();
+  const host = startRunnerHost({ fork, log: () => {}, timers: clock, now: () => clock.now });
+  children[0].die(1); clock.advance(1000); assert.equal(children.length, 2);
+  children[1].die(1); clock.advance(5000); assert.equal(children.length, 3);
+  clock.advance(11 * 60_000);
+  children[2].die(1); clock.advance(1000);
+  assert.equal(children.length, 4, 'one second again');
+  await flush(); assert.notEqual(host.state(), 'unavailable');
+});
+
+test('H3 stop() sends shutdown and is bounded at 5 s: a runner that does not exit is killed', async () => {
+  const clock = new FakeClock(1_000_000);
+  const slow = scriptedFork();
+  const host = startRunnerHost({ fork: slow.fork, log: () => {}, timers: clock, now: () => clock.now });
+  const done = host.stop();
+  assert.deepEqual(slow.children[0].posted.at(-1), { op: 'shutdown' });
+  clock.advance(STOP_TIMEOUT_MS - 1); await flush();
+  assert.equal(slow.children[0].killed, false);
+  clock.advance(1); await done;
+  assert.equal(slow.children[0].killed, true); assert.equal(host.state(), 'unavailable');
+  clock.advance(60_000); assert.equal(slow.children.length, 1, 'never restarted after stop');
+  const quick = scriptedFork({ exitOnShutdown: true });
+  const host2 = startRunnerHost({ fork: quick.fork, log: () => {}, timers: clock, now: () => clock.now });
+  await host2.stop();
+  assert.equal(quick.children[0].killed, false, 'it exited on its own');
+});
+
+test('W1 the hint coalescer: at most one { lastSeq } per 250 ms, the newest one, and only when it changed', () => {
+  const clock = new FakeClock(0);
+  let seq = 0; const sent = [];
+  const c = hintCoalescer({ lastSeq: () => seq, emit: (x) => sent.push(x.lastSeq), now: () => clock.now, timers: clock });
+  for (let i = 0; i < 1000; i++) { seq++; c.poke(); clock.advance(1); }
+  assert.ok(sent.length <= Math.ceil(1000 / HINT_MIN_INTERVAL_MS) + 1, `${sent.length} hints in 1 s`);
+  clock.advance(1000);
+  assert.equal(sent.at(-1), 1000);
+  const n = sent.length;
+  c.poke(); clock.advance(1000);
+  assert.equal(sent.length, n, 'unchanged: no hint');
+});
+
+// ---------- the wiring, with the platform ----------
+
+/** A new platform on the world's database (a new process: a new execution core and boot id), after its phase A. */
+function platformOn(w) {
+  const logs = [];
+  const nx = createNexusPlatform(w.db, { now: () => w.now(), log: (l) => logs.push(l), execution: true, dataHome: w.dataHome, profiles: PROFILES,
+    acceptFsRoot: (r) => r, approvals: null, ingest: undefined });
+  nx.startup();
+  return { nx, logs };
+}
+const userDataOf = (w) => path.dirname(w.dataHome.root);
+
+test('W2 at every runner ready: reconcile.list exactly when reconcileList() is called; the answer goes to recoverPhaseB (never onRunnerMessage); the removal list goes to the runner and is recorded; the blob store pass runs once, after phase B, before the first tick', async () => {
+  const w = execWorld();
+  const { nx } = platformOn(w);
+  const exec = nx.exec;
+  const order = [];
+  const spy = (name) => { const orig = exec[name].bind(exec); exec[name] = (...a) => { order.push(name); return orig(...a); }; };
+  for (const n of ['reconcileList', 'recoverBlobStore', 'tick']) spy(n);
+  const phaseB = [];
+  const origB = exec.recoverPhaseB.bind(exec);
+  exec.recoverPhaseB = (sys, boot, r) => { order.push('recoverPhaseB'); phaseB.push(boot); const out = origB(sys, boot, r); return { ...out, remove: [{ kind: 'volume', id: 'nexus-ws-x', reason: 'attempt_ended' }] }; };
+  const seenByCore = [];
+  const origM = exec.onRunnerMessage.bind(exec);
+  exec.onRunnerMessage = (raw) => { seenByCore.push(raw?.op); return origM(raw); };
+  const clock = new FakeClock(w.now());
+  const { fork, children } = scriptedFork();
+  const handle = await startExecution({ platform: nx, userData: userDataOf(w), log: () => {}, fork, timers: clock, now: () => w.now() });
+  const child = children[0];
+  assert.equal(child.posted[0].op, 'hello');
+  assert.equal(child.posted[0].bootId, nx.bootId, 'attached with platform.bootId');
+  assert.equal(child.posted[0].home, homeLabel(w.dataHome.root));
+  await until(() => child.posted.some((m) => m.op === 'reconcile.list'), 'reconcile.list');
+  assert.equal(order.filter((x) => x === 'reconcileList').length, child.posted.filter((m) => m.op === 'reconcile.list').length);
+  clock.advance(5_000);
+  assert.ok(!order.includes('tick'), 'no tick before phase B');
+  child.say({ op: 'reconcile.result', docker: 'running', attempts: [], labelled: [] });
+  await until(() => handle.ticking(), 'the scheduler starts');
+  assert.deepEqual(phaseB, [nx.bootId]);
+  assert.deepEqual(child.posted.filter((m) => m.op === 'reconcile.remove'), [{ op: 'reconcile.remove', resources: [{ kind: 'volume', id: 'nexus-ws-x' }] }]);
+  assert.equal(w.db.prepare("SELECT COUNT(*) AS n FROM activity WHERE action = 'exec.orphan_removed'").get().n, 1);
+  assert.ok(!seenByCore.includes('reconcile.result'), 'the core never sees the reconcile answer');
+  clock.advance(1_000);
+  assert.ok(order.indexOf('recoverPhaseB') < order.indexOf('recoverBlobStore') && order.indexOf('recoverBlobStore') < order.indexOf('tick'), order.join(' '));
+  // A mid-session runner restart: hello again, ready, reconcile again; never the blob store pass again.
+  child.die(1);
+  clock.advance(RESTART_DELAYS_MS[0]);
+  const child2 = children[1];
+  assert.equal(child2.posted[0].op, 'hello'); assert.equal(child2.posted[0].bootId, nx.bootId);
+  await until(() => child2.posted.some((m) => m.op === 'reconcile.list'), 'reconcile.list again');
+  child2.say({ op: 'reconcile.result', docker: 'running', attempts: [], labelled: [] });
+  await until(() => phaseB.length === 2, 'phase B again');
+  await flush();
+  assert.equal(order.filter((x) => x === 'recoverBlobStore').length, 1, 'once per app start');
+  assert.equal(order.filter((x) => x === 'reconcileList').length, children.flatMap((c) => c.posted).filter((m) => m.op === 'reconcile.list').length);
+  const stopping = handle.stop(); clock.advance(STOP_TIMEOUT_MS); await stopping;
+  w.close();
+});
+
+test('W3 a runner that never reconciles: the scheduler starts when the host is unavailable, or after 2 minutes, without the blob store pass', async () => {
+  const w = execWorld();
+  const { nx } = platformOn(w);
+  let blob = 0; const origBlob = nx.exec.recoverBlobStore.bind(nx.exec); nx.exec.recoverBlobStore = (...a) => { blob++; return origBlob(...a); };
+  const clock = new FakeClock(w.now());
+  const dead = scriptedFork({ ready: false });
+  const handle = await startExecution({ platform: nx, userData: userDataOf(w), log: () => {}, fork: dead.fork, timers: clock, now: () => clock.now });
+  // 1 + 5 + 30 + 30 + 30 s of restarts: unavailable well before the 2-minute wait.
+  for (const d of [...RESTART_DELAYS_MS, 30_000, 30_000]) { dead.children.at(-1).die(1); clock.advance(d); }
+  assert.equal(handle.ticking(), false);
+  dead.children.at(-1).die(1);
+  assert.equal(handle.host.state(), 'unavailable');
+  clock.advance(1_000);
+  assert.equal(handle.ticking(), true); assert.equal(blob, 0);
+  const s1 = handle.stop(); clock.advance(STOP_TIMEOUT_MS); await s1;
+  const { nx: nx2 } = platformOn(w);
+  const hung = scriptedFork({ ready: false });
+  const h2 = await startExecution({ platform: nx2, userData: userDataOf(w), log: () => {}, fork: hung.fork, timers: clock, now: () => clock.now });
+  clock.advance(STARTUP_RECONCILE_WAIT_MS - 1_000); assert.equal(h2.ticking(), false);
+  clock.advance(1_000); assert.equal(h2.ticking(), true);
+  const s2 = h2.stop(); clock.advance(STOP_TIMEOUT_MS); await s2;
+  w.close();
+});
+
+test('W4 integration: a container that exited while the app was closed is reconciled by a real RunnerCore, adopted for finalization, re-hashed from the data home and ingested; quit stops services and the runner within 5 s', async () => {
+  const w = execWorld({ realIngest: true });
+  const r = w.attach();
+  const job = w.exec.start(w.me, w.req('sde.tests.discover')).job;
+  w.exec.tick(w.now());
+  const plan = r.lastStart().plan;
+  const a = w.liveAttempt(job.id);
+  const cid = 'a'.repeat(64);
+  r.report({ op: 'attempt.provisioned', attemptId: a.id, containerId: cid, imageDigest: w.IMAGE['sde-node'], preflight: passingPreflight() });
+  assert.equal(w.attempt(a.id).state, 'running');
+  // What the first runner process left: plan.json beside in/out, and /out written by the container.
+  const work = path.join(w.dataHome.root, 'work', job.id, '1');
+  fs.mkdirSync(path.join(work, 'out'), { recursive: true });
+  fs.writeFileSync(path.join(work, 'plan.json'), JSON.stringify({ plan, startedAt: w.now() }));
+  fs.writeFileSync(path.join(work, 'out', 'ids.txt'), 'test/a.test.js\ntest/b.test.js\n');
+  // The app restarts: a new platform (phase A leaves the attempt for phase B), and the wiring with a real runner.
+  w.advance(60_000);
+  const { nx } = platformOn(w);
+  const label = homeLabel(w.dataHome.root);
+  const { fork, children } = coreFork(() => {
+    const d = new FakeSandboxDriver();
+    d.containers.set(cid, { id: cid, name: plan.container.name, spec: plan.container, labels: { ...plan.container.labels }, state: 'exited',
+      exit: { code: 0, oomKilled: false, finishedAt: w.now() - 1000 }, waiters: [], logs: [], logEnd: [] });
+    d.volumes.set(`nexus-ws-${a.id}`, { ...plan.resourceLabels });
+    d.volumes.set('nexus-deps-sde-node-aaaaaaaaaaaa', { ...plan.resourceLabels, 'nexus.kind': 'deps' });
+    return d;
+  });
+  const clock = new FakeClock(w.now());
+  let stoppedForQuit = 0;
+  const origQuit = nx.deployments.stopAllForQuit.bind(nx.deployments);
+  nx.deployments.stopAllForQuit = () => { stoppedForQuit++; return origQuit(); };
+  const handle = await startExecution({ platform: nx, userData: userDataOf(w), log: () => {}, fork, timers: clock, now: () => w.now() });
+  await until(() => w.jobState(job.id) === 'completed', 'the finalized exit is ingested', 8000);
+  const runner = children[0];
+  assert.equal(plan.container.labels['nexus.home'], label);
+  assert.ok(runner.driver.filters.every((f) => f.includes('label=nexus.attempt') && f.includes(`label=nexus.home=${label}`)));
+  assert.ok(!runner.driver.ops().includes('create') && !runner.driver.ops().includes('start'), 'nothing ran again');
+  const exitRec = JSON.parse(fs.readFileSync(path.join(work, 'exit.json'), 'utf8'));
+  assert.equal(exitRec.exit.code, 0);
+  const suite = w.db.prepare("SELECT * FROM artifact_versions WHERE produced_by_job_id = ? AND output_path = 'ids.txt'").get(job.id);
+  assert.deepEqual(JSON.parse(suite.metadata_json).files, ['test/a.test.js', 'test/b.test.js']);
+  assert.equal(w.attempt(a.id).lease_owner, nx.bootId);
+  await until(() => handle.ticking(), 'ticking');
+  // The released attempt: its container and workspace volume go (found by label: this process did not make them); the work folder stays.
+  await until(() => runner.driver.ops().includes('remove') && !runner.driver.volumes.has(`nexus-ws-${a.id}`), 'release');
+  assert.ok(!runner.driver.containers.has(cid));
+  assert.ok(runner.driver.volumes.has('nexus-deps-sde-node-aaaaaaaaaaaa'), 'a deps cache is never removed');
+  assert.ok(fs.existsSync(work) && fs.existsSync(path.join(work, 'out', 'ids.txt')), 'the work folder stays');
+  // Log reads are confined to the data home and redacted again.
+  const logRel = w.attempt(a.id).log_path;
+  fs.mkdirSync(path.dirname(path.join(w.dataHome.root, logRel)), { recursive: true });
+  fs.writeFileSync(path.join(w.dataHome.root, logRel), `${JSON.stringify({ ts: 1, stream: 'stdout', text: 'a' })}\n${JSON.stringify({ ts: 2, stream: 'stdout', text: 'key sk-ant-api03-abcdefghijklmnopqrstuvwx' })}\n{"ts":3,"stream":"nexus","text":"x","truncatedMiddle":true}\n`);
+  const page = await handle.readLog(logRel, { fromOffset: 0, maxBytes: 40 });
+  assert.equal(page.eof, false); assert.ok(page.text.endsWith('\n'), 'whole frames only');
+  const all = await handle.readLog(logRel, { fromOffset: 0, maxBytes: 262144 });
+  assert.equal(all.eof, true); assert.equal(all.truncatedMiddle, true); assert.doesNotMatch(all.text, /sk-ant-api03/);
+  assert.equal(await handle.readLog('../outside.log', { fromOffset: 0, maxBytes: 10 }), null);
+  assert.equal(await handle.readLog('logs/jobs/../../x.log', { fromOffset: 0, maxBytes: 10 }), null);
+  // Quit: services stopped first, then the runner is told to shut down; bounded.
+  const stopping = handle.stop();
+  clock.advance(STOP_TIMEOUT_MS);
+  await stopping;
+  assert.equal(stoppedForQuit, 1);
+  assert.equal(handle.host.state(), 'unavailable');
+  w.close();
+});
+
+test('W5 startExecution does nothing when execution is not available', async () => {
+  const w = execWorld({ execution: false });
+  const { fork, children } = scriptedFork();
+  const logs = [];
+  const handle = await startExecution({ platform: w.nx, userData: userDataOf(w), log: (l) => logs.push(l), fork });
+  assert.equal(handle, null); assert.equal(children.length, 0);
+  assert.ok(logs.some((l) => /not available/.test(l)));
+  w.close();
+});

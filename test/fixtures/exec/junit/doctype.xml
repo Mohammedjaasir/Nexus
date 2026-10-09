@@ -1,0 +1,3 @@
+<?xml version="1.0"?>
+<!DOCTYPE testsuites SYSTEM "http://example.invalid/junit.dtd">
+<testsuites tests="1"><testsuite name="a" tests="1"><testcase name="x" classname="c"/></testsuite></testsuites>

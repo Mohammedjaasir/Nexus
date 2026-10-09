@@ -50,6 +50,10 @@ extraResources:
   # repo resources/skills). Directory copy preserves the <id>/SKILL.md tree.
   - from: resources/skills
     to: skills
+  # B2a Task 11: the sandbox image build contexts (Dockerfiles, lockfiles, the Nexus entry) the runner builds from
+  # (<resources>/images) after the user approves image preparation.
+  - from: infra/images
+    to: images
 
 asarUnpack:
   - "**/node_modules/node-pty/**"

@@ -1,0 +1,1054 @@
+/**
+ * RunnerCore (B2a Task 11): the runner utilityProcess's message loop and per-attempt state machine. It has NO database
+ * and no authority: it does what main's plan says inside the sandbox rules, and reports facts that main validates
+ * (`parseRunnerMessage`, then main's own state). Every outgoing message is checked here with the same parser first.
+ *
+ * A container attempt runs, in this order: checks (plan paths, network approval, Docker, disk) -> staging (git archive,
+ * blobs re-hashed) -> create (workspace volume, deps volume, egress or service networks, all with the plan's resource
+ * labels; then the container) -> preflight (`docker inspect` + the pure comparator; a failure removes the never-started
+ * container and reports `provisioned { preflight.ok: false }`) -> start -> `provisioned` -> running (log stream, the
+ * wall-clock backstop, the size guard; a dev deployment's probe loop) -> exit -> collect (`exit.json` beside `/out`
+ * first, then `/out` hashed into the object store, then the parsers) -> `attempt.exited` -> wait for `attempt.release`
+ * -> cleanup (containers, the workspace volume and the attempt's networks; never the work folder, the log or a deps cache).
+ *
+ * Heartbeats start when `attempt.start` (or `attempt.adopt`) arrives and continue through staging, create and preflight,
+ * every 15 s, until release. A heartbeat of an attempt being finalized after a restart says `exited`, never `missing`.
+ *
+ * Failures: a refusal before anything ran is `attempt.refused` (docker_missing, docker_stopped, disk_low,
+ * network_not_approved, image_missing, input_changed, bad_plan); a Docker failure of one attempt before it started is a
+ * `fault` with BOTH `attemptId` and `failureClass` (disk_full, docker_resources, docker_error); a fault about the runner
+ * itself has neither. Main sends no release after a refusal or a fault, so the runner removes what it made then.
+ * Free text (Docker's errors, git's errors, log lines) is redacted before it leaves; a parser result holding a
+ * secret-shaped value is withheld (main would refuse it anyway); no secret leaves the runner in a message.
+ */
+import * as path from 'node:path';
+import { createHash } from 'node:crypto';
+import {
+  type AttemptPlan, type ContainerSpec, type EnginePlan, type ExitInfo, type OutputErrorCode, type ParsedOutput, type SandboxProfile,
+  type SandboxProbe, type ServicePlan, type StagedOutput, type ToolPlan
+} from '../shared/nexus/execution';
+import {
+  parseRunnerMessage, ULID_RE, type AttemptPhase, type CancelReason, type ExitReason, type RefusalReason, type RunnerToMain
+} from '../shared/nexus/runnerProtocol';
+import { expectedNetworkName } from '../shared/nexus/preflightCheck';
+import { leaseFloorBytes } from '../shared/nexus/resourceGate';
+import { containsSecret, redactSecretText } from '../main/nexus/activity/redact';
+import { appManifestArgv, COMMIT_RE, readAppManifest, snapshot } from './git';
+import { ImageBuilder } from './imageBuilder';
+import { LogWriter } from './logs';
+import { ObjectStore } from './objectStore';
+import { collectOut, outBytes, showEntry } from './outputs';
+import { parseDiscovery, discoveryFrameworkOf } from './parsers/discovery';
+import { JUNIT_MAX_BYTES, parseJunit } from './parsers/junit';
+import { APP_MANIFEST_MAX_BYTES, parseAppManifest } from './parsers/manifest';
+import { errCode, HomePaths, noLinkUnder } from './paths';
+import { httpProbe, type HttpProbe } from './probe';
+import { findAttemptDir, readPlanRecord, reconcileAnswer, releaseByLabels, removeResources, type PlanRecord } from './reconcile';
+import { DockerError, SpecError } from './sandbox/dockerDriver';
+import type { DockerRunner } from './sandbox/dockerCli';
+import { DU_ARGV, GUARD_POLL_MS, guardDecision, parseDuKib, WORKSPACE_MAX_BYTES, type GuardTrip } from './sandbox/sizeGuard';
+import { forwarderWithPort, mergePreflight, pickPort, serviceNetworkProblem } from './service';
+import { stageInputs } from './staging';
+import { REAL_TIMERS, type RunnerDriver, type RunnerFs, type RunnerTimers, type RunnerTransport } from './types';
+
+export const HEARTBEAT_MS = 15_000;
+/**
+ * The runner's own wall-clock backstop fires at this multiple of the plan's wall clock. Main is the authority for
+ * timeouts (it sends `attempt.cancel { reason: 'timeout' }` first); its stall exclusions are capped at 1 x the wall
+ * clock, so the runner never ends work main still counts as in time.
+ */
+export const RUNNER_WALL_FACTOR = 2;
+export const STOP_GRACE_MS = 10_000;
+export const LOG_DRAIN_MS = 5_000;
+const ID_RE = /^[0-9A-Za-z_-]{1,64}$/;
+const SHA_RE = /^[0-9a-f]{64}$/;
+const MAX_GC_LIST = 20_000;
+
+export interface RunnerDeps {
+  driver: RunnerDriver;
+  now: () => number;
+  fs: RunnerFs;
+  timers?: RunnerTimers;
+  log?: (line: string) => void;
+  /** `infra/images` (the image build contexts). */
+  imagesDir?: string;
+  /** The Docker CLI for image builds (null: builds are reported failed). */
+  docker?: DockerRunner | null;
+  probeHttp?: HttpProbe;
+  freeBytes?: (dir: string) => Promise<number | null>;
+  sleep?: (ms: number) => Promise<void>;
+  /** Test-only bounds. */
+  limits?: { logCapBytes?: number; workspaceMaxBytes?: number };
+  /** The dev deployment port picker (tests make it deterministic). */
+  pickPort?: (taken: ReadonlySet<number>) => number;
+  /** Called after a `shutdown` message was handled (the entry exits the process). */
+  onShutdown?: () => void;
+}
+
+type Kind = 'tool' | 'service' | 'engine';
+
+interface AttemptState {
+  id: string; jobId: string; n: number; kind: Kind;
+  plan: AttemptPlan | null;
+  workDir: string; logPath: string;
+  seq: number;
+  log: LogWriter | null;
+  abort: AbortController;
+  logAbort: AbortController;
+  logDone: Promise<void> | null;
+  heartbeat: unknown;
+  timers: { h: unknown; interval: boolean }[];
+  containers: string[];
+  main: string | null;
+  volumes: string[];
+  networks: string[];
+  containerState: 'running' | 'exited' | 'missing' | null;
+  outBytes: number;
+  cancel: { graceMs: number; reason: CancelReason } | null;
+  timedOut: boolean;
+  guard: GuardTrip | null;
+  released: boolean;
+  settled: boolean;
+  finalizing: boolean;
+  cleaned: boolean;
+  /** The cancel's stop was issued (once). */
+  stopIssued: boolean;
+  /** Picked up after a restart: its volumes and networks are found by label at cleanup. */
+  adopted: boolean;
+  hostPort?: number;
+}
+
+/** What `exit.json` beside `/out` records at collect time (the exit is never re-derived from Docker after that). */
+interface ExitRecord { attemptId: string; exit: ExitInfo; reason?: ExitReason; guard?: OutputErrorCode }
+
+class Stop extends Error { constructor() { super('stopped'); this.name = 'Stop'; } }
+
+const msgOf = (e: unknown): string => redactSecretText(String((e as Error)?.message ?? e ?? 'error')).replace(/\s+/g, ' ').slice(0, 1000);
+
+export class RunnerCore {
+  private readonly driver: RunnerDriver;
+  private readonly fs: RunnerFs;
+  private readonly now: () => number;
+  private readonly timers: RunnerTimers;
+  private readonly log: (line: string) => void;
+  private readonly probeHttp: HttpProbe;
+  private readonly sleep: (ms: number) => Promise<void>;
+  private readonly freeBytes: (dir: string) => Promise<number | null>;
+  private readonly attempts = new Map<string, AttemptState>();
+  private bootId: string | null = null;
+  private home = '';
+  private profiles: SandboxProfile[] = [];
+  private paths: HomePaths | null = null;
+  private store: ObjectStore | null = null;
+  private readonly builder: ImageBuilder;
+  private stopped = false;
+  private recordSeq = 0;
+
+  constructor(private readonly port: RunnerTransport, private readonly deps: RunnerDeps) {
+    this.driver = deps.driver;
+    this.fs = deps.fs;
+    this.now = deps.now;
+    this.timers = deps.timers ?? REAL_TIMERS;
+    this.log = deps.log ?? ((l) => { try { process.stderr.write(`${l}\n`); } catch { /* no stderr */ } });
+    this.probeHttp = deps.probeHttp ?? httpProbe;
+    this.sleep = deps.sleep ?? ((ms) => new Promise((r) => this.timers.setTimeout(r, ms)));
+    this.freeBytes = deps.freeBytes ?? (async (dir) => {
+      try { const s = await this.fs.statfs(dir); const n = Number(s.bavail) * Number(s.bsize); return Number.isFinite(n) ? n : null; } catch { return null; }
+    });
+    this.builder = new ImageBuilder(deps.docker ?? { binary: async () => null, run: async () => ({ code: null, signal: null, stdout: '', stderr: '',
+      stdoutBytes: 0, truncated: false, timedOut: false, aborted: false, error: 'ENOENT' }) },
+    { fs: this.fs, imagesDir: deps.imagesDir ?? '', paths: () => this.paths, now: this.now, post: (m) => this.post(m), log: this.log });
+    port.on('message', (data) => { void this.dispatch(data); });
+  }
+
+  // ---------- transport ----------
+
+  /** Every outgoing message is checked with main's own parser; one that does not parse is never sent. */
+  private post(m: RunnerToMain): void {
+    let msg: RunnerToMain = this.scrub(m);
+    let parsed = parseRunnerMessage(msg);
+    if (!parsed && msg.op === 'attempt.exited' && msg.parsed.length > 0) {
+      this.log('[runner] a parser result is out of the protocol bounds; the exit is reported without it');
+      msg = { ...msg, parsed: [] };
+      parsed = parseRunnerMessage(msg);
+    }
+    if (!parsed) { this.log(`[runner] an outgoing ${String(m?.op)} message did not pass the protocol check; it was not sent`); return; }
+    try { this.port.postMessage(parsed); } catch { this.log('[runner] the port to main is closed'); }
+  }
+
+  /** Free text redacted (again); parser results with a secret-shaped value withheld. */
+  private scrub(m: RunnerToMain): RunnerToMain {
+    switch (m.op) {
+      case 'fault': return { ...m, message: redactSecretText(m.message).slice(0, 2000) || 'fault' };
+      case 'attempt.refused': return m.detail !== undefined ? { ...m, detail: redactSecretText(m.detail).slice(0, 2000) } : m;
+      case 'image.build.progress': return { ...m, phase: redactSecretText(m.phase).slice(0, 500) || 'building' };
+      case 'image.build.done': return m.error !== undefined ? { ...m, error: redactSecretText(m.error).slice(0, 2000) || 'failed' } : m;
+      case 'attempt.exited': {
+        const parsed = m.parsed.filter((p) => {
+          if (!containsSecret(p.normalized)) return true;
+          this.log(`[runner] the ${p.parser} result holds a secret-shaped value; it was withheld`);
+          return false;
+        });
+        return { ...m, parsed, ...(m.outputErrorEntry !== undefined ? { outputErrorEntry: redactSecretText(m.outputErrorEntry).slice(0, 400) || '?' } : {}) };
+      }
+      default: return m;
+    }
+  }
+
+  private async dispatch(raw: unknown): Promise<void> {
+    const m = raw as { op?: unknown } & Record<string, unknown>;
+    if (typeof m !== 'object' || m === null || typeof m.op !== 'string') return;
+    if (this.stopped && m.op !== 'hello') return;
+    try {
+      switch (m.op) {
+        case 'hello': return this.onHello(m);
+        case 'probe': return await this.onProbe();
+        case 'attempt.start': return await this.onStart(m.attemptId as string, m.plan as AttemptPlan);
+        case 'attempt.cancel': return await this.onCancel(m.attemptId as string, m.graceMs as number, m.reason as CancelReason);
+        case 'attempt.adopt': return await this.onAdopt(m.attemptId as string, m.containerId as string, m.logPath as string);
+        case 'attempt.release': return await this.onRelease(m.attemptId as string);
+        case 'reconcile.list': return await this.onReconcile(m.attempts as { attemptId: string; containerId: string; kind: 'tool' | 'service' }[]);
+        case 'reconcile.remove': return await this.onRemove(m.resources as { kind: 'container' | 'volume' | 'network'; id: string }[]);
+        case 'image.build.start': {
+          if (!this.paths) return;
+          void this.builder.start(m as unknown as Parameters<ImageBuilder['start']>[0]);
+          return;
+        }
+        case 'image.build.cancel': this.builder.cancel(String(m.buildId)); return;
+        case 'blob.verify': return await this.onVerify(m.sha256 as string);
+        case 'gc.scan': return await this.onGcScan(m.scanId as string, m.olderThanMs as number);
+        case 'gc.apply': return await this.onGcApply(m.objects as string[], m.workDirs as { jobId: string; attemptN: number }[]);
+        case 'shutdown': await this.shutdown(); this.deps.onShutdown?.(); return;
+        default: this.log(`[runner] unknown op ${String(m.op).slice(0, 40)} ignored`);
+      }
+    } catch (e) {
+      // A fault about the runner itself: no attempt named, no class (both or neither).
+      this.log(`[runner] ${String(m.op).slice(0, 40)} failed: ${msgOf(e)}`);
+      this.post({ op: 'fault', message: `the runner could not handle ${String(m.op).slice(0, 40)}` });
+    }
+  }
+
+  // ---------- hello, probe ----------
+
+  private onHello(m: Record<string, unknown>): void {
+    if (typeof m.bootId !== 'string' || !ULID_RE.test(m.bootId) || typeof m.dataHome !== 'string' || typeof m.home !== 'string') {
+      this.log('[runner] hello is malformed'); return;
+    }
+    if (m.home !== '' && !/^[0-9a-f]{16}$/.test(m.home)) { this.log('[runner] hello carries a malformed install label'); return; }
+    this.bootId = m.bootId;
+    this.home = m.home;
+    this.profiles = Array.isArray(m.profiles) ? (m.profiles as SandboxProfile[]).filter((p) => p && typeof p.id === 'string') : [];
+    try {
+      this.paths = m.dataHome ? new HomePaths(m.dataHome) : null;
+    } catch { this.paths = null; }
+    this.store = this.paths ? new ObjectStore(this.paths, this.fs, this.sleep) : null;
+    this.stopped = false;
+    this.post({ op: 'ready', bootId: m.bootId });
+  }
+
+  private async onProbe(): Promise<void> {
+    const gpu = { detected: false, usableInContainers: false as const };
+    let probe: SandboxProbe;
+    try { probe = await this.driver.probe(); } catch { probe = { docker: 'stopped', gpu }; }
+    const images = [];
+    for (const p of this.profiles) {
+      let info: { present: boolean; digestMatches: boolean; sizeBytes?: number; imageId?: string; contextSha256?: string } = { present: false, digestMatches: false };
+      if (probe.docker === 'running') { try { info = await this.driver.imageInfo(p.id); } catch { /* not present */ } }
+      images.push({ profile: p.id, present: info.present, digestMatches: info.digestMatches,
+        ...(info.sizeBytes !== undefined ? { sizeBytes: info.sizeBytes } : {}),
+        ...(info.imageId && /^sha256:[0-9a-f]{64}$/.test(info.imageId) ? { imageId: info.imageId } : {}),
+        ...(info.contextSha256 && SHA_RE.test(info.contextSha256) ? { contextSha256: info.contextSha256 } : {}) });
+    }
+    const free = this.paths ? await this.freeBytes(this.paths.root) : null;
+    this.post({ op: 'probe.result', probe, images, freeBytes: free !== null && Number.isSafeInteger(Math.floor(free)) && free >= 0 ? Math.floor(free) : null, runtimes: [] });
+  }
+
+  // ---------- attempt state ----------
+
+  private newState(id: string, jobId: string, n: number, kind: Kind, plan: AttemptPlan | null, workDir: string, logPath: string): AttemptState {
+    const a: AttemptState = { id, jobId, n, kind, plan, workDir, logPath, seq: 0, log: null, abort: new AbortController(), logAbort: new AbortController(),
+      logDone: null, heartbeat: null, timers: [], containers: [], main: null, volumes: [], networks: [], containerState: null, outBytes: 0,
+      cancel: null, timedOut: false, guard: null, released: false, settled: false, finalizing: false, cleaned: false, stopIssued: false, adopted: false };
+    // Progress events are numbered from this process's clock, so a runner restarted mid-session (adopting the attempt)
+    // continues above what the previous process sent (main drops a seq that is not after the last one).
+    a.seq = Math.max(0, Math.floor(this.now())) * 1000;
+    this.attempts.set(id, a);
+    return a;
+  }
+
+  /** For tests: the attempts this runner holds. */
+  held(): string[] { return [...this.attempts.keys()]; }
+
+  private heartbeatOnce(a: AttemptState): void {
+    if (a.cleaned) return;
+    // An attempt being finalized after a restart never says `missing` (its exit is recorded beside /out).
+    const state = a.containerState === null ? undefined : a.finalizing ? 'exited' : a.containerState;
+    this.post({ op: 'attempt.heartbeat', attemptId: a.id, at: this.now(), logBytes: a.log?.bytes() ?? 0, outBytes: a.outBytes,
+      ...(state ? { container: state } : {}) });
+  }
+
+  private startHeartbeat(a: AttemptState): void {
+    this.heartbeatOnce(a);
+    a.heartbeat = this.timers.setInterval(() => this.heartbeatOnce(a), HEARTBEAT_MS);
+  }
+
+  private event(a: AttemptState, phase: AttemptPhase): void {
+    if (a.released || a.cleaned) return;
+    this.post({ op: 'attempt.event', attemptId: a.id, seq: ++a.seq, event: { t: 'phase', phase, at: this.now() } });
+  }
+
+  private after(a: AttemptState, ms: number, fn: () => void, interval = false): void {
+    const h = interval ? this.timers.setInterval(fn, ms) : this.timers.setTimeout(fn, ms);
+    a.timers.push({ h, interval });
+  }
+
+  /** Ends the in-memory life of an attempt (timers, heartbeats, streams). Nothing in Docker or on disk is touched. */
+  private end(a: AttemptState): void {
+    if (a.heartbeat !== null) { this.timers.clearInterval(a.heartbeat); a.heartbeat = null; }
+    for (const t of a.timers.splice(0)) (t.interval ? this.timers.clearInterval(t.h) : this.timers.clearTimeout(t.h));
+    a.logAbort.abort();
+    // The log is closed with the attempt's life (an open file would keep its folder from being removed on Windows).
+    if (a.log) void a.log.close().catch(() => undefined);
+    if (this.attempts.get(a.id) === a) this.attempts.delete(a.id);
+  }
+
+  /** Removes what the runner made for the attempt (containers, networks, the workspace volume). Never the work folder, the log or a deps cache. */
+  private async cleanup(a: AttemptState): Promise<void> {
+    if (a.cleaned) return;
+    a.cleaned = true;
+    this.end(a);
+    a.abort.abort();
+    try { await a.log?.close(); } catch { /* closed */ }
+    for (const c of a.containers.splice(0)) { try { await this.driver.remove(c); } catch (e) { this.log(`[runner] container not removed: ${msgOf(e)}`); } }
+    for (const n of a.networks.splice(0)) { try { await this.driver.removeNetwork(n); } catch (e) { this.log(`[runner] network not removed: ${msgOf(e)}`); } }
+    for (const v of a.volumes.splice(0)) { try { await this.driver.removeVolume(v); } catch (e) { this.log(`[runner] volume not removed: ${msgOf(e)}`); } }
+    // An attempt picked up after a restart: what the previous process made is found by its labels (never a deps cache).
+    if (a.adopted && a.released) await releaseByLabels({ driver: this.driver, home: this.home, log: this.log }, a.id);
+  }
+
+  /** The container disappeared while the attempt ran (waitExit said so). */
+  private vanished(a: AttemptState): boolean { return a.containerState === 'missing'; }
+
+  private checkStop(a: AttemptState): void { if (a.released || a.cancel || this.stopped) throw new Stop(); }
+
+  /** A refusal before anything ran (no release follows): what was made is removed now. */
+  private async refuse(a: AttemptState, reason: RefusalReason, detail?: string): Promise<void> {
+    a.log?.nexus(`the runner refused the attempt: ${reason}${detail ? ` (${detail})` : ''}`);
+    this.post({ op: 'attempt.refused', attemptId: a.id, reason, ...(detail ? { detail: detail.slice(0, 1000) } : {}) });
+    a.settled = true;
+    await this.cleanup(a);
+  }
+
+  /** A Docker failure of one attempt before it started: BOTH the attempt and its class (no release follows). */
+  private async fault(a: AttemptState, failureClass: 'disk_full' | 'docker_resources' | 'docker_error', message: string): Promise<void> {
+    a.log?.nexus(`the container could not be created or started: ${message}`);
+    this.post({ op: 'fault', message, attemptId: a.id, failureClass });
+    a.settled = true;
+    await this.cleanup(a);
+  }
+
+  /** Docker's failure as a refusal or a classed fault. */
+  private async dockerFailure(a: AttemptState, e: unknown): Promise<void> {
+    if (e instanceof SpecError) return this.refuse(a, 'bad_plan', e.message);
+    const kind = e instanceof DockerError ? e.kind : 'docker_error';
+    if (kind === 'image_missing') return this.refuse(a, 'image_missing', msgOf(e));
+    const cls = kind === 'disk_full' ? 'disk_full' : kind === 'docker_resources' ? 'docker_resources' : 'docker_error';
+    return this.fault(a, cls, msgOf(e));
+  }
+
+  private async openLog(a: AttemptState): Promise<void> {
+    if (!this.paths || a.log) return;
+    const w = new LogWriter(this.fs, this.paths.root, a.logPath, { now: this.now, capBytes: this.deps.limits?.logCapBytes });
+    try { await w.open(); a.log = w; } catch (e) { this.log(`[runner] the attempt log could not be opened: ${msgOf(e)}`); }
+  }
+
+  /** Writes a record beside in/ and out/ atomically (a temporary file renamed into place): a reader sees the old or the new one. */
+  private async writeRecord(a: AttemptState, name: 'plan.json' | 'exit.json', value: unknown): Promise<void> {
+    if (!this.paths || !(await noLinkUnder(this.fs, this.paths.root, path.join(a.workDir, name)))) return;
+    const tmp = path.join(a.workDir, `.${name}.${process.pid}.${++this.recordSeq}.tmp`);
+    try {
+      await this.fs.writeFile(tmp, JSON.stringify(value), 'utf8');
+      await this.fs.rename(tmp, path.join(a.workDir, name));
+    } catch (e) {
+      this.log(`[runner] ${name} not written: ${msgOf(e)}`);
+      try { await this.fs.unlink(tmp); } catch { /* not there */ }
+    }
+  }
+
+  private async readExit(dir: string): Promise<ExitRecord | null> {
+    try {
+      const st = await this.fs.lstat(path.join(dir, 'exit.json'));
+      if (!st.isFile() || st.size > 64 * 1024) return null;
+      const v = JSON.parse(await this.fs.readFile(path.join(dir, 'exit.json'), 'utf8')) as ExitRecord;
+      return v && typeof v === 'object' && v.exit && typeof v.exit.oomKilled === 'boolean' ? v : null;
+    } catch { return null; }
+  }
+
+  // ---------- attempt.start ----------
+
+  private async onStart(attemptId: string, plan: AttemptPlan): Promise<void> {
+    if (typeof attemptId !== 'string' || !ULID_RE.test(attemptId) || !plan || typeof plan !== 'object') { this.log('[runner] attempt.start is malformed'); return; }
+    if (this.attempts.has(attemptId)) { this.log('[runner] attempt.start for an attempt already held; ignored'); return; }
+    const kind: Kind = plan.kind === 'service' ? 'service' : plan.kind === 'engine' ? 'engine' : 'tool';
+    const a = this.newState(attemptId, String(plan.jobId), Number(plan.attemptN), kind, plan, String(plan.workDir), String(plan.logPath));
+    // Heartbeats start now: staging, create and preflight can take a while, and main's lease must not run out meanwhile.
+    this.startHeartbeat(a);
+    try {
+      const bad = this.planProblem(attemptId, plan);
+      if (bad) return await this.refuse(a, 'bad_plan', bad);
+      if (plan.kind === 'engine') return await this.runEngine(a, plan);
+      if (plan.kind === 'service') return await this.runService(a, plan);
+      return await this.runTool(a, plan);
+    } catch (e) {
+      if (e instanceof Stop) return this.stopped ? undefined : await this.finishStopped(a);
+      this.log(`[runner] attempt ${attemptId.slice(0, 10)} stopped on an error: ${msgOf(e)}`);
+      if (a.settled || a.cleaned) return;
+      if (a.containerState === null) return await this.fault(a, 'docker_error', msgOf(e));
+      // It ran but cannot be followed any more: stop it and stop heartbeating, so main's lease ends it (runner_lost,
+      // retried when idempotent). Nothing is removed: the next restart's reconcile decides.
+      a.log?.nexus('the runner lost track of the container and stopped it');
+      await Promise.all(a.containers.map((c) => this.stopAndKill(c, STOP_GRACE_MS)));
+      this.end(a);
+    } finally {
+      if (a.released && !a.cleaned) await this.cleanup(a);
+    }
+  }
+
+  /** Why a plan's ids, paths or labels are not exactly what main derives, or null. */
+  private planProblem(attemptId: string, plan: AttemptPlan): string | null {
+    if (!this.paths || this.bootId === null) return 'the runner has no data home yet';
+    if (plan.attemptId !== attemptId) return 'the plan is for another attempt';
+    if (!ID_RE.test(plan.jobId) || !Number.isSafeInteger(plan.attemptN) || plan.attemptN < 1) return 'the plan ids are malformed';
+    if (!this.paths.same(plan.workDir, this.paths.workDir(plan.jobId, plan.attemptN))) return 'the work folder is not this attempt\'s';
+    if (!this.paths.same(plan.logPath, this.paths.logPath(plan.jobId, plan.attemptN))) return 'the log path is not this attempt\'s';
+    if (plan.kind === 'engine') return null;
+    if (!this.home) return 'this install has no label';
+    const rl = plan.resourceLabels;
+    if (!rl || rl['nexus.home'] !== this.home || rl['nexus.attempt'] !== attemptId || rl['nexus.job'] !== plan.jobId) return 'the resource labels are not this attempt\'s';
+    const specs = plan.kind === 'tool' ? [plan.container] : [plan.app, plan.forwarder];
+    for (const s of specs) {
+      const l = s.labels;
+      if (l['nexus.attempt'] !== attemptId || l['nexus.home'] !== this.home || l['nexus.job'] !== plan.jobId) return 'a container\'s labels are not this attempt\'s';
+      for (const m of s.mounts) {
+        const bind = /^[A-Za-z]:[\\/]/.test(m.hostPath) || m.hostPath.startsWith('/');
+        if (bind) {
+          const ok = (m.kind === 'input' && this.paths.same(m.hostPath, path.join(plan.workDir, 'in')) && m.readOnly)
+            || (m.kind === 'out' && this.paths.same(m.hostPath, path.join(plan.workDir, 'out')));
+          if (!ok) return 'a bind mount is not this attempt\'s staging folder';
+        } else if (!(m.kind === 'workspace' && m.hostPath === `nexus-ws-${attemptId}`) && !(m.kind === 'deps' && m.hostPath === plan.staging.depsVolume?.name)) {
+          return 'a volume mount is not this attempt\'s';
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Docker and disk, checked before anything is made. */
+  private async preChecks(a: AttemptState, outputMaxBytes: number): Promise<{ reason: RefusalReason; detail: string } | null> {
+    let probe: SandboxProbe;
+    try { probe = await this.driver.probe(); } catch { probe = { docker: 'stopped', gpu: { detected: false, usableInContainers: false } }; }
+    if (probe.docker === 'missing') return { reason: 'docker_missing', detail: 'Docker is not installed' };
+    if (probe.docker !== 'running') return { reason: 'docker_stopped', detail: 'Docker is not running' };
+    const free = await this.freeBytes(this.paths!.root);
+    const floor = leaseFloorBytes(outputMaxBytes);
+    if (free !== null && free < floor) return { reason: 'disk_low', detail: `${free} bytes free at the data home, ${floor} needed` };
+    void a;
+    return null;
+  }
+
+  private networkProblem(plan: ToolPlan): string | null {
+    const n = plan.container.network;
+    if (n.mode === 'none') return null;
+    if (n.mode === 'egress-approved') {
+      const ap = plan.approval;
+      if (typeof n.approvalId !== 'string' || n.approvalId.length === 0) return 'egress without an approval id';
+      if (!ap || ap.id !== n.approvalId) return 'the approval id is not the one main consumed for this attempt';
+      if (ap.jobId !== plan.jobId || ap.attemptN !== plan.attemptN) return 'the approval was consumed by another job or attempt';
+      return null;
+    }
+    return 'a tool container runs with no network or its approved egress bridge only';
+  }
+
+  private async createWithRetry(a: AttemptState, spec: ContainerSpec, alias?: string): Promise<string | null> {
+    try {
+      return (await this.driver.create(spec, alias ? { alias } : {})).containerId;
+    } catch (e) {
+      if (e instanceof DockerError && e.kind === 'name_conflict') {
+        a.log?.nexus('the container name was taken; creating it once more under another name');
+        try { return (await this.driver.create(spec, { name: `${spec.name}-2`, ...(alias ? { alias } : {}) })).containerId; } catch (e2) {
+          await this.dockerFailure(a, e2); return null;
+        }
+      }
+      await this.dockerFailure(a, e);
+      return null;
+    }
+  }
+
+  /** stop -t <grace> then kill (a container that already stopped is not an error). */
+  private async stopAndKill(cid: string, graceMs: number): Promise<void> {
+    try { await this.driver.stop(cid, graceMs); } catch (e) { this.log(`[runner] stop failed: ${msgOf(e)}`); }
+    try { await this.driver.kill(cid); } catch (e) { this.log(`[runner] kill failed: ${msgOf(e)}`); }
+  }
+
+  private followLogs(a: AttemptState, cid: string, sinceMs?: number): void {
+    const w = a.log;
+    if (!w) return;
+    a.logDone = this.driver.streamLogs(cid, (s, t) => w.write(s, t), a.logAbort.signal, sinceMs).catch(() => undefined);
+  }
+
+  private async drainLogs(a: AttemptState): Promise<void> {
+    if (a.logDone) {
+      let h: unknown = null;
+      await Promise.race([a.logDone, new Promise<void>((r) => { h = this.timers.setTimeout(r, LOG_DRAIN_MS); })]);
+      if (h !== null) this.timers.clearTimeout(h);
+    }
+    a.logAbort.abort();
+  }
+
+  /** The backstop: at RUNNER_WALL_FACTOR x the wall clock, stop -t 10 then kill; the exit then says `timeout`. */
+  private armWall(a: AttemptState, wallMs: number, cids: () => string[], elapsedMs = 0): void {
+    if (!Number.isSafeInteger(wallMs) || wallMs <= 0) return;
+    this.after(a, Math.max(0, wallMs * RUNNER_WALL_FACTOR - elapsedMs), () => {
+      if (a.containerState !== 'running' || a.settled) return;
+      a.timedOut = true;
+      a.log?.nexus('the wall-clock backstop stopped the container');
+      void Promise.all(cids().map((c) => this.stopAndKill(c, STOP_GRACE_MS)));
+    });
+  }
+
+  /** The size guard: every 5 s, `/out` on the host and `/workspace` through `du`; over a limit, the container is killed. */
+  private armGuard(a: AttemptState, plan: ToolPlan, cid: string): void {
+    let busy = false;
+    const outDir = path.join(a.workDir, 'out');
+    const outLimit = plan.container.limits.outputMaxBytes;
+    const wsLimit = this.deps.limits?.workspaceMaxBytes ?? WORKSPACE_MAX_BYTES;
+    this.after(a, GUARD_POLL_MS, () => {
+      if (busy || a.guard || a.containerState !== 'running') return;
+      busy = true;
+      void (async () => {
+        try {
+          a.outBytes = await outBytes(this.fs, outDir, outLimit);
+          let ws: number | null = null;
+          if (a.outBytes <= outLimit) {
+            try {
+              const r = await this.driver.exec(cid, [...DU_ARGV], { timeoutMs: 30_000, signal: a.abort.signal, maxOutputBytes: 4096 });
+              ws = r.exit.code === 0 ? parseDuKib(r.stdout) : null;
+            } catch { ws = null; }
+          }
+          const trip = guardDecision({ outBytes: a.outBytes, outLimit, workspaceBytes: ws, workspaceLimit: wsLimit });
+          if (trip && !a.guard && a.containerState === 'running') {
+            a.guard = trip;
+            this.post({ op: 'attempt.event', attemptId: a.id, seq: ++a.seq, event: { t: 'guard', guard: trip.guard, bytes: trip.bytes, limitBytes: trip.limitBytes, at: this.now() } });
+            a.log?.nexus(`the size guard stopped the container: ${trip.guard} (${trip.bytes} bytes, limit ${trip.limitBytes})`);
+            try { await this.driver.kill(cid); } catch (e) { this.log(`[runner] kill failed: ${msgOf(e)}`); }
+          }
+        } finally { busy = false; }
+      })();
+    }, true);
+  }
+
+  /** Waits for the container's exit; null when the attempt was released meanwhile. Marks a vanished container `missing`. */
+  private async waitExit(a: AttemptState, cid: string): Promise<ExitInfo | null> {
+    try {
+      return await this.driver.wait(cid, a.abort.signal);
+    } catch (e) {
+      if (a.released || this.stopped) return null;
+      let st: Awaited<ReturnType<RunnerDriver['inspect']>> | null = null;
+      try { st = await this.driver.inspect(cid); } catch { st = null; }
+      if (st?.state === 'exited' && st.exit) return st.exit;
+      // The container is gone (removed from outside, or Docker stopped): main hears `missing` and fails the attempt.
+      a.containerState = 'missing';
+      a.log?.nexus(`the container disappeared: ${msgOf(e)}`);
+      this.heartbeatOnce(a);
+      return null;
+    }
+  }
+
+  // ---------- tool attempts ----------
+
+  private async runTool(a: AttemptState, plan: ToolPlan): Promise<void> {
+    const spec = plan.container;
+    const net = this.networkProblem(plan);
+    if (net) return this.refuse(a, 'network_not_approved', net);
+    const pre = await this.preChecks(a, spec.limits.outputMaxBytes);
+    if (pre) return this.refuse(a, pre.reason, pre.detail);
+    await this.openLog(a);
+    this.event(a, 'staging');
+    const staged = await stageInputs(this.fs, this.paths!, plan, a.workDir, a.abort.signal);
+    if (!staged.ok) return this.refuse(a, staged.reason, staged.detail);
+    await this.writeRecord(a, 'plan.json', { plan } satisfies PlanRecord);
+    this.checkStop(a);
+    this.event(a, 'creating');
+    try {
+      for (const m of spec.mounts) if (m.kind === 'workspace') { await this.driver.createVolume(m.hostPath, { ...plan.resourceLabels }); a.volumes.push(m.hostPath); }
+      if (plan.staging.depsVolume) await this.driver.createVolume(plan.staging.depsVolume.name, { ...plan.resourceLabels, 'nexus.kind': 'deps' });
+      if (spec.network.mode === 'egress-approved') {
+        const name = expectedNetworkName(spec);
+        await this.driver.createNetwork(name, { ...plan.resourceLabels }, { internal: false });
+        a.networks.push(name);
+      }
+    } catch (e) { return this.dockerFailure(a, e); }
+    this.checkStop(a);
+    const cid = await this.createWithRetry(a, spec);
+    if (!cid) return;
+    a.containers.push(cid); a.main = cid;
+    this.checkStop(a);
+    this.event(a, 'preflight');
+    const report = await this.driver.preflight(cid, spec);
+    if (!report.ok) {
+      // Never started: removed now (it holds no evidence); main fails the attempt `limits_not_applied` and releases the rest.
+      try { await this.driver.remove(cid); a.containers = []; } catch (e) { this.log(`[runner] the refused container was not removed: ${msgOf(e)}`); }
+      a.log?.nexus(`preflight refused the container: ${report.problems.length} problem(s)`);
+      this.post({ op: 'attempt.provisioned', attemptId: a.id, containerId: cid, imageDigest: spec.image.id, preflight: report });
+      a.settled = true;
+      return;
+    }
+    this.checkStop(a);
+    this.event(a, 'starting');
+    try { await this.driver.start(cid); } catch (e) { return this.dockerFailure(a, e); }
+    a.containerState = 'running';
+    const startedAt = this.now();
+    // Everything that watches the running container is armed before main hears that it runs.
+    this.followLogs(a, cid);
+    this.armWall(a, spec.limits.wallClockMs, () => [cid]);
+    this.armGuard(a, plan, cid);
+    this.post({ op: 'attempt.provisioned', attemptId: a.id, containerId: cid, imageDigest: spec.image.id, preflight: report });
+    this.event(a, 'running');
+    // A cancel that arrived while `docker start` ran: it is applied now.
+    if (a.cancel && !a.stopIssued) { a.stopIssued = true; void this.stopAndKill(cid, a.cancel.graceMs); }
+    await this.writeRecord(a, 'plan.json', { plan, startedAt, containerIds: [cid] } satisfies PlanRecord);
+    const exit = await this.waitExit(a, cid);
+    if (!exit) { if (!a.released && this.vanished(a)) { a.settled = true; await this.cleanup(a); } return; }
+    await this.collect(a, plan, exit);
+  }
+
+  /** Exit -> exit.json -> /out hashed -> parsers -> `attempt.exited`. */
+  private async collect(a: AttemptState, plan: ToolPlan | null, exit: ExitInfo): Promise<void> {
+    a.containerState = 'exited';
+    for (const t of a.timers.splice(0)) (t.interval ? this.timers.clearInterval(t.h) : this.timers.clearTimeout(t.h));
+    await this.drainLogs(a);
+    if (a.released) return;
+    this.event(a, 'collecting');
+    const reason: ExitReason | undefined = a.cancel ? 'cancelled' : a.timedOut ? 'timeout' : undefined;
+    const record: ExitRecord = { attemptId: a.id, exit, ...(reason ? { reason } : {}), ...(a.guard ? { guard: a.guard.guard } : {}) };
+    await this.writeRecord(a, 'exit.json', record);
+    await this.finishFromRecord(a, plan, record);
+  }
+
+  /** From a recorded exit: hash `/out` (unless the exit already refuses it), parse, report. Used live and after a restart. */
+  private async finishFromRecord(a: AttemptState, plan: ToolPlan | null, rec: ExitRecord): Promise<void> {
+    let outputs: StagedOutput[] = []; let parsed: ParsedOutput[] = [];
+    let outputError: OutputErrorCode | undefined = rec.guard; let entry: string | undefined;
+    if (!rec.reason && !outputError && plan && this.store) {
+      this.event(a, 'hashing');
+      const c = await collectOut(this.fs, this.store, path.join(a.workDir, 'out'),
+        { maxFiles: plan.outputContract.maxFiles, maxBytes: plan.container.limits.outputMaxBytes });
+      if (!c.ok) { outputError = c.code; entry = showEntry(c.entry); a.log?.nexus(`the outputs were refused: ${c.code} (${entry})`); }
+      else outputs = c.outputs;
+      a.outBytes = outputs.reduce((s, o) => s + o.bytes, 0);
+      if (outputs.length > 0 && plan.parse.length > 0) { this.event(a, 'parsing'); parsed = await this.parseOutputs(a, plan, outputs); }
+    }
+    if (a.released) return;
+    try { await a.log?.close(); } catch { /* closed */ }
+    let logBytes = a.log?.bytes() ?? 0;
+    if (!a.log) { try { logBytes = (await this.fs.stat(a.logPath)).size; } catch { logBytes = 0; } }
+    this.post({ op: 'attempt.exited', attemptId: a.id, exit: rec.exit, outputs, parsed, logBytes,
+      ...(outputError ? { outputError } : {}), ...(outputError && entry ? { outputErrorEntry: entry } : {}), ...(rec.reason ? { reason: rec.reason } : {}) });
+    a.settled = true;
+  }
+
+  private async parseOutputs(a: AttemptState, plan: ToolPlan, outputs: readonly StagedOutput[]): Promise<ParsedOutput[]> {
+    const out: ParsedOutput[] = [];
+    for (const p of plan.parse) {
+      const o = outputs.find((x) => x.relPath === p.relPath);
+      if (!o) continue;
+      if (p.parser === 'junit' && o.bytes > JUNIT_MAX_BYTES) { a.log?.nexus('the JUnit report is over 16 MiB; it was not parsed'); continue; }
+      let bytes: Buffer;
+      try { bytes = await this.fs.readFile(this.paths!.objectPath(o.sha256)); } catch { continue; }
+      if (createHash('sha256').update(bytes).digest('hex') !== o.sha256) { a.log?.nexus(`${p.relPath} changed in the object store; it was not parsed`); continue; }
+      if (p.parser === 'junit') {
+        const r = parseJunit(bytes);
+        if (r.ok) out.push({ parser: 'junit', sourceSha256: o.sha256, normalized: r.value });
+        else a.log?.nexus(`the JUnit report was refused: ${r.reason}`);
+      } else if (p.parser === 'discovery') {
+        const fw = discoveryFrameworkOf(plan.container.argv);
+        const r = fw ? parseDiscovery(fw, bytes) : null;
+        if (r && r.ok) out.push({ parser: 'discovery', sourceSha256: o.sha256, normalized: r.value });
+        else a.log?.nexus(`the discovered list was refused: ${r ? r.reason : 'unknown framework'}`);
+      }
+    }
+    return out;
+  }
+
+  /** Cancelled (or stopped) before a container ran: an exit without a code, so main releases what was made. */
+  private async finishStopped(a: AttemptState): Promise<void> {
+    if (a.settled || a.cleaned) return;
+    if (a.released) return;
+    try { await a.log?.close(); } catch { /* closed */ }
+    this.post({ op: 'attempt.exited', attemptId: a.id, exit: { code: null, oomKilled: false, finishedAt: this.now() }, outputs: [], parsed: [],
+      logBytes: a.log?.bytes() ?? 0, reason: 'cancelled' });
+    a.settled = true;
+  }
+
+  // ---------- dev deployments ----------
+
+  private async runService(a: AttemptState, plan: ServicePlan): Promise<void> {
+    const netProblem = serviceNetworkProblem(plan);
+    if (netProblem) return this.refuse(a, 'network_not_approved', netProblem);
+    const pre = await this.preChecks(a, plan.app.limits.outputMaxBytes);
+    if (pre) return this.refuse(a, pre.reason, pre.detail);
+    await this.openLog(a);
+    this.event(a, 'staging');
+    const staged = await stageInputs(this.fs, this.paths!, plan, a.workDir, a.abort.signal);
+    if (!staged.ok) return this.refuse(a, staged.reason, staged.detail);
+    await this.writeRecord(a, 'plan.json', { plan: plan as unknown as Record<string, unknown> } satisfies PlanRecord);
+    this.checkStop(a);
+    this.event(a, 'creating');
+    try {
+      await this.driver.createNetwork(plan.networks.internal, { ...plan.resourceLabels }, { internal: true });
+      a.networks.push(plan.networks.internal);
+      await this.driver.createNetwork(plan.networks.publish, { ...plan.resourceLabels }, { internal: false });
+      a.networks.push(plan.networks.publish);
+      for (const m of plan.app.mounts) if (m.kind === 'workspace') { await this.driver.createVolume(m.hostPath, { ...plan.resourceLabels }); a.volumes.push(m.hostPath); }
+      if (plan.staging.depsVolume) await this.driver.createVolume(plan.staging.depsVolume.name, { ...plan.resourceLabels, 'nexus.kind': 'deps' });
+    } catch (e) { return this.dockerFailure(a, e); }
+    this.checkStop(a);
+    const appId = await this.createWithRetry(a, plan.app, 'app');
+    if (!appId) return;
+    a.containers.push(appId); a.main = appId;
+    const taken = new Set([...this.attempts.values()].map((x) => x.hostPort).filter((x): x is number => typeof x === 'number'));
+    const pick = (): number => (this.deps.pickPort ?? pickPort)(taken);
+    let port = pick();
+    let fwdSpec = forwarderWithPort(plan, port);
+    let fwdId = await this.createWithRetry(a, fwdSpec);
+    if (!fwdId) return;
+    a.containers.push(fwdId);
+    this.event(a, 'preflight');
+    const appReport = await this.driver.preflight(appId, plan.app);
+    const fwdReport = await this.driver.preflight(fwdId, fwdSpec);
+    let report = mergePreflight(appReport, fwdReport);
+    if (!report.ok) {
+      for (const c of a.containers.splice(0)) { try { await this.driver.remove(c); } catch (e) { this.log(`[runner] a refused container was not removed: ${msgOf(e)}`); } }
+      this.post({ op: 'attempt.provisioned', attemptId: a.id, containerId: appId, imageDigest: plan.app.image.id, preflight: report, hostPort: port });
+      a.settled = true;
+      return;
+    }
+    this.checkStop(a);
+    this.event(a, 'starting');
+    try { await this.driver.start(appId); } catch (e) { return this.dockerFailure(a, e); }
+    a.containerState = 'running';
+    try {
+      await this.driver.start(fwdId);
+    } catch (e) {
+      if (!(e instanceof DockerError) || e.kind !== 'port_conflict') return this.dockerFailure(a, e);
+      // The port was taken between the pick and the start: once more with another port (create, preflight, start).
+      a.log?.nexus(`port ${port} was taken; trying another one`);
+      try { await this.driver.remove(fwdId); } catch { /* best effort */ }
+      a.containers = a.containers.filter((c) => c !== fwdId);
+      taken.add(port);
+      port = pick();
+      fwdSpec = forwarderWithPort(plan, port);
+      fwdId = await this.createWithRetry(a, fwdSpec);
+      if (!fwdId) return;
+      a.containers.push(fwdId);
+      const again = await this.driver.preflight(fwdId, fwdSpec);
+      report = mergePreflight(appReport, again);
+      if (!report.ok) {
+        for (const c of a.containers.splice(0)) { try { await this.driver.remove(c); } catch { /* best effort */ } }
+        a.containerState = null;
+        this.post({ op: 'attempt.provisioned', attemptId: a.id, containerId: appId, imageDigest: plan.app.image.id, preflight: report, hostPort: port });
+        a.settled = true;
+        return;
+      }
+      try { await this.driver.start(fwdId); } catch (e2) { a.containerState = null; return this.dockerFailure(a, e2); }
+    }
+    const startedAt = this.now();
+    this.armService(a, plan, appId, fwdId, port, 0);
+    this.post({ op: 'attempt.provisioned', attemptId: a.id, containerId: appId, imageDigest: plan.app.image.id, preflight: report, hostPort: port });
+    this.event(a, 'running');
+    await this.writeRecord(a, 'plan.json', { plan: plan as unknown as Record<string, unknown>, startedAt, hostPort: port, containerIds: [appId, fwdId] } satisfies PlanRecord);
+    await this.waitService(a, appId, fwdId);
+  }
+
+  /** The log, the lifetime backstop and the probe loop of a running dev deployment (live, or adopted after a restart). */
+  private armService(a: AttemptState, plan: ServicePlan, appId: string, fwdId: string | null, port: number, elapsedMs: number): void {
+    a.hostPort = port;
+    this.followLogs(a, appId);
+    this.armWall(a, plan.idleTtlMs, () => [appId, ...(fwdId ? [fwdId] : [])], elapsedMs);
+    let probing = false;
+    this.after(a, Math.max(1000, plan.health.intervalMs), () => {
+      if (probing || a.containerState !== 'running') return;
+      probing = true;
+      void this.probeHttp(port, plan.health.path).then((r) => {
+        if (a.containerState === 'running' && !a.released) {
+          this.post({ op: 'service.health', attemptId: a.id, at: this.now(), status: r.status, ms: r.ms,
+            ...(r.bodySha256 ? { bodySha256: r.bodySha256 } : {}), container: 'running' });
+        }
+      }).finally(() => { probing = false; });
+    }, true);
+    if (a.cancel && !a.stopIssued) { a.stopIssued = true; void Promise.all([appId, ...(fwdId ? [fwdId] : [])].map((c) => this.stopAndKill(c, a.cancel!.graceMs))); }
+  }
+
+  /** Waits for the app's exit, stops the forwarder, collects. */
+  private async waitService(a: AttemptState, appId: string, fwdId: string | null): Promise<void> {
+    const exit = await this.waitExit(a, appId);
+    if (fwdId) await this.stopAndKill(fwdId, 2_000);
+    if (!exit) { if (!a.released && this.vanished(a)) { a.settled = true; await this.cleanup(a); } return; }
+    await this.collect(a, null, exit);
+  }
+
+  // ---------- engine attempts (no container) ----------
+
+  private async runEngine(a: AttemptState, plan: EnginePlan): Promise<void> {
+    await this.openLog(a);
+    this.post({ op: 'attempt.provisioned', attemptId: a.id });
+    this.event(a, 'running');
+    if (Number.isSafeInteger(plan.wallClockMs) && plan.wallClockMs > 0) {
+      this.after(a, plan.wallClockMs * RUNNER_WALL_FACTOR, () => { a.timedOut = true; a.abort.abort(); });
+    }
+    const parsed: ParsedOutput[] = [];
+    let code = 0;
+    const t = plan.task;
+    try {
+      if (t.engine === 'repo.snapshot') {
+        if (typeof t.repoPath !== 'string' || !path.isAbsolute(t.repoPath)) throw new Error('the project folder is not an absolute path');
+        const facts = await snapshot(t.repoPath, a.abort.signal);
+        const sha = createHash('sha256').update(JSON.stringify({ branch: facts.branch, commit: facts.commit, dirty: facts.dirty, tree: facts.tree })).digest('hex');
+        parsed.push({ parser: 'repo-snapshot', sourceSha256: sha, normalized: facts });
+        a.log?.nexus(`snapshot of ${facts.commit.slice(0, 12)}${facts.dirty ? ' (uncommitted changes are not included)' : ''}`);
+      } else if (t.engine === 'sde.app.assemble') {
+        if (typeof t.repoPath !== 'string' || !path.isAbsolute(t.repoPath) || !COMMIT_RE.test(t.commit)) throw new Error('the assembly plan is malformed');
+        appManifestArgv(t.commit);
+        const r = await readAppManifest(t.repoPath, t.commit, APP_MANIFEST_MAX_BYTES, a.abort.signal);
+        if (!r.ok) {
+          code = 1;
+          a.log?.nexus(r.reason === 'too_large' ? 'nexus.app.json is larger than 16 KiB; it was not read' : 'nexus.app.json is not in the build\'s commit');
+        } else {
+          const m = parseAppManifest(r.text);
+          if (!m.ok) { code = 1; a.log?.nexus(`nexus.app.json was refused: ${m.reason}`); }
+          else parsed.push({ parser: 'app-manifest', sourceSha256: m.sha256, normalized: { manifest: m.manifest } });
+        }
+      } else {
+        code = 1;
+        a.log?.nexus(`${t.engine} is not in this build`);
+      }
+    } catch (e) {
+      code = 1;
+      a.log?.nexus(`the work stopped: ${msgOf(e)}`);
+    }
+    if (a.released) return;
+    for (const h of a.timers.splice(0)) this.timers.clearTimeout(h.h);
+    const reason: ExitReason | undefined = a.cancel ? 'cancelled' : a.timedOut ? 'timeout' : undefined;
+    try { await a.log?.close(); } catch { /* closed */ }
+    this.post({ op: 'attempt.exited', attemptId: a.id, exit: { code: reason ? null : code, oomKilled: false, finishedAt: this.now() },
+      outputs: [], parsed: reason ? [] : parsed, logBytes: a.log?.bytes() ?? 0, ...(reason ? { reason } : {}) });
+    a.settled = true;
+  }
+
+  // ---------- cancel, release ----------
+
+  private async onCancel(attemptId: string, graceMs: number, reason: CancelReason): Promise<void> {
+    if (typeof attemptId !== 'string' || !ULID_RE.test(attemptId)) return;
+    const grace = Number.isSafeInteger(graceMs) && graceMs >= 0 && graceMs <= 300_000 ? graceMs : STOP_GRACE_MS;
+    const a = this.attempts.get(attemptId);
+    if (!a) {
+      // Not held here (the runner restarted): stop its labelled containers, then report an exit so main releases them.
+      if (this.home) {
+        try {
+          const found = await this.driver.listResources({ 'nexus.home': this.home, 'nexus.attempt': attemptId });
+          for (const c of found.filter((r) => r.kind === 'container')) await this.stopAndKill(c.id, grace);
+        } catch (e) { this.log(`[runner] cancel of an attempt not held here: ${msgOf(e)}`); }
+      }
+      this.post({ op: 'attempt.exited', attemptId, exit: { code: null, oomKilled: false, finishedAt: this.now() }, outputs: [], parsed: [], logBytes: 0, reason: 'cancelled' });
+      return;
+    }
+    if (a.cancel || a.settled) return;
+    a.cancel = { graceMs: grace, reason };
+    a.log?.nexus(`stopping: ${reason}`);
+    if (a.kind === 'engine') { a.abort.abort(); return; }
+    if (a.containerState === 'running' && !a.stopIssued) { a.stopIssued = true; await Promise.all(a.containers.map((c) => this.stopAndKill(c, grace))); }
+  }
+
+  private async onRelease(attemptId: string): Promise<void> {
+    if (typeof attemptId !== 'string' || !ULID_RE.test(attemptId)) return;
+    const a = this.attempts.get(attemptId);
+    if (!a) { await releaseByLabels({ driver: this.driver, home: this.home, log: this.log }, attemptId); return; }
+    a.released = true;
+    if (a.settled) { await this.cleanup(a); return; }
+    // Main is done with it while it still runs: stop it now; the pipeline ends without reporting and cleans up.
+    a.abort.abort();
+    for (const c of a.containers) { try { await this.driver.kill(c); } catch { /* already stopped */ } }
+  }
+
+  // ---------- restart recovery ----------
+
+  private async onAdopt(attemptId: string, containerId: string, logPath: string): Promise<void> {
+    if (typeof attemptId !== 'string' || !ULID_RE.test(attemptId) || !this.paths) return;
+    if (this.attempts.has(attemptId)) return;
+    const loc = this.paths.parseLogPath(logPath);
+    if (!loc) { this.log('[runner] attempt.adopt names a log path outside the data home; ignored'); return; }
+    const workDir = this.paths.workDir(loc.jobId, loc.n);
+    const rec = await readPlanRecord(this.fs, workDir);
+    const plan = rec && (rec.plan as { attemptId?: unknown }).attemptId === attemptId ? rec.plan as unknown as AttemptPlan : null;
+    const kind: Kind = plan?.kind === 'service' ? 'service' : 'tool';
+    const a = this.newState(attemptId, loc.jobId, loc.n, kind, plan, workDir, this.paths.logPath(loc.jobId, loc.n));
+    a.adopted = true;
+    a.main = typeof containerId === 'string' && /^[0-9a-f]{64}$/.test(containerId) ? containerId : null;
+    if (a.main) a.containers.push(a.main);
+    if (kind === 'service' && Array.isArray(rec?.containerIds)) for (const c of rec!.containerIds) if (/^[0-9a-f]{64}$/.test(c) && !a.containers.includes(c)) a.containers.push(c);
+    const exitRec = await this.readExit(workDir);
+    if (exitRec && exitRec.attemptId === attemptId) {
+      // A durable exit: finalized from the data home alone (no Docker needed), heartbeating `exited` meanwhile.
+      a.finalizing = true; a.containerState = 'exited';
+      this.startHeartbeat(a);
+      return this.finalize(a, plan, exitRec);
+    }
+    let st: Awaited<ReturnType<RunnerDriver['inspect']>> | null = null;
+    if (a.main) { try { st = await this.driver.inspect(a.main); } catch { st = null; } }
+    if (st?.state === 'exited' && st.exit) {
+      a.finalizing = true; a.containerState = 'exited';
+      this.startHeartbeat(a);
+      const r: ExitRecord = { attemptId, exit: st.exit };
+      await this.writeRecord(a, 'exit.json', r);
+      return this.finalize(a, plan, r);
+    }
+    if (st?.state === 'running' && a.main && plan) {
+      a.containerState = 'running';
+      this.startHeartbeat(a);
+      await this.openLog(a);
+      a.log?.nexus('picked up again after a restart');
+      let since: number | undefined;
+      try { since = (await this.fs.stat(a.logPath)).mtimeMs; } catch { since = undefined; }
+      const elapsed = typeof rec?.startedAt === 'number' ? Math.max(0, this.now() - rec.startedAt) : 0;
+      try {
+        if (plan.kind === 'service') {
+          const fwd = a.containers.find((c) => c !== a.main) ?? null;
+          if (typeof rec?.hostPort === 'number') {
+            this.armService(a, plan, a.main, fwd, rec.hostPort, elapsed);
+            return await this.waitService(a, a.main, fwd);
+          }
+        } else if (plan.kind === 'tool') {
+          const cid = a.main;
+          a.logDone = null;
+          this.followLogs(a, cid, since);
+          this.armWall(a, plan.container.limits.wallClockMs, () => [cid], elapsed);
+          this.armGuard(a, plan, cid);
+          const exit = await this.waitExit(a, cid);
+          if (!exit) { if (!a.released && this.vanished(a)) { a.settled = true; await this.cleanup(a); } return; }
+          return await this.collect(a, plan, exit);
+        }
+      } finally { if (a.released && !a.cleaned) await this.cleanup(a); }
+    }
+    // No exit recorded and nothing running: nothing honest to report (main's lease ends it as runner_lost).
+    this.log(`[runner] attempt ${attemptId.slice(0, 10)} cannot be picked up: no recorded exit and no running container`);
+    this.end(a);
+  }
+
+  private async finalize(a: AttemptState, plan: AttemptPlan | null, rec: ExitRecord): Promise<void> {
+    try {
+      this.event(a, 'collecting');
+      await this.finishFromRecord(a, plan && plan.kind === 'tool' ? plan : null, rec);
+    } catch (e) {
+      this.log(`[runner] finalizing attempt ${a.id.slice(0, 10)} stopped: ${msgOf(e)}`);
+    } finally {
+      if (a.released && !a.cleaned) await this.cleanup(a);
+    }
+  }
+
+  private async onReconcile(list: { attemptId: string; containerId: string; kind: 'tool' | 'service' }[]): Promise<void> {
+    if (!this.paths || !this.store) return;
+    const ok = (Array.isArray(list) ? list : []).filter((x) => x && typeof x.attemptId === 'string' && ULID_RE.test(x.attemptId)
+      && typeof x.containerId === 'string' && (x.kind === 'tool' || x.kind === 'service'));
+    const answer = await reconcileAnswer({ driver: this.driver, fs: this.fs, paths: this.paths, store: this.store, home: this.home }, ok);
+    this.post(answer);
+  }
+
+  private async onRemove(resources: { kind: 'container' | 'volume' | 'network'; id: string }[]): Promise<void> {
+    const r = await removeResources({ driver: this.driver, home: this.home, live: new Set(this.attempts.keys()), log: this.log }, resources);
+    this.log(`[runner] leftover resources removed=${r.removed} refused=${r.refused}`);
+  }
+
+  // ---------- blobs ----------
+
+  private async onVerify(sha256: string): Promise<void> {
+    if (typeof sha256 !== 'string' || !SHA_RE.test(sha256)) return;
+    const ok = this.store ? await this.store.verify(sha256) : false;
+    this.post({ op: 'blob.verified', sha256, ok });
+  }
+
+  private async onGcScan(scanId: string, olderThanMs: number): Promise<void> {
+    if (typeof scanId !== 'string' || !ULID_RE.test(scanId) || !this.paths) return;
+    const cutoff = this.now() - (Number.isSafeInteger(olderThanMs) && olderThanMs >= 0 ? olderThanMs : 24 * 3_600_000);
+    const objects: { sha256: string; bytes: number }[] = [];
+    const workDirs: { jobId: string; attemptN: number; mtime: number }[] = [];
+    let truncated = false;
+    const fs = this.fs;
+    try {
+      for (const shard of (await fs.readdir(this.paths.objectsDir)).sort()) {
+        if (!/^[0-9a-f]{2}$/.test(shard)) continue;
+        const dir = path.join(this.paths.objectsDir, shard);
+        const st = await fs.lstat(dir);
+        if (!st.isDirectory() || st.isSymbolicLink()) continue;
+        for (const f of (await fs.readdir(dir)).sort()) {
+          if (!/^[0-9a-f]{62}$/.test(f)) continue;
+          const s = await fs.lstat(path.join(dir, f));
+          if (!s.isFile() || s.mtimeMs >= cutoff) continue;
+          if (objects.length >= MAX_GC_LIST) { truncated = true; break; }
+          objects.push({ sha256: `${shard}${f}`, bytes: s.size });
+        }
+      }
+    } catch (e) { if (errCode(e) !== 'ENOENT') this.log(`[runner] gc scan of objects stopped: ${msgOf(e)}`); }
+    try {
+      for (const job of (await fs.readdir(this.paths.workRoot)).sort()) {
+        if (!ULID_RE.test(job)) continue;
+        for (const n of await fs.readdir(path.join(this.paths.workRoot, job))) {
+          if (!/^[1-9][0-9]{0,6}$/.test(n)) continue;
+          const s = await fs.lstat(path.join(this.paths.workRoot, job, n));
+          if (!s.isDirectory() || s.isSymbolicLink() || s.mtimeMs >= cutoff) continue;
+          if ([...this.attempts.values()].some((a) => a.jobId === job && a.n === Number(n))) continue;
+          if (workDirs.length >= MAX_GC_LIST) { truncated = true; break; }
+          workDirs.push({ jobId: job, attemptN: Number(n), mtime: Math.max(0, Math.floor(s.mtimeMs)) });
+        }
+      }
+    } catch (e) { if (errCode(e) !== 'ENOENT') this.log(`[runner] gc scan of work folders stopped: ${msgOf(e)}`); }
+    this.post({ op: 'gc.result', scanId, objects, workDirs, truncated });
+  }
+
+  /** `gc.apply`: exactly the listed objects, only under objects/ (exclusive store lock), and the listed finished work folders. */
+  private async onGcApply(objects: string[], workDirs: { jobId: string; attemptN: number }[]): Promise<void> {
+    if (!this.paths || !this.store) return;
+    const shas = (Array.isArray(objects) ? objects : []).filter((s) => typeof s === 'string' && SHA_RE.test(s)).slice(0, MAX_GC_LIST);
+    const r = await this.store.deleteObjects(shas);
+    let dirs = 0;
+    for (const w of (Array.isArray(workDirs) ? workDirs : []).slice(0, MAX_GC_LIST)) {
+      if (!w || typeof w.jobId !== 'string' || !ULID_RE.test(w.jobId) || !Number.isSafeInteger(w.attemptN) || w.attemptN < 1) continue;
+      if ([...this.attempts.values()].some((a) => a.jobId === w.jobId && a.n === w.attemptN)) continue;
+      const dir = this.paths.workDir(w.jobId, w.attemptN);
+      if (!(await noLinkUnder(this.fs, this.paths.root, dir))) continue;
+      try { await this.fs.rm(dir, { recursive: true, force: true }); dirs++; } catch (e) { this.log(`[runner] a work folder was not removed: ${msgOf(e)}`); }
+    }
+    this.log(`[runner] gc removed objects=${r.removed} failed=${r.failed} workDirs=${dirs}`);
+  }
+
+  // ---------- shutdown ----------
+
+  /**
+   * App quit: dev deployments' containers are stopped; tool containers keep running (the next start adopts them);
+   * nothing is removed (no container, no work folder, no log). Timers end; logs are closed.
+   */
+  async shutdown(): Promise<void> {
+    this.stopped = true;
+    this.builder.cancelAll();
+    const all = [...this.attempts.values()];
+    await Promise.all(all.filter((a) => a.kind === 'service' && a.containerState === 'running')
+      .map((a) => Promise.all(a.containers.map((c) => this.stopAndKill(c, 2_000)))));
+    for (const a of all) {
+      this.end(a);
+      try { await a.log?.close(); } catch { /* closed */ }
+    }
+  }
+}
+
+/** For tests and the runner entry: the version of the plan record the runner writes. */
+export type { PlanRecord };
+export { findAttemptDir };

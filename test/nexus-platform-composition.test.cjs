@@ -150,3 +150,16 @@ test('a second instance that lost the single-instance lock never opens the store
   const ready = idx.indexOf('app.whenReady().then(');
   assert.ok(idx.indexOf('if (!gotInstanceLock) return;', ready) < idx.indexOf('persist.open(', ready));
 });
+
+// B2a Task 11 (additive): the runner utilityProcess is forked only by the runner host; the platform core stays transport-free.
+test('utilityProcess appears only in src/main/nexusExec/runnerHost.ts; src/main/nexus has no utilityProcess or MessageChannelMain', () => {
+  for (const f of walkTs('src/main')) {
+    if (f.split(path.sep).join('/') === 'src/main/nexusExec/runnerHost.ts') continue;
+    assert.doesNotMatch(read(f), /utilityProcess/, f);
+  }
+  assert.match(read('src/main/nexusExec/runnerHost.ts'), /utilityProcess\.fork\(/);
+  for (const f of walkTs('src/main/nexus')) {
+    assert.doesNotMatch(read(f), /ipcMain|ipcRenderer|webContents/, f);
+    assert.doesNotMatch(read(f), /utilityProcess|MessageChannelMain/, f);
+  }
+});

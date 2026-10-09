@@ -190,6 +190,12 @@ export interface ToolPlan extends PlanBase {
   /** Files under `/out` that must exist for the attempt to count as having produced its outputs. */
   outputContract: { required: string[]; maxFiles: number };
   parse: { parser: ParserId; relPath: string }[];
+  /**
+   * Egress plans only: the approval main consumed for THIS attempt (its id, and the job and attempt number that consumed
+   * it). The runner refuses an `egress-approved` network whose `approvalId` is absent or differs from it, or whose
+   * consumer is another job or attempt (defense in depth; main's plan builder already refuses).
+   */
+  approval?: { id: string; jobId: string; attemptN: number };
 }
 
 /** A long-lived app container behind a loopback forwarder (dev deployment). */

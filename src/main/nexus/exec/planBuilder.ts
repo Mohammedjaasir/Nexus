@@ -316,8 +316,11 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
     capDrop: ['ALL'],
     noNewPrivileges: true
   };
+  // An egress plan names the approval it consumed (networkFor checked it is this job's, consumed by this attempt).
+  const approval = container.network.mode === 'egress-approved' && ctx.approval
+    ? { approval: { id: ctx.approval.id, jobId: job.id, attemptN: attempt.n } } : {};
   const plan: ToolPlan = {
-    ...base, kind: 'tool', container, resourceLabels: attemptLabels(ctx),
+    ...base, kind: 'tool', container, resourceLabels: attemptLabels(ctx), ...approval,
     staging: {
       ...(source && ctx.repoPath ? { source: { repoPath: ctx.repoPath, commit: source.commit } } : {}),
       blobs: [],

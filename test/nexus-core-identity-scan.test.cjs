@@ -11,6 +11,9 @@ const files = () => [
   ...walk(path.join(ROOT, 'src/main/nexus')), ...walk(path.join(ROOT, 'src/shared/nexus')),
   // B1 Task 6: the nexus:* IPC layer and its shared contract (also under src/shared/nexus; named so a move keeps it scanned).
   ...walk(path.join(ROOT, 'src/main/nexusIpc')), path.join(ROOT, 'src/shared/nexus/ipc.ts'),
+  // B2a Task 11: the runner, the execution wiring and the runner's test fixtures.
+  ...walk(path.join(ROOT, 'src/runner')), ...walk(path.join(ROOT, 'src/main/nexusExec')), ...walk(path.join(__dirname, 'fixtures', 'exec')),
+  ...['nexus-runner-posture.test.cjs'].map((f) => path.join(__dirname, f)),
   ...fs.readdirSync(__dirname).filter((f) => /^nexus-(db|platform|core)-.+\.test\.cjs$/.test(f)).map((f) => path.join(__dirname, f)),
   // the guard's own rule file names the banned words, so it is the one helper excluded
   ...walk(path.join(__dirname, 'helpers')).filter((f) => path.basename(f) !== 'identityGuard.cjs'),

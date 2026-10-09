@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="5" failures="0" errors="0">
+  <testsuite name="claims five" tests="5" failures="0" errors="0">
+    <testcase classname="c" name="one" time="0.001"/>
+    <testcase classname="c" name="two" time="0.001"/>
+    <testcase classname="c" name="three" time="0.001"/>
+  </testsuite>
+</testsuites>

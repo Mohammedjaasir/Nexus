@@ -55,7 +55,9 @@ export default defineConfig({
     define: defineMain,
     build: {
       rollupOptions: {
-        input: { index: resolve(__dirname, 'src/main/index.ts') }
+        // B2a Task 11: the runner utilityProcess is a second main-process entry (out/main/runner.js). Its
+        // dependencies stay external (externalizeDepsPlugin), so fast-xml-parser loads from node_modules.
+        input: { index: resolve(__dirname, 'src/main/index.ts'), runner: resolve(__dirname, 'src/runner/index.ts') }
       }
     }
   },

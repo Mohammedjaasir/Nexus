@@ -89,7 +89,8 @@ import { EPHEMERAL_PORT_MAX, EPHEMERAL_PORT_MIN, parseRunnerMessage, type Cancel
 import { evaluateGate, leaseFloorBytes, type GateResult } from '../../../shared/nexus/resourceGate';
 import type { AuthService } from '../auth/authService';
 import { PrincipalResolver } from '../auth/principals';
-import { containsSecret } from '../activity/redact';
+import { containsSecret, redactText } from '../activity/redact';
+import { appendActivityRow } from '../activity/writer';
 import type { BlobIndex, IngestToken } from '../blobs/blobIndex';
 import { getValidator } from '../../../shared/nexus/validators';
 import { newId } from '../db/ids';
@@ -279,7 +280,7 @@ export const MAX_EXEC_LIST_LIMIT = 500;
 export const DEFAULT_EXEC_LIST_LIMIT = 100;
 export const MAX_EVENTS_LIMIT = 500;
 const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
-const REFUSE_TO_FAIL = new Set(['bad_plan', 'network_not_approved', 'unknown_attempt']);
+const REFUSE_TO_FAIL = new Set(['bad_plan', 'network_not_approved', 'unknown_attempt', 'input_changed']);
 const REFUSAL_WAIT: Record<string, string> = {
   docker_missing: 'waiting:docker', docker_stopped: 'waiting:docker', image_missing: 'waiting:image', image_mismatch: 'waiting:image',
   disk_low: 'waiting:disk', busy: 'waiting:slots'
@@ -703,9 +704,25 @@ export class ExecutionService {
     this.awaitingExit.delete(a.id);
     if (recipe.executor === 'service') { this.serviceExited(a, j, m, now); return; }
     const exit = { code: m.exit.code, signal: m.exit.signal, oomKilled: m.exit.oomKilled };
+    // The runner's own wall-clock backstop stopped the container (main's timeout had not fired: a long stall of main):
+    // the attempt timed out; nothing it left is ingested.
+    if (m.reason === 'timeout') {
+      const error = { code: 'timed_out', message: 'the runner stopped the container at its wall-clock backstop' };
+      immediateTx(this.db, () => {
+        transitionAttemptTx(this.db, attemptRow(this.db, a.id)!, 'timed_out', now, j.project_id, { exit, outcome: 'timed_out', error, logBytes: m.logBytes });
+        if (this.row(j.id)!.state === 'running') this.moveJobTx(j.id, 'timed_out', now, { outcome: 'timed_out', error });
+      });
+      this.send({ op: 'attempt.release', attemptId: a.id });
+      this.deps.validation?.runPending(now);
+      return;
+    }
     // Refused outputs, OOM, a non-zero exit without a test report, a missing contract output (a tree output, a build, is
     // judged by its validators instead): the one rule for every exit, live or recovered (recovery.ts exitFailure).
     let failure: { outcome: string; error: { code: string; message: string } } | null = exitFailure(recipe, m.exit, m.outputs, m.parsed, m.outputError ?? null);
+    // The runner names the `/out` entry it refused (already redacted and escaped there); redacted again here.
+    if (failure && m.outputError && m.outputErrorEntry) {
+      failure = { ...failure, error: { ...failure.error, message: `${failure.error.message} (${redactText(m.outputErrorEntry).slice(0, 200)})` } };
+    }
     if (!failure && !this.deps.ingest) {
       failure = { outcome: 'ingest_unavailable', error: { code: 'ingest_unavailable', message: 'outputs cannot be ingested in this build' } };
     }
@@ -1651,6 +1668,38 @@ export class ExecutionService {
     // The answer to the outstanding reconcile request has been applied.
     this.reconcileOutstanding = false;
     return report;
+  }
+
+  /**
+   * Restart recovery's removal list was handed to the runner (`reconcile.remove`, B2a Task 11): one `exec.orphan_removed`
+   * activity row with the counts by kind. The row records the request; the runner removes only resources labelled with
+   * this install's `nexus.home` and a `nexus.attempt`. System only. Never throws past its checks.
+   */
+  recordOrphanRemoval(system: Principal, resources: readonly { kind: string; id: string }[]): void {
+    this.requireAvailable();
+    if (system?.kind !== 'system' || this.principals.get(system.id)?.kind !== 'system') {
+      throw new PlatformError('denied', 'orphan removal is recorded by the system', { reason: 'system_only' });
+    }
+    const list = Array.isArray(resources) ? resources : [];
+    if (list.length === 0) return;
+    const n = (k: string): number => list.filter((r) => r?.kind === k).length;
+    const now = this.deps.now();
+    try {
+      immediateTx(this.db, () => appendActivityRow(this.db, { actorKind: system.kind, actorId: system.id, entityType: 'execution',
+        action: 'exec.orphan_removed', status: 'succeeded',
+        details: { requested: list.length, containers: n('container'), volumes: n('volume'), networks: n('network') } }, now));
+    } catch (e) {
+      this.log(`[nexus] exec: the orphan removal was not recorded: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
+    }
+  }
+
+  /** The newest `job_events.seq` (0 with none): the renderer hint push carries it (execWiring coalesces it). */
+  lastEventSeq(): number {
+    if (!this.deps.available) return 0;
+    try {
+      const r = this.db.prepare('SELECT MAX(seq) AS s FROM job_events').get() as { s: number | null } | undefined;
+      return typeof r?.s === 'number' ? r.s : 0;
+    } catch { return 0; }
   }
 
   /** What main sends in `reconcile.list` at runner `ready`: every live attempt whose container is recorded. */

@@ -104,6 +104,28 @@ export function expectedNetworkName(spec: ContainerSpec): string {
   return n.network;
 }
 
+/**
+ * The publish network of a dev deployment's forwarder (a spec with `publish` on its service's internal network):
+ * `nexus-pub-<jobId>`, beside the internal network. Its published loopback port needs a network that is not
+ * `--internal`. Null for every other spec.
+ */
+export function publishNetworkName(spec: ContainerSpec): string | null {
+  if (!spec.publish || spec.network?.mode !== 'service-internal') return null;
+  return `nexus-pub-${String(spec.labels['nexus.job']).toLowerCase()}`;
+}
+
+/** Every network endpoint a created container of this spec must have, and no other: its network, plus the forwarder's publish network. */
+export function expectedEndpoints(spec: ContainerSpec): string[] {
+  const pub = publishNetworkName(spec);
+  return pub ? [expectedNetworkName(spec), pub] : [expectedNetworkName(spec)];
+}
+
+/** A named volume's `Mode` in `docker inspect`: Docker 29.7.2 reports `z` for `--mount type=volume` and `rw` for compose. */
+const VOLUME_MODES: ReadonlySet<string> = new Set(['', 'z', 'Z', 'rw', 'ro']);
+const BIND_MODES: ReadonlySet<string> = new Set(['', 'rw', 'ro']);
+/** Endpoint fields that are set only once a network endpoint exists (an address, a gateway, an endpoint id). */
+const ENDPOINT_FIELDS = ['EndpointID', 'IPAddress', 'GlobalIPv6Address', 'Gateway', 'IPv6Gateway'];
+
 const DESKTOP_HOST = '/run/desktop/mnt/host';
 
 /**
@@ -272,8 +294,9 @@ function compare(spec: ContainerSpec, inspect: unknown): PreflightReport {
   observed.user = user ?? '';
   if (user !== SANDBOX_USER) problems.push(`user is ${user ? clip(user) : 'root (unset)'}, expected ${SANDBOX_USER}`);
 
-  // Network: the mode and exactly one endpoint
+  // Network: the mode and exactly the expected endpoints (one; the forwarder also joins its publish network)
   const wantNet = expectedNetworkName(spec);
+  const wantAll = expectedEndpoints(spec);
   const netMode = str(h('NetworkMode'));
   observed.networkMode = netMode ?? '';
   if (netMode !== wantNet) problems.push(`network is ${netMode ?? show(h('NetworkMode'))}, expected ${wantNet}`);
@@ -281,8 +304,17 @@ function compare(spec: ContainerSpec, inspect: unknown): PreflightReport {
   if (nets === null) problems.push('network endpoints are unreadable');
   else {
     const names = nets.map(([k]) => k);
-    for (const n of names) if (n !== wantNet) problems.push(`network endpoint ${clip(n)} is attached, expected only ${wantNet}`);
-    if (!names.includes(wantNet)) problems.push(`network endpoint ${wantNet} is not attached`);
+    for (const n of names) if (!wantAll.includes(n)) problems.push(`network endpoint ${clip(n)} is attached, expected only ${wantAll.join(' and ')}`);
+    for (const w of wantAll) if (!names.includes(w)) problems.push(`network endpoint ${w} is not attached`);
+    // `none` has no endpoint on a created container: no address, no gateway, no endpoint id.
+    if (wantNet === 'none') {
+      const none = nets.find(([k]) => k === 'none')?.[1];
+      if (none !== undefined && none !== null && !isRec(none)) problems.push('network none is unreadable');
+      for (const f of ENDPOINT_FIELDS) {
+        const v = own(none, f);
+        if (v !== undefined && v !== null && v !== '') problems.push(`network none has an endpoint (${f} is set)`);
+      }
+    }
   }
 
   // Mounts: exactly the spec's set (destination, source, RW, type, mode, propagation)
@@ -304,8 +336,10 @@ function compare(spec: ContainerSpec, inspect: unknown): PreflightReport {
     if (prop !== undefined && prop !== '' && prop !== 'rprivate') problems.push(`mount ${clip(dst)} propagation ${show(prop)} is not allowed`);
     const mode = own(m, 'Mode');
     if (mode !== undefined && mode !== '') {
-      if (mode !== 'ro' && mode !== 'rw') problems.push(`mount ${clip(dst)} mode ${show(mode)} is not allowed`);
-      else if ((mode === 'rw') !== (rw === true)) problems.push(`mount ${clip(dst)} mode ${mode} contradicts its RW flag`);
+      // A named volume may report an SELinux relabel mode (`z`, `Z`) as well; a bind mount only `rw` / `ro`.
+      const allowed = type === 'volume' ? VOLUME_MODES : BIND_MODES;
+      if (typeof mode !== 'string' || !allowed.has(mode)) problems.push(`mount ${clip(dst)} mode ${show(mode)} is not allowed`);
+      else if ((mode === 'rw' || mode === 'ro') && (mode === 'rw') !== (rw === true)) problems.push(`mount ${clip(dst)} mode ${mode} contradicts its RW flag`);
     }
   }
   const wanted = new Set<string>();

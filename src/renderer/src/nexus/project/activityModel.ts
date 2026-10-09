@@ -15,7 +15,9 @@ export const ACTIVITY_PAGE = 20;
 export const ACTIVITY_DETAIL_ALLOW: readonly string[] = Object.freeze([
   'versionNo', 'to', 'rollback', 'source', 'reactivated', 'subjects', 'toWorkspaceId', 'withNote', 'kind', 'workspaceId',
   // B2a Task 9: approvals, image builds and dev deployments (each read only as one of a fixed set of values).
-  'reason', 'decision', 'status', 'job'
+  'reason', 'decision', 'status', 'job',
+  // B2a Task 11: how many leftover sandbox resources main asked the runner to remove (a count).
+  'requested'
 ]);
 
 /** Every action the platform services write to the activity log. */
@@ -32,7 +34,9 @@ export const ACTIVITY_ACTIONS: readonly string[] = Object.freeze([
   'approval.request', 'approval.respond', 'approval.expire', 'image_build.start', 'image_build.finish',
   'deployment.start', 'deployment.transition', 'deployment.stop',
   // B2a Task 10: restart recovery's decisions.
-  'exec.recover'
+  'exec.recover',
+  // B2a Task 11: leftover sandbox resources of ended runs, handed to the runner for removal after a restart.
+  'exec.orphan_removed'
 ]);
 
 /** Plain words for an action a person may be refused (every platform action). */
@@ -84,6 +88,7 @@ const ACTION_WORDS: Record<string, string> = {
   'deployment.transition': 'update a dev deployment',
   'deployment.stop': 'stop a dev deployment',
   'exec.recover': 'recover work after a restart',
+  'exec.orphan_removed': 'remove leftover sandbox resources',
   'version.revalidate': 'run the checks again',
   'platform.health': 'read the platform health'
 };
@@ -307,6 +312,13 @@ function sentence(row: ActivityView, ctx: ActivityContext): string | null {
     }
     case 'deployment.stop':
       return detail(row, 'job') === 'completes_on_exit' ? 'Dev deployment stopped; its job finishes when the app has exited' : 'Dev deployment stopped';
+    case 'exec.orphan_removed': {
+      // Main hands the list to the runner; the row records the request, never a confirmed removal.
+      const n = detail(row, 'requested');
+      return typeof n === 'number' && Number.isSafeInteger(n) && n > 0
+        ? `Asked the sandbox runner to remove ${n} leftover sandbox resource${n === 1 ? '' : 's'} of ended runs`
+        : 'Asked the sandbox runner to remove leftover sandbox resources of ended runs';
+    }
     case 'exec.recover': {
       const decision = detail(row, 'decision');
       if (decision === 'fail') return pick(RECOVER_FAIL_WORDS, detail(row, 'status')) ?? 'Job failed: it stopped while the app was closed';
