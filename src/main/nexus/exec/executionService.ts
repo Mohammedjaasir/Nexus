@@ -148,6 +148,8 @@ const RETRYABLE = new Set(['docker_resources', 'disk_full', 'container_vanished'
 const CANCEL_GRACE_MS = 10_000;
 /** A gap between ticks longer than this is a stall of main (or the machine), not silence of the runner. */
 export const TICK_STALL_MS = 10_000;
+/** A gap this long (machine sleep) is also excluded from wall clocks, up to 1x the attempt's wall clock in all. */
+export const SLEEP_GAP_MS = 5 * 60_000;
 /** After this many consecutive failed `attempt.start` sends the runner counts as not ready until it reports again. */
 export const MAX_SEND_FAILURES = 3;
 /** Requeue backoff after a start that never ran (not sent, or refused with a waiting reason): 2 s doubling to 60 s. */
@@ -253,8 +255,9 @@ export class ExecutionService {
   private readonly hbPending = new Map<string, { at: number; logBytes: number; outBytes: number }>();
   private attemptById: Database.Statement | null = null;
   private lastTickAt: number | null = null;
-  /** Recent scheduler stalls (in memory; a restart starts clean and recovery decides). */
-  private readonly stalls: { at: number; gapMs: number }[] = [];
+  /** Recent sleep-like scheduler stalls (in memory; a restart starts clean and recovery decides). */
+  private readonly stalls: { from: number; to: number }[] = [];
+  private inStallStreak = false;
   /** Consecutive `attempt.start` sends that failed while the port said ready. */
   private sendFailures = 0;
 
@@ -309,9 +312,14 @@ export class ExecutionService {
     this.db.prepare('UPDATE jobs SET next_attempt_at = ? WHERE id = ?').run(now + delay, jobId);
   }
 
-  private runnerReady(): boolean {
-    if (this.sendFailures >= MAX_SEND_FAILURES) return false;
+  /** The port says ready (probing needs only this). */
+  private portReady(): boolean {
     try { return !!this.port && this.port.state() === 'ready' && this.bootId !== null && !!this.deps.dataHome; } catch { return false; }
+  }
+
+  /** Leasing also needs the port to have carried our last starts (a `probe.result` or `ready` clears the failure count). */
+  private runnerReady(): boolean {
+    return this.sendFailures < MAX_SEND_FAILURES && this.portReady();
   }
 
   private drop(op: string, why: string): void { this.log(`[nexus] exec: dropped runner message ${op}: ${why}`); }
@@ -577,6 +585,8 @@ export class ExecutionService {
   private moveJobTx(id: string, to: JobState, now: number, d?: { outcome?: string; error?: { code: string; message: string } }, expect?: JobState): ExecJobRow {
     const before = this.row(id)!;
     this.deps.jobs.transitionTx(this.system(), id, to, d, { expectState: expect, now });
+    // A terminal job keeps no requeue backoff (retry_scheduled sets its own next_attempt_at after this).
+    if (TERMINAL_JOB_STATES.has(to)) this.db.prepare('UPDATE jobs SET next_attempt_at = NULL WHERE id = ? AND next_attempt_at IS NOT NULL').run(id);
     const after = this.row(id)!;
     appendJobEventTx(this.db, { type: 'job.transition', summary: `job ${before.state} -> ${to}${d?.outcome ? ` (${d.outcome})` : ''}`,
       projectId: after.project_id, jobId: id,
@@ -612,14 +622,19 @@ export class ExecutionService {
       // A gap since the previous tick longer than TICK_STALL_MS (sleep, a blocked loop) is not the runner's silence:
       // every live lease moves by the gap (and to at least a full lease from now), no lease expires on this tick,
       // wall clocks exclude the gap, and the runner is probed.
+      // Only the FIRST stalled tick of a streak (consecutive stalled ticks) extends leases and skips expiry, so ticks
+      // that are always slow cannot keep a dead runner's attempts alive; heartbeats between ticks keep healthy ones.
       const gap = this.lastTickAt === null ? 0 : now - this.lastTickAt;
       this.lastTickAt = now;
       const stalled = gap > TICK_STALL_MS;
+      const firstOfStreak = stalled && !this.inStallStreak;
+      this.inStallStreak = stalled;
       this.flushHeartbeats();
-      if (stalled) this.compensateStall(gap, now);
+      if (stalled) this.recordStall(gap, now, firstOfStreak);
       this.requeueDue(now);
-      this.sweep(now, stalled);
-      if ((stalled && this.port) || (this.runnerReady() && (this.probeSentAt === null || now - this.probeSentAt >= this.caps.probeRefreshMs))) this.sendProbe(now);
+      this.sweep(now, firstOfStreak);
+      // Probing is independent of leasing: a runner that only answers probes recovers from the send-failure flag.
+      if ((firstOfStreak && this.port) || (this.portReady() && (this.probeSentAt === null || now - this.probeSentAt >= this.caps.probeRefreshMs))) this.sendProbe(now);
       // The blob store contract: no lease and no start while GC holds its exclusive lock.
       if (this.deps.blobs?.isExclusiveHeld()) return;
       this.resumeConsumed(now);
@@ -629,10 +644,13 @@ export class ExecutionService {
     }
   }
 
-  private compensateStall(gap: number, now: number): void {
+  private recordStall(gap: number, now: number, extend: boolean): void {
     if (this.bootId === null) return;
-    this.stalls.push({ at: now, gapMs: gap });
-    if (this.stalls.length > 1000) this.stalls.splice(0, this.stalls.length - 1000);
+    if (gap >= SLEEP_GAP_MS) {
+      this.stalls.push({ from: now - gap, to: now });
+      if (this.stalls.length > 1000) this.stalls.splice(0, this.stalls.length - 1000);
+    }
+    if (!extend) return;
     immediateTx(this.db, () => {
       this.db.prepare(`UPDATE job_attempts SET lease_expires_at = MAX(lease_expires_at + ?, ?) WHERE state IN ('starting','running') AND lease_owner = ?`)
         .run(gap, now + LEASE_MS, this.bootId);
@@ -640,11 +658,24 @@ export class ExecutionService {
     this.log(`[nexus] exec: scheduler resumed after a ${Math.round(gap / 1000)} s gap; leases extended`);
   }
 
-  /** Time lost to stalls (sleep, a blocked loop) since `since`: excluded from wall clocks, like approval waits. */
-  private stalledMsSince(since: number): number {
-    let t = 0;
-    for (const s of this.stalls) if (s.at - s.gapMs >= since) t += s.gapMs; else if (s.at > since) t += s.at - since;
-    return t;
+  /**
+   * Wall-clock time of an attempt that does not count: approval waits, plus sleep-like stalls (gaps of at least
+   * SLEEP_GAP_MS) that do not overlap an approval wait, the stall part capped at 1x the attempt's wall clock.
+   * Main is the authority for timeouts; the in-container timeout (Task 12, the Nexus entry) is a backstop and must be
+   * no shorter than limit + cap (2x the wall clock), so it never ends work main still counts as in time.
+   */
+  private excludedMs(jobId: string, n: number, since: number, now: number, wall: number): number {
+    const waits = this.approvalWaits(jobId, n, now);
+    const waitTotal = waits.reduce((t, [a, b]) => t + (b - a), 0);
+    let stall = 0;
+    for (const st of this.stalls) {
+      const a = Math.max(st.from, since); const b = Math.min(st.to, now);
+      if (b <= a) continue;
+      let overlap = 0;
+      for (const [wa, wb] of waits) overlap += Math.max(0, Math.min(b, wb) - Math.max(a, wa));
+      stall += (b - a) - overlap;
+    }
+    return waitTotal + Math.min(stall, wall);
   }
 
   private requeueDue(now: number): void {
@@ -670,18 +701,18 @@ export class ExecutionService {
     }
   }
 
-  /** Time the job spent in awaiting_approval during attempt n (an open wait counts until now). */
-  private approvalWaitMs(jobId: string, n: number, now: number): number {
+  /** The intervals the job spent in awaiting_approval during attempt n (an open wait lasts until now). */
+  private approvalWaits(jobId: string, n: number, now: number): [number, number][] {
     const rows = this.db.prepare(`SELECT ts, data_json FROM job_events WHERE job_id = ? AND attempt_n = ? AND type = 'job.transition' ORDER BY seq`)
       .all(jobId, n) as { ts: number; data_json: string }[];
-    let total = 0; let since: number | null = null;
+    const out: [number, number][] = []; let since: number | null = null;
     for (const r of rows) {
       const d = parseJson(r.data_json) as { from?: string; to?: string } | null;
       if (d?.to === 'awaiting_approval' && since === null) since = r.ts;
-      else if (d?.from === 'awaiting_approval' && since !== null) { total += r.ts - since; since = null; }
+      else if (d?.from === 'awaiting_approval' && since !== null) { out.push([since, r.ts]); since = null; }
     }
-    if (since !== null) total += now - since;
-    return total;
+    if (since !== null) out.push([since, now]);
+    return out;
   }
 
   private sweep(now: number, stalled = false): void {
@@ -699,11 +730,11 @@ export class ExecutionService {
       const limits = parseJson(r.limits_json) as { wallClockMs?: number } | null;
       const wall = typeof limits?.wallClockMs === 'number' ? limits.wallClockMs : null;
       if (wall !== null && (r.job_state === 'running' || r.job_state === 'leased')) {
-        const elapsed = now - r.created_at - this.approvalWaitMs(r.job_id, r.n, now) - this.stalledMsSince(r.created_at);
+        const elapsed = now - r.created_at - this.excludedMs(r.job_id, r.n, r.created_at, now, wall);
         if (elapsed > wall) { this.timeOut(r.job_id, r.attempt_id, now); continue; }
       }
       // A lease that ran out without a heartbeat: the runner is gone for this attempt (an approval wait holds no lease).
-      if (stalled) continue;               // after a stall: no lease expiry and no gap event on this tick
+      if (stalled) continue;               // the first tick after a stall: no lease expiry and no gap event
       if (r.lease_expires_at < now && r.job_state !== 'awaiting_approval' && r.phase !== 'approval') { this.runnerLost(r.attempt_id, now); continue; }
       if (r.attempt_state === 'running') {
         const last = r.heartbeat_at ?? r.started_at ?? r.created_at;

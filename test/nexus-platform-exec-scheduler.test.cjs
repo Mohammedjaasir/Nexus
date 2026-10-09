@@ -795,3 +795,93 @@ test('N3 a consumed approval that could not start is resumed by the scheduler on
   assert.equal(plan.jobId, d.id); assert.equal(plan.container.network.mode, 'egress-approved');
   w.close();
 });
+
+// ---------- fix round 3 ----------
+
+const hb = (w, runner, jobId) => { const a = w.liveAttempt(jobId); if (a) runner.report({ op: 'attempt.heartbeat', attemptId: a.id, at: w.now(), logBytes: 1, outBytes: 0, container: 'running' }); };
+
+test('R1 after failed sends a runner that only answers probes recovers: probing continues, a probe.result clears the flag, the job leases', () => {
+  let w;
+  const runner = new FakeRunner({ quiet: true, failSend: (m) => m.op === 'attempt.start', probeReply: () => w.probeMsg() });
+  w = execWorld(); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.build.run'));
+  for (let i = 0; i < 20; i++) { w.exec.tick(w.now()); w.advance(1_000); }
+  assert.equal(w.job(job.id).phase, 'waiting:runner'); assert.ok(w.attempts(job.id).length <= 3);
+  const probes = runner.sentOf('probe').length;
+  runner.o.failSend = null;                                   // the port heals; the runner still sends nothing unprompted
+  for (let t = 0; t < 120_000 && w.jobState(job.id) !== 'leased'; t += 5_000) w.run(null, 5_000);
+  assert.ok(runner.sentOf('probe').length > probes, 'probes continue while the flag is set');
+  assert.equal(w.jobState(job.id), 'leased'); assert.equal(runner.lastStart().plan.jobId, job.id);
+  w.close();
+});
+
+test('R2 constant slow ticks (11 s) do not hide a dead runner; a healthy one that heartbeats between ticks keeps running', () => {
+  const w = execWorld(); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const dead = w.exec.start(w.me, w.req('sde.build.run')).job; const live = w.exec.start(w.me, w.req('sde.build.run')).job;
+  w.exec.tick(w.now()); w.provision(runner, dead.id); w.provision(runner, live.id, { c: 'd' });
+  for (let i = 0; i < 20; i++) { w.advance(11_000); hb(w, runner, live.id); w.exec.tick(w.now()); }
+  assert.equal(w.attempts(dead.id)[0].outcome, 'runner_lost'); assert.equal(w.jobState(dead.id), 'failed');
+  assert.equal(w.jobState(live.id), 'running');
+  w.close();
+});
+
+test('R3 the wall clock still fires with 11 s ticks (about 15 min); a 30 min sleep is excluded; repeated sleeps stay within the cap', () => {
+  // Pd: 11 s ticks, heartbeats between them.
+  const w = execWorld(); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.build.run')); w.exec.tick(w.now()); w.provision(runner, job.id);
+  const t0 = w.liveAttempt(job.id).created_at;
+  let at = null;
+  for (let i = 0; i < 120 && at === null; i++) { w.advance(11_000); hb(w, runner, job.id); w.exec.tick(w.now()); if (w.jobState(job.id) === 'timed_out') at = w.now(); }
+  assert.ok(at !== null && at - t0 > 15 * MIN && at - t0 <= 15 * MIN + 11_000, `timed out at ${(at - t0) / 1000} s`);
+  w.close();
+  // One 12 min sleep: excluded in full (it is within the cap of 1x the 15 min wall clock).
+  const w2 = execWorld(); const r2 = new FakeRunner(); w2.exec.attachRunner(r2, w2.bootId);
+  const j2 = w2.exec.start(w2.me, w2.req('sde.build.run')).job; w2.exec.tick(w2.now()); w2.provision(r2, j2.id);
+  w2.run(r2, 5 * MIN);
+  w2.advance(12 * MIN); w2.exec.tick(w2.now()); hb(w2, r2, j2.id); w2.exec.tick(w2.now());
+  w2.run(r2, 9 * MIN);
+  assert.equal(w2.jobState(j2.id), 'running', '14 counted minutes');
+  w2.run(r2, 2 * MIN);
+  assert.equal(w2.jobState(j2.id), 'timed_out');
+  w2.close();
+  // A 30 min sleep: only the cap (15 min) is excluded, so 5 + 15 counted minutes end it.
+  const w4 = execWorld(); const r4 = new FakeRunner(); w4.exec.attachRunner(r4, w4.bootId);
+  const j4 = w4.exec.start(w4.me, w4.req('sde.build.run')).job; w4.exec.tick(w4.now()); w4.provision(r4, j4.id);
+  w4.run(r4, 5 * MIN);
+  w4.advance(30 * MIN); w4.exec.tick(w4.now());
+  assert.equal(w4.jobState(j4.id), 'timed_out');
+  w4.close();
+  // Two 10 min sleeps: 20 min of stall, but at most 15 min (1x the wall clock) is excluded.
+  const w3 = execWorld(); const r3 = new FakeRunner(); w3.exec.attachRunner(r3, w3.bootId);
+  const j3 = w3.exec.start(w3.me, w3.req('sde.build.run')).job; w3.exec.tick(w3.now()); w3.provision(r3, j3.id);
+  for (let k = 0; k < 2; k++) { w3.advance(10 * MIN); w3.exec.tick(w3.now()); hb(w3, r3, j3.id); w3.advance(5_000); w3.exec.tick(w3.now()); }
+  assert.equal(w3.jobState(j3.id), 'running');
+  w3.run(r3, 10 * MIN + 10_000);
+  assert.equal(w3.jobState(j3.id), 'timed_out', 'uncapped, only about 10 min would count here');
+  w3.close();
+});
+
+test('R3b a stall during an approval wait is excluded once, not twice', () => {
+  const w = execWorld({ approvals: true }); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const d = w.exec.start(w.me, w.req('sde.deps.install')).job; w.exec.tick(w.now());
+  w.advance(10 * MIN); w.exec.tick(w.now());                  // a 10 min sleep while waiting for approval
+  const da = w.liveAttempt(d.id);
+  w.db.prepare(`UPDATE approvals SET status = 'approved', decided_by = 'user:local', decided_at = ?, decision = 'once', consumed_at = ?,
+    consumed_by_job_id = ?, consumed_by_attempt_n = ?, status_changed_at = ? WHERE job_id = ?`).run(w.now(), w.now(), d.id, da.n, w.now(), d.id);
+  w.exec.resumeApproved(d.id)(); w.provision(runner, d.id);
+  w.run(runner, 14 * MIN);
+  assert.equal(w.jobState(d.id), 'running');
+  w.run(runner, 2 * MIN);
+  assert.equal(w.jobState(d.id), 'timed_out', 'double exclusion would have left it running');
+  w.close();
+});
+
+test('R4 a terminal move clears the requeue backoff (cancel during backoff)', () => {
+  const w = execWorld(); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.build.run')); w.exec.tick(w.now());
+  runner.report({ op: 'attempt.refused', attemptId: w.liveAttempt(job.id).id, reason: 'docker_stopped' });
+  assert.ok(w.job(job.id).next_attempt_at > w.now(), 'in backoff');
+  w.exec.cancel(w.me, job.id);
+  assert.equal(w.jobState(job.id), 'cancelled'); assert.equal(w.job(job.id).next_attempt_at, null);
+  w.close();
+});

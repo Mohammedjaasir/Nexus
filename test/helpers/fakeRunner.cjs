@@ -5,7 +5,9 @@
 //
 // Options: { state: 'ready' | 'starting' | 'unavailable' | 'crashed' (default 'ready'),
 //            neverAnswers: true  -> it never replies on its own (a hung runner; reports still flow),
-//            failSend: (msg) => boolean -> send throws for the messages it selects (a dead port) }
+//            failSend: (msg) => boolean -> send throws for the messages it selects (a dead port),
+//            quiet: true -> it sends nothing unprompted (no `ready`),
+//            probeReply: () => msg -> it answers each `probe` with this report (as the real runner does) }
 // On its own (unless neverAnswers) it answers `hello` with `ready`. Probe results are pushed by the
 // test world (execWorld), not invented here.
 class FakeRunner {
@@ -20,7 +22,8 @@ class FakeRunner {
   send(msg) {
     if (typeof this.o.failSend === 'function' && this.o.failSend(msg)) throw new Error('the runner is gone');
     this.sent.push(JSON.parse(JSON.stringify(msg)));
-    if (this.o.neverAnswers) return;
+    if (msg.op === 'probe' && typeof this.o.probeReply === 'function') this.report(this.o.probeReply());
+    if (this.o.neverAnswers || this.o.quiet) return;
     if (msg.op === 'hello') this.report({ op: 'ready', bootId: msg.bootId });
   }
   onMessage(fn) {

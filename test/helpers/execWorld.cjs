@@ -86,6 +86,7 @@ function execWorld(o = {}) {
   const w = {
     s, db, nx, exec: real, clock, logs, fsRootCalls, dataHome, me, sys, bootId, projectId: 'p-ledger', pw, repoV, suiteV, probe, COMMIT, IMAGE,
     now: () => clock.t,
+    probeMsg,
     advance(ms) { clock.t += ms; return clock.t; },
     req(actionId, extra = {}) {
       const slot = DEFAULT_INPUTS[actionId];
