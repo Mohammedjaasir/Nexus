@@ -7,6 +7,8 @@
 // verified activity chain.
 const h = require('./helpers/sqlite.cjs');
 if (!h.realSqliteOrSkip()) return;
+// B2a Task 10 fix round 3: every store and raw handle this file opens is closed, and its temp dirs removed, by one after hook.
+const C = require('./helpers/cleanup.cjs'); C.cleanupAfterAll();
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -14,7 +16,9 @@ const loadTs = require('./load-ts.cjs');
 const { execWorld, junit } = require('./helpers/execWorld.cjs');
 const { ALL_ZERO, EXEC_ZERO, execOrphans, execOrphanRows } = require('./helpers/orphans.cjs');
 const { verifyActivityChain } = loadTs('src/main/nexus/activity/writer.ts');
-const { PersistStore } = loadTs('src/main/db.ts');
+const { PersistStore: PersistStoreUntracked } = loadTs('src/main/db.ts');
+/** Every store this file opens is tracked: the cleanup hook closes it even when a test fails before its own close(). */
+class PersistStore extends PersistStoreUntracked { constructor(...a) { super(...a); C.track(this); } }
 const { createNexusPlatform } = loadTs('src/main/nexus/platform.ts');
 const preview = loadTs('src/main/nexus/validation/validators/appPreviewHealth.ts');
 const testsPass = loadTs('src/main/nexus/validation/validators/testsPass.ts');

@@ -2,12 +2,16 @@
 // B2a Task 6: the blob index (real SQLite at v9, enableV9 on a fixture), the GC lock, and the confined data home (temp folders).
 const h = require('./helpers/sqlite.cjs');
 if (!h.realSqliteOrSkip()) return;
+// B2a Task 10 fix round 3: every store and raw handle this file opens is closed, and its temp dirs removed, by one after hook.
+const C = require('./helpers/cleanup.cjs'); C.cleanupAfterAll();
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const loadTs = require('./load-ts.cjs');
-const { PersistStore } = loadTs('src/main/db.ts');
+const { PersistStore: PersistStoreUntracked } = loadTs('src/main/db.ts');
+/** Every store this file opens is tracked: the cleanup hook closes it even when a test fails before its own close(). */
+class PersistStore extends PersistStoreUntracked { constructor(...a) { super(...a); C.track(this); } }
 const { createNexusPlatform } = loadTs('src/main/nexus/platform.ts');
 const { V9_DDL } = loadTs('src/main/nexus/db/schemaV9.ts');
 const { newId } = loadTs('src/main/nexus/db/ids.ts');
@@ -253,7 +257,7 @@ test('B6: confineToDataHome refuses .., absolute paths, NUL, devices, streams, t
 test('B7: attemptLogPath always satisfies the DDL CHECK on log_path (1,000 generated ids, checked by SQLite itself)', () => {
   const m = V9_DDL.match(/CREATE TABLE IF NOT EXISTS job_attempts \([\s\S]*?\n  (log_path\s+TEXT CHECK \([\s\S]*?'%\\%'\)\)),/);
   assert.ok(m, 'the log_path column definition was found in V9_DDL');
-  const db = h.openRaw(path.join(h.tmpDir('nx-logcheck-'), 'x.db'));
+  const db = C.openRaw(path.join(h.tmpDir('nx-logcheck-'), 'x.db'));
   db.exec(`CREATE TABLE t (${m[1]})`);
   const ins = db.prepare('INSERT INTO t (log_path) VALUES (?)');
   for (const bad of ['/abs.log', 'C:/x.log', 'a/../b.log', 'a\\b.log']) assert.throws(() => ins.run(bad), /CHECK/, bad);

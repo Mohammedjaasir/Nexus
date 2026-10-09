@@ -404,7 +404,10 @@ export class ExecutionService {
   /** When phase A ran (the reconcile bound counts from it) and when the bound's pass last ran. */
   private recoveredAt: number | null = null;
   private lastUnreconciledAt: number | null = null;
-  /** When main last asked the runner to reconcile (`reconcileList`), and whether that request still waits for its phase B. */
+  /**
+   * When main first asked the runner to reconcile after phase A (`reconcileList`; recorded once per phase A, so later
+   * requests never move the bound), and whether a request still waits for its phase B.
+   */
   private reconcileRequestedAt: number | null = null;
   private reconcileOutstanding = false;
   /** Ingests that went asynchronous (main's git answers, a wait for blob GC, or a large output list). */
@@ -1630,7 +1633,10 @@ export class ExecutionService {
   recoverPhaseA(system: Principal, bootId: string, now: number = this.deps.now()): PhaseAReport {
     this.requireRecoveryBoot(bootId);
     const r = recoverPhaseA(this.recoveryHost(), system, bootId, now);
-    if (this.deps.available) { this.recoveryBootId = bootId; this.recoveredAt = now; this.lastUnreconciledAt = null; }
+    if (this.deps.available) {
+      this.recoveryBootId = bootId; this.recoveredAt = now; this.lastUnreconciledAt = null;
+      this.reconcileRequestedAt = null; this.reconcileOutstanding = false;
+    }
     return r;
   }
 
@@ -1651,7 +1657,8 @@ export class ExecutionService {
   reconcileList(): { attemptId: string; containerId: string; kind: 'tool' | 'service' }[] {
     if (!this.deps.available) return [];
     // Main calls this exactly when it sends `reconcile.list`: the reconcile bound waits for the answer.
-    this.reconcileRequestedAt = this.deps.now();
+    // Only the first request after phase A anchors the bound: a crash-looping runner's later requests never move it.
+    if (this.reconcileRequestedAt === null) this.reconcileRequestedAt = this.deps.now();
     this.reconcileOutstanding = true;
     return reconcileList(this.db);
   }

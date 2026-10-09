@@ -10,6 +10,8 @@
 // RC1-RC20 are the brief's cases; D1-D11 pin the carried decisions; S1-S2 the startup switch.
 const h = require('./helpers/sqlite.cjs');
 if (!h.realSqliteOrSkip()) return;
+// B2a Task 10 fix round 3: every store and raw handle this file opens is closed, and its temp dirs removed, by one after hook.
+const C = require('./helpers/cleanup.cjs'); C.cleanupAfterAll();
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -20,7 +22,9 @@ const { FakeRunner } = require('./helpers/fakeRunner.cjs');
 const { ALL_ZERO, execOrphanRows } = require('./helpers/orphans.cjs');
 const { verifyActivityChain } = loadTs('src/main/nexus/activity/writer.ts');
 const { createNexusPlatform } = loadTs('src/main/nexus/platform.ts');
-const { PersistStore } = loadTs('src/main/db.ts');
+const { PersistStore: PersistStoreUntracked } = loadTs('src/main/db.ts');
+/** Every store this file opens is tracked: the cleanup hook closes it even when a test fails before its own close(). */
+class PersistStore extends PersistStoreUntracked { constructor(...a) { super(...a); C.track(this); } }
 const { newId } = loadTs('src/main/nexus/db/ids.ts');
 const { LEASE_MS, insertAttemptTx, transitionAttemptTx, attemptRow } = loadTs('src/main/nexus/exec/attempts.ts');
 const R = loadTs('src/main/nexus/exec/recovery.ts');
@@ -1248,5 +1252,54 @@ test('G5 a GC run whose only leftovers are refused deletes is closed (leftover c
   assert.equal(r2.finishedGc, false, 'the run is closed'); assert.equal(r2.objectsFailed, 1); assert.equal(r2.leftover, 1);
   assert.equal(rows().at(-1).status, 'failed', 'the hard link is reported again');
   assert.equal(rows().length, 3);
+  healthy(w); w.close();
+});
+
+// ---------- fix round 3 (review of 889ca6ad) ----------
+
+test('G6 repeated reconcile requests never postpone the bound: unanswered requests every 4 minutes end the attempt by the first request + 15 minutes', () => {
+  const MIN = 60_000;
+  const w = execWorld({ realIngest: true }); const r = w.attach();
+  const d = provisioned(w, r, 'sde.build.run', 'a');
+  const t = restart(w);
+  w.advance(MIN); t.exec.tick(w.now());
+  const first = w.now(); t.exec.reconcileList();                       // the first request after phase A
+  let failedAt = null;
+  while (w.now() - first < 20 * MIN) {
+    w.advance(MIN);
+    if ((w.now() - first) % (4 * MIN) === 0) t.exec.reconcileList();   // a crash-looping runner asks again every 4 minutes
+    t.exec.tick(w.now());
+    if (failedAt === null && w.attempt(d.attempt.id).state === 'failed') failedAt = w.now();
+  }
+  assert.ok(failedAt !== null, 'ended by the bound');
+  assert.ok(failedAt - first >= R.RECONCILE_BOUND_MS, 'not before the first request + 10 minutes');
+  assert.ok(failedAt - first <= R.RECONCILE_BOUND_MS + R.RECONCILE_WAIT_CAP_MS, `by the first request + 15 minutes (${(failedAt - first) / MIN} min)`);
+  assert.equal(w.attempt(d.attempt.id).outcome, 'runner_lost');
+  healthy(w); w.close();
+});
+
+test('G7 a runner that answers every 8 minutes while its decision keeps failing cannot postpone the bound: ended by the first request + 10 minutes', () => {
+  const MIN = 60_000;
+  const w = execWorld({ realIngest: true }); const r = w.attach();
+  const d = provisioned(w, r, 'sde.build.run', 'a');
+  const t = restart(w);
+  w.db.exec(`CREATE TEMP TRIGGER t10_r3 BEFORE UPDATE OF lease_owner ON job_attempts WHEN NEW.id = '${d.attempt.id}'
+    BEGIN SELECT RAISE(ABORT, 'busy'); END`);
+  let first = null; let failedAt = null; let answers = 0;
+  for (let m = 1; m <= 16; m++) {
+    w.advance(MIN);
+    if (m % 8 === 1) {                                                    // ready, reconcile.list, the answer: its adopt fails
+      t.exec.reconcileList(); first ??= w.now();
+      const b = t.exec.recoverPhaseB(t.sys, t.nx.bootId, rec([entry(w, d.attempt.id, 'running')]));
+      assert.equal(b.errors, 1); answers++;
+    }
+    t.exec.tick(w.now());
+    if (failedAt === null && w.attempt(d.attempt.id).state === 'failed') failedAt = w.now();
+  }
+  w.db.exec('DROP TRIGGER t10_r3');
+  assert.equal(answers, 2, 'answered at 1 and 9 minutes');
+  assert.ok(failedAt !== null && failedAt - first >= R.RECONCILE_BOUND_MS && failedAt - first <= R.RECONCILE_BOUND_MS + MIN,
+    `ended at the first request + 10 minutes (${failedAt === null ? 'never' : (failedAt - first) / MIN} min)`);
+  assert.equal(w.attempt(d.attempt.id).outcome, 'runner_lost'); assert.equal(w.jobState(d.job.id), 'failed');
   healthy(w); w.close();
 });

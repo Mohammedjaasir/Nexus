@@ -1,6 +1,8 @@
 'use strict';
 const h = require('./helpers/sqlite.cjs');
 if (!h.realSqliteOrSkip()) return;
+// B2a Task 10 fix round 3: every store and raw handle this file opens is closed, and its temp dirs removed, by one after hook.
+const C = require('./helpers/cleanup.cjs'); C.cleanupAfterAll();
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -8,7 +10,9 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const loadTs = require('./load-ts.cjs');
-const { PersistStore, platformFailureMarkerPath, V9_ENABLED_BY_DEFAULT } = loadTs('src/main/db.ts');
+const { PersistStore: PersistStoreUntracked, platformFailureMarkerPath, V9_ENABLED_BY_DEFAULT } = loadTs('src/main/db.ts');
+/** Every store this file opens is tracked: the cleanup hook closes it even when a test fails before its own close(). */
+class PersistStore extends PersistStoreUntracked { constructor(...a) { super(...a); C.track(this); } }
 const { createNexusPlatform } = loadTs('src/main/nexus/platform.ts');
 /** Every log line of every open() in this file, with the folder of its database (M12). */
 const ALL_LOGS = [];
@@ -24,7 +28,7 @@ const v9File = () => { const file = v8File(); openV9(file).s.close(); return fil
 const inOrder = (logs, keys) => { let at = -1; for (const k of keys) {
   const i = logs.findIndex((l, j) => j > at && l.includes(k)); assert.ok(i > at, `missing or out of order: ${k}`); at = i; } };
 const backups = (file) => { try { return fs.readdirSync(path.join(path.dirname(file), 'backups')).filter((f) => f.endsWith('.db')).sort(); } catch { return []; } };
-const userVersion = (file) => { const db = h.openRaw(file); try { return db.pragma('user_version', { simple: true }); } finally { db.close(); } };
+const userVersion = (file) => { const db = C.openRaw(file); try { return db.pragma('user_version', { simple: true }); } finally { db.close(); } };
 const v9Objects = (db) => db.prepare(`SELECT COUNT(*) n FROM sqlite_master WHERE name IN ('job_attempts', 'blobs', 'approvals', 'deployments',
   'job_events', 'validations', 'tr_jobs_completed_needs_attempt', 'ix_jobs_sched')`).get().n;
 
@@ -59,7 +63,7 @@ test('M1 v8 -> v9: verified harness-v8 backup, one transaction, record 9, one ac
   const db = s.platformDatabase();
   const rec = db.prepare('SELECT * FROM nexus_migrations WHERE version = 9').get();
   assert.equal(rec.from_version, 8); assert.match(rec.backup_file, /^harness-v8-\d{8}T\d{6}Z\.db$/);
-  const bak = h.openRaw(path.join(path.dirname(file), 'backups', rec.backup_file));
+  const bak = C.openRaw(path.join(path.dirname(file), 'backups', rec.backup_file));
   assert.equal(bak.pragma('user_version', { simple: true }), 8);
   assert.equal(bak.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name = 'job_attempts'").get().n, 0); bak.close();
   assert.equal(db.prepare("SELECT COUNT(*) n FROM activity WHERE action = 'db.migrated' AND entity_id = '9'").get().n, 1);
@@ -205,7 +209,7 @@ test('M5d holdV8 on a v6 file gives v7; v9 is skipped without a line and executi
 
 test('M6 a v8 shape problem turns handoffs off and skips v9 (v8_unavailable) with no v9 write', () => {
   const file = v8File();
-  const pre = h.openRaw(file);
+  const pre = C.openRaw(file);
   pre.exec('DROP TRIGGER tr_handoffs_no_delete; CREATE TRIGGER tr_handoffs_no_delete BEFORE DELETE ON handoffs BEGIN SELECT 1; END;');
   pre.close();
   const before = backups(file);
@@ -217,7 +221,7 @@ test('M6 a v8 shape problem turns handoffs off and skips v9 (v8_unavailable) wit
   assert.ok(!logs.some((l) => /v9/.test(l)), logs.join('\n'));
   s.close();
   assert.deepEqual(backups(file), before);
-  const db = h.openRaw(file);
+  const db = C.openRaw(file);
   assert.equal(db.pragma('user_version', { simple: true }), 8); assert.equal(v9Objects(db), 0);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM nexus_migrations WHERE version = 9').get().n, 0);
   db.close();
@@ -241,7 +245,7 @@ test('M7 reopening at v9 is not_needed three times over with no backup; a damage
   assert.equal(off.s.lastMigrationV9.state, 'not_needed');
   off.s.close();
   assert.deepEqual(backups(file), before);
-  const db = h.openRaw(file);
+  const db = C.openRaw(file);
   db.exec('DROP TRIGGER tr_job_events_no_delete; CREATE TRIGGER tr_job_events_no_delete BEFORE DELETE ON job_events BEGIN SELECT 1; END;');
   db.close();
   const { s, logs } = openV9(file);
@@ -254,7 +258,7 @@ test('M7 reopening at v9 is not_needed three times over with no backup; a damage
 
 test('M8 a newer schema (v10) is opened for legacy use only: nothing migrated, platform off', () => {
   const file = v9File();
-  const pre = h.openRaw(file); pre.pragma('user_version = 10'); pre.close();
+  const pre = C.openRaw(file); pre.pragma('user_version = 10'); pre.close();
   const before = backups(file);
   const { s, logs } = openV9(file);
   assert.equal(s.schemaVersion, 10); assert.equal(s.platformAvailable, false); assert.equal(s.platformDatabase(), null);
@@ -323,7 +327,7 @@ test('M11 a precheck failure and insufficient disk skip v9 and leave v8 running'
 
 test('M13 a process killed inside the v9 transaction leaves a v8 file with no v9 object', () => {
   const file = v8File();
-  const pre = h.openRaw(file); const beforeRows = h.allRows(pre); pre.close();
+  const pre = C.openRaw(file); const beforeRows = h.allRows(pre); pre.close();
   const r = spawnSync(process.execPath, [path.join(__dirname, 'helpers', 'migrate-and-die.cjs'), file, 'v9'],
     { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, encoding: 'utf8' });
   assert.ok(r.status !== 0 || r.signal, `the child must be killed, got status=${r.status} signal=${r.signal} ${r.stderr}`);
@@ -332,7 +336,7 @@ test('M13 a process killed inside the v9 transaction leaves a v8 file with no v9
   assert.doesNotMatch(r.stdout, /NOT_KILLED/);
   assert.ok(Number(died[1]) > 0, 'uncommitted v9 frames were in the WAL when the process died');
   assert.equal(backups(file).filter((f) => f.startsWith('harness-v8-')).length, 1, 'the child died after its verified v8 backup');
-  const db = h.openRaw(file);
+  const db = C.openRaw(file);
   assert.equal(db.pragma('user_version', { simple: true }), 8);
   assert.equal(v9Objects(db), 0);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM nexus_migrations WHERE version = 9').get().n, 0);
@@ -353,7 +357,7 @@ test('M14 a v9 backup that cannot be written skips v9: v8 stays with handoffs on
   assert.ok(!logs.some((l) => /v9 migration: start/.test(l)));
   s.close();
   assert.equal(fs.existsSync(platformFailureMarkerPath(file, 9)), false);
-  const db = h.openRaw(file);
+  const db = C.openRaw(file);
   assert.equal(db.pragma('user_version', { simple: true }), 8); assert.equal(v9Objects(db), 0); db.close();
 });
 
@@ -395,7 +399,7 @@ test('M16b with v9 off, v8 not in place reports the v8 reason before not_enabled
   assert.equal(held.s.executionUnavailableReason, 'held'); held.s.close();
   // A v8 shape problem with v9 off: shape, not not_enabled.
   const file = v8File();
-  const pre = h.openRaw(file);
+  const pre = C.openRaw(file);
   pre.exec('DROP TRIGGER tr_handoffs_no_delete; CREATE TRIGGER tr_handoffs_no_delete BEFORE DELETE ON handoffs BEGIN SELECT 1; END;');
   pre.close();
   const shape = open(file);

@@ -8,6 +8,9 @@ const path = require('node:path');
 const h = require('./sqlite.cjs');
 const loadTs = require('../load-ts.cjs');
 const { PersistStore } = loadTs('src/main/db.ts');
+// B2a Task 10 fix round 3: worlds are closed and their temp dirs removed by one after hook per test file.
+const { track, cleanupAfterAll } = require('./cleanup.cjs');
+cleanupAfterAll();
 const { createNexusPlatform } = loadTs('src/main/nexus/platform.ts');
 const { newId } = loadTs('src/main/nexus/db/ids.ts');
 const { resolveDataHome } = loadTs('src/main/nexusExec/dataHome.ts');
@@ -43,7 +46,7 @@ function passingPreflight() {
 
 function execWorld(o = {}) {
   const { file } = h.v6Fixture();
-  const s = new PersistStore(file);
+  const s = track(new PersistStore(file));
   s.open({ log: () => {}, backupDir: path.join(path.dirname(file), 'b'), now: () => h.NOW, enableV9: true });
   const db = s.platformDatabase();
   const clock = { t: h.NOW + 1000 };

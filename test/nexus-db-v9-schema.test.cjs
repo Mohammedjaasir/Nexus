@@ -1,18 +1,22 @@
 'use strict';
 const h = require('./helpers/sqlite.cjs');
 if (!h.realSqliteOrSkip()) return;
+// B2a Task 10 fix round 3: every store and raw handle this file opens is closed, and its temp dirs removed, by one after hook.
+const C = require('./helpers/cleanup.cjs'); C.cleanupAfterAll();
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const loadTs = require('./load-ts.cjs');
-const { PersistStore } = loadTs('src/main/db.ts');
+const { PersistStore: PersistStoreUntracked } = loadTs('src/main/db.ts');
+/** Every store this file opens is tracked: the cleanup hook closes it even when a test fails before its own close(). */
+class PersistStore extends PersistStoreUntracked { constructor(...a) { super(...a); C.track(this); } }
 const { applyV9, V9_EXPECTED, v9ShapeProblem } = loadTs('src/main/nexus/db/schemaV9.ts');
 const ctx = (over) => ({ now: () => h.NOW, appVersion: 't', fromVersion: 8, preCounts: null, backup: null, ...over });
 // Before Task 5 the store stops at v8 on its own; after Task 5, holdV9 keeps it there.
 function v8db() {
   const { file } = h.v6Fixture(); const s = new PersistStore(file);
   s.open({ log: () => {}, backupDir: path.join(path.dirname(file), 'b'), now: () => h.NOW, holdV9: true });
-  s.close(); return h.openRaw(file);
+  s.close(); return C.openRaw(file);
 }
 const names = (db, type) => db.prepare("SELECT name FROM sqlite_master WHERE type = ? AND name NOT LIKE 'sqlite_%'").all(type).map((r) => r.name);
 

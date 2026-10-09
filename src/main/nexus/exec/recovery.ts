@@ -59,8 +59,9 @@
  * The reconcile bound (`failUnreconciled`, from the scheduler; `reconcileBoundDue` says when): an attempt phase A left
  * for phase B that no phase B adopted or decided fails `runner_lost` (retried only when idempotent) and its container is
  * told `attempt.cancel`, unless its exit is durable: that one keeps waiting for finalization. The bound counts
- * RECONCILE_BOUND_MS (10 minutes) from the LATER of phase A and the last reconcile request (`reconcileList`); while a
- * request is outstanding (no phase B since it), it waits up to RECONCILE_WAIT_CAP_MS (5 minutes) more for the answer.
+ * RECONCILE_BOUND_MS (10 minutes) from the LATER of phase A and the FIRST reconcile request after it (`reconcileList`;
+ * later requests never move it, so a crash-looping runner cannot postpone it); while a request is outstanding (no phase
+ * B since it), it waits up to RECONCILE_WAIT_CAP_MS (5 minutes) more: at most 15 minutes from the first request.
  *
  * Leases and stall history (carried decision 8): the old process's in-memory stall record is gone at a restart, so
  * every attempt recovery adopts or re-owns gets exactly ONE fresh LEASE_MS from the recovery's `now`, and the wall
@@ -112,8 +113,9 @@ export const RUNNER_RECOVERY_CONTRACT: readonly string[] = Object.freeze([
     + 'resolved, and on Windows lowercased and without a `\\\\?\\` prefix). The runner uses that value, or the same shared '
     + 'function, for every label it writes and every list it filters; it never derives its own.',
   'Reconcile request: main calls exec.reconcileList() exactly when it sends `reconcile.list` (that call records the request). '
-    + 'The reconcile bound counts its 10 minutes from the later of phase A and the last request, and while a request has had '
-    + 'no phase B it waits up to 5 more minutes for the answer; recoverPhaseB ends the outstanding request.',
+    + 'The reconcile bound counts its 10 minutes from the later of phase A and the FIRST request after phase A (later requests '
+    + 'never move it), and while a request has had no phase B it waits up to 5 more minutes for the answer: at most 15 minutes '
+    + 'from the first request; recoverPhaseB ends the outstanding request.',
   'At every runner `ready` (app start and every runner restart) main sends `reconcile.list` = exec.reconcileList(); the '
     + 'runner answers one `reconcile.result`, which main routes to exec.recoverPhaseB(system, platform.bootId, result) '
     + '(ExecutionService.onRunnerMessage does not handle `reconcile.result` itself).',
@@ -361,9 +363,9 @@ export function orphanDecisions(reconcile: { labelled: readonly LabelledResource
 }
 
 /**
- * Whether the reconcile bound is due at `now`: RECONCILE_BOUND_MS after the later of phase A (`recoveredAt`) and the last
- * reconcile request (`requestedAt`), plus up to RECONCILE_WAIT_CAP_MS more while that request is outstanding (no phase B
- * since it). Pure.
+ * Whether the reconcile bound is due at `now`: RECONCILE_BOUND_MS after the later of phase A (`recoveredAt`) and the FIRST
+ * reconcile request after phase A (`requestedAt`; the caller records it once and never moves it), plus up to
+ * RECONCILE_WAIT_CAP_MS more while a request is outstanding (no phase B since it). Pure.
  */
 export function reconcileBoundDue(s: { recoveredAt: number; requestedAt: number | null; outstanding: boolean }, now: number): boolean {
   const deadline = Math.max(s.recoveredAt, s.requestedAt ?? s.recoveredAt) + RECONCILE_BOUND_MS;
