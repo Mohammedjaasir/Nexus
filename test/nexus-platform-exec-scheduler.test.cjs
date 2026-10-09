@@ -169,7 +169,7 @@ test('C6 timeout: the wall clock ends a running attempt; time in awaiting_approv
   const w = execWorld({ approvals: true }); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
   const { job } = w.exec.start(w.me, w.req('sde.build.run')); w.exec.tick(w.now()); const a = w.provision(runner, job.id);
   // A live runner heartbeats; the clock moves in steps shorter than the 60 s lease.
-  const run = (ms) => { for (let t = 0; t < ms; t += 30_000) { w.advance(30_000); w.heartbeatAll(runner); w.exec.tick(w.now()); } };
+  const run = (ms) => w.run(runner, ms);
   run(14 * MIN);
   assert.equal(w.jobState(job.id), 'running');
   run(2 * MIN);
@@ -178,7 +178,7 @@ test('C6 timeout: the wall clock ends a running attempt; time in awaiting_approv
   // An egress job waits 20 min for approval (more than its 15 min wall clock) and does not time out.
   const d = w.exec.start(w.me, w.req('sde.deps.install')).job; w.exec.tick(w.now());
   assert.equal(w.jobState(d.id), 'awaiting_approval');
-  w.advance(20 * MIN); w.exec.tick(w.now());
+  w.run(runner, 20 * MIN);
   assert.equal(w.jobState(d.id), 'awaiting_approval');
   const da = w.liveAttempt(d.id);
   // The user's `once` (Task 9 records it; written directly here), then the core resumes the job with the consumed approval.
@@ -329,10 +329,10 @@ test('C14 a heartbeat extends the lease and sets heartbeat_at only; a 45 s gap w
   const r = w.attempt(a.id);
   assert.equal(r.heartbeat_at, w.now()); assert.equal(r.lease_expires_at, w.now() + 60_000); assert.equal(r.log_bytes, 50); assert.equal(r.out_bytes, 7);
   assert.equal(h.count(w.db, 'activity'), act0); assert.equal(h.count(w.db, 'job_events'), ev0);
-  w.advance(46_000); w.exec.tick(w.now()); w.exec.tick(w.now());
+  w.run(null, 46_000); w.exec.tick(w.now());
   assert.equal(w.events(job.id, 'attempt.heartbeat_gap').length, 1);
   runner.report({ op: 'attempt.heartbeat', attemptId: a.id, at: w.now(), logBytes: 60, outBytes: 7, container: 'running' });
-  w.advance(46_000); w.exec.tick(w.now());
+  w.exec.tick(w.now()); w.run(null, 46_000);
   assert.equal(w.events(job.id, 'attempt.heartbeat_gap').length, 2, 'a new gap after a heartbeat is a new event');
   w.close();
 });
@@ -352,6 +352,8 @@ test('C16 attempt.refused before start: the attempt is abandoned, the job waits 
   assert.equal(w.attempt(a.id).state, 'abandoned'); assert.equal(w.jobState(job.id), 'queued'); assert.equal(w.job(job.id).phase, 'waiting:docker');
   assert.equal(w.job(job.id).attempts, 1);
   w.exec.tick(w.now());
+  assert.equal(w.liveAttempt(job.id), undefined, 'a 2 s backoff before the next lease');
+  w.advance(2_000); w.exec.tick(w.now());
   assert.equal(w.liveAttempt(job.id).n, 2);
   w.close();
 });
@@ -440,6 +442,7 @@ test('C20b while the clock advances every heartbeat is a real write (by the tick
   const pct = (xs, q) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length * q)];
   assert.ok(pct(handler, 0.99) < 5, `heartbeat handler p99 ${pct(handler, 0.99).toFixed(2)} ms`);
   assert.ok(pct(ticks, 0.5) < 5, `tick (with its heartbeat write) median ${pct(ticks, 0.5).toFixed(2)} ms`);
+  assert.ok(pct(ticks, 0.99) < 50, `tick (with its heartbeat write) p99 ${pct(ticks, 0.99).toFixed(2)} ms`);
   console.log(`# C20b handler p50 ${pct(handler, 0.5).toFixed(3)} p99 ${pct(handler, 0.99).toFixed(3)} ms; tick p50 ${pct(ticks, 0.5).toFixed(3)} p99 ${pct(ticks, 0.99).toFixed(3)} ms`);
   w.close();
 });
@@ -609,7 +612,7 @@ test('F2 a plan that does not reach the runner: the attempt is abandoned and the
   const [a1] = w.attempts(job.id);
   assert.equal(a1.state, 'abandoned'); assert.equal(a1.outcome, 'not_sent');
   assert.equal(w.jobState(job.id), 'queued'); assert.equal(w.job(job.id).phase, 'waiting:runner');
-  runner.o.failSend = null; w.exec.tick(w.now());
+  runner.o.failSend = null; w.advance(2_000); w.exec.tick(w.now());
   assert.equal(w.liveAttempt(job.id).n, 2);
   w.close();
 });
@@ -619,7 +622,7 @@ test('F3 a lease that runs out without a heartbeat fails the attempt runner_lost
   const s = w.exec.start(w.me, w.req('sde.tests.discover')).job; const r = w.exec.start(w.me, w.req('sde.build.run')).job;
   const d = w.exec.start(w.me, w.req('sde.deps.install')).job;
   w.exec.tick(w.now()); w.provision(runner, r.id);
-  w.advance(61_000); w.exec.tick(w.now());
+  w.run(null, 65_000);                     // normal 5 s ticking, no heartbeat
   assert.equal(w.attempts(s.id)[0].outcome, 'runner_lost'); assert.equal(w.jobState(s.id), 'retry_scheduled', 'starting attempt, idempotent');
   assert.equal(w.attempts(r.id)[0].outcome, 'runner_lost'); assert.equal(w.jobState(r.id), 'failed', 'running attempt, not idempotent');
   assert.equal(JSON.parse(w.job(r.id).error_json).code, 'runner_lost');
@@ -707,5 +710,88 @@ test('F10 start authorizes first: a viewer with bad params and bad inputs is den
   assert.throws(() => w.exec.start(viewer, { ...w.req('sde.build.run'), actionId: 'no.such.action' }), code('denied'));
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(w.db.prepare("SELECT COUNT(*) AS n FROM activity WHERE status = 'denied' AND actor_id = 'user:viewer2'").get().n, 2);
+  w.close();
+});
+
+// ---------- fix round 2 ----------
+
+test('N1 a port that throws on send never loops: backoff per job, then the runner counts as not ready until it reports again', () => {
+  const w = execWorld(); const runner = new FakeRunner({ failSend: (m) => m.op === 'attempt.start' }); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.build.run'));
+  const ev0 = h.count(w.db, 'job_events'); const act0 = h.count(w.db, 'activity');
+  for (let i = 0; i < 20; i++) { w.exec.tick(w.now()); w.advance(1_000); }
+  const n = w.attempts(job.id).length;
+  assert.ok(n <= 3, `attempts stay bounded: ${n}`);
+  assert.ok(h.count(w.db, 'job_events') - ev0 < 25 && h.count(w.db, 'activity') - act0 < 10, 'events and activity stay bounded');
+  assert.equal(w.jobState(job.id), 'queued'); assert.equal(w.job(job.id).phase, 'waiting:runner');
+  // A fresh probe result: the runner is ready again; once the backoff ends the job leases and starts.
+  runner.o.failSend = null; w.setProbe({});
+  w.advance(60_000); w.exec.tick(w.now());
+  assert.equal(w.jobState(job.id), 'leased'); assert.equal(runner.lastStart().plan.jobId, job.id);
+  w.close();
+});
+
+test('N1b a runner that refuses with a waiting reason while the probe says ready is retried with a growing delay, not every tick', () => {
+  const w = execWorld(); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.build.run'));
+  for (let i = 0; i < 20; i++) {
+    w.exec.tick(w.now());
+    const a = w.liveAttempt(job.id);
+    if (a) runner.report({ op: 'attempt.refused', attemptId: a.id, reason: 'docker_stopped' });
+    w.advance(1_000);
+  }
+  const n = w.attempts(job.id).length;
+  assert.ok(n <= 5, `attempts stay bounded: ${n}`);
+  const delays = w.attempts(job.id).map((a) => a.created_at).map((t, i, xs) => (i ? t - xs[i - 1] : 0)).slice(1);
+  assert.ok(delays.every((d, i) => i === 0 || d >= delays[i - 1]), `the delay grows: ${delays}`);
+  w.close();
+});
+
+test('N2 a stall of main longer than a lease does not fail a healthy attempt; a silent one still expires after normal ticking', () => {
+  const w = execWorld(); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const a = w.exec.start(w.me, w.req('sde.build.run')).job; const b = w.exec.start(w.me, w.req('sde.build.run')).job;
+  w.exec.tick(w.now()); w.provision(runner, a.id); w.provision(runner, b.id, { c: 'd' });
+  w.heartbeatAll(runner); w.exec.tick(w.now());
+  // Pc1: the machine sleeps 90 s; the first tick after it runs before the queued heartbeats arrive.
+  const probes = runner.sentOf('probe').length;
+  w.advance(90_000); w.exec.tick(w.now());
+  assert.equal(w.jobState(a.id), 'running'); assert.equal(w.jobState(b.id), 'running');
+  assert.equal(runner.sentOf('probe').length, probes + 1, 'the runner is probed after a stall');
+  // a's heartbeats resume; b stays silent: b expires only after a full lease of normal ticking.
+  for (let t = 0; t < 55_000; t += 5_000) { w.advance(5_000); runner.report({ op: 'attempt.heartbeat', attemptId: w.liveAttempt(a.id).id, at: w.now(), logBytes: 1, outBytes: 0, container: 'running' }); w.exec.tick(w.now()); }
+  assert.equal(w.jobState(b.id), 'running', 'not yet a full lease since the stall');
+  for (let t = 0; t < 10_000; t += 5_000) { w.advance(5_000); runner.report({ op: 'attempt.heartbeat', attemptId: w.liveAttempt(a.id).id, at: w.now(), logBytes: 1, outBytes: 0, container: 'running' }); w.exec.tick(w.now()); }
+  assert.equal(w.jobState(a.id), 'running');
+  assert.equal(w.attempts(b.id)[0].outcome, 'runner_lost');
+  w.close();
+});
+
+test('N2b the wall clock excludes a stall: an attempt is not timed out by time main spent stalled', () => {
+  const w = execWorld(); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.build.run')); w.exec.tick(w.now()); w.provision(runner, job.id);
+  w.run(runner, 10 * MIN);
+  w.advance(10 * MIN); w.exec.tick(w.now());            // a 10 min stall: 20 min since lease, 10 counted
+  w.heartbeatAll(runner); w.exec.tick(w.now());
+  assert.equal(w.jobState(job.id), 'running');
+  w.run(runner, 6 * MIN);
+  assert.equal(w.jobState(job.id), 'timed_out', '16 counted minutes > 15');
+  w.close();
+});
+
+test('N3 a consumed approval that could not start is resumed by the scheduler once a slot frees', () => {
+  const w = execWorld({ approvals: true, dockerMemoryBytes: 64 * GIB }); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const d = w.exec.start(w.me, w.req('sde.deps.install')).job; w.exec.tick(w.now());
+  const builds = [0, 1, 2].map(() => w.exec.start(w.me, w.req('sde.build.run')).job); w.exec.tick(w.now());
+  const da = w.liveAttempt(d.id);
+  w.db.prepare(`UPDATE approvals SET status = 'approved', decided_by = 'user:local', decided_at = ?, decision = 'once', consumed_at = ?,
+    consumed_by_job_id = ?, consumed_by_attempt_n = ?, status_changed_at = ? WHERE job_id = ?`).run(w.now(), w.now(), d.id, da.n, w.now(), d.id);
+  assert.throws(() => w.exec.resumeApproved(d.id), code('conflict', 'waiting:slots'));
+  w.exec.tick(w.now());
+  assert.equal(w.jobState(d.id), 'awaiting_approval'); assert.equal(w.job(d.id).phase, 'waiting:slots');
+  w.exec.cancel(w.me, builds[1].id);
+  w.exec.tick(w.now());
+  assert.equal(w.jobState(d.id), 'running');
+  const plan = runner.lastStart().plan;
+  assert.equal(plan.jobId, d.id); assert.equal(plan.container.network.mode, 'egress-approved');
   w.close();
 });

@@ -109,6 +109,14 @@ function execWorld(o = {}) {
         preflight: passingPreflight() });
       return a;
     },
+    /** Let `ms` pass at the scheduler's cadence (a tick every 5 s); a runner, when given, heartbeats every 30 s. */
+    run(r, ms, step = 5_000) {
+      for (let t = step; t <= ms; t += step) {
+        clock.t += step;
+        if (r && t % 30_000 === 0) w.heartbeatAll(r);
+        real.tick(clock.t);
+      }
+    },
     /** A heartbeat for every live attempt (as a live runner sends them). */
     heartbeatAll(r) {
       for (const a of db.prepare("SELECT id FROM job_attempts WHERE state IN ('starting','running')").all()) {

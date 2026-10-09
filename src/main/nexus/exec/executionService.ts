@@ -146,6 +146,13 @@ const LIVE_JOB_STATES: readonly JobState[] = ['queued', 'leased', 'running', 'aw
 /** Attempt failures an idempotent recipe is retried for (infrastructure, not the work itself). */
 const RETRYABLE = new Set(['docker_resources', 'disk_full', 'container_vanished', 'docker_error', 'ingest_error', 'runner_lost']);
 const CANCEL_GRACE_MS = 10_000;
+/** A gap between ticks longer than this is a stall of main (or the machine), not silence of the runner. */
+export const TICK_STALL_MS = 10_000;
+/** After this many consecutive failed `attempt.start` sends the runner counts as not ready until it reports again. */
+export const MAX_SEND_FAILURES = 3;
+/** Requeue backoff after a start that never ran (not sent, or refused with a waiting reason): 2 s doubling to 60 s. */
+export const REQUEUE_BACKOFF_MIN_MS = 2_000;
+export const REQUEUE_BACKOFF_MAX_MS = 60_000;
 export const MAX_START_INPUTS = 64;
 export const MAX_EXEC_LIST_LIMIT = 500;
 export const DEFAULT_EXEC_LIST_LIMIT = 100;
@@ -245,6 +252,11 @@ export class ExecutionService {
   /** The latest heartbeat of each attempt, written by the next tick (the message path does no I/O for heartbeats). */
   private readonly hbPending = new Map<string, { at: number; logBytes: number; outBytes: number }>();
   private attemptById: Database.Statement | null = null;
+  private lastTickAt: number | null = null;
+  /** Recent scheduler stalls (in memory; a restart starts clean and recovery decides). */
+  private readonly stalls: { at: number; gapMs: number }[] = [];
+  /** Consecutive `attempt.start` sends that failed while the port said ready. */
+  private sendFailures = 0;
 
   constructor(private readonly db: Database.Database, private readonly deps: ExecutionDeps) {
     this.access = new ProjectAccess(db, { auth: deps.auth });
@@ -288,7 +300,17 @@ export class ExecutionService {
 
   private sendProbe(now: number): void { if (this.send({ op: 'probe' })) this.probeSentAt = now; }
 
+  /** The requeue delay after `k` consecutive starts of a job that never ran (2 s, 4 s, ... 60 s). */
+  private requeueBackoffTx(jobId: string, now: number): void {
+    const rows = this.db.prepare('SELECT state, outcome FROM job_attempts WHERE job_id = ? ORDER BY n DESC LIMIT 8').all(jobId) as { state: string; outcome: string | null }[];
+    let k = 0;
+    for (const r of rows) { if (r.state === 'abandoned') k++; else break; }
+    const delay = Math.min(REQUEUE_BACKOFF_MIN_MS * 2 ** Math.max(k - 1, 0), REQUEUE_BACKOFF_MAX_MS);
+    this.db.prepare('UPDATE jobs SET next_attempt_at = ? WHERE id = ?').run(now + delay, jobId);
+  }
+
   private runnerReady(): boolean {
+    if (this.sendFailures >= MAX_SEND_FAILURES) return false;
     try { return !!this.port && this.port.state() === 'ready' && this.bootId !== null && !!this.deps.dataHome; } catch { return false; }
   }
 
@@ -301,8 +323,11 @@ export class ExecutionService {
     if (!m) { this.drop('?', 'malformed'); return; }
     try {
       switch (m.op) {
-        case 'ready': this.log(`[nexus] exec: runner ready${m.bootId === this.bootId ? '' : ' (another boot id)'}`); return;
+        case 'ready':
+          this.sendFailures = 0;
+          this.log(`[nexus] exec: runner ready${m.bootId === this.bootId ? '' : ' (another boot id)'}`); return;
         case 'probe.result':
+          this.sendFailures = 0;                       // a fresh report: the port carries messages again
           this.probe = { probe: m.probe, images: m.images, freeBytes: m.freeBytes, at: this.deps.now() };
           return;
         case 'attempt.provisioned': return this.onProvisioned(m);
@@ -403,6 +428,7 @@ export class ExecutionService {
       transitionAttemptTx(this.db, cur, 'abandoned', now, j.project_id, { outcome: m.reason, error });
       this.moveJobTx(j.id, 'queued', now, undefined, 'leased');
       this.setPhaseTx(j.id, REFUSAL_WAIT[m.reason] ?? 'queued', now);
+      this.requeueBackoffTx(j.id, now);
     });
   }
 
@@ -583,16 +609,42 @@ export class ExecutionService {
   tick(now: number): void {
     if (!this.deps.available) return;
     try {
+      // A gap since the previous tick longer than TICK_STALL_MS (sleep, a blocked loop) is not the runner's silence:
+      // every live lease moves by the gap (and to at least a full lease from now), no lease expires on this tick,
+      // wall clocks exclude the gap, and the runner is probed.
+      const gap = this.lastTickAt === null ? 0 : now - this.lastTickAt;
+      this.lastTickAt = now;
+      const stalled = gap > TICK_STALL_MS;
       this.flushHeartbeats();
+      if (stalled) this.compensateStall(gap, now);
       this.requeueDue(now);
-      this.sweep(now);
-      if (this.runnerReady() && (this.probeSentAt === null || now - this.probeSentAt >= this.caps.probeRefreshMs)) this.sendProbe(now);
+      this.sweep(now, stalled);
+      if ((stalled && this.port) || (this.runnerReady() && (this.probeSentAt === null || now - this.probeSentAt >= this.caps.probeRefreshMs))) this.sendProbe(now);
       // The blob store contract: no lease and no start while GC holds its exclusive lock.
       if (this.deps.blobs?.isExclusiveHeld()) return;
+      this.resumeConsumed(now);
       this.leaseQueued(now);
     } catch (e) {
       this.log(`[nexus] exec: scheduler pass stopped: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
     }
+  }
+
+  private compensateStall(gap: number, now: number): void {
+    if (this.bootId === null) return;
+    this.stalls.push({ at: now, gapMs: gap });
+    if (this.stalls.length > 1000) this.stalls.splice(0, this.stalls.length - 1000);
+    immediateTx(this.db, () => {
+      this.db.prepare(`UPDATE job_attempts SET lease_expires_at = MAX(lease_expires_at + ?, ?) WHERE state IN ('starting','running') AND lease_owner = ?`)
+        .run(gap, now + LEASE_MS, this.bootId);
+    });
+    this.log(`[nexus] exec: scheduler resumed after a ${Math.round(gap / 1000)} s gap; leases extended`);
+  }
+
+  /** Time lost to stalls (sleep, a blocked loop) since `since`: excluded from wall clocks, like approval waits. */
+  private stalledMsSince(since: number): number {
+    let t = 0;
+    for (const s of this.stalls) if (s.at - s.gapMs >= since) t += s.gapMs; else if (s.at > since) t += s.at - since;
+    return t;
   }
 
   private requeueDue(now: number): void {
@@ -632,7 +684,7 @@ export class ExecutionService {
     return total;
   }
 
-  private sweep(now: number): void {
+  private sweep(now: number, stalled = false): void {
     if (this.bootId === null) return;
     const live = this.db.prepare(`SELECT a.id AS attempt_id, a.n, a.state AS attempt_state, a.created_at, a.started_at, a.heartbeat_at,
         a.lease_expires_at, j.id AS job_id, j.state AS job_state, j.phase, j.limits_json, j.project_id FROM job_attempts a JOIN jobs j ON j.id = a.job_id
@@ -647,10 +699,11 @@ export class ExecutionService {
       const limits = parseJson(r.limits_json) as { wallClockMs?: number } | null;
       const wall = typeof limits?.wallClockMs === 'number' ? limits.wallClockMs : null;
       if (wall !== null && (r.job_state === 'running' || r.job_state === 'leased')) {
-        const elapsed = now - r.created_at - this.approvalWaitMs(r.job_id, r.n, now);
+        const elapsed = now - r.created_at - this.approvalWaitMs(r.job_id, r.n, now) - this.stalledMsSince(r.created_at);
         if (elapsed > wall) { this.timeOut(r.job_id, r.attempt_id, now); continue; }
       }
       // A lease that ran out without a heartbeat: the runner is gone for this attempt (an approval wait holds no lease).
+      if (stalled) continue;               // after a stall: no lease expiry and no gap event on this tick
       if (r.lease_expires_at < now && r.job_state !== 'awaiting_approval' && r.phase !== 'approval') { this.runnerLost(r.attempt_id, now); continue; }
       if (r.attempt_state === 'running') {
         const last = r.heartbeat_at ?? r.started_at ?? r.created_at;
@@ -711,6 +764,7 @@ export class ExecutionService {
       const recipe = getRecipe(j.recipe_id ?? '');
       const cap = this.capabilityOf(j);
       if (!recipe || !cap) continue;
+      if (j.next_attempt_at !== null && j.next_attempt_at > now) continue;   // requeue backoff (phase keeps its reason)
       const limits = parseJson(j.limits_json) as Partial<ResourceLimits> | null;
       const memoryMb = typeof limits?.memoryMb === 'number' ? limits.memoryMb : 0;
       const wait = leaseGuard({ recipe, profile: cap.profile, memoryMb }, ready, this.probe, use, this.caps);
@@ -788,6 +842,7 @@ export class ExecutionService {
       insertAttemptTx(this.db, { id: attemptId, jobId: j.id, projectId: j.project_id, n, bootId: this.bootId!, now, logPath: logRel,
         sandbox: plan ? sandboxRecord(plan) : undefined, environment });
       this.setPhaseTx(j.id, 'provisioning', now);
+      this.db.prepare('UPDATE jobs SET next_attempt_at = NULL WHERE id = ? AND next_attempt_at IS NOT NULL').run(j.id);
       if (egress) {
         const approvals = this.deps.approvals;
         if (!approvals) {
@@ -808,7 +863,10 @@ export class ExecutionService {
       }
       return true;
     });
-    if (leased && plan && !planError && !this.send({ op: 'attempt.start', attemptId, plan })) this.unsent(attemptId, now);
+    if (leased && plan && !planError) {
+      if (this.send({ op: 'attempt.start', attemptId, plan })) this.sendFailures = 0;
+      else { this.sendFailures++; this.unsent(attemptId, now); }
+    }
     return leased;
   }
 
@@ -823,6 +881,7 @@ export class ExecutionService {
       if (j.state === 'leased') {
         this.moveJobTx(j.id, 'queued', now, undefined, 'leased');
         this.setPhaseTx(j.id, 'waiting:runner', now);
+        this.requeueBackoffTx(j.id, now);
       } else {
         this.failJobTx(j.id, 'infra_error', { code: 'runner_lost', message: 'the plan did not reach the runner' }, now);
       }
@@ -836,8 +895,17 @@ export class ExecutionService {
    * to perform AFTER the caller commits.
    */
   resumeApproved(jobId: string): () => void {
+    // NOTE for Task 9: respond('once') should record the decision, consume the approval and call this in ONE
+    // transaction where it can. When the caps refuse now ('conflict', reason waiting:<x>), the approval stays
+    // consumed and the scheduler resumes the job on a later tick once the guards pass (resumeConsumed).
     this.requireAvailable();
-    const now = this.deps.now();
+    const r = this.resumeTx(jobId, this.deps.now());
+    if ('wait' in r) throw new PlatformError('conflict', `the job cannot start now (${r.wait})`, { reason: r.wait });
+    return r.send;
+  }
+
+  /** awaiting_approval -> running with the consumed approval in the plan, when the guards pass; else the wait reason. */
+  private resumeTx(jobId: string, now: number): { send: () => void } | { wait: string } {
     return immediateTx(this.db, () => {
       const j = this.row(jobId);
       if (!j || j.state !== 'awaiting_approval') throw new PlatformError('illegal_transition', 'the job is not waiting for approval');
@@ -847,12 +915,13 @@ export class ExecutionService {
       if (!a || !recipe || !cap || !this.deps.dataHome) throw new PlatformError('illegal_transition', 'the job has no attempt to resume');
       // A job waiting for approval held no slot or memory: the caps are checked again before it starts.
       const limits = parseJson(j.limits_json) as Partial<ResourceLimits> | null;
-      const wait = leaseGuard({ recipe, profile: cap.profile, memoryMb: typeof limits?.memoryMb === 'number' ? limits.memoryMb : 0 },
-        this.runnerReady(), this.probe, this.liveUse(), this.caps);
-      if (wait !== null) throw new PlatformError('conflict', `the job cannot start now (${wait})`, { reason: wait });
+      const wait = this.deps.blobs?.isExclusiveHeld() ? 'waiting:gc'
+        : leaseGuard({ recipe, profile: cap.profile, memoryMb: typeof limits?.memoryMb === 'number' ? limits.memoryMb : 0 },
+          this.runnerReady(), this.probe, this.liveUse(), this.caps);
+      if (wait !== null) return { wait };
       const approval = this.db.prepare(`SELECT id, job_id, status, consumed_at, consumed_by_job_id, consumed_by_attempt_n FROM approvals
         WHERE job_id = ? AND status = 'approved' ORDER BY status_changed_at DESC LIMIT 1`).get(j.id) as PlanApproval | undefined;
-      const profile = (this.deps.profiles ?? []).find((p) => p.id === cap.profile) ?? null;
+      const profile = (this.deps.profiles ?? []).find((pr) => pr.id === cap.profile) ?? null;
       const image = usableImage(this.probe, cap.profile);
       const plan = buildPlan({ job: { id: j.id, projectId: j.project_id }, attempt: { id: a.id, n: a.n }, bootId: this.bootId ?? '', recipe,
         profile, imageId: (image?.imageId as `sha256:${string}` | undefined) ?? null, dataHomeRoot: this.deps.dataHome.root,
@@ -862,8 +931,30 @@ export class ExecutionService {
         .run(JSON.stringify(sandboxRecord(plan)), now + LEASE_MS, now, a.id);
       this.moveJobTx(j.id, 'running', now, undefined, 'awaiting_approval');
       this.setPhaseTx(j.id, 'provisioning', now);
-      return () => { if (!this.send({ op: 'attempt.start', attemptId: a.id, plan })) this.unsent(a.id, this.deps.now()); };
+      return { send: () => { if (!this.send({ op: 'attempt.start', attemptId: a.id, plan })) this.unsent(a.id, this.deps.now()); } };
     });
+  }
+
+  /** Jobs whose approval was approved and consumed by their current attempt but could not start then: start them now. */
+  private resumeConsumed(now: number): void {
+    const ids = this.db.prepare(`SELECT j.id FROM jobs j JOIN job_attempts a ON a.job_id = j.id AND a.n = j.attempts
+        AND a.state IN ('starting','running')
+      JOIN approvals ap ON ap.job_id = j.id AND ap.status = 'approved' AND ap.consumed_by_job_id = j.id AND ap.consumed_by_attempt_n = a.n
+      WHERE j.state = 'awaiting_approval' ORDER BY j.priority, j.created_at, j.rowid`).all() as { id: string }[];
+    for (const { id } of ids) {
+      try {
+        const r = this.resumeTx(id, now);
+        if ('send' in r) r.send();
+        else this.setPhaseIfChanged(id, r.wait, now);
+      } catch (e) {
+        this.log(`[nexus] exec: approved job not resumed: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
+      }
+    }
+  }
+
+  private setPhaseIfChanged(id: string, phase: string, now: number): void {
+    const j = this.row(id);
+    if (j && j.phase !== phase) immediateTx(this.db, () => this.setPhaseTx(id, phase, now));
   }
 
   // ---------- user operations ----------
