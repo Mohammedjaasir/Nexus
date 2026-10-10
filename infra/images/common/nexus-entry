@@ -18,6 +18,9 @@
 #                                                  <rel> or any folder on its way that is a link is refused (exit 66)
 #       nexus-node-test --out-dir <dir> -- <file>...  node --test once per file, each with its own JUnit report
 #                                                  <dir>/0001.xml, 0002.xml, ... (the runner merges and attributes them)
+#       nexus-lock-hash --file <rel> --out <file>  the sha256 of the lockfile <rel> (a regular file, no link on its way)
+#                                                  as 64 lowercase hex characters and a newline, to <file> (an install's
+#                                                  lock.sha256: main judges it against the snapshot's lockfile hash)
 #     Every <file>, <path> and <dir> is under /out; every <rel> is relative with no `..`. Any other step runs as given.
 #  Exit: the first failing step's code (124 when the wall clock ran out), else 0. 64: a malformed command.
 #
@@ -90,6 +93,25 @@ collect_step() {
   cp -R -P "$2/." "$dest/"
 }
 
+lock_hash_step() {
+  [ "$1" = --file ] && [ "$3" = --out ] && [ $# -eq 4 ] || die 'nexus-lock-hash: --file <rel> --out <file>'
+  rel_ok "$2" && [ "$2" != . ] || die "nexus-lock-hash: the lockfile is not a plain relative path: $2"
+  out_path "$4"; dest=$OUT_PATH
+  rest=$2; prefix=
+  while [ -n "$rest" ]; do
+    seg=${rest%%/*}
+    case "$rest" in */*) rest=${rest#*/} ;; *) rest= ;; esac
+    prefix=${prefix:+$prefix/}$seg
+    [ -L "$prefix" ] && die "nexus-lock-hash: the lockfile is a link: $prefix" 66
+  done
+  [ -f "$2" ] || die "nexus-lock-hash: there is no lockfile $2" 66
+  sum=$(sha256sum < "$2") || die "nexus-lock-hash: the lockfile could not be read: $2" 74
+  sum=${sum%% *}
+  case "$sum" in *[!0-9a-f]*) die 'nexus-lock-hash: sha256sum gave no hash' 70 ;; esac
+  [ "${#sum}" -eq 64 ] || die 'nexus-lock-hash: sha256sum gave no hash' 70
+  printf '%s\n' "$sum" > "$dest" || die "nexus-lock-hash: cannot write $4" 73
+}
+
 node_test_step() {
   [ "$1" = --out-dir ] && [ $# -ge 3 ] && [ "$3" = -- ] || die 'nexus-node-test: --out-dir <dir> -- <file>...'
   out_path "$2"; dir=$OUT_PATH; shift 3
@@ -113,6 +135,7 @@ run_one() {
     nexus-capture) shift; capture_step "$@" ;;
     nexus-collect) shift; collect_step "$@" ;;
     nexus-node-test) shift; node_test_step "$@" ;;
+    nexus-lock-hash) shift; lock_hash_step "$@" ;;
     *) "$@" ;;
   esac
 }
@@ -135,7 +158,7 @@ run_steps() {
     for a in "$@"; do [ "$a" = "$SEP" ] && break; n=$((n + 1)); done
     [ "$n" -gt 0 ] || die 'an empty step'
     if [ "$n" -eq $# ]; then
-      case "$1" in nexus-glob|nexus-capture|nexus-collect|nexus-node-test) run_one "$@"; return $? ;; esac
+      case "$1" in nexus-glob|nexus-capture|nexus-collect|nexus-node-test|nexus-lock-hash) run_one "$@"; return $? ;; esac
       exec "$@"
     fi
     ( first_step "$n" "$@" ) || return $?

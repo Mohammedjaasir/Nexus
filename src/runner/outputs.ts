@@ -4,7 +4,9 @@
  * - a symlink or a junction (`symlink`), a file with a second hard link (`hardlink`: a second name for bytes that may
  *   live elsewhere), a FIFO, socket or device (`special_file`), a name holding NUL, `..`, a separator, `:`, a control
  *   character, a trailing dot or space, or a Windows device name (`bad_name`);
- * - more files than the contract allows (`too_many_files`), more bytes than `outputMaxBytes` (`output_too_large`).
+ * - more files than the contract allows (`too_many_files`), more bytes than `outputMaxBytes` (`output_too_large`);
+ * - an entry (or `/out` itself) that cannot be read (`unreadable_output_entry`, final review B4: EACCES on a folder the
+ *   container made unreadable is the outputs' fault, never a lost runner).
  * The refused entry's relative path is reported (escaped). Every accepted file is hashed into `objects/tmp` and
  * renamed into place (objectStore.ts); a rename that stays locked fails `file_locked`.
  */
@@ -42,7 +44,7 @@ export async function scanOut(fs: RunnerFs, outDir: string, limits: { maxFiles: 
   let root;
   try { root = await fs.lstat(outDir); } catch (e) {
     if (errCode(e) === 'ENOENT') return { ok: true, files: [], bytes: 0 };
-    throw e;
+    return { ok: false, code: 'unreadable_output_entry', entry: '.' };
   }
   if (root.isSymbolicLink()) return { ok: false, code: 'symlink', entry: '.' };
   if (!root.isDirectory()) return { ok: false, code: 'special_file', entry: '.' };
@@ -53,13 +55,15 @@ export async function scanOut(fs: RunnerFs, outDir: string, limits: { maxFiles: 
   const budget = { left: entryBudget(limits.maxFiles) };
   const walk = async (dir: string, rel: string, depth: number): Promise<OutScan | null> => {
     if (depth > MAX_OUT_DEPTH) return { ok: false, code: 'too_many_files', entry: rel };
-    const names = await readNames(fs, dir, budget);
+    let names: string[] | null;
+    try { names = await readNames(fs, dir, budget); } catch { return { ok: false, code: 'unreadable_output_entry', entry: rel || '.' }; }
     if (names === null) return { ok: false, code: 'too_many_files', entry: rel || '.' };
     for (const name of names.sort()) {
       const r = rel ? `${rel}/${name}` : name;
       if (badName(name)) return { ok: false, code: 'bad_name', entry: r };
       const abs = path.join(dir, name);
-      const st = await fs.lstat(abs);
+      let st;
+      try { st = await fs.lstat(abs); } catch { return { ok: false, code: 'unreadable_output_entry', entry: r }; }
       if (st.isSymbolicLink()) return { ok: false, code: 'symlink', entry: r };
       if (st.isDirectory()) {
         const sub = await walk(abs, r, depth + 1);

@@ -27,7 +27,7 @@
         "sde-node/reporters/package.json": "1db0f231f59cae1838e9dbdcb2ad87e09399767b14c29e90351917b30165db6d",
         "sde-node/reporters/package-lock.json": "69b0449a64159d9db10e0099cae75f40a32999ccbe04a1f76451cedc0e741d8d"
       },
-      "contextSha256": "3009fe1ab8bb332cb7f628906a00edf86115c098d17e8b09f9dcbb2b05ee32c7",
+      "contextSha256": "63351b34704356f75a07c149f1d783214e763fc3387d0bcc62a297962ac513aa",
       "estimatedBytes": 214520830,
       "versions": {
         "node": "20.20.2",
@@ -62,7 +62,7 @@
       "lockfiles": {
         "sde-python/requirements.lock": "38380b9ea9e5cd9706ba21d1a79567801373bdc59afba9ca58379349a215fc11"
       },
-      "contextSha256": "3027ea5794cf4fbeab721d37c4a32b6f3af7b71bc7da60a7382c7b2c3993ecaa",
+      "contextSha256": "a95632602303d073c217487cf3fec6fd29dc84a7b7c383536b4ec7b6a9f78b57",
       "estimatedBytes": 157786191,
       "versions": {
         "python": "3.11.17",
@@ -89,11 +89,17 @@
         "/opt/nexus/fwd-entry"
       ],
       "lockfiles": {},
-      "contextSha256": "668a7ce4d65c5fd5b767a42e1f82466cfca61b551c60b49f90d13294b3e6ea70",
+      "contextSha256": "c845067fc4c09907ad69fc268e0c5bcd78596beceec57b1d13b8effd30398aab",
       "estimatedBytes": 12988115,
       "versions": {
         "alpine": "3.20",
         "socat": "1.8.0.0-r0"
+      },
+      "packages": {
+        "socat": {
+          "version": "1.8.0.0-r0",
+          "apkSha256": null
+        }
       }
     }
   }

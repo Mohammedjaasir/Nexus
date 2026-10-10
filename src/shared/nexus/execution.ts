@@ -173,12 +173,14 @@ export interface ParsedOutput { parser: ParserId; sourceSha256: string; normaliz
 /**
  * Why the runner refused the contents of `/out` (no output from that attempt is trusted). `secret_in_report`: a parser
  * result held a secret-shaped value, so the runner withheld it (no secret leaves the runner in a message).
+ * `unreadable_output_entry` (B2a final review B4): an entry of `/out` could not be read (EACCES, EPERM, ...): the outputs
+ * are refused like any other bad entry, never reported as a lost runner.
  */
 export type OutputErrorCode =
   | 'symlink' | 'hardlink' | 'special_file' | 'bad_name' | 'file_locked' | 'too_many_files'
-  | 'output_too_large' | 'workspace_too_large' | 'secret_in_report';
+  | 'output_too_large' | 'workspace_too_large' | 'secret_in_report' | 'unreadable_output_entry';
 export const OUTPUT_ERROR_CODES: readonly OutputErrorCode[] = ['symlink', 'hardlink', 'special_file', 'bad_name', 'file_locked',
-  'too_many_files', 'output_too_large', 'workspace_too_large', 'secret_in_report'];
+  'too_many_files', 'output_too_large', 'workspace_too_large', 'secret_in_report', 'unreadable_output_entry'];
 
 // ----- attempt plans (main → runner); every path in a plan is main-owned, under the data home -----
 

@@ -305,7 +305,9 @@ export class IngestService implements IngestPort {
     const v = this.deps.artifacts.insertSystemVersionTx(system, {
       ...(repo ? { artifactId: repo.id } : { newArtifact: { kind: 'repository', name: 'Repository', participation: null } }),
       storage: { kind: 'git', commit: g.value.commit, ...(g.value.branch ? { ref: g.value.branch } : {}) },
-      contentHash, metadata: { branch: g.value.branch, dirty: g.value.dirty, tree: g.value.tree },
+      contentHash, metadata: { branch: g.value.branch, dirty: g.value.dirty, tree: g.value.tree,
+        // The lockfile at the commit, as the runner hashed it (an install's lock.sha256 is judged against it).
+        ...(g.value.lockfile ? { lockfile: { path: g.value.lockfile.path, sha256: g.value.lockfile.sha256 } } : {}) },
       environment: this.environment(ctx), jobId: job.id, attemptN: attempt.n, outputPath: 'facts', action: 'exec.snapshot',
       onBehalfOf: job.on_behalf_of, now: this.deps.now(),
       inputs: previous ? [{ versionId: previous.id, role: 'previous', relation: 'derived_from', source: 'ingest' }] : []

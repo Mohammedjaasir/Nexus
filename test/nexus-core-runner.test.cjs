@@ -16,7 +16,7 @@ const { MessageChannel } = require('node:worker_threads');
 const SPAWNED = [];
 const realSpawn = cp.spawn;
 cp.spawn = function spySpawn(cmd, args, opts) {
-  SPAWNED.push({ cmd, args: [...(args ?? [])], cwd: opts?.cwd, shell: opts?.shell, windowsHide: opts?.windowsHide });
+  SPAWNED.push({ cmd, args: [...(args ?? [])], cwd: opts?.cwd, shell: opts?.shell, windowsHide: opts?.windowsHide, env: opts?.env });
   return realSpawn.apply(this, arguments);
 };
 
@@ -40,19 +40,44 @@ const { GUARD_POLL_MS } = loadTs('src/runner/sandbox/sizeGuard.ts');
 const { parseRunnerMessage, EPHEMERAL_PORT_MIN, EPHEMERAL_PORT_MAX } = loadTs('src/shared/nexus/runnerProtocol.ts');
 const { comparePreflight } = loadTs('src/shared/nexus/preflightCheck.ts');
 const { homeLabel } = loadTs('src/shared/nexus/homeLabel.ts');
-const { buildPlan } = loadTs('src/main/nexus/exec/planBuilder.ts');
+const { buildPlan, STEP_SEPARATOR } = loadTs('src/main/nexus/exec/planBuilder.ts');
 const { getRecipe } = loadTs('src/shared/nexus/recipes.ts');
 const { newId } = loadTs('src/main/nexus/db/ids.ts');
 const { inspectFor } = require('./helpers/fakeSandboxDriver.cjs');
 const { isGitBinary, insideFolder } = loadTs('src/main/gitBinary.ts');
-/** A runner git spawn: the resolved binary, from the data home, the repository by -C, the safe config; returns the subcommand argv. */
+/**
+ * A runner git spawn: the resolved binary, from the data home, the repository by -C, the safe config; returns the subcommand
+ * argv. B2a final review B1: a content-converting call (archive, status) also carries, right after that prefix, the
+ * `-c filter.<n>.{smudge,clean,process}= -c filter.<n>.required=false` group of every configured filter driver; each group
+ * is checked whole here and removed from the returned argv (its driver names are on `.filters`).
+ */
 function gitSub(s, w, repoDir) {
   assert.ok(isGitBinary(s.cmd), `the resolved git binary, not ${s.cmd}`);
   assert.ok(!insideFolder(s.cmd, repoDir), 'never a git inside the repository');
   assert.equal(path.resolve(s.cwd), path.resolve(w.home), 'git runs from the data home');
   assert.deepEqual(s.args.slice(0, 6), ['-C', repoDir, '-c', 'core.fsmonitor=false', '-c', `core.hooksPath=${path.join(w.home, '.nexus-no-git-hooks')}`]);
-  return s.args.slice(6);
+  const rest = s.args.slice(6);
+  const keys = new Map();
+  let i = 0;
+  while (rest[i] === '-c' && /^filter\./.test(rest[i + 1] ?? '')) {
+    const m = /^filter\.(.+)\.(smudge|clean|process|required)=(.*)$/.exec(rest[i + 1]);
+    assert.ok(m, rest[i + 1]);
+    assert.equal(m[3], m[2] === 'required' ? 'false' : '', `${rest[i + 1]} switches the driver off`);
+    keys.set(m[1], [...(keys.get(m[1]) ?? []), m[2]]);
+    i += 2;
+  }
+  for (const [n, k] of keys) assert.deepEqual(k, ['smudge', 'clean', 'process', 'required'], `every key of filter ${n} is switched off`);
+  const sub = rest.slice(i);
+  Object.defineProperty(sub, 'filters', { value: [...keys.keys()], enumerable: false });
+  return sub;
 }
+/** The configured filter drivers git itself lists for `dir` (what a neutralised call must switch off). */
+function configuredFilters(dir) {
+  const r = cp.spawnSync('git', ['config', '--name-only', '--get-regexp', '^filter\\.'], { cwd: dir, encoding: 'utf8', windowsHide: true });
+  return [...new Set(r.stdout.split('\n').filter(Boolean).map((k) => k.slice('filter.'.length, k.lastIndexOf('.'))))];
+}
+const { FILTER_CONFIG_ARGV } = loadTs('src/main/gitBinary.ts');
+const { ARCHIVE_EOL_CONFIG } = loadTs('src/runner/git.ts');
 
 const GIB = 2 ** 30;
 const NOW = 1_780_000_000_000;
@@ -406,7 +431,11 @@ test('D11 staging: git archive argv exact, run in the plan\'s project folder; a 
   const before = SPAWNED.length;
   await start(w, plan);
   const git = SPAWNED.slice(before).filter((s) => isGitBinary(s.cmd));
-  assert.deepEqual(git.map((s) => gitSub(s, w, r.dir)), [['archive', '--format=tar', r.commit]]);
+  // B1: the configured filter drivers are read first (read-only), then the archive switches every one of them off and
+  // keeps the committed line endings (core.autocrlf=false, core.eol=lf).
+  assert.deepEqual(git.map((s) => gitSub(s, w, r.dir)), [[...FILTER_CONFIG_ARGV], [...ARCHIVE_EOL_CONFIG, 'archive', '--format=tar', r.commit]]);
+  assert.deepEqual(gitSub(git[1], w, r.dir).filters, configuredFilters(r.dir), 'every configured filter driver is switched off');
+  assert.equal(git[1].env.GIT_LFS_SKIP_SMUDGE, '1');
   assert.equal(git[0].shell, false); assert.equal(git[0].windowsHide, true);
   const tar = fs.readFileSync(path.join(plan.workDir, 'in', 'src.tar'));
   const staging = JSON.parse(fs.readFileSync(path.join(plan.workDir, 'staging.json'), 'utf8'));
@@ -467,8 +496,11 @@ test('D13 heartbeats every 15 s per live attempt with the container state and by
   assert.ok(n0 >= 1, 'a heartbeat at start');
   outFile(plan, 'junit.xml', JUNIT);
   // The size guard measures /out every 5 s; the next heartbeat carries what it measured.
+  const execs0 = w.driver.callsOf('exec').length;
   await w.advance(GUARD_POLL_MS);
-  await new Promise((r) => setTimeout(r, 50));
+  // Final batch item 11: deterministic, never a wall-clock sleep. The guard sets its /out measure before it asks Docker for
+  // the workspace size (`du`), so that exec call is the signal that the measure the next heartbeat carries is in.
+  await until(() => w.driver.callsOf('exec').length > execs0, 'the size guard measured /out', 30_000);
   await w.advance(HEARTBEAT_MS - GUARD_POLL_MS);
   const hb = w.of('attempt.heartbeat', plan.attemptId);
   assert.equal(hb.length, n0 + 1);
@@ -496,15 +528,76 @@ test('D14 repo.snapshot: git argv exact; the dirty flag from the status output l
   const before = SPAWNED.length;
   w.send({ op: 'attempt.start', attemptId, plan });
   const e = await w.wait('attempt.exited', attemptId);
-  assert.deepEqual(SPAWNED.slice(before).filter((s) => isGitBinary(s.cmd)).map((s) => gitSub(s, w, r.dir)),
-    [['rev-parse', '--verify', 'HEAD^{commit}'], ['symbolic-ref', '--short', '-q', 'HEAD'], ['status', '--porcelain=v1', '-z'], ['rev-parse', 'HEAD^{tree}']]);
+  // B1: status reads the filter drivers first and switches them off; final batch item 1: the lockfile at the commit is
+  // looked up by its fixed names (this repository has none, so nothing more is read).
+  const spawned = SPAWNED.slice(before).filter((s) => isGitBinary(s.cmd));
+  assert.deepEqual(spawned.map((s) => gitSub(s, w, r.dir)),
+    [['rev-parse', '--verify', 'HEAD^{commit}'], ['symbolic-ref', '--short', '-q', 'HEAD'], [...FILTER_CONFIG_ARGV], ['status', '--porcelain=v1', '-z'],
+      ['rev-parse', 'HEAD^{tree}'], ['cat-file', '-s', `${r.commit}:package-lock.json`], ['cat-file', '-s', `${r.commit}:requirements.txt`]]);
+  assert.deepEqual(gitSub(spawned[3], w, r.dir).filters, configuredFilters(r.dir), 'status switches every configured filter driver off');
   assert.deepEqual(w.one('attempt.provisioned', attemptId), { op: 'attempt.provisioned', attemptId });
   assert.equal(e.exit.code, 0);
   const facts = e.parsed[0].normalized;
   assert.equal(e.parsed[0].parser, 'repo-snapshot');
   assert.equal(facts.commit, r.commit); assert.equal(facts.dirty, true); assert.match(facts.tree, /^[0-9a-f]{40}$/);
   assert.equal(typeof facts.branch, 'string');
+  assert.equal(facts.lockfile, null, 'no lockfile at the commit');
   assert.doesNotMatch(JSON.stringify(w.got), /zz-private-name/);
+});
+
+test('D14b (final batch item 1) repo.snapshot records the lockfile AT THE COMMIT: npm\'s first, hashed from the committed bytes (cat-file blob), never the work tree', async () => {
+  const w = await world();
+  const lock = '{\n  "name": "x",\n  "lockfileVersion": 3\n}\n';
+  const r = repo(w, { 'package-lock.json': lock, 'requirements.txt': 'pytest==9.1.1 --hash=sha256:' + 'a'.repeat(64) + '\n' });
+  fs.writeFileSync(path.join(r.dir, 'package-lock.json'), '{"changed":"in the work tree only"}');
+  const jobId = newId(NOW); const attemptId = newId(NOW);
+  const plan = buildPlan({ job: { id: jobId, projectId: 'p-ledger' }, attempt: { id: attemptId, n: 1 }, bootId: BOOT, recipe: getRecipe('repo.snapshot'),
+    dataHomeRoot: w.home, workRel: `work/${jobId}/1`, logRel: `logs/jobs/${jobId}/1.log`, inputs: [], repoPath: r.dir });
+  const before = SPAWNED.length;
+  w.send({ op: 'attempt.start', attemptId, plan });
+  const e = await w.wait('attempt.exited', attemptId);
+  assert.equal(e.exit.code, 0);
+  assert.deepEqual(e.parsed[0].normalized.lockfile, { path: 'package-lock.json', sha256: sha(Buffer.from(lock)) });
+  const sub = SPAWNED.slice(before).filter((s) => isGitBinary(s.cmd)).map((s) => gitSub(s, w, r.dir)).slice(-2);
+  assert.deepEqual(sub, [['cat-file', '-s', `${r.commit}:package-lock.json`], ['cat-file', 'blob', `${r.commit}:package-lock.json`]]);
+  // Only pip's lockfile: that one is recorded.
+  const w2 = await world();
+  const req = 'pytest==9.1.1 --hash=sha256:' + 'b'.repeat(64) + '\n';
+  const r2 = repo(w2, { 'requirements.txt': req });
+  const j2 = newId(NOW); const a2 = newId(NOW);
+  w2.send({ op: 'attempt.start', attemptId: a2, plan: buildPlan({ job: { id: j2, projectId: 'p-ledger' }, attempt: { id: a2, n: 1 }, bootId: BOOT,
+    recipe: getRecipe('repo.snapshot'), dataHomeRoot: w2.home, workRel: `work/${j2}/1`, logRel: `logs/jobs/${j2}/1.log`, inputs: [], repoPath: r2.dir }) });
+  const e2 = await w2.wait('attempt.exited', a2);
+  assert.deepEqual(e2.parsed[0].normalized.lockfile, { path: 'requirements.txt', sha256: sha(Buffer.from(req)) });
+});
+
+test('D14c (final review B1) a planted filter driver never runs on the host: archive (smudge) and status (clean) write no marker; the tar is still produced, with the committed bytes', async () => {
+  const w = await world();
+  const r = repo(w, { 'a.txt': 'committed text\n', '.gitattributes': '* filter=evil\n' });
+  const marker = path.join(w.dir, 'filter-ran.txt');
+  const shMarker = marker.split('\\').join('/');
+  gitOk(r.dir, ['config', 'filter.evil.smudge', `echo smudge >> "${shMarker}"; cat`]);
+  gitOk(r.dir, ['config', 'filter.evil.clean', `echo clean >> "${shMarker}"; cat`]);
+  gitOk(r.dir, ['config', 'filter.evil.required', 'true']);
+  // The control: plain git does run the planted driver (the test would see a marker if Nexus did not switch it off).
+  fs.writeFileSync(path.join(r.dir, 'a.txt'), 'changed in the work tree\n');
+  const ctl = cp.spawnSync('git', ['status', '--porcelain'], { cwd: r.dir, encoding: 'utf8', windowsHide: true });
+  assert.equal(ctl.status, 0, ctl.stderr);
+  assert.ok(fs.existsSync(marker), 'the planted driver runs under plain git (control)');
+  fs.rmSync(marker);
+  // Staging (git archive) and the snapshot (git status) through the runner: no marker.
+  const plan = toolPlan(w, { repoPath: r.dir, inputs: [{ versionId: 'V1', slot: 'suite', contentHash: 'x', storage: { kind: 'git', commit: r.commit },
+    metadata: { framework: 'mocha', files: ['test/a.test.js'] } }] });
+  const p = await start(w, plan);
+  assert.equal(p.preflight.ok, true);
+  const tar = fs.readFileSync(path.join(plan.workDir, 'in', 'src.tar'));
+  assert.ok(tar.includes(Buffer.from('committed text\n')), 'the tar holds the committed bytes');
+  const jobId = newId(NOW); const attemptId = newId(NOW);
+  w.send({ op: 'attempt.start', attemptId, plan: buildPlan({ job: { id: jobId, projectId: 'p-ledger' }, attempt: { id: attemptId, n: 1 }, bootId: BOOT,
+    recipe: getRecipe('repo.snapshot'), dataHomeRoot: w.home, workRel: `work/${jobId}/1`, logRel: `logs/jobs/${jobId}/1.log`, inputs: [], repoPath: r.dir }) });
+  const e = await w.wait('attempt.exited', attemptId);
+  assert.equal(e.exit.code, 0); assert.equal(e.parsed[0].normalized.dirty, true);
+  assert.equal(fs.existsSync(marker), false, 'no filter driver ran on the host');
 });
 
 test('D15 sde.app.assemble reads only nexus.app.json at the commit and refuses one over 16 KiB without reading it', async () => {
@@ -1556,7 +1649,10 @@ test('RV6 (item 6) a per-file plan never takes a container-written junit.xml: wi
     assert.deepEqual(e.parsed, [], `${shape}: no report is parsed`);
     assert.equal(fs.existsSync(path.join(plan.workDir, 'out', 'junit.xml')), false, shape);
     const lines = nexusLines(plan);
-    assert.ok(lines.some((l) => /junit\.xml is not parsed/.test(l)) && lines.some((l) => /junit\.xml the container wrote was removed/.test(l)), `${shape}: ${lines.join(' | ')}`);
+    // Final review B5: nothing is deleted before release. The container's junit.xml leaves /out (it is still never taken)
+    // by a move into the work folder, where it stays byte for byte until the attempt is released.
+    assert.ok(lines.some((l) => /junit\.xml is not parsed/.test(l)) && lines.some((l) => /junit\.xml the container wrote was set aside/.test(l)), `${shape}: ${lines.join(' | ')}`);
+    assert.deepEqual(fs.readFileSync(path.join(plan.workDir, 'container-junit.xml')), JUNIT, `${shape}: kept outside /out, unchanged`);
   }
   // With its per-file folder, the same plan merges and parses (the merged report, attributed to its file).
   const w = await world();
@@ -1568,6 +1664,8 @@ test('RV6 (item 6) a per-file plan never takes a container-written junit.xml: wi
   const e = await w.wait('attempt.exited', plan.attemptId);
   assert.equal(e.parsed[0].parser, 'junit');
   assert.deepEqual(e.parsed[0].normalized.cases.map((c) => [c.file, c.name]), [['test/a.test.js', 'a1']]);
+  // Final review B5: the merge never overwrites the container's junit.xml; it was moved to the work folder first.
+  assert.deepEqual(fs.readFileSync(path.join(plan.workDir, 'container-junit.xml')), JUNIT);
 });
 
 test('RV6b (item 6, recovery) a per-file run that ended while the runner was gone: reconcile merges its reports first, so main judges the merged junit.xml, never the container\'s own', async () => {
@@ -1607,6 +1705,88 @@ test('RV8 (item 8) the runner refuses a per-file plan naming the step separator 
     assert.deepEqual([r.reason, r.detail], ['bad_plan', 'a per-file test file is not a plain relative path'], bad);
     assert.ok(!w.driver.ops().includes('create'), `${bad}: nothing was created`);
   }
+});
+
+// ---------- B2a final fix (backend): B3, B4, carry items 8 and 9 ----------
+
+test('FX1 (final review B3) an adopted running container resumes its log from the LAST FRAME on disk, read before the "picked up again" frame is written: nothing printed while main was closed is skipped', async () => {
+  const w = await world();
+  const plan = toolPlan(w);
+  const p = await start(w, plan);
+  await w.advance(1000);
+  w.driver.emit(p.containerId, 'stdout', 'printed while the first runner watched\n');
+  await until(() => fs.existsSync(plan.logPath) && fs.readFileSync(plan.logPath, 'utf8').includes('first runner watched'), 'the line is written');
+  const frames = () => fs.readFileSync(plan.logPath, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  const lastTs = frames().at(-1).ts;
+  // A new runner process, much later (main was closed meanwhile).
+  const r = await world({ driver: w.driver, homeDir: w.home });
+  await r.advance(10 * 60_000);
+  const n0 = w.driver.callsOf('streamLogs').length;
+  r.send({ op: 'attempt.adopt', attemptId: plan.attemptId, containerId: p.containerId, logPath: plan.logPath });
+  await until(() => w.driver.callsOf('streamLogs').length > n0, 'the log is followed again');
+  const since = w.driver.callsOf('streamLogs').at(-1).args[1];
+  assert.equal(since, lastTs, 'docker logs --since the last frame on disk, not the moment of the adoption');
+  await until(() => frames().some((f) => f.stream === 'nexus' && /picked up again/.test(f.text)), 'the picked-up frame');
+  const picked = frames().find((f) => f.stream === 'nexus' && /picked up again/.test(f.text));
+  assert.ok(picked.ts > since, 'the picked-up frame was written after since was read');
+  w.driver.exitContainer(p.containerId, { code: 0 });
+  outFile(plan, 'junit.xml', JUNIT);
+  await r.wait('attempt.exited', plan.attemptId);
+});
+
+test('FX2 (final review B4) an /out entry that cannot be read (EACCES on opendir or lstat) refuses the outputs as unreadable_output_entry: the exit is reported, never a lost runner', async () => {
+  for (const op of ['opendir', 'lstat']) {
+    const deny = (p) => p.split(/[\\/]/).includes('locked');
+    const eacces = () => Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' });
+    const wrapped = { ...fsp,
+      opendir: async (p, ...rest) => { if (op === 'opendir' && deny(p)) throw eacces(); return fsp.opendir(p, ...rest); },
+      lstat: async (p, ...rest) => { if (op === 'lstat' && deny(p)) throw eacces(); return fsp.lstat(p, ...rest); } };
+    const w = await world({ fs: wrapped });
+    const plan = toolPlan(w);
+    const p = await start(w, plan);
+    outFile(plan, 'junit.xml', JUNIT);
+    outFile(plan, 'locked/inner.txt', 'x');
+    w.driver.exitContainer(p.containerId, { code: 0 });
+    const e = await w.wait('attempt.exited', plan.attemptId);
+    assert.equal(e.outputError, 'unreadable_output_entry', op);
+    assert.equal(e.outputErrorEntry, 'locked', op);
+    assert.deepEqual(e.outputs, [], `${op}: nothing from /out is trusted`);
+    assert.equal(e.exit.code, 0);
+    assert.equal(w.of('fault', plan.attemptId).length, 0, `${op}: no fault`);
+  }
+});
+
+test('FX3 (final batch item 9) the runner refuses a dev deployment whose app argv holds the step separator, before anything is created', async () => {
+  const w = await world({ profiles: [PROFILE, FWD], pickPort: () => 50002 });
+  const plan = servicePlan(w);
+  plan.app.argv = ['node', 'server.js', STEP_SEPARATOR, 'sh'];
+  w.send({ op: 'attempt.start', attemptId: plan.attemptId, plan });
+  const r = await w.wait('attempt.refused', plan.attemptId);
+  assert.deepEqual([r.reason, r.detail], ['bad_plan', 'the app argv holds the step separator']);
+  assert.ok(!w.driver.ops().includes('create'), 'nothing was created');
+});
+
+test('FX4 (final batch item 8) identity checks compare BigInt file ids: two files whose ids differ only above 2^53 are not taken for one another', async () => {
+  const { readPlainFile } = loadTs('src/runner/paths.ts');
+  const { sameFile, hashFile } = loadTs('src/runner/objectStore.ts');
+  const big = 2n ** 60n;
+  assert.equal(Number(big + 1n), Number(big + 2n), 'the two ids are the same Number');
+  assert.equal(sameFile({ ino: big + 1n, dev: 1n, size: 3n }, { ino: big + 2n, dev: 1n, size: 3n }), false);
+  assert.equal(sameFile({ ino: big + 1n, dev: 1n, size: 3n }, { ino: big + 1n, dev: 1n, size: 3n }), true);
+  const dir = h.tmpDir('nx-bigint-');
+  const f = path.join(dir, 'a.xml');
+  fs.writeFileSync(f, 'abc');
+  const withIno = (s, ino) => Object.assign(Object.create(Object.getPrototypeOf(s)), s, { ino });
+  const swapped = { ...fsp,
+    lstat: async (p, o) => { const s = await fsp.lstat(p, o); return o?.bigint ? withIno(s, big + 1n) : s; },
+    open: async (...a) => {
+      const fh = await fsp.open(...a);
+      return { stat: async (o) => { const s = await fh.stat(o); return o?.bigint ? withIno(s, big + 2n) : s; },
+        read: (...x) => fh.read(...x), close: () => fh.close(), [Symbol.asyncDispose]: () => fh.close() };
+    } };
+  assert.deepEqual(await readPlainFile(swapped, f, 1024), { ok: false, why: 'changed' });
+  await assert.rejects(hashFile(swapped, f), /changed while it was opened/);
+  assert.deepEqual((await readPlainFile(fsp, f, 1024)).ok, true);
 });
 
 test('D18 the runner spawned only docker and git, never through a shell', () => {

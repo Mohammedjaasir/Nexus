@@ -123,12 +123,14 @@ export type PlainRead = { ok: true; bytes: Buffer } | { ok: false; why: 'missing
  * a refusal; an I/O error other than ENOENT is thrown.
  */
 export async function readPlainFile(fs: RunnerFs, p: string, maxBytes: number): Promise<PlainRead> {
+  // BigInt stats (final batch item 8): an NTFS file id can exceed 2^53, where Number ids of two files may compare equal.
   let st;
-  try { st = await fs.lstat(p); } catch (e) { if (errCode(e) === 'ENOENT') return { ok: false, why: 'missing' }; throw e; }
+  try { st = await fs.lstat(p, { bigint: true }); } catch (e) { if (errCode(e) === 'ENOENT') return { ok: false, why: 'missing' }; throw e; }
   if (st.isSymbolicLink()) return { ok: false, why: 'link' };
   if (!st.isFile()) return { ok: false, why: 'not_a_file' };
-  if (st.nlink > 1) return { ok: false, why: 'hardlink' };
-  if (st.size > maxBytes) return { ok: false, why: 'too_large' };
+  if (st.nlink > 1n) return { ok: false, why: 'hardlink' };
+  if (st.size > BigInt(maxBytes)) return { ok: false, why: 'too_large' };
+  const size = Number(st.size);
   let fh;
   try { fh = await fs.open(p, fsConstants.O_RDONLY | NOFOLLOW); } catch (e) {
     const c = errCode(e);
@@ -137,16 +139,16 @@ export async function readPlainFile(fs: RunnerFs, p: string, maxBytes: number): 
     throw e;
   }
   try {
-    const s2 = await fh.stat();
+    const s2 = await fh.stat({ bigint: true });
     if (!s2.isFile() || s2.ino !== st.ino || s2.dev !== st.dev || s2.size !== st.size || s2.nlink !== st.nlink) return { ok: false, why: 'changed' };
-    const buf = Buffer.alloc(st.size);
+    const buf = Buffer.alloc(size);
     let got = 0;
     while (got < buf.length) {
       const { bytesRead } = await fh.read(buf, got, buf.length - got, got);
       if (bytesRead === 0) break;
       got += bytesRead;
     }
-    if (got !== st.size) return { ok: false, why: 'changed' };
+    if (got !== size) return { ok: false, why: 'changed' };
     return { ok: true, bytes: buf };
   } finally { await fh.close(); }
 }

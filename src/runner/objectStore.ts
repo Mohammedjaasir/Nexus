@@ -137,15 +137,23 @@ async function openNoFollow(fs: RunnerFs, p: string): Promise<Awaited<ReturnType
   }
 }
 
+/**
+ * Whether two stats name the same file at the same size. BigInt stats (final batch item 8): an NTFS file id can exceed
+ * 2^53, where two different files' `ino` as a Number may compare equal.
+ */
+export function sameFile(a: { ino: bigint; dev: bigint; size: bigint }, b: { ino: bigint; dev: bigint; size: bigint }): boolean {
+  return a.ino === b.ino && a.dev === b.dev && a.size === b.size;
+}
+
 /** sha256 and size of a regular, single-link file (lstat first, identity re-checked on the open handle). */
 export async function hashFile(fs: RunnerFs, p: string): Promise<HashedFile> {
-  const st = await fs.lstat(p);
+  const st = await fs.lstat(p, { bigint: true });
   if (!st.isFile() || st.isSymbolicLink()) throw new SourceChangedError('not a regular file');
-  if (st.nlink > 1) throw new SourceChangedError('a hard link');
+  if (st.nlink > 1n) throw new SourceChangedError('a hard link');
   const fh = await openNoFollow(fs, p);
   try {
-    const st2 = await fh.stat();
-    if (st2.ino !== st.ino || st2.dev !== st.dev || st2.size !== st.size) throw new SourceChangedError('the file changed while it was opened');
+    const st2 = await fh.stat({ bigint: true });
+    if (!sameFile(st, st2)) throw new SourceChangedError('the file changed while it was opened');
     const h = createHash('sha256');
     const buf = Buffer.allocUnsafe(CHUNK);
     let total = 0;
@@ -160,13 +168,13 @@ export async function hashFile(fs: RunnerFs, p: string): Promise<HashedFile> {
 
 /** Copy `src` into a new file `dst` (exclusive create) while hashing; refuses links and files that change while open. */
 export async function copyHashing(fs: RunnerFs, src: string, dst: string, maxBytes: number): Promise<HashedFile> {
-  const st = await fs.lstat(src);
+  const st = await fs.lstat(src, { bigint: true });
   if (!st.isFile() || st.isSymbolicLink()) throw new SourceChangedError('not a regular file');
-  if (st.nlink > 1) throw new SourceChangedError('a hard link');
+  if (st.nlink > 1n) throw new SourceChangedError('a hard link');
   const fh = await openNoFollow(fs, src);
   try {
-    const st2 = await fh.stat();
-    if (st2.ino !== st.ino || st2.dev !== st.dev || st2.size !== st.size) throw new SourceChangedError('the file changed while it was opened');
+    const st2 = await fh.stat({ bigint: true });
+    if (!sameFile(st, st2)) throw new SourceChangedError('the file changed while it was opened');
     const out = await fs.open(dst, 'wx');
     const h = createHash('sha256');
     let total = 0;
@@ -181,7 +189,7 @@ export async function copyHashing(fs: RunnerFs, src: string, dst: string, maxByt
         await out.write(buf, 0, bytesRead);
       }
     } finally { await out.close(); }
-    if (total !== st.size) throw new SourceChangedError('the file changed size while it was read');
+    if (BigInt(total) !== st.size) throw new SourceChangedError('the file changed size while it was read');
     return { sha256: h.digest('hex'), bytes: total };
   } finally { await fh.close(); }
 }

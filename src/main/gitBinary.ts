@@ -87,5 +87,48 @@ export function gitResolver(find: () => Promise<string | null>): { get(): Promis
   };
 }
 
-/** The git config every Nexus git call carries (a repository's own config cannot start a process for it). */
+/**
+ * The git config every Nexus git call carries: no file system monitor process. It does NOT stop filter drivers (B2a final
+ * review B1): a `filter.<name>.{smudge,clean,process}` from any config scope (Git for Windows' system config ships
+ * `filter.lfs.*`, and git-lfs reaches the network with the user's credentials) runs on the host when an attribute names
+ * it and a call converts content (`archive` smudges, `status` and a worktree `diff` clean). Callers that read content
+ * neutralise every configured driver first (`FILTER_CONFIG_ARGV`, `filterDriverNames`, `neutralizeFilterArgs`) and set
+ * `GIT_LFS_SKIP_SMUDGE=1`; an LFS file therefore stages as its pointer text, never as the large file.
+ */
 export const SAFE_GIT_CONFIG: readonly string[] = Object.freeze(['-c', 'core.fsmonitor=false']);
+
+/** Read-only: the names of every configured `filter.*` key, one per line (exit 1 with no output when there is none). */
+export const FILTER_CONFIG_ARGV: readonly string[] = Object.freeze(['config', '--name-only', '--get-regexp', '^filter\\.']);
+
+/** The environment a content-reading git call adds: git-lfs (if it runs at all) never downloads. */
+export const FILTER_SAFE_ENV: Readonly<Record<string, string>> = Object.freeze({ GIT_LFS_SKIP_SMUDGE: '1' });
+
+/**
+ * The filter driver names in `git config --name-only --get-regexp "^filter\."` output (`filter.<name>.<key>` per line;
+ * the name may hold dots), deduplicated in order. Null when a name cannot be passed back safely as `-c <key>=` (it holds
+ * `=` or a control character): the caller then refuses the git call (fail closed). A key with no subsection is skipped.
+ */
+export function filterDriverNames(stdout: string): string[] | null {
+  const out: string[] = [];
+  for (const raw of String(stdout).split('\n')) {
+    const line = raw.replace(/\r$/, '');
+    if (line === '') continue;
+    if (!line.toLowerCase().startsWith('filter.')) return null;
+    const last = line.lastIndexOf('.');
+    if (last <= 'filter.'.length - 1) continue;              // `filter.<key>`: no driver named
+    const name = line.slice('filter.'.length, last);
+    if (name === '') continue;
+    if (/[=\u0000-\u001f\u007f]/.test(name)) return null;
+    if (!out.includes(name)) out.push(name);
+  }
+  return out;
+}
+
+/** `-c` pairs that switch every named driver off: no smudge, no clean, no long-running process, never required. */
+export function neutralizeFilterArgs(names: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const n of names) {
+    out.push('-c', `filter.${n}.smudge=`, '-c', `filter.${n}.clean=`, '-c', `filter.${n}.process=`, '-c', `filter.${n}.required=false`);
+  }
+  return out;
+}

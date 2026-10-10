@@ -63,6 +63,40 @@ export function forcedCut(p: string): number {
 type Stream = 'stdout' | 'stderr' | 'nexus';
 type FileHandle = Awaited<ReturnType<RunnerFs['open']>>;
 
+/** How much of a log's end `lastFrameTs` reads. */
+export const LAST_FRAME_READ_BYTES = 64 * 1024;
+
+/**
+ * The `ts` of the last whole frame of a log (from its last LAST_FRAME_READ_BYTES), or undefined (no log, no frame). An
+ * adopted attempt resumes `docker logs --since` from it (B2a final review B3): read BEFORE anything new is written, so
+ * what the container printed while main was closed is followed, never skipped.
+ */
+export async function lastFrameTs(fs: RunnerFs, file: string): Promise<number | undefined> {
+  let fh: FileHandle | null = null;
+  try {
+    fh = await fs.open(file, 'r');
+    const size = (await fh.stat()).size;
+    const len = Math.min(size, LAST_FRAME_READ_BYTES);
+    if (len <= 0) return undefined;
+    const buf = Buffer.alloc(len);
+    const { bytesRead } = await fh.read(buf, 0, len, size - len);
+    const lines = buf.subarray(0, bytesRead).toString('utf8').split('\n');
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i].trim();
+      if (!line.startsWith('{')) continue;
+      try {
+        const f = JSON.parse(line) as { ts?: unknown };
+        if (typeof f.ts === 'number' && Number.isFinite(f.ts) && f.ts > 0) return f.ts;
+      } catch { /* a partial first line */ }
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  } finally {
+    if (fh) { try { await fh.close(); } catch { /* closed */ } }
+  }
+}
+
 export class LogWriter {
   private fh: FileHandle | null = null;
   private written = 0;

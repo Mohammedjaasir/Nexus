@@ -22,8 +22,9 @@
  * - every per-file report is read only through `readPlainFile` (lstat, then an O_NOFOLLOW open re-checked on its
  *   handle): a link, a hard link or a special file in `junit/` contributes no case (and `/out`'s collection refuses it too).
  * The per-file reports stay in `/out` and are hashed as outputs too. Without a plain `junit/` folder nothing is merged, and
- * the runner never takes the container's own `junit.xml` for a per-file plan (core.ts parses none, and removes a plain
- * one: `discardUnmergedReport`).
+ * the runner never takes the container's own `junit.xml` for a per-file plan (core.ts parses none: `discardUnmergedReport`).
+ * Nothing is deleted before release (final review B5): a plain `junit.xml` the container wrote is MOVED to the attempt's
+ * work folder (`container-junit.xml`, outside `/out`, removed with the rest at release), never unlinked or overwritten.
  */
 import { randomBytes } from 'node:crypto';
 import * as path from 'node:path';
@@ -33,6 +34,21 @@ import type { RunnerFs } from './types';
 
 export const PER_FILE_DIR = 'junit';
 export const MERGED_NAME = 'junit.xml';
+/** Where the container's own `junit.xml` of a per-file plan is kept (in the work folder, beside `in/` and `out/`). */
+export const KEPT_NAME = 'container-junit.xml';
+
+/**
+ * Moves a plain `junit.xml` out of `/out` into `<keepDir>/container-junit.xml` (a rename: nothing is deleted). When that
+ * name is already taken, the original was kept by an earlier pass (a finalize after a restart) and `junit.xml` is this
+ * runner's own merge; it is left where it is. Returns whether `/out/junit.xml` is now free to be replaced.
+ */
+async function keepContainerReport(fs: RunnerFs, root: string, dest: string, keepDir: string): Promise<boolean> {
+  const keep = path.join(keepDir, KEPT_NAME);
+  if (!(await noLinkUnder(fs, root, keep))) return false;
+  if ((await plainFileOrAbsent(fs, keep)) !== 'absent') return true;
+  await fs.rename(dest, keep);
+  return true;
+}
 
 /** The report name of the i-th (0-based) discovered file: `0001.xml`, `0002.xml`, ... */
 export function perFileReportName(i: number): string { return `${String(i + 1).padStart(4, '0')}.xml`; }
@@ -124,6 +140,10 @@ export async function mergePerFileJunit(fs: RunnerFs, root: string, outDir: stri
   const there = await plainFileOrAbsent(fs, dest);
   if (there === 'other') return { merged: false, notes: [...notes, 'junit.xml is not a plain file; nothing was merged'], cases: tests };
   if (!(await noLinkUnder(fs, root, path.join(tmpDir, 'x')))) return { merged: false, notes: [...notes, 'the work folder is not a plain folder; nothing was merged'], cases: tests };
+  // The container's own junit.xml is kept, not overwritten (final review B5): moved to the work folder first.
+  if (there === 'plain' && !(await keepContainerReport(fs, root, dest, tmpDir))) {
+    return { merged: false, notes: [...notes, 'the container\'s junit.xml could not be kept; nothing was merged'], cases: tests };
+  }
   // Written outside /out (a container could have planted anything there), exclusively (an existing name is never opened).
   const tmp = path.join(tmpDir, `.junit-merge.${process.pid}.${randomBytes(6).toString('hex')}.tmp`);
   try {
@@ -140,16 +160,23 @@ export async function mergePerFileJunit(fs: RunnerFs, root: string, outDir: stri
 
 /**
  * A per-file plan whose reports were not merged (no plain `junit/` folder, a refused `junit.xml`, an I/O error): the
- * container's own `junit.xml` is never taken as written. A plain regular file there is removed (`unlink` removes a name,
- * it never follows one); a link, a junction, a hard link or a folder is left for the collection of `/out` to refuse.
- * The caller parses no report either way. Returns a note for the attempt log, or null when nothing was there.
+ * container's own `junit.xml` is never taken as written. A plain regular file there is MOVED out of `/out` to the work
+ * folder (`container-junit.xml`; final review B5: nothing is deleted before release); a link, a junction, a hard link or
+ * a folder is left for the collection of `/out` to refuse. The caller parses no report either way. Returns a note for
+ * the attempt log, or null when nothing was there. `keepDir`: the attempt's work folder (default: `outDir`'s parent).
  */
-export async function discardUnmergedReport(fs: RunnerFs, root: string, outDir: string): Promise<string | null> {
+export async function discardUnmergedReport(fs: RunnerFs, root: string, outDir: string, keepDir: string = path.dirname(outDir)): Promise<string | null> {
   const dest = path.join(outDir, MERGED_NAME);
   if (!(await noLinkUnder(fs, root, dest))) return 'junit.xml is a link; it is not taken (the outputs are refused)';
   const there = await plainFileOrAbsent(fs, dest);
   if (there === 'absent') return null;
   if (there === 'other') return 'junit.xml is not a plain file; it is not taken';
-  try { await fs.unlink(dest); } catch (e) { if (errCode(e) !== 'ENOENT') return 'the junit.xml of the container could not be removed; it is not taken'; }
-  return 'the junit.xml the container wrote was removed: a per-file run is judged only on the merged per-file reports';
+  if (within(keepDir, outDir)) return 'the junit.xml of the container could not be set aside; it is not taken';
+  try {
+    if (!(await keepContainerReport(fs, root, dest, keepDir))) return 'the junit.xml of the container could not be set aside; it is not taken';
+  } catch (e) {
+    if (errCode(e) !== 'ENOENT') return 'the junit.xml of the container could not be set aside; it is not taken';
+  }
+  if ((await plainFileOrAbsent(fs, dest)) !== 'absent') return 'the junit.xml of the container is still in /out; it is not taken';
+  return 'the junit.xml the container wrote was set aside (kept outside /out): a per-file run is judged only on the merged per-file reports';
 }

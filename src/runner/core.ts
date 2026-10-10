@@ -43,7 +43,7 @@ import { diagnose, diagnoseTaskProblem } from './diagnose';
 import { appManifestArgv, COMMIT_RE, GitRunner } from './git';
 import { ImageBuilder } from './imageBuilder';
 import { discardUnmergedReport, mergePerFileJunit } from './junitMerge';
-import { LogWriter } from './logs';
+import { lastFrameTs, LogWriter } from './logs';
 import { ObjectStore } from './objectStore';
 import { collectOut, outBytes, showEntry } from './outputs';
 import { parseDiscovery, discoveryFrameworkOf } from './parsers/discovery';
@@ -466,6 +466,11 @@ export class RunnerCore {
       // A file equal to the entry's step separator would cut the step in two (fix round 1, item 8).
       if (pf.files.some((f) => typeof f !== 'string' || f === STEP_SEPARATOR_TOKEN || f.startsWith('-'))) return 'a per-file test file is not a plain relative path';
     }
+    // A dev deployment's app runs the manifest's argv as ONE step: the entry's step separator in it would start a second
+    // command (final batch item 9; main's checkRunArgv refuses it too, this is the runner's own check).
+    if (plan.kind === 'service' && (!Array.isArray(plan.app?.argv) || plan.app.argv.some((x) => typeof x !== 'string' || x === STEP_SEPARATOR_TOKEN))) {
+      return 'the app argv holds the step separator';
+    }
     if (plan.staging.depsVolume && !DEPS_VOLUME_RE.test(plan.staging.depsVolume.name)) return 'the deps volume is not a dependency cache volume';
     const rl = plan.resourceLabels;
     if (!rl || rl['nexus.home'] !== this.home || rl['nexus.attempt'] !== attemptId || rl['nexus.job'] !== plan.jobId) return 'the resource labels are not this attempt\'s';
@@ -713,12 +718,19 @@ export class RunnerCore {
         if (!merged) {
           skipJunit = true;
           a.log?.nexus('no per-file report folder was merged: junit.xml is not parsed (a per-file run is judged only on its per-file reports)');
-          try { const note = await discardUnmergedReport(this.fs, this.paths.root, outDir); if (note) a.log?.nexus(note); } catch (e) { a.log?.nexus(`junit.xml was not checked: ${msgOf(e)}`); }
+          try { const note = await discardUnmergedReport(this.fs, this.paths.root, outDir, a.workDir); if (note) a.log?.nexus(note); } catch (e) { a.log?.nexus(`junit.xml was not checked: ${msgOf(e)}`); }
         }
       }
       this.event(a, 'hashing');
-      const c = await collectOut(this.fs, this.store, path.join(a.workDir, 'out'),
-        { maxFiles: plan.outputContract.maxFiles, maxBytes: plan.container.limits.outputMaxBytes });
+      // Any read failure of /out refuses the outputs (final review B4): the exit is still reported, never a lost runner.
+      let c: Awaited<ReturnType<typeof collectOut>>;
+      try {
+        c = await collectOut(this.fs, this.store, path.join(a.workDir, 'out'),
+          { maxFiles: plan.outputContract.maxFiles, maxBytes: plan.container.limits.outputMaxBytes });
+      } catch (e) {
+        a.log?.nexus(`/out could not be read: ${msgOf(e)}`);
+        c = { ok: false, code: 'unreadable_output_entry', entry: '.' };
+      }
       if (!c.ok) { outputError = c.code; entry = showEntry(c.entry); a.log?.nexus(`the outputs were refused: ${c.code} (${entry})`); }
       else outputs = c.outputs;
       a.outBytes = outputs.reduce((s, o) => s + o.bytes, 0);
@@ -895,7 +907,8 @@ export class RunnerCore {
       if (t.engine === 'repo.snapshot') {
         if (typeof t.repoPath !== 'string' || !path.isAbsolute(t.repoPath)) throw new Error('the project folder is not an absolute path');
         const facts = await this.git!.snapshot(t.repoPath, a.abort.signal);
-        const sha = createHash('sha256').update(JSON.stringify({ branch: facts.branch, commit: facts.commit, dirty: facts.dirty, tree: facts.tree })).digest('hex');
+        const sha = createHash('sha256').update(JSON.stringify({ branch: facts.branch, commit: facts.commit, dirty: facts.dirty, tree: facts.tree,
+          lockfile: facts.lockfile })).digest('hex');
         parsed.push({ parser: 'repo-snapshot', sourceSha256: sha, normalized: facts });
         a.log?.nexus(`snapshot of ${facts.commit.slice(0, 12)}${facts.dirty ? ' (uncommitted changes are not included)' : ''}`);
       } else if (t.engine === 'sde.app.assemble') {
@@ -1014,10 +1027,12 @@ export class RunnerCore {
     if (st?.state === 'running' && a.main && plan) {
       a.containerState = 'running';
       this.startHeartbeat(a);
+      // Where the log stopped: the last frame's ts, read BEFORE anything is written (final review B3; the old order wrote
+      // the "picked up again" frame first and followed from that moment, losing what the container printed meanwhile).
+      let since: number | undefined = await lastFrameTs(this.fs, a.logPath);
+      if (since === undefined) { try { since = (await this.fs.stat(a.logPath)).mtimeMs; } catch { since = undefined; } }
       await this.openLog(a);
       a.log?.nexus('picked up again after a restart');
-      let since: number | undefined;
-      try { since = (await this.fs.stat(a.logPath)).mtimeMs; } catch { since = undefined; }
       const elapsed = typeof rec?.startedAt === 'number' ? Math.max(0, this.now() - rec.startedAt) : 0;
       try {
         if (plan.kind === 'service') {

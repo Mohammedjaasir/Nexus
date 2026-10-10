@@ -6,11 +6,25 @@
  * validated as 40 lowercase hex characters; the only path ever named is the fixed `nexus.app.json`. Nothing here writes
  * the repository: `git archive` streams a tree out, the snapshot reads refs and status (GIT_OPTIONAL_LOCKS=0, so status
  * never takes the index lock).
+ *
+ * Filter drivers (B2a final review B1): `archive` smudges and `status` cleans content through any `filter.<name>.*`
+ * configured in ANY scope (Git for Windows' system config ships `filter.lfs.*`; git-lfs reaches the network with the
+ * user's credentials). Before those two calls the configured names are read (`git config --name-only --get-regexp`,
+ * read-only) and every one is switched off with `-c filter.<n>.{smudge,clean,process}= -c filter.<n>.required=false`;
+ * `GIT_LFS_SKIP_SMUDGE=1` is in every git call's environment. An LFS-tracked file therefore stages as its pointer text.
+ * `archive` also runs with `core.autocrlf=false` and `core.eol=lf`: the checkout a Linux container receives has the
+ * committed line endings (a Windows default of autocrlf would rewrite them), so a lockfile hashes in the container as it
+ * hashes at the commit.
+ *
+ * The snapshot also records the lockfile at the commit (final batch item 1): the first of `LOCKFILE_PATHS` present as a
+ * blob, streamed with `cat-file blob` (raw bytes, no filter, no textconv) and hashed here; only `{ path, sha256 }` leaves.
  */
 import { createHash } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { gitResolver, insideFolder, isGitBinary, resolveGitBinary, SAFE_GIT_CONFIG } from '../main/gitBinary';
+import {
+  FILTER_CONFIG_ARGV, filterDriverNames, gitResolver, insideFolder, isGitBinary, neutralizeFilterArgs, resolveGitBinary, SAFE_GIT_CONFIG
+} from '../main/gitBinary';
 import { runGit, toolEnv, type RunResult } from './proc';
 import type { RunnerFs } from './types';
 
@@ -25,6 +39,12 @@ export const SNAPSHOT_ARGV = Object.freeze({
   tree: Object.freeze(['rev-parse', 'HEAD^{tree}'])
 });
 export const APP_MANIFEST_PATH = 'nexus.app.json';
+/** The lockfiles a snapshot records, in order (the first present wins): npm's, then pip's hash-pinned requirements. */
+export const LOCKFILE_PATHS: readonly ('package-lock.json' | 'requirements.txt')[] = Object.freeze(['package-lock.json', 'requirements.txt'] as const);
+/** A lockfile larger than this is not hashed (the snapshot records none; an install is then refused `lockfile_missing`). */
+export const LOCKFILE_MAX_BYTES = 64 * 2 ** 20;
+/** The config every `git archive` adds: the committed line endings, whatever the user's autocrlf / eol defaults are. */
+export const ARCHIVE_EOL_CONFIG: readonly string[] = Object.freeze(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf']);
 
 /**
  * `git_missing`: no git binary is installed (staging refuses the attempt `git_missing`: the job waits, never fails);
@@ -46,7 +66,17 @@ export function appManifestArgv(commit: string): { size: string[]; show: string[
   return { size: ['cat-file', '-s', `${commit}:${APP_MANIFEST_PATH}`], show: ['show', `${commit}:${APP_MANIFEST_PATH}`] };
 }
 
-export interface SnapshotFacts { commit: string; branch: string | null; dirty: boolean; tree: string }
+export interface SnapshotFacts {
+  commit: string; branch: string | null; dirty: boolean; tree: string;
+  /** The lockfile at the commit (final batch item 1), or null when none of LOCKFILE_PATHS is a blob there. */
+  lockfile: { path: (typeof LOCKFILE_PATHS)[number]; sha256: string } | null;
+}
+
+export function lockfileArgv(commit: string, rel: (typeof LOCKFILE_PATHS)[number]): { size: string[]; blob: string[] } {
+  if (!COMMIT_RE.test(commit)) throw new GitError('the commit is not a full sha');
+  if (!LOCKFILE_PATHS.includes(rel)) throw new GitError('not a lockfile path');
+  return { size: ['cat-file', '-s', `${commit}:${rel}`], blob: ['cat-file', 'blob', `${commit}:${rel}`] };
+}
 
 /** The options every runner git call starts with (before the subcommand). */
 export function gitPrefix(repoPath: string, hooksDir: string): string[] {
@@ -79,12 +109,21 @@ export class GitRunner {
   }
 
   private async exec(repoPath: string, argv: readonly string[], o: { signal?: AbortSignal; maxStdout?: number; timeoutMs?: number;
-    onStdout?: (b: Buffer) => void | Promise<unknown> } = {}): Promise<RunResult> {
+    onStdout?: (b: Buffer) => void | Promise<unknown>; filters?: boolean } = {}): Promise<RunResult> {
     if (typeof repoPath !== 'string' || !path.isAbsolute(repoPath) || repoPath.includes('\0')) throw new GitError('the project folder is not an absolute path');
     const bin = await this.binary();
     if (!bin || !isGitBinary(bin)) throw new GitError('git is not installed', 'git_missing');
     if (insideFolder(bin, repoPath) || insideFolder(bin, this.o.cwd)) throw new GitError('git resolves inside the repository; refused', 'refused');
-    const r = await runGit(bin, [...gitPrefix(repoPath, this.hooksDir), ...argv], { cwd: this.o.cwd, env: toolEnv(),
+    // A content-converting call (archive, status): every configured filter driver is switched off first (B1).
+    let neutral: string[] = [];
+    if (o.filters === true) {
+      const c = await this.exec(repoPath, FILTER_CONFIG_ARGV, { signal: o.signal });
+      // Exit 1 with no output: no filter is configured anywhere.
+      const names = c.code === 0 && !c.truncated ? filterDriverNames(c.stdout) : c.code === 1 && c.stdoutBytes === 0 ? [] : null;
+      if (names === null) throw new GitError('the configured filter drivers could not be read; refused', 'refused');
+      neutral = neutralizeFilterArgs(names);
+    }
+    const r = await runGit(bin, [...gitPrefix(repoPath, this.hooksDir), ...neutral, ...argv], { cwd: this.o.cwd, env: toolEnv(),
       timeoutMs: o.timeoutMs ?? GIT_TIMEOUT_MS, maxStdout: o.maxStdout ?? SMALL, maxStderr: 4096, signal: o.signal, onStdout: o.onStdout });
     if (r.error === 'ENOENT') {
       // The binary is gone (uninstalled while the runner runs): git is missing; it is resolved again next time.
@@ -108,7 +147,7 @@ export class GitRunner {
     let writes: Promise<unknown> = Promise.resolve();
     let r: RunResult;
     try {
-      r = await this.exec(repoPath, argv, { signal: o.signal, maxStdout: 0, timeoutMs: 10 * GIT_TIMEOUT_MS,
+      r = await this.exec(repoPath, [...ARCHIVE_EOL_CONFIG, ...argv], { signal: o.signal, maxStdout: 0, timeoutMs: 10 * GIT_TIMEOUT_MS, filters: true,
         onStdout: (chunk) => {
           if (overflow) return;
           bytes += chunk.length;
@@ -137,12 +176,35 @@ export class GitRunner {
     const branchText = b.stdout.trim();
     const branch = b.code === 0 && branchText.length > 0 && branchText.length <= 255 && !/[\0\s]/.test(branchText) ? branchText : null;
     // Only the length is read; the names in the output are never kept or sent.
-    const s = await this.exec(repoPath, SNAPSHOT_ARGV.status, { signal, maxStdout: 0 });
+    const s = await this.exec(repoPath, SNAPSHOT_ARGV.status, { signal, maxStdout: 0, filters: true });
     if (s.code !== 0) throw new GitError('git status failed');
     const t = await this.exec(repoPath, SNAPSHOT_ARGV.tree, { signal });
     const tree = t.stdout.trim();
     if (t.code !== 0 || !COMMIT_RE.test(tree)) throw new GitError('HEAD has no tree');
-    return { commit, branch, dirty: s.stdoutBytes > 0, tree };
+    const lockfile = await this.lockfileAt(repoPath, commit, signal);
+    return { commit, branch, dirty: s.stdoutBytes > 0, tree, lockfile };
+  }
+
+  /**
+   * The first of LOCKFILE_PATHS that is a blob at `commit`, hashed while streamed (`cat-file blob`: the raw committed
+   * bytes). Its size is asked first; one over LOCKFILE_MAX_BYTES, or whose streamed size differs, is not recorded.
+   */
+  async lockfileAt(repoPath: string, commit: string, signal?: AbortSignal): Promise<SnapshotFacts['lockfile']> {
+    for (const rel of LOCKFILE_PATHS) {
+      const argv = lockfileArgv(commit, rel);
+      const size = await this.exec(repoPath, argv.size, { signal });
+      const n = Number(size.stdout.trim());
+      if (size.code !== 0 || !Number.isSafeInteger(n) || n < 0) continue;
+      if (n > LOCKFILE_MAX_BYTES) return null;
+      const h = createHash('sha256');
+      let bytes = 0;
+      const blob = await this.exec(repoPath, argv.blob, { signal, maxStdout: 0, timeoutMs: 5 * GIT_TIMEOUT_MS,
+        onStdout: (chunk) => { bytes += chunk.length; if (bytes <= LOCKFILE_MAX_BYTES) h.update(chunk); } });
+      if (blob.code !== 0) continue;                       // a tree or something else at that path: not a lockfile
+      if (bytes !== n) return null;
+      return { path: rel, sha256: h.digest('hex') };
+    }
+    return null;
   }
 
   /**

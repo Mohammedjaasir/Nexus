@@ -174,6 +174,41 @@ test('E7 (item 7) nexus-collect refuses a build folder that is a link, or a link
   assert.equal(fs.readFileSync(path.join(r, 'out', 'site', 'index.html'), 'utf8'), '<p>ok</p>\n');
 });
 
+test('E10 (final batch item 1) an install ends with the Nexus-owned lock hash: nexus-lock-hash writes the lockfile\'s sha256 to /out/lock.sha256 (fixed argv, no job text); a link, a missing file or a path outside /out is refused', { skip }, () => {
+  const crypto = require('node:crypto');
+  const { expandArgv } = loadTs('src/main/nexus/exec/planBuilder.ts');
+  const { getRecipe } = loadTs('src/shared/nexus/recipes.ts');
+  // The recipes' argv: the install, then the hash of the lockfile it installed from. Fixed templates only.
+  assert.deepEqual(expandArgv(getRecipe('sde.deps.node'), null, []),
+    [...ARGV_TEMPLATES['npm.ci-ignore-scripts'], STEP_SEPARATOR, 'nexus-lock-hash', '--file', 'package-lock.json', '--out', '/out/lock.sha256']);
+  assert.deepEqual(expandArgv(getRecipe('sde.deps.python'), null, []),
+    [...ARGV_TEMPLATES['pip.install-binary-hashes'], STEP_SEPARATOR, 'nexus-lock-hash', '--file', 'requirements.txt', '--out', '/out/lock.sha256']);
+  const r = box();
+  const lock = '{\n  "name": "app",\n  "lockfileVersion": 3\n}\n';
+  put(path.join(r, 'workspace'), 'package-lock.json', lock);
+  // `true` stands for the install step (the entry runs the hash only after it exits 0).
+  const ok = entry(r, ['true', STEP_SEPARATOR, ...ARGV_TEMPLATES['entry.lock-hash-npm']]);
+  assert.equal(ok.code, 0, ok.err);
+  assert.equal(fs.readFileSync(path.join(r, 'out', 'lock.sha256'), 'utf8'), `${crypto.createHash('sha256').update(lock).digest('hex')}\n`);
+  // A failed install writes no hash.
+  fs.rmSync(path.join(r, 'out', 'lock.sha256'));
+  assert.equal(entry(r, ['false', STEP_SEPARATOR, ...ARGV_TEMPLATES['entry.lock-hash-npm']]).code, 1);
+  assert.equal(fs.existsSync(path.join(r, 'out', 'lock.sha256')), false);
+  // Refusals: no lockfile, a lockfile that is a link, an output outside /out, a path that is not plain.
+  const r2 = box();
+  const none = entry(r2, ARGV_TEMPLATES['entry.lock-hash-pip']);
+  assert.equal(none.code, 66, none.err); assert.match(none.err, /there is no lockfile requirements\.txt/);
+  const secret = fs.mkdtempSync(path.join(os.tmpdir(), 'nx-entry-secret-')); made.push(secret);
+  fs.writeFileSync(path.join(secret, 'req.txt'), 'outside the workspace\n');
+  fs.symlinkSync(secret, path.join(r2, 'workspace', 'sub'), 'junction');
+  const linked = entry(r2, ['nexus-lock-hash', '--file', 'sub/req.txt', '--out', '/out/lock.sha256']);
+  assert.equal(linked.code, 66, linked.err); assert.match(linked.err, /the lockfile is a link: sub/);
+  assert.equal(fs.existsSync(path.join(r2, 'out', 'lock.sha256')), false, 'nothing behind a link is hashed');
+  assert.equal(entry(r, ['nexus-lock-hash', '--file', 'package-lock.json', '--out', '/tmp/lock.sha256']).code, 64);
+  assert.equal(entry(r, ['nexus-lock-hash', '--file', '../package-lock.json', '--out', '/out/lock.sha256']).code, 64);
+  assert.equal(entry(r, ['nexus-lock-hash', '--file', 'package-lock.json']).code, 64);
+});
+
 const FWD = path.join(ROOT, 'infra', 'images', 'nexus-fwd', 'fwd-entry');
 test('E8 (item 9) fwd-entry: socat is a child of the entry shell (never exec\'d as PID 1); it ends at the wall clock (SIGTERM, then SIGKILL 10 s later when it ignores TERM); a stop is passed on; a wall clock out of 1..604800 or another program is refused', { skip }, () => {
   const src = fs.readFileSync(FWD, 'utf8');

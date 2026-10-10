@@ -2,7 +2,12 @@ import { spawn } from 'node:child_process';
 import { readFile, stat } from 'node:fs/promises';
 import * as path from 'node:path';
 import { safeJoin } from './fs';
-import { gitResolver, insideFolder, isGitBinary, resolveGitBinary, SAFE_GIT_CONFIG } from './gitBinary';
+import {
+  FILTER_CONFIG_ARGV, FILTER_SAFE_ENV, filterDriverNames, gitResolver, insideFolder, isGitBinary, neutralizeFilterArgs, resolveGitBinary, SAFE_GIT_CONFIG
+} from './gitBinary';
+
+/** The subcommands main runs that convert repository content through filter drivers (status cleans work-tree files). */
+const FILTERING_SUBCOMMANDS: ReadonlySet<string> = new Set(['status', 'archive']);
 
 /**
  * The git binary, resolved to an absolute path (src/main/gitBinary.ts): never `spawn('git', ..., { cwd: repo })`, which
@@ -26,8 +31,19 @@ async function runGit(cwd: string, args: string[], timeoutMs = 8000): Promise<{
   const bin = await gitBinary();
   if (!bin || !isGitBinary(bin)) return { ok: false, error: 'git is not installed', gitMissing: true };
   if (insideFolder(bin, cwd)) return { ok: false, error: 'git resolves inside the repository; refused' };
+  // A call that converts repository content (status cleans the work tree's files) runs no filter driver (B2a final
+  // review B1): every configured one is switched off, read first with the read-only config query.
+  let env: NodeJS.ProcessEnv | undefined;
+  if (FILTERING_SUBCOMMANDS.has(args[0])) {
+    const names = await runGit(cwd, [...FILTER_CONFIG_ARGV], timeoutMs);
+    // Exit 1 with nothing printed: no filter is configured.
+    const list = names.ok ? filterDriverNames(names.stdout) : names.error === 'git exited 1' ? [] : null;
+    if (list === null) return names.ok ? { ok: false, error: 'a configured filter driver name is refused' } : names;
+    args = [...neutralizeFilterArgs(list), ...args];
+    env = { ...process.env, ...FILTER_SAFE_ENV };
+  }
   return new Promise((resolve) => {
-    const proc = spawn(bin, ['-C', cwd, ...SAFE_GIT_CONFIG, ...args], { cwd: path.dirname(bin), windowsHide: true, shell: false });
+    const proc = spawn(bin, ['-C', cwd, ...SAFE_GIT_CONFIG, ...args], { cwd: path.dirname(bin), windowsHide: true, shell: false, ...(env ? { env } : {}) });
     let stdout = '';
     let stderr = '';
     const timer = setTimeout(() => {

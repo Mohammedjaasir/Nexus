@@ -117,16 +117,31 @@ export function checkDiscovery(x: unknown): Checked<NormalizedDiscovery> {
 
 // ---------- repository facts ----------
 
-export interface GitFacts { commit: string; branch: string | null; dirty: boolean; tree: string }
+export interface GitFacts {
+  commit: string; branch: string | null; dirty: boolean; tree: string;
+  /** The lockfile at the commit, hashed by the runner (final batch item 1); null when the commit has none. */
+  lockfile: { path: 'package-lock.json' | 'requirements.txt'; sha256: string } | null;
+}
+const LOCKFILE_NAMES: readonly string[] = ['package-lock.json', 'requirements.txt'];
 
-/** The runner's snapshot facts: `{ commit, branch, dirty, tree }` (full hashes, a short branch name or null). */
+/**
+ * The runner's snapshot facts: `{ commit, branch, dirty, tree, lockfile? }` (full hashes, a short branch name or null; the
+ * lockfile `{ path, sha256 }` of a fixed name, or null; a report without it is read as null).
+ */
 export function checkGitFacts(x: unknown): Checked<GitFacts> {
   if (!isObj(x)) return bad('the snapshot facts are not an object');
   if (typeof x.commit !== 'string' || !COMMIT_RE.test(x.commit)) return bad('the commit is not a full hash');
   if (typeof x.tree !== 'string' || !COMMIT_RE.test(x.tree)) return bad('the tree is not a full hash');
   if (typeof x.dirty !== 'boolean') return bad('the dirty flag is not a boolean');
   if (x.branch !== null && (!isText(x.branch, 255) || x.branch.length === 0)) return bad('the branch is not a short name');
-  return { ok: true, value: { commit: x.commit, branch: x.branch as string | null, dirty: x.dirty, tree: x.tree } };
+  let lockfile: GitFacts['lockfile'] = null;
+  if (x.lockfile !== undefined && x.lockfile !== null) {
+    const l = x.lockfile;
+    if (!isObj(l) || Object.keys(l).some((k) => k !== 'path' && k !== 'sha256') || typeof l.path !== 'string' || !LOCKFILE_NAMES.includes(l.path)
+      || typeof l.sha256 !== 'string' || !SHA256_RE.test(l.sha256)) return bad('the lockfile is not a known lockfile with its sha256');
+    lockfile = { path: l.path as 'package-lock.json' | 'requirements.txt', sha256: l.sha256 };
+  }
+  return { ok: true, value: { commit: x.commit, branch: x.branch as string | null, dirty: x.dirty, tree: x.tree, lockfile } };
 }
 
 // ---------- application manifest (nexus.app.json) ----------

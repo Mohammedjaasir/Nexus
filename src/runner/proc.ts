@@ -110,5 +110,7 @@ export function toolEnv(src: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv
   out.GIT_TERMINAL_PROMPT = '0';
   out.GIT_PAGER = 'cat';
   out.GIT_OPTIONAL_LOCKS = '0';
+  // B2a final review B1: git-lfs, if a call reaches it at all, never downloads (filter drivers are also switched off).
+  out.GIT_LFS_SKIP_SMUDGE = '1';
   return out;
 }

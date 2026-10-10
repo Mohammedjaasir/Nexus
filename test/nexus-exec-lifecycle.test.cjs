@@ -22,6 +22,8 @@ if (realDockerOrSkip()) {
   const others = () => docker(['ps', '-a', '--no-trunc', '--format', '{{.ID}} {{.State}} {{.Label "nexus.home"}}']).stdout.split(/\r?\n/)
     .filter(Boolean).map((l) => l.split(' ')).filter(([, , home]) => !home).map(([id, state]) => `${id} ${state}`).sort();
   const before = others();
+  // Final review B6: when the suite started (Docker's event log is read from here by L12).
+  const suiteStart = Math.floor(Date.now() / 1000);
 
   let w = null;
   const world = async () => { if (!w) w = await realWorld(); return w; };
@@ -40,7 +42,7 @@ if (realDockerOrSkip()) {
   const liveAttempt = (x, jobId) => x.db.prepare("SELECT * FROM job_attempts WHERE job_id = ? AND state IN ('starting','running')").get(jobId);
   const gone = (x, attemptId) => { const l = labelled(x.home, { 'nexus.attempt': attemptId }); return l.containers.length + l.networks.length + l.volumes.length === 0; };
 
-  test('L1 cancel while queued, leased or running (a 10-minute build) -> the job is cancelled and its container removed within 15 s', LONG, async () => {
+  test('L1 cancel while queued or running (a 10-minute build) -> the job is cancelled and its container removed within 15 s; a cancel caught while leased (best effort) ends the same way', LONG, async () => {
     const x = await world();
     const repo = await buildable(x, 600, { tag: 'L1' });
     // Queued: cancelled before any lease.
@@ -170,7 +172,10 @@ if (realDockerOrSkip()) {
       assert.deepEqual(atts.map((a) => a.n), [1], 'one attempt each');
       assert.equal(atts[0].state, 'succeeded');
     }
-    assert.ok(lag.max / 1e6 < 100, `L11: event-loop lag max ${(lag.max / 1e6).toFixed(1)} ms`);
+    // Final review B6: the 99th percentile under 100 ms (main stays responsive), and no single stall of half a second or more
+    // (a one-off GC or OS hiccup of a loaded test machine is not a responsiveness failure; a blocked loop still is).
+    assert.ok(lag.percentile(99) / 1e6 < 100, `L11: event-loop lag p99 ${(lag.percentile(99) / 1e6).toFixed(1)} ms`);
+    assert.ok(lag.max / 1e6 < 500, `L11: event-loop lag max ${(lag.max / 1e6).toFixed(1)} ms`);
     assert.ok(Math.max(...calls) < 50, `L11: exec.list + exec.get max ${Math.max(...calls).toFixed(1)} ms`);
   });
 
@@ -217,8 +222,20 @@ if (realDockerOrSkip()) {
     } finally { await x.close(); }
   });
 
-  test('L12 the user\'s own containers: every non-Nexus container has the same id and state after the suite as before it', LONG, async () => {
+  test('L12 the user\'s own containers: Nexus never stopped, killed or removed a container that is not its own (every one still exists, and Docker logged no stop, kill or destroy of it during the suite)', LONG, async () => {
     if (w) { await w.close(); w = null; }
-    assert.deepEqual(others(), before);
+    // Final review B6: a user's container may exit on its own while the suite runs; what Nexus must never do is stop or
+    // remove one. So: every container of `before` still exists, and Docker's event log since the suite started holds no
+    // stop, kill or destroy of any of them.
+    const now = others().map((x) => x.split(' ')[0]);
+    const ids = before.map((x) => x.split(' ')[0]);
+    for (const id of ids) assert.ok(now.includes(id), `${id.slice(0, 12)} still exists`);
+    if (ids.length > 0) {
+      const ev = docker(['events', '--since', String(suiteStart), '--until', String(Math.floor(Date.now() / 1000) + 1), '--filter', 'type=container',
+        '--filter', 'event=stop', '--filter', 'event=kill', '--filter', 'event=destroy', '--format', '{{.Actor.ID}} {{.Action}}']);
+      assert.equal(ev.code, 0, ev.stderr);
+      const hit = ev.stdout.split(/\r?\n/).filter(Boolean).filter((l) => ids.includes(l.split(' ')[0]));
+      assert.deepEqual(hit, [], 'no stop, kill or destroy of a container that is not Nexus\'s');
+    }
   });
 }

@@ -103,15 +103,27 @@ if (realDockerOrSkip()) {
     assert.deepEqual([...new Set(points.filter((p) => !runtime(p)))].sort(), ['/home/nexus', '/in', '/out', '/tmp', '/workspace']);
   });
 
-  test('K7 network none: TCP to the host test server fails, DNS fails, only lo exists', LONG, async () => {
+  test('K7 network none: TCP to the host test server fails, DNS fails; only lo has an address or a route, and every other interface is down', LONG, async () => {
     const srv = await hostServer();
     try {
-      const script = `ls /sys/class/net; node -e "const n=require('net'),d=require('dns');`
+      // Final review B2: Docker Desktop kernels show their fallback tunnel devices (tunl0, sit0, ip6tnl0, ...) in EVERY
+      // namespace, so the test no longer asks that lo be the only device: it asks that lo be the only one with an address
+      // or a route, and that every other device be down (nothing can carry a packet out).
+      const script = 'for i in /sys/class/net/*; do echo "if ${i##*/} $(cat "$i/operstate")"; done; '
+        + 'while read -r a _; do [ "$a" = Iface ] || echo "route4 $a"; done < /proc/net/route; '
+        + '[ -r /proc/net/ipv6_route ] && while read -r _ _ _ _ _ _ _ _ _ i; do echo "route6 $i"; done < /proc/net/ipv6_route; '
+        + `node -e "const n=require('net'),d=require('dns'),o=require('os');`
+        + `for(const [k,v] of Object.entries(o.networkInterfaces()))if(v&&v.length)console.log('addr '+k);`
         + `d.lookup('host.docker.internal',(e)=>{console.log('dns '+(e?'fail':'ok'));`
         + `const s=n.connect({host:'host.docker.internal',port:${srv.port},timeout:3000},()=>{console.log('connect ok');process.exit(0)});`
         + `s.on('error',()=>{console.log('connect fail');process.exit(0)});s.on('timeout',()=>{console.log('connect fail');process.exit(0)})})"`;
       const r = await probe(script);
-      assert.deepEqual(r.out.split('\n').filter((l) => /^[a-z0-9]+$/.test(l) && !['dns', 'connect'].includes(l)), ['lo']);
+      const lines = r.out.split('\n').map((l) => l.trim());
+      const ifs = lines.filter((l) => l.startsWith('if ')).map((l) => l.split(' ').slice(1));
+      assert.ok(ifs.some(([n]) => n === 'lo'), r.out);
+      for (const [n, state] of ifs) if (n !== 'lo') assert.equal(state, 'down', `${n} is down (${r.out})`);
+      assert.deepEqual([...new Set(lines.filter((l) => l.startsWith('addr ')).map((l) => l.slice(5)))], ['lo'], 'only lo has an address');
+      for (const l of lines.filter((x) => /^route[46] /.test(x))) assert.equal(l.split(' ')[1], 'lo', `only lo has a route: ${l}`);
       assert.match(r.out, /^dns fail$/m);
       assert.match(r.out, /^connect fail$/m);
       assert.equal(r.prov.preflight.observed.networkMode, 'none');

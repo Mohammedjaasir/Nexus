@@ -144,7 +144,8 @@ test('IL5 plans with the locked profiles: the entry and its wall clock, node:tes
   assert.equal(c.image.ref, c.image.id, 'a built image is created by its local id');
   assert.deepEqual(c.argv, ['nexus-node-test', '--out-dir', '/out/junit', '--', 'test/a.test.js', 'test/b.test.js']);
   assert.deepEqual(plan.perFileJunit, { dir: 'junit', files: ['test/a.test.js', 'test/b.test.js'] });
-  assert.equal(c.env.NEXUS_WALL_SECONDS, String(getRecipe('sde.test.node').wallClockMs / 1000));
+  // Final batch item 2 (the Task 7 R3 ruling): the entry's own backstop is 2x the wall clock (limit + cap); main stays the authority.
+  assert.equal(c.env.NEXUS_WALL_SECONDS, String((2 * getRecipe('sde.test.node').wallClockMs) / 1000));
   for (const k of Object.keys(c.env)) assert.ok(ALLOWED_ENV_NAMES.includes(k), k);
   assert.deepEqual(comparePreflight(c, inspectFor(c, 'f'.repeat(64), c.name)).problems, []);
   assert.equal(sandboxRecord(plan).argvCount, 6);
@@ -154,4 +155,28 @@ test('IL5 plans with the locked profiles: the entry and its wall clock, node:tes
     logRel: 'logs/jobs/01K7A0J0B000000000000000AB/1.log', repoPath: null, framework: 'jest', inputs: [] });
   assert.equal(jest.perFileJunit, undefined);
   assert.equal(jest.container.env.JEST_JUNIT_OUTPUT_FILE, '/out/junit.xml');
+});
+
+test('IL6 (final review B7) socat is pinned by its .apk sha256 too: lock.json records it (null until verification), the Dockerfile carries the same value as its build argument, and the build fetches, checks (sha256sum -c) and installs only that file, refusing loudly when no hash is recorded', () => {
+  const tool = require(path.join(ROOT, 'tools', 'nexus-lock-images.cjs'));
+  const d = read('nexus-fwd/Dockerfile').toString('utf8');
+  const pkg = LOCK.profiles['nexus-fwd'].packages.socat;
+  assert.equal(pkg.version, LOCK.profiles['nexus-fwd'].versions.socat);
+  assert.equal(tool.apkVersion(d, 'socat'), pkg.version, 'the fetched version is the locked one');
+  assert.ok(pkg.apkSha256 === null || /^[0-9a-f]{64}$/.test(pkg.apkSha256), 'a sha256, or null until verification records it');
+  assert.equal(tool.argDefault(d, 'SOCAT_APK_SHA256'), pkg.apkSha256 ?? '', 'the Dockerfile builds with the recorded value');
+  const run = d.split('\nRUN ')[1];
+  const at = (s) => { const i = run.indexOf(s); assert.ok(i >= 0, s); return i; };
+  assert.ok(at('refusing an unverified package') < at('apk fetch'), 'an empty or malformed hash refuses before anything is fetched');
+  assert.ok(at('apk fetch') < at('sha256sum -c -') && at('sha256sum -c -') < at('apk add'), 'checked before it is installed');
+  assert.match(run, /apk add --no-cache \/tmp\/nexus-apk\/socat-[0-9A-Za-z._-]+\.apk/, 'only the checked file is installed');
+  assert.doesNotMatch(d, /apk add --no-cache socat=/, 'never installed by name from the index');
+  // The tool: a missing hash is a warning (the build refuses), a disagreement between the lock and the Dockerfile is stale.
+  const clone = JSON.parse(JSON.stringify(LOCK));
+  assert.deepEqual(tool.apkProblems(clone).problems, []);
+  clone.profiles['nexus-fwd'].packages.socat.apkSha256 = 'e'.repeat(64);
+  assert.match(tool.apkProblems(clone).problems.join('\n'), /SOCAT_APK_SHA256 .* is not lock\.json's/);
+  delete clone.profiles['nexus-fwd'].packages;
+  assert.match(tool.apkProblems(clone).problems.join('\n'), /records no socat package/);
+  if (pkg.apkSha256 === null) assert.match(tool.apkProblems(LOCK).warnings.join('\n'), /not pinned yet/);
 });

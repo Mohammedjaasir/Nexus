@@ -7,6 +7,12 @@
  *   node tools/nexus-lock-images.cjs           resolve and write (network: registry manifests and the npm / PyPI JSON APIs)
  *   node tools/nexus-lock-images.cjs --check   no network: verify infra/images/lock.json against the files (exit 1 if stale)
  *   node tools/nexus-lock-images.cjs --rehash  no network: recompute the context and lockfile hashes after a local edit
+ *   node tools/nexus-lock-images.cjs --pin-apk socat=<sha256>
+ *                                              no network: record the sha256 of a pinned Alpine .apk (B2a final review B7;
+ *                                              taken at verification: the APKINDEX is outside the approved network) in
+ *                                              lock.json `packages.<name>.apkSha256` and as the Dockerfile's
+ *                                              `ARG SOCAT_APK_SHA256` default, then rehash. Until it is set the nexus-fwd
+ *                                              build refuses, and --check says so (a warning, not a stale lock).
  *
  * Resolving:
  * - base images: `docker buildx imagetools inspect <ref>` (manifest and config metadata from the registry; nothing is
@@ -49,6 +55,37 @@ const PROFILES = {
     lockfiles: ['sde-python/requirements.lock'] },
   'nexus-fwd': { base: 'docker.io/library/alpine:3.20', entrypoint: ['/opt/nexus/fwd-entry'], lockfiles: [] }
 };
+/** Alpine packages pinned by the sha256 of their .apk (B7): the lock.json entry and the Dockerfile build argument. */
+const APK_PINS = { socat: { profile: 'nexus-fwd', arg: 'SOCAT_APK_SHA256' } };
+const APK_SHA_RE = /^[0-9a-f]{64}$/;
+
+/** The pinned version of an Alpine package in its Dockerfile: the `apk fetch ... <name>=<version>` the build checks. */
+function apkVersion(docker, name) {
+  return (new RegExp(`apk fetch [^\\n]*\\b${name}=([0-9A-Za-z._-]+)`).exec(docker) ?? [])[1] ?? null;
+}
+/** The Dockerfile's `ARG <arg>="<value>"` default, or null when the line is missing. */
+function argDefault(docker, arg) {
+  const m = new RegExp(`^ARG ${arg}="([^"]*)"$`, 'm').exec(docker);
+  return m ? m[1] : null;
+}
+/** Problems (stale) and warnings (not pinned yet) of the .apk pins, against the lock and the Dockerfiles. */
+function apkProblems(lock) {
+  const problems = []; const warnings = [];
+  for (const [name, pin] of Object.entries(APK_PINS)) {
+    const docker = fs.readFileSync(path.join(IMAGES, pin.profile, 'Dockerfile'), 'utf8');
+    const entry = lock.profiles?.[pin.profile]?.packages?.[name];
+    const version = apkVersion(docker, name);
+    if (!entry) { problems.push(`${pin.profile}: lock.json records no ${name} package`); continue; }
+    if (entry.version !== version) problems.push(`${pin.profile}: lock.json pins ${name} ${entry.version}, the Dockerfile ${version}`);
+    const arg = argDefault(docker, pin.arg);
+    if (arg === null) { problems.push(`${pin.profile}: the Dockerfile has no ARG ${pin.arg}="..." line`); continue; }
+    const want = entry.apkSha256 ?? '';
+    if (want !== '' && !APK_SHA_RE.test(want)) problems.push(`${pin.profile}: ${name}.apkSha256 is not a sha256`);
+    if (arg !== want) problems.push(`${pin.profile}: the Dockerfile's ${pin.arg} (${arg.slice(0, 12) || 'empty'}) is not lock.json's (${want.slice(0, 12) || 'null'})`);
+    if (want === '') warnings.push(`${pin.profile}: the ${name} .apk sha256 is not pinned yet; its build refuses until --pin-apk ${name}=<sha256> runs at verification`);
+  }
+  return { problems, warnings };
+}
 
 const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 const fileSha = (rel) => sha256(fs.readFileSync(path.join(IMAGES, ...rel.split('/'))));
@@ -80,8 +117,34 @@ async function check() {
     const ctx = await contextOf(id);
     if (ctx !== p.contextSha256) problems.push(`${id}: the build context changed (${ctx.slice(0, 12)} != locked ${String(p.contextSha256).slice(0, 12)})`);
   }
+  const apk = apkProblems(lock);
+  problems.push(...apk.problems);
   if (problems.length) { for (const x of problems) console.error(`[lock] STALE ${x}`); process.exit(1); }
+  for (const x of apk.warnings) console.log(`[lock] WARN ${x}`);
   console.log('[lock] lock.json matches the image contexts');
+}
+
+// ---------------------------------------------------------------- --pin-apk (no network)
+
+/** Records one .apk sha256 (B7) in lock.json and as its Dockerfile build-argument default, then rehashes the contexts. */
+async function pinApk() {
+  const spec = process.argv[process.argv.indexOf('--pin-apk') + 1] ?? '';
+  const m = /^([a-z0-9-]+)=([0-9a-f]{64})$/.exec(spec);
+  if (!m || !APK_PINS[m[1]]) die(`--pin-apk takes <name>=<sha256> for one of: ${Object.keys(APK_PINS).join(', ')}`);
+  const [, name, sha] = m;
+  const pin = APK_PINS[name];
+  const lock = JSON.parse(fs.readFileSync(LOCK, 'utf8'));
+  const f = path.join(IMAGES, pin.profile, 'Dockerfile');
+  let docker = fs.readFileSync(f, 'utf8');
+  if (argDefault(docker, pin.arg) === null) die(`${pin.profile}: the Dockerfile has no ARG ${pin.arg}="..." line`);
+  docker = docker.replace(new RegExp(`^ARG ${pin.arg}="[^"]*"$`, 'm'), `ARG ${pin.arg}="${sha}"`);
+  fs.writeFileSync(f, docker);
+  const prof = lock.profiles?.[pin.profile];
+  if (!prof) die(`${pin.profile}: not in lock.json`);
+  prof.packages = { ...(prof.packages ?? {}), [name]: { version: apkVersion(docker, name), apkSha256: sha } };
+  fs.writeFileSync(LOCK, `${JSON.stringify(lock, null, 2)}\n`);
+  console.log(`[lock] ${pin.profile}: ${name} .apk pinned to ${sha}`);
+  await rehash();
 }
 
 // ---------------------------------------------------------------- base images (registry metadata only)
@@ -401,7 +464,7 @@ async function resolve() {
   const py = await lockPython(pythonVersion);
   console.log(`[lock]   ${Object.entries(py.versions).map(([n, v]) => `${n}==${v}`).join(', ')}`);
   const fwdDocker = fs.readFileSync(path.join(IMAGES, 'nexus-fwd', 'Dockerfile'), 'utf8');
-  const socat = (/apk add --no-cache socat=([0-9A-Za-z._-]+)/.exec(fwdDocker) ?? [])[1];
+  const socat = apkVersion(fwdDocker, 'socat');
   if (!socat) die('nexus-fwd: the Dockerfile pins no socat version');
   const versions = {
     'sde-node': { node: nodeVersion, 'jest-junit': npm.versions['jest-junit'], 'mocha-junit-reporter': npm.versions['mocha-junit-reporter'] },
@@ -411,6 +474,9 @@ async function resolve() {
   for (const [id, v] of Object.entries(versions)) pinDockerfile(id, PROFILES[id].base, bases[id].digest, Object.entries(v).map(([k, x]) => `${k}=${x}`).join(' '));
   const extra = { 'sde-node': npm.unpackedBytes, 'sde-python': py.wheelBytes * 3, 'nexus-fwd': 2 * 2 ** 20 };
   const lock = { version: 1, generatedBy: 'tools/nexus-lock-images.cjs', platform: PLATFORM, profiles: {} };
+  // The .apk pins (B7) are not resolved from the network: kept as recorded (a changed version drops its hash).
+  let previous = null;
+  try { previous = JSON.parse(fs.readFileSync(LOCK, 'utf8')); } catch { previous = null; }
   for (const [id, p] of Object.entries(PROFILES)) {
     const b = bases[id];
     lock.profiles[id] = {
@@ -422,6 +488,12 @@ async function resolve() {
       estimatedBytes: Math.round(b.compressed * 3 + extra[id]),
       versions: versions[id]
     };
+  }
+  for (const [name, pin] of Object.entries(APK_PINS)) {
+    const old = previous?.profiles?.[pin.profile]?.packages?.[name];
+    const version = versions[pin.profile][name];
+    lock.profiles[pin.profile].packages = { ...(lock.profiles[pin.profile].packages ?? {}),
+      [name]: { version, apkSha256: old && old.version === version && typeof old.apkSha256 === 'string' ? old.apkSha256 : null } };
   }
   fs.writeFileSync(LOCK, `${JSON.stringify(lock, null, 2)}\n`);
   console.log('[lock] wrote infra/images/lock.json');
@@ -447,8 +519,8 @@ async function rehash() {
 }
 
 if (require.main === module) {
-  const run = process.argv.includes('--check') ? check : process.argv.includes('--rehash') ? rehash : resolve;
+  const run = process.argv.includes('--check') ? check : process.argv.includes('--rehash') ? rehash : process.argv.includes('--pin-apk') ? pinApk : resolve;
   run().catch((e) => die(e && e.stack ? e.stack : String(e)));
 }
 
-module.exports = { PROFILES, pv, pvCmp, satisfies, marker, parseReq };
+module.exports = { PROFILES, APK_PINS, apkVersion, argDefault, apkProblems, pv, pvCmp, satisfies, marker, parseReq };
