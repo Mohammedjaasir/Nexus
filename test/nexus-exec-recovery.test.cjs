@@ -1,7 +1,8 @@
 'use strict';
 // B2a Task 12: restart recovery on REAL Docker (L13-L16, constraint 10): the runner child is killed mid-work (a crashed
-// utilityProcess: the host restarts it after 1 s and main reconciles at its ready), and main itself is "crashed" (its
-// wiring dropped without the quit path, the store reopened by a new platform with a new boot id). Nothing is ever marked
+// utilityProcess: the host restarts it after 1 s and main reconciles at its ready), and main itself crashes (L16: main
+// runs in its own process, test/helpers/main-child.cjs, and is killed at once with its runner; a new platform with a new
+// boot id reopens the store). Nothing is ever marked
 // completed by recovery alone: a job completes only through its ingest and its version only through its checks.
 // Runs only behind the test:exec gate; anywhere else it prints the skip banner.
 const test = require('node:test');
@@ -9,7 +10,7 @@ const assert = require('node:assert/strict');
 const { realDockerOrSkip } = require('./helpers/execGate.cjs');
 
 if (realDockerOrSkip()) {
-  const { realWorld, docker, labelled, sleep, hardKill } = require('./helpers/execReal.cjs');
+  const { realWorld, docker, labelled, sleep, mainChild } = require('./helpers/execReal.cjs');
   const { jobEnds, versionSettles, produced, build, assemble, deploy, stop } = require('./helpers/recipeFlows.cjs');
   const loadTs = require('./load-ts.cjs');
   const { newId } = loadTs('src/main/nexus/db/ids.ts');
@@ -80,33 +81,38 @@ if (realDockerOrSkip()) {
     } finally { await x.close(); }
   });
 
-  test('L16 main crashes mid-build: a new platform and boot on the same database adopts the running container; an old labelled orphan of a known attempt is removed; an unlabelled nexus-x container is untouched', LONG, async () => {
+  test('L16 main crashes mid-build (its process killed at once, with its runner): a new platform and boot on the same database adopts the running container; an old labelled orphan of a known attempt is removed; an unlabelled nexus-x container is untouched', LONG, async () => {
     const a = await realWorld();
-    let b = null;
+    let b = null; let m = null; let aOpen = true;
     const strangers = [];
     try {
-      // A finished attempt of this database whose container lingers (an old boot's leftover), and a stranger's container.
+      // A finished attempt of this database (its leftover container is made below), and the repository of the build
+      // that will be running when main crashes.
       const repoFast = await slowRepo(a, 1, 'L16 first');
       const first = a.start('sde.build.run', { inputs: [{ versionId: repoFast, slot: 'repository' }] });
       await jobEnds(a, first.id, 5 * MIN);
       const oldAttempt = a.attemptsOf(first.id).pop();
+      const repo = await slowRepo(a, 30, 'L16');
+      const reopen = { file: a.file, userData: a.userData, roots: a.roots };
+      // This first main closes normally (it is not the crash under test); its labelled leftovers go with it.
+      await a.close(); aOpen = false;
+      // An old boot's labelled orphan of a known attempt, and a stranger's container.
       const imageId = JSON.parse(docker(['image', 'ls', '--no-trunc', '--filter', 'label=nexus.profile=sde-node', '--format', '{{json .ID}}']).stdout.split('\n')[0]);
       const orphan = docker(['create', '--label', `nexus.home=${a.home}`, '--label', `nexus.attempt=${oldAttempt.id}`, '--label', `nexus.job=${first.id}`,
         '--label', `nexus.boot=${newId(Date.now() - 3_600_000)}`, '--label', 'nexus.kind=tool', '--name', `nexus-orphan-${oldAttempt.id.toLowerCase()}`,
         '--network', 'none', '--entrypoint', 'sleep', imageId, '600']).stdout.trim();
       const stranger = docker(['create', '--name', `nexus-x-${Date.now()}`, '--network', 'none', '--entrypoint', 'sleep', imageId, '600']).stdout.trim();
       strangers.push(stranger);
-      // The build that is running when main crashes.
-      const repo = await slowRepo(a, 30, 'L16');
-      const j = a.start('sde.build.run', { inputs: [{ versionId: repo, slot: 'repository' }] });
-      await running(a, j.id);
-      const cid = live(a, j.id).container_id;
-      // The crash: the runner dies with main; main's wiring is dropped without the quit path (no shutdown reaches a runner).
-      hardKill(a.runner());
-      await a.handle.stop();
-      a.store.close();
+      // Main in its own process starts the build; once its container runs, that process is killed at once (on Windows
+      // with its whole tree, so its runner dies with it): no quit path, no stop(), no store close.
+      m = await mainChild(reopen, repo);
+      const j = { id: m.report.jobId };
+      const cid = m.report.containerId;
+      await m.crash();
+      assert.notEqual(m.process.exitCode, 0, 'main did not exit on its own: it was killed');
+      assert.equal(JSON.parse(docker(['inspect', cid]).stdout || '[]')[0]?.State?.Status, 'running', 'the build container outlived main');
       // A new main on the same database and data home.
-      b = await realWorld({ reopen: { file: a.file, userData: a.userData, roots: a.roots } });
+      b = await realWorld({ reopen });
       const ended = await jobEnds(b, j.id, 5 * MIN);
       assert.equal(ended.state, 'completed', `${ended.outcome} ${ended.error_json}`);
       assert.deepEqual(b.attemptsOf(j.id).map((x) => x.state), ['succeeded'], 'adopted by the new boot');
@@ -116,8 +122,9 @@ if (realDockerOrSkip()) {
       assert.equal(labelled(b.home, { 'nexus.attempt': oldAttempt.id }).containers.length, 0);
     } finally {
       for (const s of strangers) docker(['rm', '-f', s]);
+      if (m) await m.crash();
       if (b) await b.close();
-      await a.close();
+      if (aOpen) await a.close();
       await sleep(10);
     }
   });

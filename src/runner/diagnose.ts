@@ -6,7 +6,7 @@
  *
  * - Containers: a container is inspected only when its labels say it is this install's (`nexus.home`) and an attempt's
  *   (`nexus.attempt`); any other container (the user's own) is reported `not_owned` with no facts, and nothing of it is
- *   read beyond its labels. A container Docker does not know is `missing`; Docker not answering is `unavailable`.
+ *   read beyond its labels: the driver reads the labels alone first and fetches the full record only for an owned one. A container Docker does not know is `missing`; Docker not answering is `unavailable`.
  * - Facts: the fixed set `containerFacts` extracts (state, exit, OOM, restarts, times, the image id, the applied
  *   limits, the network mode, the user, the published ports). Never the environment, the command or a host path.
  * - Logs: each range names an attempt log under the data home (`logs/jobs/<jobId>/<n>.log`, re-derived here; a link at
@@ -18,7 +18,7 @@
  */
 import { createHash } from 'node:crypto';
 import {
-  DIAGNOSE_MAX_CONTAINERS, DIAGNOSE_MAX_RANGES, DIAGNOSE_RANGE_MAX_BYTES,
+  DIAGNOSE_LAST_TEXT_MAX, DIAGNOSE_MAX_CONTAINERS, DIAGNOSE_MAX_RANGES, DIAGNOSE_RANGE_MAX_BYTES,
   type DiagnoseLogRange, type DiagnoseResult, type EngineTask
 } from '../shared/nexus/execution';
 import { ULID_RE } from '../shared/nexus/runnerProtocol';
@@ -29,7 +29,7 @@ import type { RunnerDriver, RunnerFs } from './types';
 const CONTAINER_RE = /^[0-9a-f]{64}$/;
 /** A frame whose text looks like a failure (counted, never interpreted further). */
 export const ERROR_FRAME_RE = /\b(error|exception|fatal|panic|traceback|unhandled|segmentation fault|out of memory)\b/i;
-export const LAST_TEXT_MAX = 200;
+export const LAST_TEXT_MAX = DIAGNOSE_LAST_TEXT_MAX;
 
 type DiagnoseTask = Extract<EngineTask, { engine: 'sde.diagnose' }>;
 
@@ -104,9 +104,10 @@ export async function diagnose(d: Deps, t: DiagnoseTask, signal: AbortSignal): P
   for (const id of t.containerIds) {
     if (signal.aborted) throw new Error('the diagnosis was stopped');
     try {
-      const r = await d.driver.inspectFacts(id);
+      // The driver checks ownership from the labels BEFORE it reads anything else of the container.
+      const r = d.home ? await d.driver.inspectFacts(id, d.home) : { owned: false as const };
       if (!r) containers.push({ container: { sha256: id }, status: 'missing', facts: null });
-      else if (!d.home || r.labels['nexus.home'] !== d.home || !r.labels['nexus.attempt']) containers.push({ container: { sha256: id }, status: 'not_owned', facts: null });
+      else if (!r.owned) containers.push({ container: { sha256: id }, status: 'not_owned', facts: null });
       else containers.push({ container: { sha256: id }, status: 'inspected', facts: r.facts });
     } catch {
       containers.push({ container: { sha256: id }, status: 'unavailable', facts: null });

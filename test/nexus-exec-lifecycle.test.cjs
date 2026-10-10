@@ -10,7 +10,7 @@ const { realDockerOrSkip } = require('./helpers/execGate.cjs');
 
 if (realDockerOrSkip()) {
   const { performance, monitorEventLoopDelay } = require('node:perf_hooks');
-  const { realWorld, runnerHarness, docker, labelled, sleep } = require('./helpers/execReal.cjs');
+  const { realWorld, runnerHarness, docker, labelled, sleep, dockerSampler } = require('./helpers/execReal.cjs');
   const { jobEnds, terminal } = require('./helpers/recipeFlows.cjs');
   const loadTs = require('./load-ts.cjs');
   const { leaseGuard, DEFAULT_CAPS } = loadTs('src/main/nexus/exec/scheduler.ts');
@@ -38,7 +38,6 @@ if (realDockerOrSkip()) {
   }
   const startBuild = (x, repo) => x.start('sde.build.run', { inputs: [{ versionId: repo, slot: 'repository' }] });
   const liveAttempt = (x, jobId) => x.db.prepare("SELECT * FROM job_attempts WHERE job_id = ? AND state IN ('starting','running')").get(jobId);
-  const toolContainers = (x) => labelled(x.home, { 'nexus.kind': 'tool' }).containers.length;
   const gone = (x, attemptId) => { const l = labelled(x.home, { 'nexus.attempt': attemptId }); return l.containers.length + l.networks.length + l.volumes.length === 0; };
 
   test('L1 cancel while queued, leased or running (a 10-minute build) -> the job is cancelled and its container removed within 15 s', LONG, async () => {
@@ -112,7 +111,7 @@ if (realDockerOrSkip()) {
     for (const id of attemptIds) await x.until(() => gone(x, id), `attempt ${id} cleaned up`, 60_000);
   });
 
-  test('L5 docker kill from outside -> failed with exit 137 and oomKilled false (recorded as nonzero_exit, never oom)', LONG, async () => {
+  test('L5 docker kill from outside -> failed with exit 137 and oomKilled false (recorded as nonzero_exit, never oom; the job error says "exit 137 (SIGKILL), OOMKilled false")', LONG, async () => {
     const x = await world();
     const j = startBuild(x, await buildable(x, 600, { tag: 'L5' }));
     await x.until(() => !!liveAttempt(x, j.id)?.container_id && x.job(j.id).state === 'running', 'running', 3 * MIN);
@@ -124,6 +123,8 @@ if (realDockerOrSkip()) {
     assert.equal(done.exit_code, 137); assert.equal(done.oom_killed, 0);
     assert.notEqual(done.outcome, 'oom');
     assert.equal(done.outcome, 'nonzero_exit');
+    // Fix round 1, item 15: the reason stays observable in the job error (the signal and the OOM flag).
+    assert.equal(JSON.parse(ended.error_json).message, 'exit 137 (SIGKILL), OOMKilled false');
   });
 
   test('L6 docker rm -f mid-run -> container_vanished', LONG, async () => {
@@ -135,20 +136,34 @@ if (realDockerOrSkip()) {
     assert.equal(x.attemptsOf(j.id).pop().outcome, 'container_vanished');
   });
 
-  test('L7 five jobs, a cap of three: never more than 3 live labelled containers (sampled every 200 ms), all five complete, attempts and leases consistent; L11 main stays responsive', LONG, async () => {
+  test('L7 five jobs, a cap of three: never more than 3 RUNNING labelled containers (sampled every 200 ms by a separate process) nor live attempt rows, all five complete, attempts and leases consistent; L11 main stays responsive', LONG, async () => {
     const x = await world();
     const repo = await buildable(x, 15, { tag: 'L7' });
-    const lag = monitorEventLoopDelay({ resolution: 10 }); lag.enable();
+    // Fix round 1, item 4: Docker is sampled by its own process (no synchronous docker call ever runs on this loop), and
+    // it counts only RUNNING containers (exited ones still listed by `ps -a` are not live). Main's own count is the live
+    // attempt rows. The lag is measured on this process's loop (main's) only while nothing but main's own work and the
+    // sampler's messages run here.
+    const sampler = dockerSampler(x.home, { 'nexus.kind': 'tool' }, 200);
+    await sampler.ready();
     const jobs = [];
     for (let i = 0; i < 5; i++) jobs.push(x.start('sde.build.run', { inputs: [{ versionId: repo, slot: 'repository' }] }));
-    let peak = 0; const calls = [];
+    const ids = jobs.map((j) => j.id);
+    const liveRows = () => x.db.prepare(`SELECT COUNT(*) AS n FROM job_attempts WHERE state IN ('starting','running') AND job_id IN (${ids.map(() => '?').join(',')})`).get(...ids).n;
+    const lag = monitorEventLoopDelay({ resolution: 10 }); lag.enable();
+    let peakRows = 0; const calls = [];
     while (!jobs.every((j) => terminal(x.job(j.id).state))) {
-      peak = Math.max(peak, toolContainers(x));
+      peakRows = Math.max(peakRows, liveRows());
       const t0 = performance.now(); x.exec.list(x.me, { projectId: x.projectId }); x.exec.get(x.me, jobs[0].id); calls.push(performance.now() - t0);
       await sleep(200);
     }
     lag.disable();
-    assert.ok(peak <= DEFAULT_CAPS.jobContainers, `peak ${peak} live containers`);
+    await sampler.stop();
+    const seen = sampler.samples.filter((m) => m.running >= 0);
+    assert.ok(seen.length >= 5, `the sampler read Docker (${seen.length} samples)`);
+    const peak = Math.max(...seen.map((m) => m.running));
+    assert.ok(peak > 0, 'the sampler saw the builds run');
+    assert.ok(peak <= DEFAULT_CAPS.jobContainers, `peak ${peak} running labelled containers`);
+    assert.ok(peakRows <= DEFAULT_CAPS.jobContainers, `peak ${peakRows} live attempt rows`);
     for (const j of jobs) {
       assert.equal(x.job(j.id).state, 'completed', j.id);
       const atts = x.attemptsOf(j.id);

@@ -130,15 +130,25 @@ class FakeSandboxDriver {
     return { state: c.state, ...(c.state === 'exited' ? { exit: c.exit } : {}), restartCount: 0 };
   }
   /** B2a Task 12: a diagnosis's inspect (the real driver's fact extraction over this container's inspect record). */
-  async inspectFacts(id) {
-    this.rec('inspectFacts', id);
+  async inspectFacts(id, home) {
+    this.rec('inspectFacts', id, home);
     if (this.o.inspectFactsThrows) throw new DockerError('inspect', 'Cannot connect to the Docker daemon');
     const c = this.containers.get(id);
-    if (!c) { const x = this.extra.find((r) => r.kind === 'container' && r.id === id); return x ? { labels: { ...x.labels }, facts: containerFacts({ State: { Status: x.state ?? 'running' } }) } : null; }
+    const owns = (labels) => !!home && labels['nexus.home'] === home && !!labels['nexus.attempt'];
+    // As the real driver: the labels first; a container that is not owned is never read further.
+    if (!c) {
+      const x = this.extra.find((r) => r.kind === 'container' && r.id === id);
+      if (!x) return null;
+      if (!owns(x.labels)) { this.rec('inspectFacts:labelsOnly', id); return { owned: false }; }
+      this.rec('inspectFacts:full', id);
+      return { owned: true, facts: containerFacts({ State: { Status: x.state ?? 'running' } }) };
+    }
+    if (!owns(c.labels)) { this.rec('inspectFacts:labelsOnly', id); return { owned: false }; }
+    this.rec('inspectFacts:full', id);
     const rec = inspectFor(c.spec, id, c.name)[0];
     rec.State = { ...rec.State, Status: c.state, ExitCode: c.exit ? c.exit.code : 0, OOMKilled: c.exit ? c.exit.oomKilled : false,
       StartedAt: c.state === 'created' ? '0001-01-01T00:00:00Z' : '2026-10-10T10:00:00.000000000Z', FinishedAt: c.exit ? '2026-10-10T10:05:00.000000000Z' : '0001-01-01T00:00:00Z' };
-    return { labels: { ...c.labels }, facts: containerFacts(rec) };
+    return { owned: true, facts: containerFacts(rec) };
   }
   async stop(id, graceMs) { this.rec('stop', id, graceMs); const c = this.containers.get(id); if (c && c.state === 'running') this.exitContainer(id, { code: 143 }); }
   async kill(id) { this.rec('kill', id); const c = this.containers.get(id); if (c && c.state === 'running') this.exitContainer(id, { code: 137 }); }

@@ -6,7 +6,8 @@
  *   `nexus.home` AND a `nexus.attempt` (the driver always filters by label; an unlabelled resource is never listed) are
  *   `labelled` (their `nexus.*` labels only); each asked attempt reports the container found under its labels (the
  *   recorded id, else the one of its kind), its state, its exit from inspect, and, for an exited tool container whose
- *   `/out` re-hashes cleanly, the COMPLETE staged list (omitted otherwise, never truncated).
+ *   `/out` re-hashes cleanly, the COMPLETE staged list (omitted otherwise, never truncated); a per-file node:test run's
+ *   reports are merged first, exactly as the live collect merges them (junitMerge.ts).
  * - `removeResources` (`reconcile.remove`): each listed resource is inspected first and removed only when its labels carry
  *   this install's `nexus.home` and a `nexus.attempt` (containers stopped with -t 10, then removed; then networks; then
  *   volumes; a dependency cache volume never).
@@ -17,6 +18,7 @@
 import * as path from 'node:path';
 import type { StagedOutput, ToolPlan } from '../shared/nexus/execution';
 import { MAX_ARRAY_ITEMS, type LabelledResource, type ReconciledAttempt, type RunnerToMain } from '../shared/nexus/runnerProtocol';
+import { discardUnmergedReport, mergePerFileJunit } from './junitMerge';
 import { collectOut } from './outputs';
 import type { ObjectStore } from './objectStore';
 import { errCode, type HomePaths } from './paths';
@@ -106,6 +108,16 @@ async function stagedOf(ctx: { fs: RunnerFs; paths: HomePaths; store: ObjectStor
   const maxFiles = typeof plan.outputContract?.maxFiles === 'number' ? Math.min(plan.outputContract.maxFiles, MAX_ARRAY_ITEMS) : MAX_ARRAY_ITEMS;
   if (maxBytes <= 0) return null;
   try {
+    // A per-file node:test run that ended while the runner was gone: its reports are merged now exactly as the live
+    // collect would (fix round 1, with item 6), so main judges what finalization will produce, never the container's
+    // own junit.xml (removed when nothing merges). The container has exited: nothing can change under the merge.
+    const pf = plan.perFileJunit;
+    if (pf && pf.dir === 'junit' && Array.isArray(pf.files) && pf.files.every((f) => typeof f === 'string')) {
+      const outDir = path.join(found.dir, 'out');
+      let merged = false;
+      try { merged = (await mergePerFileJunit(ctx.fs, ctx.paths.root, outDir, pf.files, found.dir)).merged; } catch { merged = false; }
+      if (!merged) await discardUnmergedReport(ctx.fs, ctx.paths.root, outDir);
+    }
     const r = await collectOut(ctx.fs, ctx.store, path.join(found.dir, 'out'), { maxFiles, maxBytes });
     return r.ok && r.outputs.length <= MAX_ARRAY_ITEMS ? r.outputs : null;
   } catch { return null; }

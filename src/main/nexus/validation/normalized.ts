@@ -12,6 +12,10 @@
  * The validator outcome type and its small builders live here too, so the validators share one shape.
  */
 import type { Evidence, ValidationStatus } from '../../../shared/nexus/evidence';
+import {
+  DIAGNOSE_CONTAINER_STATUSES, DIAGNOSE_FACT_STATES, DIAGNOSE_LAST_TEXT_MAX, DIAGNOSE_LOG_STATUSES, DIAGNOSE_MAX_CONTAINERS, DIAGNOSE_MAX_RANGES,
+  DIAGNOSE_RANGE_MAX_BYTES, STEP_SEPARATOR_TOKEN, type DiagnoseContainerFacts, type DiagnoseResult
+} from '../../../shared/nexus/execution';
 
 /** What one validator decided, before the service stamps ids, times and bindings on it. */
 export interface ValidatorOutcome {
@@ -106,6 +110,8 @@ export function checkDiscovery(x: unknown): Checked<NormalizedDiscovery> {
   };
   const ids = list(x.ids); const files = list(x.files);
   if (!ids || !files) return bad('the discovered ids or files are not a bounded list of distinct names');
+  // A file a test run appends to its argv may never be the Nexus entry's step separator (fix round 1, item 8).
+  if (files.includes(STEP_SEPARATOR_TOKEN)) return bad('a discovered file is the step separator');
   return { ok: true, value: { framework: x.framework as DiscoveryFramework, ids, files } };
 }
 
@@ -142,6 +148,9 @@ export function appManifestErrors(x: unknown): { path: string; message: string }
   if (!Array.isArray(x.run) || x.run.length < 1 || x.run.length > 32
     || !x.run.every((a) => typeof a === 'string' && a.length > 0 && a.length <= 512 && !a.includes('\0'))) {
     e.push({ path: '/run', message: 'must be 1 to 32 arguments of at most 512 characters' });
+  } else if (x.run.includes(STEP_SEPARATOR_TOKEN)) {
+    // The Nexus entry splits a command into steps on this token (fix round 1, item 8).
+    e.push({ path: '/run', message: `must not hold the step separator ${STEP_SEPARATOR_TOKEN}` });
   }
   if (typeof x.port !== 'number' || !Number.isInteger(x.port) || x.port < 1024 || x.port > 65535) e.push({ path: '/port', message: 'must be 1024 to 65535' });
   if (typeof x.healthPath !== 'string' || !HEALTH_RE.test(x.healthPath)) e.push({ path: '/healthPath', message: 'must be a plain absolute path' });
@@ -188,22 +197,10 @@ export function checkHealthFacts(x: unknown): Checked<HealthFacts> {
 
 // ---------- diagnosis (sde.diagnose, B2a Task 12) ----------
 
-export const DIAG_FACT_STATES = ['created', 'running', 'exited', 'restarting', 'paused', 'dead', 'removing', 'unknown'] as const;
-export interface DiagFacts {
-  state: (typeof DIAG_FACT_STATES)[number]; exitCode: number | null; oomKilled: boolean; restartCount: number;
-  startedAt: string | null; finishedAt: string | null; image: { sha256: string } | null;
-  nanoCpus: number | null; memoryBytes: number | null; pidsLimit: number | null;
-  networkMode: string | null; readonlyRootfs: boolean | null; user: string | null; publishedPorts: string[];
-}
-export interface NormalizedDiagnosis {
-  target: 'deployment' | 'job';
-  containers: { container: { sha256: string }; status: 'inspected' | 'missing' | 'not_owned' | 'unavailable'; facts: DiagFacts | null }[];
-  logs: { attemptId: string; status: 'read' | 'missing' | 'refused'; offset: number; length: number; sha256: string | null;
-    frames: number; errorFrames: number; lastText: string | null }[];
-}
-const DIAG_MAX_CONTAINERS = 4;
-const DIAG_MAX_RANGES = 4;
-const DIAG_RANGE_MAX = 256 * 1024;
+// The bounds and vocabularies are the shared contract's (src/shared/nexus/execution.ts), never copies (fix round 1, item 10).
+export const DIAG_FACT_STATES = DIAGNOSE_FACT_STATES;
+export type DiagFacts = DiagnoseContainerFacts;
+export type NormalizedDiagnosis = DiagnoseResult;
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
 const optText = (v: unknown, max: number): boolean => v === null || isText(v, max);
 
@@ -214,16 +211,16 @@ const optText = (v: unknown, max: number): boolean => v === null || isText(v, ma
 export function checkDiagnosis(x: unknown): Checked<NormalizedDiagnosis> {
   if (!isObj(x)) return bad('the diagnosis is not an object');
   if (x.target !== 'deployment' && x.target !== 'job') return bad('the diagnosis target is unknown');
-  if (!Array.isArray(x.containers) || x.containers.length > DIAG_MAX_CONTAINERS) return bad('the diagnosed containers are not a bounded list');
-  if (!Array.isArray(x.logs) || x.logs.length > DIAG_MAX_RANGES) return bad('the log ranges are not a bounded list');
+  if (!Array.isArray(x.containers) || x.containers.length > DIAGNOSE_MAX_CONTAINERS) return bad('the diagnosed containers are not a bounded list');
+  if (!Array.isArray(x.logs) || x.logs.length > DIAGNOSE_MAX_RANGES) return bad('the log ranges are not a bounded list');
   const containers: NormalizedDiagnosis['containers'] = [];
   for (const c of x.containers as unknown[]) {
     if (!isObj(c) || !isObj(c.container) || typeof c.container.sha256 !== 'string' || !SHA256_RE.test(c.container.sha256)) return bad('a container has no id');
-    if (!['inspected', 'missing', 'not_owned', 'unavailable'].includes(String(c.status))) return bad('a container status is unknown');
+    if (!(DIAGNOSE_CONTAINER_STATUSES as readonly string[]).includes(String(c.status))) return bad('a container status is unknown');
     let facts: DiagFacts | null = null;
     if (c.status === 'inspected') {
       const f = c.facts;
-      if (!isObj(f) || !(DIAG_FACT_STATES as readonly string[]).includes(String(f.state))) return bad('inspected facts are missing');
+      if (!isObj(f) || !(DIAGNOSE_FACT_STATES as readonly string[]).includes(String(f.state))) return bad('inspected facts are missing');
       if (!(f.exitCode === null || isInt(f.exitCode)) || typeof f.oomKilled !== 'boolean' || !isCount(f.restartCount)) return bad('the exit facts are malformed');
       if (!optText(f.startedAt, 64) || !optText(f.finishedAt, 64) || !optText(f.networkMode, 128) || !optText(f.user, 64)) return bad('a text fact is malformed');
       if (!(f.image === null || (isObj(f.image) && typeof f.image.sha256 === 'string' && SHA256_RE.test(f.image.sha256)))) return bad('the image fact is malformed');
@@ -242,11 +239,11 @@ export function checkDiagnosis(x: unknown): Checked<NormalizedDiagnosis> {
   const logs: NormalizedDiagnosis['logs'] = [];
   for (const l of x.logs as unknown[]) {
     if (!isObj(l) || !isText(l.attemptId, 64) || l.attemptId.length === 0) return bad('a log range names no attempt');
-    if (!['read', 'missing', 'refused'].includes(String(l.status))) return bad('a log range status is unknown');
-    if (!isCount(l.offset) || !isCount(l.length) || (l.length as number) > DIAG_RANGE_MAX) return bad('a log range is out of bounds');
+    if (!(DIAGNOSE_LOG_STATUSES as readonly string[]).includes(String(l.status))) return bad('a log range status is unknown');
+    if (!isCount(l.offset) || !isCount(l.length) || (l.length as number) > DIAGNOSE_RANGE_MAX_BYTES) return bad('a log range is out of bounds');
     if (!isCount(l.frames) || !isCount(l.errorFrames) || (l.errorFrames as number) > (l.frames as number)) return bad('the frame counts are malformed');
     if (l.status === 'read' ? (typeof l.sha256 !== 'string' || !SHA256_RE.test(l.sha256)) : l.sha256 !== null) return bad('a log range hash is malformed');
-    if (!optText(l.lastText, 200)) return bad('the last line is malformed');
+    if (!optText(l.lastText, DIAGNOSE_LAST_TEXT_MAX)) return bad('the last line is malformed');
     logs.push({ attemptId: l.attemptId, status: l.status as NormalizedDiagnosis['logs'][number]['status'], offset: l.offset as number, length: l.length as number,
       sha256: l.sha256 as string | null, frames: l.frames as number, errorFrames: l.errorFrames as number, lastText: l.lastText as string | null });
   }

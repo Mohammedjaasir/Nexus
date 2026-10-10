@@ -25,6 +25,8 @@ const { WORKSPACES } = loadTs('src/renderer/src/nexus/workspaces/registry.ts');
 // behind the test:exec gate). Task 13 adds test/nexus-platform-b2a-flows.test.cjs to this list when it exists.
 const E2E_ENFORCED = true;
 const E2E_FILES = ['test/nexus-platform-exec-recipes.test.cjs', 'test/nexus-exec-recipes.test.cjs'];
+/** The real-Docker recipes file (test:exec gate): a Docker-dependent step's e2e id must be a title there too (fix round 1). */
+const REAL_DOCKER_E2E_FILE = 'test/nexus-exec-recipes.test.cjs';
 
 /** A deep, mutable copy of the registry for negative fixtures. */
 const clone = () => JSON.parse(JSON.stringify(DOMAINS));
@@ -80,6 +82,19 @@ test('DR2 checkRegistry(DOMAINS, B2A_IMPL) is clean; every REAL step names a wel
     const titles = [...text.matchAll(/\btest\(\s*(['"`])((?:(?!\1).)*)\1/g)].map((m) => m[2]);
     for (const id of all) assert.ok(titles.some((t) => t.split(/\s+/).includes(id)), `${id} is part of a test title`);
     assert.deepEqual([...B2A_IMPL.e2eTests].sort(), [...all].sort(), 'B2A_IMPL.e2eTests lists exactly the REAL steps\' e2e ids');
+    // Fix round 1, item 12: a step whose proof needs Docker (its prerequisites name docker or an image) must ALSO be a
+    // test title in the real-Docker file; the fake-driver titles alone never satisfy it.
+    const dockerSteps = real.filter(({ s }) => (s.prerequisites ?? []).some((p) => p === 'docker' || String(p).startsWith('image:')));
+    assert.deepEqual(dockerSteps.map(({ s }) => s.e2eTestId).sort(),
+      ['e2e.sde.application', 'e2e.sde.build', 'e2e.sde.dev-deployment', 'e2e.sde.diagnostics', 'e2e.sde.tests']);
+    const missingFrom = (fileText) => {
+      const t = [...fileText.matchAll(/\btest\(\s*(['"`])((?:(?!\1).)*)\1/g)].map((m) => m[2]);
+      return dockerSteps.map(({ s }) => s.e2eTestId).filter((id) => !t.some((x) => x.split(/\s+/).includes(id)));
+    };
+    const realDocker = fs.readFileSync(path.join(ROOT, REAL_DOCKER_E2E_FILE), 'utf8');
+    assert.deepEqual(missingFrom(realDocker), [], 'every Docker-dependent e2e id is a title in the real-Docker recipes file');
+    // Not vacuous: the real file without its build title fails it, whatever the fake-driver file's titles say.
+    assert.deepEqual(missingFrom(realDocker.replace('X5 e2e.sde.build ', 'X5 ')), ['e2e.sde.build']);
   }
   // A REAL step whose implementation is not registered fails.
   const noRecipe = { ...B2A_IMPL, recipes: B2A_IMPL.recipes.filter((r) => r !== 'sde.build.node') };

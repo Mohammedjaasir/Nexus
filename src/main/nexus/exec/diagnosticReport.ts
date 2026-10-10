@@ -4,10 +4,12 @@
  * runner's `service.health` reports). Pure. Every field names its source and points at its evidence (`diag.schema`):
  * - `inspect`: `{ type, container: { sha256 }, field }`, the inspected container and the `docker inspect` field;
  * - `http`: `{ type, method: 'GET', path, at }`, the probe that observed it;
- * - `log`: `{ type, attemptId, offset, length, sha256 }`, the exact hashed byte range of the attempt log.
- * A container that was not inspected (missing, not this install's, Docker not answering) gives one `container.status`
- * field and nothing else; a log range that could not be read gives no field (there is no hash to point at). Nothing
- * here is inferred: a report that observed nothing has no field and fails its schema check (honestly empty).
+ * - `log`: `{ type, attemptId, offset, length, sha256 }`, the exact hashed byte range of the attempt log;
+ * - `unobserved`: `{ type, container: { sha256 }, why }` (fix round 1), a container that was NOT inspected: missing (Docker
+ *   does not know it), not_owned (not this install's: nothing of it is read beyond its labels) or unavailable (Docker did
+ *   not answer). It gives one `container.status` field and nothing else, and it is never sourced as inspect evidence.
+ * A log range that could not be read gives no field (there is no hash to point at). Nothing here is inferred: a report
+ * with no observed field (no inspected container, no log range read, no probe result) fails its schema check.
  */
 import type { NormalizedDiagnosis } from '../validation/normalized';
 
@@ -26,7 +28,11 @@ export function buildDiagnosticReport(d: NormalizedDiagnosis, subjectId: string,
   d.containers.forEach((c, i) => {
     const pre = many ? `container.${i + 1}` : 'container';
     const src = (field: string): Record<string, unknown> => ({ type: 'inspect', container: { sha256: c.container.sha256 }, field });
-    if (c.status !== 'inspected' || !c.facts) { fields.push({ name: `${pre}.status`, value: c.status, source: src('State') }); return; }
+    if (c.status !== 'inspected' || !c.facts) {
+      // Not inspected: the status says why, sourced as what it is (never as inspect evidence).
+      fields.push({ name: `${pre}.status`, value: c.status, source: { type: 'unobserved', container: { sha256: c.container.sha256 }, why: c.status === 'inspected' ? 'missing' : c.status } });
+      return;
+    }
     const f = c.facts;
     fields.push(
       { name: `${pre}.state`, value: f.state, source: src('State.Status') },

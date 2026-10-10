@@ -132,7 +132,11 @@ async function world(o = {}) {
   return w;
 }
 
-const DEFAULT_INPUTS = [{ versionId: 'V1', slot: 'suite', contentHash: 'x', storage: { kind: 'inline' }, metadata: { framework: 'node-test', files: ['test/a.test.js'] } }];
+// The default test plan is a framework whose container writes /out/junit.xml itself (mocha's forced reporter), the path
+// these Task 11 tests exercise (hashing, parsing, reconcile, adoption). node:test plans are per-file since Task 12 (A5):
+// their junit.xml is the runner's merge of /out/junit/NNNN.xml, and a container-written junit.xml is never taken for
+// them (Task 12 fix round 1, item 6; the RV tests below). No assertion here depends on the framework.
+const DEFAULT_INPUTS = [{ versionId: 'V1', slot: 'suite', contentHash: 'x', storage: { kind: 'inline' }, metadata: { framework: 'mocha', files: ['test/a.test.js'] } }];
 function toolPlan(w, o = {}) {
   const jobId = newId(NOW); const attemptId = newId(NOW);
   const plan = buildPlan({ job: { id: jobId, projectId: 'p-ledger' }, attempt: { id: attemptId, n: 1 }, bootId: BOOT, recipe: getRecipe(o.recipe ?? 'sde.test.node'),
@@ -1387,6 +1391,222 @@ test('FR-R2-2 no git installed: a tool plan with a source and a git engine are r
   await assert.rejects(later.snapshot(r.dir), (e) => e instanceof GitError && e.kind === 'git_missing');
   assert.equal((await later.snapshot(r.dir)).commit, r.commit, 'found on the next call');
   assert.equal(calls, 2, 'a miss is not kept; a found binary is');
+});
+
+// ---------- B2a Task 12 fix round 1: nothing in /out is ever written or read through a link (items 1 and 6) ----------
+
+const { parseJunit } = loadTs('src/runner/parsers/junit.ts');
+const PER_FILE_INPUTS = (files) => [{ versionId: 'V1', slot: 'suite', contentHash: 'x', storage: { kind: 'inline' }, metadata: { framework: 'node-test', files } }];
+const REPORT = (name) => `<testsuites><testcase name="${name}" classname="test"/><!-- tests 1 --></testsuites>\n`;
+/** A file outside the data home standing for a host file a container must never reach. */
+function hostFile(w, rel, text) { const f = path.join(w.dir, 'host', ...rel.split('/')); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; }
+/** A file symlink (Developer Mode or admin on Windows); false when this machine cannot make one. */
+function fileLink(target, at) {
+  try { fs.mkdirSync(path.dirname(at), { recursive: true }); fs.symlinkSync(target, at, 'file'); return true; } catch (e) { if (e.code === 'EPERM' || e.code === 'EACCES') return false; throw e; }
+}
+/** The `nexus` lines of an attempt log. */
+const nexusLines = (plan) => fs.readFileSync(plan.logPath, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((f) => f.stream === 'nexus').map((f) => f.text);
+const NO_LINKS = 'file symlinks need Developer Mode (or admin) on this Windows machine';
+
+test('RV1a (item 1) the merge writes its temporary file in the work folder, never in /out: a link planted at the old temporary name changes no host file, and junit.xml never becomes a link', async (t) => {
+  const w = await world();
+  const plan = toolPlan(w, { inputs: PER_FILE_INPUTS(['test/a.test.js']) });
+  assert.ok(plan.perFileJunit, 'a per-file plan');
+  const p = await start(w, plan);
+  const host = hostFile(w, 'host.txt', 'HOST BYTES\n');
+  outFile(plan, 'junit/0001.xml', REPORT('a1'));
+  if (!fileLink(host, path.join(plan.workDir, 'out', '.nexus-junit-merge.tmp'))) return t.skip(NO_LINKS);
+  w.driver.exitContainer(p.containerId, { code: 0 });
+  const e = await w.wait('attempt.exited', plan.attemptId);
+  assert.equal(fs.readFileSync(host, 'utf8'), 'HOST BYTES\n', 'the host file is unchanged');
+  const j = fs.lstatSync(path.join(plan.workDir, 'out', 'junit.xml'));
+  assert.ok(j.isFile() && !j.isSymbolicLink(), 'junit.xml is the merged plain file, not the planted link');
+  assert.ok(parseJunit(fs.readFileSync(path.join(plan.workDir, 'out', 'junit.xml'))).ok);
+  assert.ok(fs.lstatSync(path.join(plan.workDir, 'out', '.nexus-junit-merge.tmp')).isSymbolicLink(), 'the planted link was never renamed or written through');
+  // The planted link is still in /out, so the collection refuses the outputs: nothing of the attempt is trusted.
+  assert.deepEqual([e.outputError, e.outputErrorEntry, e.parsed], ['symlink', '.nexus-junit-merge.tmp', []]);
+  assert.deepEqual(fs.readdirSync(plan.workDir).filter((n) => /junit-merge/.test(n)), [], 'no temporary file is left in the work folder');
+});
+
+test('RV1b (item 1) a junit.xml that is a link is refused: never written through, never replaced; no host file changes', async (t) => {
+  const w = await world();
+  const plan = toolPlan(w, { inputs: PER_FILE_INPUTS(['test/a.test.js']) });
+  const p = await start(w, plan);
+  const host = hostFile(w, 'target.xml', 'HOST REPORT\n');
+  outFile(plan, 'junit/0001.xml', REPORT('a1'));
+  if (!fileLink(host, path.join(plan.workDir, 'out', 'junit.xml'))) return t.skip(NO_LINKS);
+  w.driver.exitContainer(p.containerId, { code: 0 });
+  const e = await w.wait('attempt.exited', plan.attemptId);
+  assert.equal(fs.readFileSync(host, 'utf8'), 'HOST REPORT\n', 'the host file is unchanged');
+  assert.ok(fs.lstatSync(path.join(plan.workDir, 'out', 'junit.xml')).isSymbolicLink(), 'the link is left as it was (never replaced)');
+  assert.deepEqual([e.outputError, e.outputErrorEntry, e.parsed], ['symlink', 'junit.xml', []]);
+  assert.ok(nexusLines(plan).some((l) => /junit\.xml is a link; nothing was merged/.test(l)), nexusLines(plan).join(' | '));
+  // A second hard link at junit.xml is refused the same way (a rename would leave the other name holding the bytes).
+  const w2 = await world();
+  const plan2 = toolPlan(w2, { inputs: PER_FILE_INPUTS(['test/a.test.js']) });
+  const p2 = await start(w2, plan2);
+  const host2 = hostFile(w2, 'hard.xml', 'HOST HARD\n');
+  outFile(plan2, 'junit/0001.xml', REPORT('a1'));
+  fs.linkSync(host2, path.join(plan2.workDir, 'out', 'junit.xml'));
+  w2.driver.exitContainer(p2.containerId, { code: 0 });
+  const e2 = await w2.wait('attempt.exited', plan2.attemptId);
+  assert.equal(fs.readFileSync(host2, 'utf8'), 'HOST HARD\n');
+  assert.equal(fs.statSync(path.join(plan2.workDir, 'out', 'junit.xml')).nlink, 2, 'never replaced');
+  assert.deepEqual([e2.outputError, e2.outputErrorEntry, e2.parsed], ['hardlink', 'junit.xml', []]);
+});
+
+test('RV1c (item 1) a junit/ folder that is a link (a junction) is never read: nothing behind it is opened, the container\'s own junit.xml is not taken, the outputs are refused', async () => {
+  const s = spyFs();
+  const w = await world({ fs: s.f });
+  const plan = toolPlan(w, { inputs: PER_FILE_INPUTS(['test/a.test.js']) });
+  const p = await start(w, plan);
+  const hostDir = path.dirname(hostFile(w, 'reports/0001.xml', REPORT('from the host')));
+  fs.symlinkSync(hostDir, path.join(plan.workDir, 'out', 'junit'), 'junction');
+  outFile(plan, 'junit.xml', JUNIT);
+  w.driver.exitContainer(p.containerId, { code: 0 });
+  const e = await w.wait('attempt.exited', plan.attemptId);
+  assert.ok(!s.opened.some((x) => x.startsWith(path.resolve(hostDir))), 'nothing behind the junction was opened');
+  assert.equal(fs.readFileSync(path.join(hostDir, '0001.xml'), 'utf8'), REPORT('from the host'));
+  assert.equal(fs.existsSync(path.join(plan.workDir, 'out', 'junit.xml')), false, 'the container-written junit.xml was removed (item 6)');
+  assert.deepEqual([e.outputError, e.outputErrorEntry, e.parsed], ['symlink', 'junit', []]);
+});
+
+test('RV1d (item 1) a per-file report that is a link or a second hard link is never read (no case from it); no host file changes; the outputs are refused', async (t) => {
+  const s = spyFs();
+  const w = await world({ fs: s.f });
+  const plan = toolPlan(w, { inputs: PER_FILE_INPUTS(['test/a.test.js', 'test/b.test.js']) });
+  const p = await start(w, plan);
+  const linked = hostFile(w, 'passing.xml', REPORT('would pass'));
+  const hard = hostFile(w, 'also-passing.xml', REPORT('would also pass'));
+  if (!fileLink(linked, path.join(plan.workDir, 'out', 'junit', '0001.xml'))) return t.skip(NO_LINKS);
+  fs.linkSync(hard, path.join(plan.workDir, 'out', 'junit', '0002.xml'));
+  w.driver.exitContainer(p.containerId, { code: 0 });
+  const e = await w.wait('attempt.exited', plan.attemptId);
+  assert.ok(!s.opened.includes(path.resolve(linked)), 'the link\'s target was never opened');
+  assert.deepEqual([fs.readFileSync(linked, 'utf8'), fs.readFileSync(hard, 'utf8')], [REPORT('would pass'), REPORT('would also pass')]);
+  const lines = nexusLines(plan);
+  assert.ok(lines.includes('test/a.test.js: its report is not a plain file') && lines.includes('test/b.test.js: its report is not a plain file'), lines.join(' | '));
+  const merged = parseJunit(fs.readFileSync(path.join(plan.workDir, 'out', 'junit.xml')));
+  assert.deepEqual(merged.value.cases, [], 'no case came from either');
+  assert.equal(e.outputError, 'symlink'); assert.equal(e.outputErrorEntry, 'junit/0001.xml'); assert.deepEqual(e.parsed, []);
+});
+
+test('RV1e (item 1, audit) the size guard never counts what a folder swapped for a link points at; readPlainFile refuses a link, a hard link and a file swapped between its lstat and its open', async () => {
+  const { outBytes } = loadTs('src/runner/outputs.ts');
+  const { readPlainFile } = loadTs('src/runner/paths.ts');
+  const dir = h.tmpDir('nx-rv1e-');
+  const out = path.join(dir, 'out'); const sub = path.join(out, 'sub'); const elsewhere = path.join(dir, 'elsewhere');
+  fs.mkdirSync(sub, { recursive: true }); fs.mkdirSync(elsewhere);
+  fs.writeFileSync(path.join(out, 'own.txt'), Buffer.alloc(10));
+  fs.writeFileSync(path.join(elsewhere, 'big.bin'), Buffer.alloc(5000));
+  // A container swaps out/sub for a link to `elsewhere` between the guard's lstat of it and its listing.
+  let swapped = false;
+  const racy = { ...fsp,
+    opendir: (d, ...r) => { if (path.resolve(String(d)) === path.resolve(sub)) { swapped = true; return fsp.opendir(elsewhere, ...r); } return fsp.opendir(d, ...r); },
+    lstat: async (p) => {
+      const rp = path.resolve(String(p));
+      if (swapped && rp === path.resolve(sub)) { const st = await fsp.lstat(elsewhere); return Object.assign(Object.create(Object.getPrototypeOf(st)), st, { isSymbolicLink: () => true, isDirectory: () => false }); }
+      if (swapped && rp.startsWith(path.resolve(sub) + path.sep)) return fsp.lstat(path.join(elsewhere, path.basename(rp)));
+      return fsp.lstat(p);
+    } };
+  assert.equal(await outBytes(racy, out, 1e9), 10, 'only /out\'s own bytes are counted');
+  assert.equal(swapped, true, 'the swap happened during the walk');
+  // readPlainFile
+  const f = path.join(dir, 'plain.txt'); fs.writeFileSync(f, 'plain');
+  assert.deepEqual(await readPlainFile(fsp, f, 100), { ok: true, bytes: Buffer.from('plain') });
+  assert.deepEqual(await readPlainFile(fsp, path.join(dir, 'nope.txt'), 100), { ok: false, why: 'missing' });
+  assert.deepEqual(await readPlainFile(fsp, f, 2), { ok: false, why: 'too_large' });
+  const hl = path.join(dir, 'second-name.txt'); fs.linkSync(f, hl);
+  assert.deepEqual(await readPlainFile(fsp, hl, 100), { ok: false, why: 'hardlink' });
+  fs.unlinkSync(hl);
+  const j = path.join(dir, 'junction'); fs.symlinkSync(elsewhere, j, 'junction');
+  assert.equal((await readPlainFile(fsp, j, 100)).ok, false, 'a junction is never read');
+  const other = path.join(dir, 'other.txt'); fs.writeFileSync(other, 'other');
+  const swapFs = { ...fsp, open: (p, ...r) => fsp.open(path.resolve(String(p)) === path.resolve(f) ? other : p, ...r) };
+  assert.deepEqual(await readPlainFile(swapFs, f, 100), { ok: false, why: 'changed' }, 'a file swapped between the lstat and the open is refused');
+});
+
+test('RV1f (item 1, audit) gc.apply removes a finished work folder whose /out holds planted links without following them: what they point at is untouched', async (t) => {
+  const w = await world();
+  const jobId = newId(NOW);
+  const wd = path.join(w.home, 'work', jobId, '1'); fs.mkdirSync(path.join(wd, 'out'), { recursive: true });
+  const hostDirFile = hostFile(w, 'keepdir/inside.txt', 'KEEP\n');
+  const host = hostFile(w, 'keep.txt', 'KEEP FILE\n');
+  fs.symlinkSync(path.dirname(hostDirFile), path.join(wd, 'out', 'dirlink'), 'junction');
+  const fileLinked = fileLink(host, path.join(wd, 'out', 'filelink'));
+  w.send({ op: 'gc.apply', scanId: newId(NOW), objects: [], workDirs: [{ jobId, attemptN: 1 }] });
+  await until(() => w.logs.some((l) => l.includes('gc removed')), 'gc');
+  assert.equal(fs.existsSync(wd), false, 'the work folder is gone');
+  assert.equal(fs.readFileSync(hostDirFile, 'utf8'), 'KEEP\n', 'the junction\'s target folder and its file are untouched');
+  assert.equal(fs.readFileSync(host, 'utf8'), 'KEEP FILE\n');
+  if (!fileLinked) t.diagnostic(NO_LINKS);
+});
+
+test('RV6 (item 6) a per-file plan never takes a container-written junit.xml: with no junit/ folder (or a junit file instead of a folder) it is removed and no report is parsed', async () => {
+  for (const shape of ['none', 'file']) {
+    const w = await world();
+    const plan = toolPlan(w, { inputs: PER_FILE_INPUTS(['test/a.test.js']) });
+    const p = await start(w, plan);
+    outFile(plan, 'junit.xml', JUNIT);
+    if (shape === 'file') outFile(plan, 'junit', 'not a folder');
+    w.driver.exitContainer(p.containerId, { code: 0 });
+    const e = await w.wait('attempt.exited', plan.attemptId);
+    assert.equal(e.outputError, undefined, shape);
+    assert.ok(!e.outputs.some((o) => o.relPath === 'junit.xml'), `${shape}: the container's junit.xml is not an output`);
+    assert.deepEqual(e.parsed, [], `${shape}: no report is parsed`);
+    assert.equal(fs.existsSync(path.join(plan.workDir, 'out', 'junit.xml')), false, shape);
+    const lines = nexusLines(plan);
+    assert.ok(lines.some((l) => /junit\.xml is not parsed/.test(l)) && lines.some((l) => /junit\.xml the container wrote was removed/.test(l)), `${shape}: ${lines.join(' | ')}`);
+  }
+  // With its per-file folder, the same plan merges and parses (the merged report, attributed to its file).
+  const w = await world();
+  const plan = toolPlan(w, { inputs: PER_FILE_INPUTS(['test/a.test.js']) });
+  const p = await start(w, plan);
+  outFile(plan, 'junit.xml', JUNIT);
+  outFile(plan, 'junit/0001.xml', REPORT('a1'));
+  w.driver.exitContainer(p.containerId, { code: 0 });
+  const e = await w.wait('attempt.exited', plan.attemptId);
+  assert.equal(e.parsed[0].parser, 'junit');
+  assert.deepEqual(e.parsed[0].normalized.cases.map((c) => [c.file, c.name]), [['test/a.test.js', 'a1']]);
+});
+
+test('RV6b (item 6, recovery) a per-file run that ended while the runner was gone: reconcile merges its reports first, so main judges the merged junit.xml, never the container\'s own', async () => {
+  const w = await world();
+  /** An attempt whose container exited while no runner watched it: its plan record, its /out, its exited container. */
+  const ended = (files) => {
+    const plan = toolPlan(w, { inputs: PER_FILE_INPUTS(['test/a.test.js']) });
+    fs.mkdirSync(path.join(plan.workDir, 'out'), { recursive: true });
+    fs.writeFileSync(path.join(plan.workDir, 'plan.json'), JSON.stringify({ plan }));
+    for (const [rel, text] of Object.entries(files)) outFile(plan, rel, text);
+    const cid = crypto.randomBytes(32).toString('hex');
+    w.driver.extra.push({ kind: 'container', id: cid, name: plan.container.name, state: 'exited', exit: { code: 0, oomKilled: false, finishedAt: NOW },
+      labels: { 'nexus.home': w.label, 'nexus.attempt': plan.attemptId, 'nexus.job': plan.jobId, 'nexus.kind': 'tool' } });
+    return { plan, cid };
+  };
+  const merged = ended({ 'junit/0001.xml': REPORT('a1') });
+  const unmerged = ended({ 'junit.xml': JUNIT });
+  w.send({ op: 'reconcile.list', attempts: [merged, unmerged].map((x) => ({ attemptId: x.plan.attemptId, containerId: x.cid, kind: 'tool' })) });
+  const res = await w.wait('reconcile.result');
+  const [a, b] = res.attempts;
+  assert.equal(a.container, 'exited');
+  assert.deepEqual(a.staged.map((s) => s.relPath).sort(), ['junit.xml', 'junit/0001.xml'], 'the merged report is staged (the contract check sees it)');
+  const j = parseJunit(fs.readFileSync(path.join(merged.plan.workDir, 'out', 'junit.xml')));
+  assert.deepEqual(j.value.cases.map((c) => [c.file, c.name]), [['test/a.test.js', 'a1']]);
+  assert.deepEqual(b.staged ?? [], [], 'the container\'s own junit.xml is never staged for a per-file run');
+  assert.equal(fs.existsSync(path.join(unmerged.plan.workDir, 'out', 'junit.xml')), false);
+  assert.ok(parseRunnerMessage(res));
+});
+
+test('RV8 (item 8) the runner refuses a per-file plan naming the step separator (or an option) as a test file', async () => {
+  for (const bad of ['--nexus-then', '--require=x.js']) {
+    const w = await world();
+    const plan = toolPlan(w, { inputs: PER_FILE_INPUTS(['test/a.test.js']) });
+    plan.perFileJunit.files.push(bad); plan.container.argv.push(bad);
+    w.send({ op: 'attempt.start', attemptId: plan.attemptId, plan });
+    const r = await w.wait('attempt.refused', plan.attemptId);
+    assert.deepEqual([r.reason, r.detail], ['bad_plan', 'a per-file test file is not a plain relative path'], bad);
+    assert.ok(!w.driver.ops().includes('create'), `${bad}: nothing was created`);
+  }
 });
 
 test('D18 the runner spawned only docker and git, never through a shell', () => {

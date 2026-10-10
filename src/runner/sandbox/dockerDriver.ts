@@ -21,7 +21,7 @@
  */
 import { StringDecoder } from 'node:string_decoder';
 import {
-  HOME_TMPFS_MB, HOME_TMPFS_PATH, SANDBOX_UID, SANDBOX_USER, TMP_TMPFS_PATH,
+  DIAGNOSE_FACT_STATES, HOME_TMPFS_MB, HOME_TMPFS_PATH, SANDBOX_UID, SANDBOX_USER, TMP_TMPFS_PATH,
   IMAGE_VERSIONS_RE, type ContainerLabels, type ContainerSpec, type DiagnoseContainerFacts, type ExitInfo, type PreflightReport, type SandboxProbe,
   type SandboxProfileId
 } from '../../shared/nexus/execution';
@@ -149,7 +149,7 @@ function labelsOf(v: unknown): Record<string, string> {
   return out;
 }
 
-const FACT_STATES: readonly DiagnoseContainerFacts['state'][] = ['created', 'running', 'exited', 'restarting', 'paused', 'dead', 'removing'];
+const FACT_STATES: readonly DiagnoseContainerFacts['state'][] = DIAGNOSE_FACT_STATES.filter((x) => x !== 'unknown');
 const factText = (v: unknown, max = 128): string | null => (typeof v === 'string' && v.length > 0 ? redactSecretText(v).replace(/[\r\n\0]/g, ' ').slice(0, max) : null);
 const factInt = (v: unknown): number | null => (typeof v === 'number' && Number.isSafeInteger(v) ? v : null);
 
@@ -321,11 +321,25 @@ export class DockerDriver implements RunnerDriver {
     return { state: 'running', restartCount };
   }
 
-  async inspectFacts(containerId: string): Promise<{ labels: Record<string, string>; facts: DiagnoseContainerFacts } | null> {
+  /**
+   * A diagnosis's inspect (fix round 1, item 11): ownership FIRST, from the labels alone (`--format '{{json .Config.Labels}}'`:
+   * Docker prints nothing else of the container). A container that is not this install's (`nexus.home`) and an
+   * attempt's (`nexus.attempt`) is `not_owned`, and its full record (its environment, command, mounts) is never fetched.
+   * Only then the full inspect, for the fixed fact set (ownership re-checked on that record).
+   */
+  async inspectFacts(containerId: string, home: string): Promise<{ owned: false } | { owned: true; facts: DiagnoseContainerFacts } | null> {
     if (!CONTAINER_ID_RE.test(containerId)) return null;
+    const owns = (labels: Record<string, string>): boolean => typeof home === 'string' && home.length > 0 && labels['nexus.home'] === home && !!labels['nexus.attempt'];
+    const r = await this.call('inspect', ['inspect', '--type', 'container', '--format', '{{json .Config.Labels}}', containerId], { timeoutMs: 30_000 });
+    if (r.code !== 0) {
+      if (classifyDockerError(r.stderr) === 'not_found') return null;
+      throw new DockerError('inspect', r.timedOut ? 'timed out' : r.stderr);
+    }
+    if (!owns(labelsOf(parseJsonOut(r.stdout.trim())))) return { owned: false };
     const rec = await this.inspectRaw(containerId);
     if (!rec) return null;
-    return { labels: labelsOf(isObj(rec.Config) ? rec.Config.Labels : null), facts: containerFacts(rec) };
+    if (!owns(labelsOf(isObj(rec.Config) ? rec.Config.Labels : null))) return { owned: false };
+    return { owned: true, facts: containerFacts(rec) };
   }
 
   async stop(containerId: string, graceMs: number): Promise<void> {

@@ -179,3 +179,86 @@ test('P7 Docker 29.7.2 inspect shapes pass the comparator: named volumes Mode z 
     assert.equal(synthetic.synthetic, true, 'until the capture is committed, the stand-in says it is synthetic');
   }
 });
+
+// ---------- B2a Task 12 fix round 1 ----------
+
+test('P8 (item 2) no environment variable runs the heavy files: under Electron the gate runs the preflight itself every time; with NEXUS_TEST_EXEC=1 and a failing preflight the file FAILS and prints NOT RUN', () => {
+  const gatePath = path.join(ROOT, 'test', 'helpers', 'execGate.cjs');
+  const gateSrc = fs.readFileSync(gatePath, 'utf8');
+  assert.doesNotMatch(gateSrc.replace(/\/\/.*$/gm, ''), /NEXUS_TEST_EXEC/, 'the gate never reads the variable');
+  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'tools', 'run-exec-tests.cjs'), 'utf8').replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, ''), /NEXUS_TEST_EXEC/, 'nor sets it');
+  for (const f of runner.listFiles()) {
+    const text = fs.readFileSync(path.join(ROOT, f), 'utf8');
+    assert.match(text, /if \(realDockerOrSkip\(\)\) \{/, `${f} calls the gate with no argument`);
+    assert.doesNotMatch(text, /\bgate\(|NEXUS_TEST_EXEC|probes\s*:/, `${f} injects nothing into the gate`);
+  }
+  // A file run with the variable set, as Electron (the runtime check injected), and a preflight that fails on disk.
+  const file = path.join(TMP, 'gate-child.test.cjs');
+  const failing = `{
+    dockerDataDir: () => ({ dir: 'C:\\\\', source: 'test' }), tempDir: () => 'C:\\\\Temp', freeBytes: () => 3 * 2 ** 30,
+    dockerVersion: () => ({ reachable: true, os: 'linux', version: '29.7.2' }), dockerInfo: () => ({ memoryBytes: 8 * 2 ** 30, cpus: 8 }),
+    imageLabels: (p) => ({ id: 'sha256:' + '1'.repeat(64), labels: { 'nexus.context-sha256': LOCK.profiles[p].contextSha256 } }),
+    lock: () => LOCK, env: () => ({}), userDataDirs: () => ['C:\\\\nowhere'] }`;
+  fs.writeFileSync(file, `'use strict';
+const fs = require('node:fs');
+const LOCK = JSON.parse(fs.readFileSync(${JSON.stringify(path.join(ROOT, 'infra', 'images', 'lock.json'))}, 'utf8'));
+const { gate } = require(${JSON.stringify(gatePath)});
+const ran = [];
+if (gate({ electron: true, probes: ${failing} })) require('node:test')('a heavy test', () => { ran.push('heavy'); });
+process.on('exit', () => { if (ran.length) console.log('HEAVY RAN'); });
+`);
+  const env = { ...process.env, NEXUS_TEST_EXEC: '1' };
+  delete env.NODE_TEST_CONTEXT;
+  const r = spawnSync(process.execPath, [file], { encoding: 'utf8', timeout: 60_000, cwd: ROOT, env });
+  assert.notEqual(r.status, 0, `the file fails: ${r.stdout}`);
+  assert.match(r.stdout, /\[test:exec\] NOT RUN: free disk 3\.0 GiB < 30 GiB/);
+  assert.match(r.stdout, /# fail 1/);
+  assert.match(r.stdout, /# skipped 0/, 'a failure, never a skip');
+  assert.doesNotMatch(r.stdout, /HEAVY RAN/);
+  // The same file with a passing preflight runs its heavy test (the gate itself is the only decision).
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('freeBytes: () => 3 * 2 ** 30', 'freeBytes: () => 45 * 2 ** 30'));
+  const ok = spawnSync(process.execPath, [file], { encoding: 'utf8', timeout: 60_000, cwd: ROOT, env });
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+  assert.match(ok.stdout, /HEAVY RAN/);
+  // Plain node (no Electron) is the skip banner, whatever the variable says.
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('electron: true', 'electron: false'));
+  const plain = spawnSync(process.execPath, [file], { encoding: 'utf8', timeout: 60_000, cwd: ROOT, env });
+  assert.equal(plain.status, 0);
+  assert.match(plain.stdout, /# skipped 1/); assert.match(plain.stdout, /needs Electron as node/); assert.doesNotMatch(plain.stdout, /HEAVY RAN/);
+});
+
+test('P9 (item 14) the Docker data volume is located (Docker Desktop settings, then its default disk-image folder, Linux: docker info), never assumed; a fallback to C:\\ is printed as a note', async () => {
+  const W = 'win32';
+  const env = { APPDATA: 'C:\\Users\\u\\AppData\\Roaming', LOCALAPPDATA: 'C:\\Users\\u\\AppData\\Local' };
+  const at = (files, dirs) => ({ readJson: (p) => files[p] ?? null, exists: (p) => dirs.includes(p) || p in files });
+  const store = 'C:\\Users\\u\\AppData\\Roaming\\Docker\\settings-store.json';
+  // A custom disk image location in the settings wins (any letter case of the key).
+  let r = runner.locateDockerData({ platform: W, env, ...at({ [store]: { DiskImageLocation: 'D:\\docker-data' } }, ['D:\\docker-data', 'C:\\Users\\u\\AppData\\Local\\Docker\\wsl']) });
+  assert.deepEqual([r.dir, r.note], ['D:\\docker-data', undefined]);
+  assert.match(r.source, /DiskImageLocation in settings-store\.json/);
+  r = runner.locateDockerData({ platform: W, env, ...at({ ['C:\\Users\\u\\AppData\\Roaming\\Docker\\settings.json']: { dataFolder: 'E:\\Hyper-V' } }, ['E:\\Hyper-V']) });
+  assert.equal(r.dir, 'E:\\Hyper-V');
+  // A setting naming a folder that does not exist is not believed; the default folder is used.
+  r = runner.locateDockerData({ platform: W, env, ...at({ [store]: { customWslDistroDir: 'F:\\gone' } }, ['C:\\Users\\u\\AppData\\Local\\Docker\\wsl']) });
+  assert.deepEqual([r.dir, r.source], ['C:\\Users\\u\\AppData\\Local\\Docker\\wsl', 'Docker Desktop\'s default disk-image folder']);
+  // Nothing found: C:\ with a note.
+  r = runner.locateDockerData({ platform: W, env, ...at({}, []) });
+  assert.equal(r.dir, 'C:\\'); assert.match(r.note, /not found.*checked at C:\\ instead/);
+  // Linux: the daemon's own root.
+  r = runner.locateDockerData({ platform: 'linux', env: {}, exists: (p) => p === '/data/docker', readJson: () => null, dockerRootDir: () => '/data/docker' });
+  assert.deepEqual([r.dir, r.source], ['/data/docker', 'docker info (DockerRootDir)']);
+  // The preflight measures free space at THAT location, and prints the fallback note.
+  const seen = [];
+  const lines = []; const reportPath = path.join(TMP, 'report-p9.json');
+  const code = await runner.main({ probes: probes({ dockerDataDir: () => ({ dir: 'C:\\', source: 'fallback', note: 'the Docker data location was not found (x); free space is checked at C:\\ instead.' }),
+    tempDir: () => 'D:\\tmp', freeBytes: (d) => { seen.push(d); return 2 * GIB; } }), reportPath, log: (l) => lines.push(l), files: [], spawnFile: async () => ({ code: 0, text: '' }) });
+  assert.equal(code, 3);
+  assert.deepEqual(seen, ['C:\\', 'D:\\tmp']);
+  assert.ok(lines.includes('[test:exec] note: the Docker data location was not found (x); free space is checked at C:\\ instead.'), lines.join('\n'));
+  assert.deepEqual(JSON.parse(fs.readFileSync(reportPath, 'utf8')).notes, ['the Docker data location was not found (x); free space is checked at C:\\ instead.']);
+  const located = await runner.main({ probes: probes({ dockerDataDir: () => ({ dir: 'D:\\docker-data', source: 'Docker Desktop settings (x)' }), freeBytes: (d) => (d.startsWith('D') ? 2 * GIB : 50 * GIB) }),
+    reportPath, log: () => {}, files: [], spawnFile: async () => ({ code: 0, text: '' }) });
+  assert.equal(located, 3, 'the located volume is the one measured');
+  const disk = JSON.parse(fs.readFileSync(reportPath, 'utf8')).checks.find((c) => c.id === 'disk' && !c.ok);
+  assert.deepEqual([disk.facts.dir, disk.facts.located], ['D:\\docker-data', 'Docker Desktop settings (x)']);
+});

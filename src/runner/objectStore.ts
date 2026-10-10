@@ -9,12 +9,14 @@
  *   for its own GC (no lease while GC holds the exclusive lock; GC refuses while any attempt is live, and the runner
  *   lands objects only for live attempts). The runner enforces it again for its own deletes: a landing holds this
  *   store SHARED; `gc.apply` takes it EXCLUSIVE, waits for landings in flight, and new landings wait for it.
- * - A source file is opened only after lstat says it is a regular file with one link, and its identity (device, inode,
- *   size) is checked again on the open handle: a swap between the check and the read is refused.
+ * - A source file is opened only after lstat says it is a regular file with one link, opened with O_NOFOLLOW where the
+ *   platform has it, and its identity (device, inode, size) is checked again on the open handle: a swap between the
+ *   check and the read is refused (B2a Task 12 fix round 1: the O_NOFOLLOW open).
  */
 import { createHash, randomBytes } from 'node:crypto';
+import { constants as fsConstants } from 'node:fs';
 import * as path from 'node:path';
-import { ensureDirUnder, errCode, noLinkUnder, type HomePaths } from './paths';
+import { ensureDirUnder, errCode, noLinkUnder, NOFOLLOW, type HomePaths } from './paths';
 import type { RunnerFs } from './types';
 
 const CHUNK = 1 << 20;
@@ -127,12 +129,20 @@ export class ObjectStore {
   }
 }
 
+/** An open for reading that never follows a final-component link where the platform can refuse one (POSIX O_NOFOLLOW). */
+async function openNoFollow(fs: RunnerFs, p: string): Promise<Awaited<ReturnType<RunnerFs['open']>>> {
+  try { return await fs.open(p, fsConstants.O_RDONLY | NOFOLLOW); } catch (e) {
+    if (errCode(e) === 'ELOOP' || errCode(e) === 'EMLINK') throw new SourceChangedError('the file became a link');
+    throw e;
+  }
+}
+
 /** sha256 and size of a regular, single-link file (lstat first, identity re-checked on the open handle). */
 export async function hashFile(fs: RunnerFs, p: string): Promise<HashedFile> {
   const st = await fs.lstat(p);
   if (!st.isFile() || st.isSymbolicLink()) throw new SourceChangedError('not a regular file');
   if (st.nlink > 1) throw new SourceChangedError('a hard link');
-  const fh = await fs.open(p, 'r');
+  const fh = await openNoFollow(fs, p);
   try {
     const st2 = await fh.stat();
     if (st2.ino !== st.ino || st2.dev !== st.dev || st2.size !== st.size) throw new SourceChangedError('the file changed while it was opened');
@@ -153,7 +163,7 @@ export async function copyHashing(fs: RunnerFs, src: string, dst: string, maxByt
   const st = await fs.lstat(src);
   if (!st.isFile() || st.isSymbolicLink()) throw new SourceChangedError('not a regular file');
   if (st.nlink > 1) throw new SourceChangedError('a hard link');
-  const fh = await fs.open(src, 'r');
+  const fh = await openNoFollow(fs, src);
   try {
     const st2 = await fh.stat();
     if (st2.ino !== st.ino || st2.dev !== st.dev || st2.size !== st.size) throw new SourceChangedError('the file changed while it was opened');

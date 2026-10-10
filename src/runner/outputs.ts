@@ -107,25 +107,32 @@ async function readNames(fs: RunnerFs, dir: string, budget: { left: number }): P
 export async function outBytes(fs: RunnerFs, outDir: string, stopAbove: number, maxFiles = 10_000): Promise<number> {
   let total = 0;
   const budget = { left: entryBudget(maxFiles) };
-  const walk = async (dir: string, depth: number): Promise<void> => {
+  // The container still runs while the guard measures: a folder swapped for a link between its lstat and its listing
+  // is noticed by the identity check after the listing and its names are not counted (B2a Task 12 fix round 1). Only
+  // names and sizes are ever read here, never a file's content, and nothing is written.
+  const sameFolder = async (dir: string, ident: { ino: number; dev: number }): Promise<boolean> => {
+    try { const again = await fs.lstat(dir); return again.isDirectory() && !again.isSymbolicLink() && again.ino === ident.ino && again.dev === ident.dev; } catch { return false; }
+  };
+  const walk = async (dir: string, depth: number, ident: { ino: number; dev: number }): Promise<void> => {
     if (depth > MAX_OUT_DEPTH || total > stopAbove || budget.left < 0) return;
     let names: string[] | null;
     try { names = await readNames(fs, dir, budget); } catch { return; }
-    if (names === null) return;
+    if (names === null || !(await sameFolder(dir, ident))) return;
     for (const name of names) {
       let st;
       try { st = await fs.lstat(path.join(dir, name)); } catch { continue; }
       if (st.isSymbolicLink()) continue;
-      if (st.isDirectory()) await walk(path.join(dir, name), depth + 1);
+      if (st.isDirectory()) await walk(path.join(dir, name), depth + 1, { ino: st.ino, dev: st.dev });
       else if (st.isFile()) total += st.size;
       if (total > stopAbove) return;
     }
   };
+  let root;
   try {
-    const st = await fs.lstat(outDir);
-    if (!st.isDirectory() || st.isSymbolicLink()) return 0;
+    root = await fs.lstat(outDir);
+    if (!root.isDirectory() || root.isSymbolicLink()) return 0;
   } catch { return 0; }
-  await walk(outDir, 0);
+  await walk(outDir, 0, { ino: root.ino, dev: root.dev });
   return total;
 }
 
@@ -156,7 +163,7 @@ export async function collectOut(fs: RunnerFs, store: ObjectStore, outDir: strin
       if (e instanceof FileLockedError) return { ok: false, code: 'file_locked', entry: f.rel };
       if (e instanceof SourceChangedError) {
         // A file swapped or still being written after the container stopped is held by something else: `file_locked`.
-        const code: OutputErrorCode = /hard link/.test(e.message) ? 'hardlink' : /regular/.test(e.message) ? 'special_file'
+        const code: OutputErrorCode = /hard link/.test(e.message) ? 'hardlink' : /became a link/.test(e.message) ? 'symlink' : /regular/.test(e.message) ? 'special_file'
           : /limit/.test(e.message) ? 'output_too_large' : 'file_locked';
         return { ok: false, code, entry: f.rel };
       }

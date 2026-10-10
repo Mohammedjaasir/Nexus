@@ -73,6 +73,52 @@ function forkRunner(env = {}) {
     }
   };
 }
+/**
+ * L7/L11 (fix round 1, item 4): a sampler process (test/helpers/dockerSampler.cjs) counting the RUNNING containers with
+ * this install's `nexus.home` and `extra` labels every `ms`. `samples` fills as it reports; `ready()` waits for its first
+ * sample; `stop()` ends it. No docker call of it runs on this (main's) loop.
+ */
+function dockerSampler(home, extra = {}, ms = 200) {
+  const child = fork(path.join(__dirname, 'dockerSampler.cjs'), [JSON.stringify({ home, extra, ms })], { execPath: process.execPath, cwd: ROOT,
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+  const samples = [];
+  child.on('message', (m) => { if (m && typeof m.running === 'number') samples.push(m); });
+  const exited = new Promise((r) => child.once('exit', r));
+  return {
+    samples,
+    ready: async (timeoutMs = 60_000) => {
+      const end = Date.now() + timeoutMs;
+      while (samples.length === 0) { if (Date.now() > end) throw new Error('the docker sampler did not report'); await sleep(50); }
+    },
+    stop: async () => {
+      try { child.send('stop'); } catch { /* gone */ }
+      await Promise.race([exited, sleep(5_000)]);
+      try { child.kill(); } catch { /* gone */ }
+    }
+  };
+}
+
+/**
+ * L16 (fix round 1, item 13): main in its OWN process (test/helpers/main-child.cjs), on an existing database and data
+ * home, with the real wiring and its runner child; it starts `sde.build.run` of `repo` and reports `{ jobId, containerId }`
+ * once the build's container runs. The test then kills it at once (hardKill: on Windows the whole tree, its runner
+ * included) - a main crash, with no quit path.
+ */
+async function mainChild(reopen, repo, timeoutMs = 5 * 60_000) {
+  const child = fork(path.join(__dirname, 'main-child.cjs'), [], { execPath: process.execPath, cwd: ROOT,
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
+  const output = [];
+  child.stdout.on('data', (d) => output.push(String(d))); child.stderr.on('data', (d) => output.push(String(d)));
+  const report = new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`main child did not report in time\n${output.join('').slice(-4000)}`)), timeoutMs);
+    child.once('message', (m) => { clearTimeout(t); if (m && m.ok) resolve(m); else reject(new Error(`main child failed: ${m && m.error}`)); });
+    child.once('exit', (code) => { clearTimeout(t); reject(new Error(`main child exited (${code}) before it reported\n${output.join('').slice(-4000)}`)); });
+  });
+  child.send({ file: reopen.file, userData: reopen.userData, roots: [...reopen.roots], repo });
+  const exited = new Promise((r) => child.once('exit', r));
+  return { process: child, report: await report, crash: async () => { hardKill(child); await Promise.race([exited, sleep(15_000)]); } };
+}
+
 /** Kills a process at once (a crash: no shutdown message, no cleanup). */
 function hardKill(proc) {
   if (process.platform === 'win32' && proc.pid) spawnSync('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { windowsHide: true });
@@ -217,4 +263,4 @@ async function runnerHarness(o = {}) {
   return t;
 }
 
-module.exports = { realWorld, runnerHarness, docker, dockerJson, labelled, removeLabelled, hostServer, lanAddress, httpGet, tcpConnects, hardKill, sleep, LOCK };
+module.exports = { realWorld, runnerHarness, docker, dockerJson, labelled, removeLabelled, hostServer, lanAddress, httpGet, tcpConnects, hardKill, sleep, dockerSampler, mainChild, LOCK };

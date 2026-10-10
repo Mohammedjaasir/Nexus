@@ -248,17 +248,32 @@ export type EngineTask =
   | { engine: 'sde.app.assemble'; repoPath: string; commit: string }
   | { engine: 'sde.diagnose'; target: 'deployment' | 'job'; containerIds: string[]; logRanges: DiagnoseLogRange[] };
 
+/**
+ * The token the Nexus entry (infra/images/common/nexus-entry) splits a multi-step command on. No job value (a manifest
+ * argument, a discovered file) may equal it (fix round 1, item 8); planBuilder's STEP_SEPARATOR is this value.
+ */
+export const STEP_SEPARATOR_TOKEN = '--nexus-then';
+
 /** The most containers and log ranges one diagnosis reads, and the most bytes of one range. */
 export const DIAGNOSE_MAX_CONTAINERS = 4;
 export const DIAGNOSE_MAX_RANGES = 4;
 export const DIAGNOSE_RANGE_MAX_BYTES = 256 * 1024;
+/**
+ * The vocabularies of a diagnosis, defined once (fix round 1, item 10): the runner's fact extraction, main's
+ * re-validation (src/main/nexus/validation/normalized.ts checkDiagnosis) and the report all read these.
+ */
+export const DIAGNOSE_FACT_STATES = Object.freeze(['created', 'running', 'exited', 'restarting', 'paused', 'dead', 'removing', 'unknown'] as const);
+export const DIAGNOSE_CONTAINER_STATUSES = Object.freeze(['inspected', 'missing', 'not_owned', 'unavailable'] as const);
+export const DIAGNOSE_LOG_STATUSES = Object.freeze(['read', 'missing', 'refused'] as const);
+/** The most characters of the last output line a log range reports. */
+export const DIAGNOSE_LAST_TEXT_MAX = 200;
 
 /**
  * What `docker inspect` says about one container, as a diagnosis records it: a fixed set of fields only (never the
  * environment, the mounts' host paths or the labels' values beyond ownership).
  */
 export interface DiagnoseContainerFacts {
-  state: 'created' | 'running' | 'exited' | 'restarting' | 'paused' | 'dead' | 'removing' | 'unknown';
+  state: (typeof DIAGNOSE_FACT_STATES)[number];
   exitCode: number | null; oomKilled: boolean; restartCount: number;
   startedAt: string | null; finishedAt: string | null;
   /** The image's local id, as a digest under a `sha256` key (the redactor's integrity-hash rule; never a bare hex string). */
@@ -271,8 +286,8 @@ export interface DiagnoseContainerFacts {
 export interface DiagnoseResult {
   target: 'deployment' | 'job';
   /** `container.sha256`: the container id (64 hex, kept under a `sha256` key so the secret check reads it as a digest). */
-  containers: { container: { sha256: string }; status: 'inspected' | 'missing' | 'not_owned' | 'unavailable'; facts: DiagnoseContainerFacts | null }[];
-  logs: { attemptId: string; status: 'read' | 'missing' | 'refused'; offset: number; length: number; sha256: string | null;
+  containers: { container: { sha256: string }; status: (typeof DIAGNOSE_CONTAINER_STATUSES)[number]; facts: DiagnoseContainerFacts | null }[];
+  logs: { attemptId: string; status: (typeof DIAGNOSE_LOG_STATUSES)[number]; offset: number; length: number; sha256: string | null;
     frames: number; errorFrames: number; lastText: string | null }[];
 }
 

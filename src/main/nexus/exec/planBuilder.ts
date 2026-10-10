@@ -36,7 +36,7 @@
  */
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
-import { DIAGNOSE_MAX_CONTAINERS, DIAGNOSE_MAX_RANGES, DIAGNOSE_RANGE_MAX_BYTES } from '../../../shared/nexus/execution';
+import { DIAGNOSE_MAX_CONTAINERS, DIAGNOSE_MAX_RANGES, DIAGNOSE_RANGE_MAX_BYTES, STEP_SEPARATOR_TOKEN } from '../../../shared/nexus/execution';
 import type {
   AttemptPlan, ContainerSpec, EnginePlan, MountSpec, NetworkMode, ResourceLabels, ResourceLimits, SandboxProfile, ServicePlan, ToolPlan
 } from '../../../shared/nexus/execution';
@@ -59,8 +59,8 @@ export function wallSeconds(ms: number): string {
 }
 export const PIDS_LIMIT = 512;
 export const TMPFS_MB = 512;
-/** The Nexus entry splits a multi-step recipe's argv on this token (the entry script is Task 12). */
-export const STEP_SEPARATOR = '--nexus-then';
+/** The Nexus entry splits a multi-step recipe's argv on this token (the entry script is Task 12; shared: STEP_SEPARATOR_TOKEN). */
+export const STEP_SEPARATOR = STEP_SEPARATOR_TOKEN;
 export const MAX_DISCOVERED_FILES = 5000;
 const FRAMEWORKS = ['node-test', 'jest', 'vitest', 'mocha', 'pytest'] as const;
 export type TestFramework = (typeof FRAMEWORKS)[number];
@@ -220,6 +220,8 @@ function discoveredFiles(inputs: readonly PlanInput[]): string[] {
       if (typeof f !== 'string' || !DISCOVERED_RE.test(f) || f.split('/').some((s) => s === '..' || s === '' || s === '.')) {
         refuse('bad_input', 'a discovered file is not a plain relative path');
       }
+      // The entry splits steps on this token: a value equal to it would cut the step in two (fix round 1, item 8).
+      if (f === STEP_SEPARATOR) refuse('bad_input', 'a discovered file is the step separator');
     }
     return [...files] as string[];
   }
@@ -374,6 +376,8 @@ export function checkRunArgv(run: unknown): string[] {
   const out: string[] = [];
   for (const a of run as unknown[]) {
     if (typeof a !== 'string' || a.length === 0 || a.length > MAX_RUN_ARG_CHARS || a.includes('\0')) refuse('bad_input', 'an app manifest argument is not plain text');
+    // The Nexus entry splits a command into steps on this token: the app's argv may never hold it (fix round 1, item 8).
+    if (a === STEP_SEPARATOR) refuse('bad_input', 'an app manifest argument is the step separator');
     if (looksSecret(a as string) || containsSecret([a])) refuse('secret_in_argv', 'an app manifest argument is secret-shaped');
     out.push(a as string);
   }
@@ -492,7 +496,10 @@ export function sandboxRecord(plan: AttemptPlan): Record<string, unknown> {
   if (plan.kind === 'engine') {
     const t = plan.task;
     return { executor: 'engine', engine: t.engine, network: 'not-applicable', wallClockMs: plan.wallClockMs,
-      ...(t.engine === 'sde.diagnose' ? { target: t.target, containers: t.containerIds.length, logRanges: t.logRanges.map((r) => ({ offset: r.offset, length: r.length })) } : {}) };
+      // A diagnosis records exactly what it was planned to read (fix round 1, item 11: ingest holds the report to it).
+      // Container ids sit under `sha256` keys (the redactor reads a hex digest as an integrity hash only there).
+      ...(t.engine === 'sde.diagnose' ? { target: t.target, containers: t.containerIds.length, containerIds: t.containerIds.map((c) => ({ sha256: c })),
+        logRanges: t.logRanges.map((r) => ({ attemptId: r.attemptId, offset: r.offset, length: r.length, tail: r.tail })) } : {}) };
   }
   if (plan.kind === 'service') {
     const rec = (c: ContainerSpec): Record<string, unknown> => ({

@@ -290,9 +290,13 @@ const flows = {
     assert.deepEqual(sandbox.app.argv, ['node', 'src/server.js', evil], 'one element, exactly as written');
     const argv = await w.containerArgv(d.jobId);
     assert.equal(argv[argv.length - 1], evil, 'the container\'s command ends with the one untouched element');
-    assert.equal(w.outExists(d.jobId, 'pwned'), false, 'no /out/pwned was created');
+    // Whether the Nexus entry evaluated the element can only be seen where the entry runs: in the real world (the app
+    // container's /out is the attempt's out folder, so an evaluated `touch /out/pwned` would leave the file there). The
+    // fake driver runs no entry, so the check would be vacuous there (fix round 1, item 13); the entry's own rule is
+    // proven on a POSIX sh by test/nexus-core-exec-entry.test.cjs E2.
+    if (w.kind === 'real') assert.equal(w.outExists(d.jobId, 'pwned'), false, 'no /out/pwned was created');
     await stop(w, d.deployment.id, d.jobId);
-    assert.equal(w.outExists(d.jobId, 'pwned'), false);
+    if (w.kind === 'real') assert.equal(w.outExists(d.jobId, 'pwned'), false);
   }
 };
 

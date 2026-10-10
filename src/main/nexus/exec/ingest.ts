@@ -80,6 +80,16 @@ const jsonBytes = (v: unknown): number => Buffer.byteLength(JSON.stringify(v), '
 /** The most files a build output tree may hold (the ingest transaction stays bounded; the blob index takes 10,000 per call). */
 export const MAX_TREE_FILES = 5000;
 
+/** What a diagnosis attempt was planned to read (its sandbox record), or null when the record does not say. */
+function plannedDiagnosis(sandboxJson: string | null): { containerIds: string[]; attemptIds: string[] } | null {
+  const rec = parse(sandboxJson);
+  if (!isObj(rec) || rec.engine !== 'sde.diagnose' || !Array.isArray(rec.containerIds) || !Array.isArray(rec.logRanges)) return null;
+  const containerIds: string[] = []; const attemptIds: string[] = [];
+  for (const c of rec.containerIds) { if (!isObj(c) || typeof c.sha256 !== 'string') return null; containerIds.push(c.sha256); }
+  for (const r of rec.logRanges) { if (!isObj(r) || typeof r.attemptId !== 'string') return null; attemptIds.push(r.attemptId); }
+  return { containerIds, attemptIds };
+}
+
 export class IngestService implements IngestPort {
   constructor(private readonly db: Database.Database, private readonly deps: IngestDeps) {}
 
@@ -335,14 +345,17 @@ export class IngestService implements IngestPort {
     if (staged.some((o) => hasProviderKey(o.relPath))) return secretRefusal('build output file names');
     const files: TreeFile[] = staged.map((o) => ({ path: o.relPath.slice(5), sha256: o.sha256, bytes: o.bytes }));
     const tree = { kind: 'tree' as const, manifestSha256: manifestSha256(files), files: files.length, bytes: files.reduce((s, f) => s + f.bytes, 0) };
-    const contentHash = `tree:${tree.manifestSha256}`;
+    const repoMeta = parse(repo.metadata_json);
+    const repoStorage = parse(repo.storage_ref_json);
+    const commit = isObj(repoStorage) && typeof repoStorage.commit === 'string' && COMMIT_RE.test(repoStorage.commit) ? repoStorage.commit : null;
+    // A build is keyed by (commit, tree) (fix round 1, item 5): an identical tree built from ANOTHER commit is a new
+    // version with its own commit and its own built_from edge (assembly reads that commit's nexus.app.json, a preview
+    // stages that commit). The same tree from the same commit is still the same version; blobs dedupe as blobs.
+    const contentHash = commit ? `tree:${tree.manifestSha256}@${commit}` : `tree:${tree.manifestSha256}`;
     const artifactId = this.ownedArtifact(job.participation_id, 'build', 'Build');
     const prior = this.already(job.id, 'dist') ?? (artifactId ? this.sameContent(artifactId, contentHash) : null);
     const exitFacts = { exit: { code: ctx.exited.exit.code, ...(ctx.exited.exit.signal ? { signal: ctx.exited.exit.signal } : {}), oomKilled: ctx.exited.exit.oomKilled } };
     if (prior) return this.dedupe(ctx, prior, EXIT_ZERO, exitZero(exitFacts));
-    const repoMeta = parse(repo.metadata_json);
-    const repoStorage = parse(repo.storage_ref_json);
-    const commit = isObj(repoStorage) && typeof repoStorage.commit === 'string' && COMMIT_RE.test(repoStorage.commit) ? repoStorage.commit : null;
     const previous = artifactId ? this.latestLive(artifactId) : null;
     const v = this.deps.artifacts.insertSystemVersionTx(system, {
       ...(artifactId ? { artifactId } : { newArtifact: { kind: 'build', name: 'Build', participation: job.participation_id } }),
@@ -432,6 +445,19 @@ export class IngestService implements IngestPort {
     const target = cap?.target === 'deployment' || cap?.target === 'job' ? cap.target : null;
     const targetId = typeof cap?.targetId === 'string' ? cap.targetId : null;
     if (!target || !targetId || target !== d.value.target) return refuse('invalid_output', 'bad_input', 'the diagnosis does not match its subject');
+    // The runner reports exactly the containers and attempt logs main planned (job_attempts.sandbox_json, written at the
+    // lease from main's own rows), in the planned order, and every planned attempt is the subject job's.
+    const planned = plannedDiagnosis(ctx.attempt.sandbox_json);
+    if (!planned) return refuse('invalid_output', 'parser_contract', 'the diagnosis plan of this attempt is not recorded');
+    const subjectJob = typeof cap?.jobId === 'string' ? cap.jobId : null;
+    const sameContainers = d.value.containers.length === planned.containerIds.length
+      && d.value.containers.every((c, i) => c.container.sha256 === planned.containerIds[i]);
+    const sameLogs = d.value.logs.length === planned.attemptIds.length && d.value.logs.every((l, i) => l.attemptId === planned.attemptIds[i]);
+    const ownAttempts = subjectJob !== null && planned.attemptIds.every((id) =>
+      !!this.db.prepare('SELECT 1 FROM job_attempts WHERE id = ? AND job_id = ?').get(id, subjectJob));
+    if (!sameContainers || !sameLogs || !ownAttempts) {
+      return refuse('invalid_output', 'parser_contract', 'the diagnosis names containers or attempts that main did not plan for this subject');
+    }
     const subjectVersionId = typeof cap?.subjectVersionId === 'string' ? cap.subjectVersionId : null;
     const report = buildDiagnosticReport(d.value, targetId, target === 'deployment' ? this.probeTable(job.project_id, targetId) : null);
     if (containsSecret(report)) return secretRefusal('diagnostic report');

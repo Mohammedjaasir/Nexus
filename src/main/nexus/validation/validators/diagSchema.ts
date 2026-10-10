@@ -7,13 +7,23 @@
  * - `http`: the probed `path` (a plain absolute path) and the probe's time `at`;
  * - `log`: the `attemptId`, the range read (`offset`, `length`) and the `sha256` of exactly those bytes.
  * A value is a scalar (text up to 1,024 characters, a finite number, a boolean, null) or a digest `{ sha256 }`.
+ *
+ * Fix round 1: a report must hold at least ONE observed field (an inspected container's fact, a log range that was read,
+ * or a probe result: an `inspect`, `log` or `http` source); otherwise it fails with that reason. A container that was not
+ * inspected is sourced `unobserved` (`container.sha256` and `why`: missing, not_owned or unavailable), which never counts
+ * as an observation, and a not_owned or unavailable status is never accepted under an `inspect` source.
  */
+import { DIAGNOSE_CONTAINER_STATUSES } from '../../../../shared/nexus/execution';
 import { failed, passed, type ValidatorOutcome } from '../normalized';
 
 export const ID = 'diag.schema';
 export const VERSION = '1';
 export const SCHEMA_ID = 'diagnostic_report.v1';
-const SOURCES = ['inspect', 'http', 'log'];
+const SOURCES = ['inspect', 'http', 'log', 'unobserved'];
+/** The sources that are observations (evidence a diagnosis actually read). */
+const OBSERVED = ['inspect', 'http', 'log'];
+/** Why a container was not inspected: every shared diagnosis status but `inspected` (missing, not_owned, unavailable). */
+const UNOBSERVED_WHY: readonly string[] = DIAGNOSE_CONTAINER_STATUSES.filter((x) => x !== 'inspected');
 const HEX = /^[0-9a-f]{64}$/;
 const PATH_RE = /^\/[A-Za-z0-9/_.-]{0,200}$/;
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -34,6 +44,12 @@ function sourceProblem(src: Record<string, unknown>): string | null {
     if (typeof src.field !== 'string' || src.field.length === 0 || src.field.length > 100) return 'an inspect source names the inspected field';
     return null;
   }
+  if (src.type === 'unobserved') {
+    const c = src.container;
+    if (!isObj(c) || typeof c.sha256 !== 'string' || !HEX.test(c.sha256)) return 'an unobserved source names its container';
+    if (typeof src.why !== 'string' || !UNOBSERVED_WHY.includes(src.why)) return 'an unobserved source says why (missing, not_owned or unavailable)';
+    return null;
+  }
   if (src.type === 'http') {
     if (typeof src.path !== 'string' || !PATH_RE.test(src.path)) return 'an http source names the probed path';
     if (!isCount(src.at)) return 'an http source names the probe time';
@@ -50,6 +66,7 @@ export function run(report: unknown): ValidatorOutcome {
   if (!isObj(report) || !Array.isArray(report.fields) || report.fields.length === 0 || report.fields.length > 500) {
     errors.push({ path: '/fields', message: 'a report lists 1 to 500 fields' });
   } else {
+    let observed = 0;
     report.fields.forEach((x: unknown, i: number) => {
       if (!isObj(x) || typeof x.name !== 'string' || x.name.length === 0 || x.name.length > 100) errors.push({ path: `/fields/${i}/name`, message: 'each field has a name' });
       if (!isObj(x) || !valueOk(x.value)) errors.push({ path: `/fields/${i}/value`, message: 'a value is a scalar or a digest' });
@@ -59,10 +76,17 @@ export function run(report: unknown): ValidatorOutcome {
       } else {
         const p = sourceProblem(src);
         if (p) errors.push({ path: `/fields/${i}/source`, message: p });
+        else if (src.type === 'inspect' && isObj(x) && (x.value === 'unavailable' || x.value === 'not_owned')) {
+          errors.push({ path: `/fields/${i}/source`, message: 'a container that was not inspected is never sourced as inspect evidence' });
+        } else if (OBSERVED.includes(src.type)) observed++;
       }
     });
+    if (observed === 0) errors.push({ path: '/fields', message: 'the report observed nothing: no inspected container, no log range that was read and no probe result' });
   }
   const evidence = [{ type: 'schema' as const, schemaId: SCHEMA_ID, errors: errors.slice(0, 50) }];
+  if (errors.length === 1 && errors[0].path === '/fields' && /observed nothing/.test(errors[0].message)) {
+    return failed('nothing_observed', 'The diagnostic report observed nothing: no inspected container, no log range that was read and no probe result.', evidence);
+  }
   if (errors.length > 0) return failed('schema', `The diagnostic report breaks its schema (${errors.length} problem(s)).`, evidence);
   return passed('Every field of the report names its source.', evidence);
 }

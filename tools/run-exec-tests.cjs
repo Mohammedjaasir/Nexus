@@ -7,8 +7,9 @@
  *
  * Preflight, every check required (all are evaluated and every failing one is printed, with exact numbers and the
  * action to take):
- *   disk     free space >= 30 GiB at the Docker data volume (C:\ on Windows, where Docker Desktop keeps its disk image)
- *            and at the temp data home (os.tmpdir()); below 40 GiB is a warning
+ *   disk     free space >= 30 GiB at the Docker data volume, LOCATED (fix round 1: Docker Desktop's settings, its
+ *            default disk-image folder, or on Linux the daemon's root; a fallback to C:\ is printed as a note) and at the
+ *            temp data home (os.tmpdir()); below 40 GiB is a warning
  *   docker   `docker version` answers with a Linux server
  *   memory   Docker has >= 4 GiB and >= 2 CPUs
  *   images   sde-node, sde-python and nexus-fwd present, each labelled with the context hash infra/images/lock.json pins
@@ -17,7 +18,8 @@
  *
  * Then every test/nexus-exec-*.test.cjs runs under Electron-as-node (better-sqlite3 is built for Electron) with the
  * test:db rules: a file fails when it exits non-zero, reports 0 tests, skips or leaves a todo, or prints the plain-node
- * skip banner. Output: `[test:exec] PASS n/n`, `[test:exec] FAIL <file> (...)`, or `[test:exec] NOT RUN: <reason>`.
+ * skip banner. Each file also runs this same preflight itself (test/helpers/execGate.cjs) and fails when it is not ok:
+ * no environment variable lets a heavy file run without it. Output: `[test:exec] PASS n/n`, `[test:exec] FAIL <file> (...)`, or `[test:exec] NOT RUN: <reason>`.
  * Exit 0 (pass), 1 (a failure), 3 (not run: a preflight check failed).
  */
 const fs = require('node:fs');
@@ -45,13 +47,66 @@ const exact = (b) => `${Math.round(b).toLocaleString('en-US')} bytes`;
 // ---------------------------------------------------------------- real probes (each injectable for the P tests)
 
 function statfsFree(dir) {
-  try { const s = fs.statfsSync(dir); const n = Number(s.bavail) * Number(s.bsize); return Number.isFinite(n) ? n : null; } catch { return null; }
+  // A located Docker disk image may be a file (a .vhdx or .raw): its folder's volume is measured.
+  for (const p of [dir, path.dirname(dir)]) {
+    try { const s = fs.statfsSync(p); const n = Number(s.bavail) * Number(s.bsize); if (Number.isFinite(n)) return n; } catch { /* the next candidate */ }
+  }
+  return null;
 }
-/** Where Docker keeps its data: Docker Desktop's disk image lives under %LOCALAPPDATA% (C:\ by default). */
+/** Docker Desktop's settings keys that move its disk image or data folder (older `settings.json`, newer `settings-store.json`). */
+const DISK_KEYS = ['diskImageLocation', 'dataFolder', 'customWslDistroDir', 'wslDataDir'];
+
+/**
+ * Where Docker keeps its data, located (fix round 1, item 14) instead of assumed:
+ * 1. Docker Desktop's own settings (Windows: %APPDATA%\Docker\settings-store.json, then settings.json; macOS:
+ *    ~/Library/Group Containers/group.com.docker/settings-store.json, then settings.json): the first of `diskImageLocation`,
+ *    `dataFolder`, `customWslDistroDir`, `wslDataDir` (any letter case) that names an existing folder or file;
+ * 2. Docker Desktop's default disk-image folder when it exists (Windows: %LOCALAPPDATA%\Docker\wsl; macOS:
+ *    ~/Library/Containers/com.docker.docker/Data/vms);
+ * 3. on Linux, the daemon's own root (`docker info` DockerRootDir; on Windows and macOS that path is inside Docker's VM
+ *    and says nothing about the host disk), then /var/lib/docker;
+ * 4. otherwise C:\ (or the home folder / root) with a printed note saying the location was not found.
+ * Returns `{ dir, source, note? }`; free space is measured on the volume holding `dir`. Pure over `o` (tests inject it).
+ */
+function locateDockerData(o = {}) {
+  const platform = o.platform || process.platform;
+  const env = o.env || process.env;
+  const exists = o.exists || ((p) => { try { fs.statSync(p); return true; } catch { return false; } });
+  const readJson = o.readJson || ((p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; } });
+  const home = o.home || os.homedir();
+  const join = platform === 'win32' ? path.win32.join : path.posix.join;
+  const settingsFiles = platform === 'win32'
+    ? (env.APPDATA ? [join(env.APPDATA, 'Docker', 'settings-store.json'), join(env.APPDATA, 'Docker', 'settings.json')] : [])
+    : platform === 'darwin' ? [join(home, 'Library', 'Group Containers', 'group.com.docker', 'settings-store.json'),
+      join(home, 'Library', 'Group Containers', 'group.com.docker', 'settings.json')] : [];
+  for (const f of settingsFiles) {
+    const s = readJson(f);
+    if (!s || typeof s !== 'object') continue;
+    const keys = Object.keys(s);
+    for (const want of DISK_KEYS) {
+      const k = keys.find((x) => x.toLowerCase() === want.toLowerCase());
+      const v = k ? s[k] : null;
+      if (typeof v === 'string' && v.trim() && exists(v.trim())) return { dir: v.trim(), source: `Docker Desktop settings (${k} in ${path.basename(f)})` };
+    }
+  }
+  if (platform === 'win32' && env.LOCALAPPDATA) {
+    const d = join(env.LOCALAPPDATA, 'Docker', 'wsl');
+    if (exists(d)) return { dir: d, source: 'Docker Desktop\'s default disk-image folder' };
+  }
+  if (platform === 'darwin') {
+    const d = join(home, 'Library', 'Containers', 'com.docker.docker', 'Data', 'vms');
+    if (exists(d)) return { dir: d, source: 'Docker Desktop\'s default disk-image folder' };
+  }
+  if (platform !== 'win32' && platform !== 'darwin') {
+    const root = o.dockerRootDir ? o.dockerRootDir() : null;
+    if (typeof root === 'string' && root && exists(root)) return { dir: root, source: 'docker info (DockerRootDir)' };
+    if (exists('/var/lib/docker')) return { dir: '/var/lib/docker', source: 'the default Docker root' };
+  }
+  const fallback = platform === 'win32' ? 'C:\\' : platform === 'darwin' ? home : '/';
+  return { dir: fallback, source: 'fallback', note: `the Docker data location was not found (no Docker Desktop setting, no default disk-image folder); free space is checked at ${fallback} instead.` };
+}
 function dockerDataDir() {
-  if (process.platform === 'win32') return path.parse(process.env.LOCALAPPDATA || os.homedir()).root || 'C:\\';
-  if (process.platform === 'darwin') return os.homedir();
-  return fs.existsSync('/var/lib/docker') ? '/var/lib/docker' : '/';
+  return locateDockerData({ dockerRootDir: () => { const r = docker(['info', '--format', '{{.DockerRootDir}}']); return r.code === 0 ? r.stdout.trim() : null; } });
 }
 function docker(args, timeoutMs = 20_000) {
   const r = spawnSync('docker', args, { encoding: 'utf8', timeout: timeoutMs, windowsHide: true });
@@ -107,16 +162,21 @@ const inside = (child, parent) => {
  * not reachable (never skipped silently).
  */
 function runPreflight(probes = REAL_PROBES) {
-  const checks = []; const warnings = [];
-  // disk: the Docker volume and the temp data home (one check per distinct volume).
-  const dirs = [['the Docker data volume', probes.dockerDataDir()], ['the temp data home', probes.tempDir()]];
+  const checks = []; const warnings = []; const notes = [];
+  // disk: the Docker volume and the temp data home (one check per distinct volume). The probe gives a folder, or
+  // `{ dir, source, note? }` (the located Docker data: its note says when the location fell back to a guess).
+  const located = probes.dockerDataDir();
+  const dockerDir = typeof located === 'string' ? located : located.dir;
+  if (located && typeof located === 'object' && located.note) notes.push(located.note);
+  const dirs = [['the Docker data volume', dockerDir], ['the temp data home', probes.tempDir()]];
   const seenRoots = new Set();
   for (const [what, dir] of dirs) {
     const root = path.parse(path.resolve(dir)).root.toLowerCase();
     if (seenRoots.has(root) && process.platform === 'win32') continue;
     seenRoots.add(root);
     const free = probes.freeBytes(dir);
-    const facts = { dir, freeBytes: free, requiredBytes: REQUIRED_FREE, recommendedBytes: RECOMMENDED_FREE };
+    const facts = { dir, freeBytes: free, requiredBytes: REQUIRED_FREE, recommendedBytes: RECOMMENDED_FREE,
+      ...(dir === dockerDir && located && typeof located === 'object' ? { located: located.source } : {}) };
     if (free === null) {
       checks.push({ id: 'disk', ok: false, facts, notRun: `free disk at ${dir} (${what}) could not be measured; the execution tests need 30 GiB (40 GiB recommended).`,
         action: 'Check that the folder exists and is readable, then run again.' });
@@ -169,7 +229,7 @@ function runPreflight(probes = REAL_PROBES) {
   if (holds.length) checks.push({ id: 'env', ok: false, facts: { holds }, notRun: `${holds.join(', ')} ${holds.length === 1 ? 'is' : 'are'} set.`, action: `Unset ${holds.join(', ')} for the execution tests.` });
   else if (onReal) checks.push({ id: 'env', ok: false, facts: { tempDir: tmp, userData: onReal }, notRun: `the temp data home ${tmp} is inside the app's real userData (${onReal}).`, action: 'Point TEMP/TMPDIR at a scratch folder, then run again.' });
   else checks.push({ id: 'env', ok: true, facts: { tempDir: tmp } });
-  return { ok: checks.every((c) => c.ok), checks, warnings };
+  return { ok: checks.every((c) => c.ok), checks, warnings, notes };
 }
 
 // ---------------------------------------------------------------- the suite (the test:db rules)
@@ -182,7 +242,7 @@ function listFiles() {
 function spawnFile(file) {
   const electron = require('electron');
   return new Promise((resolve) => {
-    const c = spawn(electron, [file], { cwd: ROOT, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', NEXUS_TEST_EXEC: '1' }, stdio: ['ignore', 'pipe', 'inherit'] });
+    const c = spawn(electron, [file], { cwd: ROOT, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, stdio: ['ignore', 'pipe', 'inherit'] });
     let text = ''; let settled = false; let timedOut = false;
     const done = (code) => { if (settled) return; settled = true; clearTimeout(timer); resolve({ code, text, timedOut }); };
     const timer = setTimeout(() => {
@@ -215,8 +275,9 @@ async function main(o = {}) {
   const reportPath = o.reportPath || path.join(os.tmpdir(), REPORT_NAME);
   const pre = runPreflight(o.probes || REAL_PROBES);
   const report = { at: new Date().toISOString(), ok: pre.ok, checks: pre.checks.map(({ id, ok, facts, notRun, action }) => ({ id, ok, facts, ...(ok ? {} : { notRun, action }) })),
-    warnings: pre.warnings, files: [], result: pre.ok ? 'running' : 'not_run', exitCode: null };
+    warnings: pre.warnings, notes: pre.notes || [], files: [], result: pre.ok ? 'running' : 'not_run', exitCode: null };
   const write = () => { try { fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`); } catch (e) { log(`[test:exec] the preflight report was not written: ${e.message}`); } };
+  for (const n of pre.notes || []) log(`[test:exec] note: ${n}`);
   for (const w of pre.warnings) log(`[test:exec] warning: ${w}`);
   if (!pre.ok) {
     for (const c of pre.checks.filter((x) => !x.ok)) log(`[test:exec] NOT RUN: ${c.notRun} ${c.action}`);
@@ -246,4 +307,4 @@ if (require.main === module) {
   main().then((code) => process.exit(code), (e) => { console.error(`[test:exec] FAIL the runner itself failed: ${e && e.message}`); process.exit(EXIT.FAIL); });
 }
 
-module.exports = { runPreflight, main, verdict, listFiles, REAL_PROBES, EXIT, REPORT_NAME, REQUIRED_FREE, RECOMMENDED_FREE, MIN_MEMORY, MIN_CPUS, PROFILES };
+module.exports = { runPreflight, main, verdict, listFiles, locateDockerData, REAL_PROBES, EXIT, REPORT_NAME, REQUIRED_FREE, RECOMMENDED_FREE, MIN_MEMORY, MIN_CPUS, PROFILES };

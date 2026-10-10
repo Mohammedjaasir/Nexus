@@ -9,7 +9,8 @@ const assert = require('node:assert/strict');
 const { realDockerOrSkip } = require('./helpers/execGate.cjs');
 
 if (realDockerOrSkip()) {
-  const { runnerHarness, docker, dockerJson, hostServer, lanAddress, httpGet, sleep } = require('./helpers/execReal.cjs');
+  const { runnerHarness, realWorld, docker, dockerJson, hostServer, lanAddress, httpGet, sleep } = require('./helpers/execReal.cjs');
+  const { jobEnds } = require('./helpers/recipeFlows.cjs');
   const { faultyCreate } = require('./helpers/createFaults.cjs');
   const { exitFailure } = require('./load-ts.cjs')('src/main/nexus/exec/recovery.ts');
   const { getRecipe } = require('./load-ts.cjs')('src/shared/nexus/recipes.ts');
@@ -38,12 +39,27 @@ if (realDockerOrSkip()) {
     assert.equal(r.exited.exit.code, 0);
   });
 
-  test('K2 memory limit: inspect equals (no swap); allocating 2 x the limit is OOM-killed and main fails it `oom`', LONG, async () => {
+  test('K2 memory limit: inspect equals (no swap); allocating 2 x the limit is OOM-killed and main fails it `oom` (main\'s own job outcome, not only the pure rule)', LONG, async () => {
     const r = await probe("node -e \"const a=[];for(;;)a.push(Buffer.alloc(64*1024*1024,1))\"");
     assert.equal(r.prov.preflight.observed.memory, 2048 * 2 ** 20);
     assert.equal(r.prov.preflight.observed.memorySwap, 2048 * 2 ** 20);
     assert.equal(r.exited.exit.oomKilled, true, 'the kernel killed it for memory');
     assert.equal(exitFailure(getRecipe('sde.build.node'), r.exited.exit, [], [], null).outcome, 'oom');
+    // Fix round 1, item 13: the same allocation as a real job through main (the wiring, the runner child, ingest): the
+    // job and its attempt end `failed` / `oom` in main's own rows.
+    const x = await realWorld();
+    try {
+      const pkg = JSON.parse(x.fixtureFile('node-test-app', 'package.json'));
+      await x.useFixture('node-test-app', { 'package.json': JSON.stringify({ ...pkg, scripts: { build: 'node -e "const a=[];for(;;)a.push(Buffer.alloc(64*1024*1024,1))"' } }, null, 2),
+        'src/handler.js': x.fixtureFile('node-test-app', 'src/handler.js').replace('hello from node-test-app', 'hello (K2 oom)') });
+      const repo = (await x.snapshot()).versionId;
+      const j = x.start('sde.build.run', { inputs: [{ versionId: repo, slot: 'repository' }] });
+      const ended = await jobEnds(x, j.id, 5 * 60_000);
+      assert.deepEqual([ended.state, ended.outcome], ['failed', 'oom'], `main's job outcome (${ended.error_json})`);
+      const att = x.attemptsOf(j.id).pop();
+      assert.deepEqual([att.state, att.outcome, att.oom_killed], ['failed', 'oom', 1], 'the attempt row records the OOM kill');
+      assert.match(JSON.parse(ended.error_json).message, /OOMKilled true/);
+    } finally { await x.close(); }
   });
 
   test('K3 process limit: pids.max = 512; spawning until EAGAIN reports refusals and the container survives', LONG, async () => {

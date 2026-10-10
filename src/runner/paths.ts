@@ -9,6 +9,7 @@
  *   logs/images/<buildId>.log                image build logs
  *   work/<jobId>/<n>/{in,out}                staging; plus `plan.json` and `exit.json` beside them
  */
+import { constants as fsConstants } from 'node:fs';
 import * as path from 'node:path';
 import type { RunnerFs } from './types';
 
@@ -108,3 +109,51 @@ export async function noLinkUnder(fs: RunnerFs, root: string, p: string): Promis
 }
 
 export { errCode };
+
+/** O_NOFOLLOW where the platform has one (POSIX: opening a final-component link fails); 0 on Windows (no such flag). */
+export const NOFOLLOW: number = typeof fsConstants.O_NOFOLLOW === 'number' ? fsConstants.O_NOFOLLOW : 0;
+
+export type PlainRead = { ok: true; bytes: Buffer } | { ok: false; why: 'missing' | 'link' | 'hardlink' | 'not_a_file' | 'too_large' | 'changed' };
+
+/**
+ * Reads a file a container could have written (a file under `/out`), never through a link (B2a Task 12 fix round 1):
+ * lstat first (a symlink, a junction, a second hard link or anything but a regular file is refused, and so is a file
+ * over `maxBytes`), then the open (O_NOFOLLOW where the platform has it), re-checked on the open handle (device, inode,
+ * size and link count must still be the lstat's): a swap between the check and the open is refused. Never throws for
+ * a refusal; an I/O error other than ENOENT is thrown.
+ */
+export async function readPlainFile(fs: RunnerFs, p: string, maxBytes: number): Promise<PlainRead> {
+  let st;
+  try { st = await fs.lstat(p); } catch (e) { if (errCode(e) === 'ENOENT') return { ok: false, why: 'missing' }; throw e; }
+  if (st.isSymbolicLink()) return { ok: false, why: 'link' };
+  if (!st.isFile()) return { ok: false, why: 'not_a_file' };
+  if (st.nlink > 1) return { ok: false, why: 'hardlink' };
+  if (st.size > maxBytes) return { ok: false, why: 'too_large' };
+  let fh;
+  try { fh = await fs.open(p, fsConstants.O_RDONLY | NOFOLLOW); } catch (e) {
+    const c = errCode(e);
+    if (c === 'ELOOP' || c === 'EMLINK') return { ok: false, why: 'link' };
+    if (c === 'ENOENT') return { ok: false, why: 'missing' };
+    throw e;
+  }
+  try {
+    const s2 = await fh.stat();
+    if (!s2.isFile() || s2.ino !== st.ino || s2.dev !== st.dev || s2.size !== st.size || s2.nlink !== st.nlink) return { ok: false, why: 'changed' };
+    const buf = Buffer.alloc(st.size);
+    let got = 0;
+    while (got < buf.length) {
+      const { bytesRead } = await fh.read(buf, got, buf.length - got, got);
+      if (bytesRead === 0) break;
+      got += bytesRead;
+    }
+    if (got !== st.size) return { ok: false, why: 'changed' };
+    return { ok: true, bytes: buf };
+  } finally { await fh.close(); }
+}
+
+/** What stands at `p`: nothing, a plain single-link regular file, or anything else (a link, a junction, a hard link, a folder, ...). */
+export async function plainFileOrAbsent(fs: RunnerFs, p: string): Promise<'absent' | 'plain' | 'other'> {
+  let st;
+  try { st = await fs.lstat(p); } catch (e) { if (errCode(e) === 'ENOENT') return 'absent'; throw e; }
+  return !st.isSymbolicLink() && st.isFile() && st.nlink === 1 ? 'plain' : 'other';
+}

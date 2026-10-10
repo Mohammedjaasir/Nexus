@@ -30,7 +30,7 @@
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import {
-  IMAGE_VERSIONS_RE, type AttemptPlan, type ContainerSpec, type EnginePlan, type ExitInfo, type OutputErrorCode, type ParsedOutput, type SandboxProfile,
+  IMAGE_VERSIONS_RE, STEP_SEPARATOR_TOKEN, type AttemptPlan, type ContainerSpec, type EnginePlan, type ExitInfo, type OutputErrorCode, type ParsedOutput, type SandboxProfile,
   type SandboxProbe, type ServicePlan, type StagedOutput, type ToolPlan
 } from '../shared/nexus/execution';
 import {
@@ -42,7 +42,7 @@ import { containsSecret, redactSecretText } from '../main/nexus/activity/redact'
 import { diagnose, diagnoseTaskProblem } from './diagnose';
 import { appManifestArgv, COMMIT_RE, GitRunner } from './git';
 import { ImageBuilder } from './imageBuilder';
-import { mergePerFileJunit } from './junitMerge';
+import { discardUnmergedReport, mergePerFileJunit } from './junitMerge';
 import { LogWriter } from './logs';
 import { ObjectStore } from './objectStore';
 import { collectOut, outBytes, showEntry } from './outputs';
@@ -463,6 +463,8 @@ export class RunnerCore {
       if (!pf || pf.dir !== 'junit' || !Array.isArray(pf.files) || argv[0] !== 'nexus-node-test' || sep < 0) return 'the per-file report plan is malformed';
       const tail = argv.slice(sep + 1);
       if (tail.length !== pf.files.length || tail.some((x, i) => x !== pf.files[i])) return 'the per-file report mapping is not the files the plan runs';
+      // A file equal to the entry's step separator would cut the step in two (fix round 1, item 8).
+      if (pf.files.some((f) => typeof f !== 'string' || f === STEP_SEPARATOR_TOKEN || f.startsWith('-'))) return 'a per-file test file is not a plain relative path';
     }
     if (plan.staging.depsVolume && !DEPS_VOLUME_RE.test(plan.staging.depsVolume.name)) return 'the deps volume is not a dependency cache volume';
     const rl = plan.resourceLabels;
@@ -694,14 +696,25 @@ export class RunnerCore {
   private async finishFromRecord(a: AttemptState, plan: ToolPlan | null, rec: ExitRecord): Promise<void> {
     let outputs: StagedOutput[] = []; let parsed: ParsedOutput[] = [];
     let outputError: OutputErrorCode | undefined = rec.guard; let entry: string | undefined;
+    // A per-file node:test plan whose reports were not merged parses no junit.xml (the container's own is never taken).
+    let skipJunit = false;
     if (!rec.reason && !outputError && plan && this.store) {
-      // node:test: the per-file reports are merged into junit.xml first, every case attributed to its file (A5).
+      // node:test: the per-file reports are merged into junit.xml first, every case attributed to its file (A5). The
+      // merged report is written in the work folder (never inside the container-writable /out) and renamed into place.
       if (plan.perFileJunit && this.paths) {
+        const outDir = path.join(a.workDir, 'out');
+        let merged = false;
         try {
-          const m = await mergePerFileJunit(this.fs, this.paths.root, path.join(a.workDir, 'out'), plan.perFileJunit.files);
+          const m = await mergePerFileJunit(this.fs, this.paths.root, outDir, plan.perFileJunit.files, a.workDir);
           for (const n of m.notes.slice(0, 20)) a.log?.nexus(n);
+          merged = m.merged;
           if (m.merged) a.log?.nexus(`the per-file reports were merged: ${m.cases} test case(s) attributed to ${plan.perFileJunit.files.length} file(s)`);
         } catch (e) { a.log?.nexus(`the per-file reports were not merged: ${msgOf(e)}`); }
+        if (!merged) {
+          skipJunit = true;
+          a.log?.nexus('no per-file report folder was merged: junit.xml is not parsed (a per-file run is judged only on its per-file reports)');
+          try { const note = await discardUnmergedReport(this.fs, this.paths.root, outDir); if (note) a.log?.nexus(note); } catch (e) { a.log?.nexus(`junit.xml was not checked: ${msgOf(e)}`); }
+        }
       }
       this.event(a, 'hashing');
       const c = await collectOut(this.fs, this.store, path.join(a.workDir, 'out'),
@@ -709,7 +722,7 @@ export class RunnerCore {
       if (!c.ok) { outputError = c.code; entry = showEntry(c.entry); a.log?.nexus(`the outputs were refused: ${c.code} (${entry})`); }
       else outputs = c.outputs;
       a.outBytes = outputs.reduce((s, o) => s + o.bytes, 0);
-      if (outputs.length > 0 && plan.parse.length > 0) { this.event(a, 'parsing'); parsed = await this.parseOutputs(a, plan, outputs); }
+      if (outputs.length > 0 && plan.parse.length > 0) { this.event(a, 'parsing'); parsed = await this.parseOutputs(a, plan, outputs, skipJunit); }
     }
     if (a.released) return;
     try { await a.log?.close(); } catch { /* closed */ }
@@ -720,9 +733,10 @@ export class RunnerCore {
     a.settled = true;
   }
 
-  private async parseOutputs(a: AttemptState, plan: ToolPlan, outputs: readonly StagedOutput[]): Promise<ParsedOutput[]> {
+  private async parseOutputs(a: AttemptState, plan: ToolPlan, outputs: readonly StagedOutput[], skipJunit = false): Promise<ParsedOutput[]> {
     const out: ParsedOutput[] = [];
     for (const p of plan.parse) {
+      if (p.parser === 'junit' && skipJunit) continue;
       const o = outputs.find((x) => x.relPath === p.relPath);
       if (!o) continue;
       if (p.parser === 'junit' && o.bytes > JUNIT_MAX_BYTES) { a.log?.nexus('the JUnit report is over 16 MiB; it was not parsed'); continue; }

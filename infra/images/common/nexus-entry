@@ -14,7 +14,8 @@
 #       nexus-glob --out <file> <pattern>...       files matching `**/<name>` or `<dir>/**/<name>` (node_modules and
 #                                                  .git skipped), one relative path per line, sorted, to <file>
 #       nexus-capture --out <file> -- <argv>...    runs argv with its standard output written to <file>
-#       nexus-collect --from <rel> --to <path>     copies the relative folder <rel> to <path> (under /out), links as links
+#       nexus-collect --from <rel> --to <path>     copies the relative folder <rel> to <path> (under /out), links as links;
+#                                                  <rel> or any folder on its way that is a link is refused (exit 66)
 #       nexus-node-test --out-dir <dir> -- <file>...  node --test once per file, each with its own JUnit report
 #                                                  <dir>/0001.xml, 0002.xml, ... (the runner merges and attributes them)
 #     Every <file>, <path> and <dir> is under /out; every <rel> is relative with no `..`. Any other step runs as given.
@@ -76,6 +77,14 @@ collect_step() {
   [ "$1" = --from ] && [ "$3" = --to ] && [ $# -eq 4 ] || die 'nexus-collect: --from <rel> --to <path>'
   rel_ok "$2" && [ "$2" != . ] || die "nexus-collect: the build folder is not a plain relative path: $2"
   out_path "$4"; dest=$OUT_PATH
+  # A link anywhere on the way to the build folder is refused: "$2/." would follow it and copy whatever it points at.
+  rest=$2; prefix=
+  while [ -n "$rest" ]; do
+    seg=${rest%%/*}
+    case "$rest" in */*) rest=${rest#*/} ;; *) rest= ;; esac
+    prefix=${prefix:+$prefix/}$seg
+    [ -L "$prefix" ] && die "nexus-collect: the build folder is a link: $prefix" 66
+  done
   [ -d "$2" ] || die "nexus-collect: the build wrote no $2 folder" 66
   mkdir -p "$dest" || die "nexus-collect: cannot create $4" 73
   cp -R -P "$2/." "$dest/"

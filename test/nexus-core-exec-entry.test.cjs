@@ -149,3 +149,90 @@ test('E6 /in/src.tar is extracted into /workspace and /in/dist staged as /worksp
   assert.equal(x.code, 0, x.err);
   assert.deepEqual(fs.readFileSync(path.join(r, 'out', 'ls.txt'), 'utf8').split('\n').filter(Boolean).sort(), ['./dist/index.html', './package.json', './src/app.js']);
 });
+
+// ---------- B2a Task 12 fix round 1 ----------
+
+test('E7 (item 7) nexus-collect refuses a build folder that is a link, or a link on its way: nothing behind it is copied into /out', { skip }, () => {
+  const r = box();
+  const secret = fs.mkdtempSync(path.join(os.tmpdir(), 'nx-entry-secret-')); made.push(secret);
+  fs.writeFileSync(path.join(secret, 'key.txt'), 'outside the build\n');
+  fs.symlinkSync(secret, path.join(r, 'workspace', 'dist'), 'junction');
+  const x = entry(r, ['true', STEP_SEPARATOR, ...ARGV_TEMPLATES['entry.collect-output']]);
+  assert.equal(x.code, 66, x.err);
+  assert.match(x.err, /the build folder is a link: dist/);
+  assert.deepEqual(fs.readdirSync(path.join(r, 'out')), [], 'nothing was copied');
+  // A link on the way to a nested build folder.
+  fs.mkdirSync(path.join(secret, 'out'));
+  fs.symlinkSync(secret, path.join(r, 'workspace', 'build'), 'junction');
+  const nested = entry(r, ['nexus-collect', '--from', 'build/out', '--to', '/out/x']);
+  assert.equal(nested.code, 66, nested.err);
+  assert.match(nested.err, /the build folder is a link: build$/m);
+  assert.equal(fs.existsSync(path.join(r, 'out', 'x')), false);
+  // A plain folder is still collected.
+  put(path.join(r, 'workspace'), 'site/index.html', '<p>ok</p>\n');
+  assert.equal(entry(r, ['nexus-collect', '--from', 'site', '--to', '/out/site']).code, 0);
+  assert.equal(fs.readFileSync(path.join(r, 'out', 'site', 'index.html'), 'utf8'), '<p>ok</p>\n');
+});
+
+const FWD = path.join(ROOT, 'infra', 'images', 'nexus-fwd', 'fwd-entry');
+test('E8 (item 9) fwd-entry: socat is a child of the entry shell (never exec\'d as PID 1); it ends at the wall clock (SIGTERM, then SIGKILL 10 s later when it ignores TERM); a stop is passed on; a wall clock out of 1..604800 or another program is refused', { skip }, () => {
+  const src = fs.readFileSync(FWD, 'utf8');
+  assert.match(src, /^"\$@" &$/m, 'socat runs in the background, supervised');
+  assert.doesNotMatch(src, /^\s*exec\b/m, 'nothing is exec\'d in place of the supervising shell');
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'nx-entry-bin-')); made.push(bin);
+  fs.writeFileSync(path.join(bin, 'socat'), "#!/bin/sh\ncase \"$1\" in\n  quick) echo \"socat ran: $*\"; exit 0 ;;\n  ignore) trap '' TERM; exec sleep 30 ;;\n  *) exec sleep 30 ;;\nesac\n", { mode: 0o755 });
+  const base = { ...process.env };
+  delete base.NEXUS_WALL_SECONDS; delete base.NODE_TEST_CONTEXT;
+  const pathKey = Object.keys(base).find((k) => k.toUpperCase() === 'PATH') || 'PATH';
+  base[pathKey] = `${bin}${path.delimiter}${base[pathKey] ?? ''}`;
+  const fwd = (args, wall) => {
+    const t0 = Date.now();
+    const r = spawnSync(SH, [shPath(FWD), ...args], { encoding: 'utf8', timeout: 60_000, windowsHide: true,
+      env: { ...base, ...(wall === undefined ? {} : { NEXUS_WALL_SECONDS: wall }), MSYS: 'noglob' } });
+    return { code: r.status, out: r.stdout, err: r.stderr, ms: Date.now() - t0 };
+  };
+  for (const bad of [undefined, '', '0', '1x', '604801', '9999999']) {
+    const x = fwd(['socat', 'quick'], bad);
+    assert.equal(x.code, 64, `NEXUS_WALL_SECONDS=${bad}`);
+    assert.match(x.err, /NEXUS_WALL_SECONDS/);
+  }
+  assert.equal(fwd(['sh', '-c', 'echo pwned'], '5').code, 64, 'only socat runs');
+  const quick = fwd(['socat', 'quick', '; touch pwned'], '604800');
+  assert.equal(quick.code, 0, quick.err);
+  assert.equal(quick.out, 'socat ran: quick ; touch pwned\n', 'its argv as given, one element each');
+  const term = fwd(['socat', 'listen'], '1');
+  assert.equal(term.code, 143, 'SIGTERM at the wall clock');
+  assert.ok(term.ms < 8_000, `ended at its wall clock (${term.ms} ms)`);
+  const kill = fwd(['socat', 'ignore'], '1');
+  assert.equal(kill.code, 137, 'SIGKILL 10 s after the TERM it ignored');
+  assert.ok(kill.ms >= 10_000 && kill.ms < 25_000, `wall clock + 10 s (${kill.ms} ms)`);
+  // `docker stop` sends SIGTERM to PID 1 (the entry shell): it is passed on to socat at once. (No double quotes in the
+  // script: a Windows parent's command line would mangle them for Git's sh; the entry's path has no space.)
+  const stop = spawnSync(SH, ['-c', 'NEXUS_WALL_SECONDS=600 sh $1 socat listen & p=$!; sleep 1; kill -TERM $p; wait $p; echo rc=$?', 'wrapper', shPath(FWD)],
+    { encoding: 'utf8', timeout: 60_000, windowsHide: true, env: { ...base, MSYS: 'noglob' } });
+  assert.match(stop.stdout, /^rc=143$/m, `${stop.stdout} ${stop.stderr}`);
+});
+
+test('E9 (item 8) a job value equal to the step separator is refused everywhere it could reach the entry: the manifest argv (plan and schema), the discovered files (plan and discovery check)', () => {
+  const { checkRunArgv, buildPlan } = loadTs('src/main/nexus/exec/planBuilder.ts');
+  const { appManifestErrors, checkDiscovery } = loadTs('src/main/nexus/validation/normalized.ts');
+  const { getRecipe } = loadTs('src/shared/nexus/recipes.ts');
+  const { STEP_SEPARATOR_TOKEN } = loadTs('src/shared/nexus/execution.ts');
+  assert.equal(STEP_SEPARATOR, STEP_SEPARATOR_TOKEN, 'one definition');
+  const reason = (fn) => { try { fn(); return null; } catch (e) { return e.detail?.reason ?? e.message; } };
+  assert.equal(reason(() => checkRunArgv(['node', 'src/server.js', STEP_SEPARATOR, 'sh', '-c', 'id'])), 'bad_input');
+  assert.deepEqual(checkRunArgv(['node', 'src/server.js', '--nexus-thenx']), ['node', 'src/server.js', '--nexus-thenx'], 'only the exact token');
+  const manifest = { version: 1, profile: 'sde-node', run: ['node', 'src/server.js', STEP_SEPARATOR, 'id'], port: 3000, healthPath: '/health' };
+  assert.ok(appManifestErrors(manifest).some((e) => e.path === '/run' && /step separator/.test(e.message)));
+  assert.deepEqual(appManifestErrors({ ...manifest, run: ['node', 'src/server.js'] }), []);
+  assert.equal(checkDiscovery({ framework: 'node-test', ids: ['a.test.js'], files: ['a.test.js', STEP_SEPARATOR] }).ok, false);
+  assert.equal(checkDiscovery({ framework: 'node-test', ids: ['a.test.js'], files: ['a.test.js'] }).ok, true);
+  const profile = { id: 'sde-node', image: { repository: 'nexus/sde-node', digest: `sha256:${'7'.repeat(64)}` }, user: { uid: 10001, gid: 10001 },
+    defaults: { cpus: 1, memoryMb: 1024, pids: 512, wallClockMs: 60000, outputMaxBytes: 2 ** 20, tmpfsMb: 512 }, entrypoint: ['/opt/nexus/nexus-entry'], imageEnv: ['PATH'] };
+  const plan = (files) => buildPlan({ job: { id: '01K7A0J0B000000000000000AA', projectId: 'p' }, attempt: { id: '01K7A0ATTEMPT0000000000AAA', n: 1 }, bootId: 'b',
+    recipe: getRecipe('sde.test.node'), profile, imageId: `sha256:${'1'.repeat(64)}`, dataHomeRoot: path.resolve(os.tmpdir(), 'nx-e9-home'),
+    workRel: 'work/01K7A0J0B000000000000000AA/1', logRel: 'logs/jobs/01K7A0J0B000000000000000AA/1.log',
+    inputs: [{ versionId: 'V', slot: 'suite', contentHash: 'x', storage: { kind: 'inline' }, metadata: { framework: 'node-test', files } }], repoPath: null, approval: null, framework: null });
+  assert.deepEqual(plan(['test/a.test.js']).perFileJunit.files, ['test/a.test.js']);
+  assert.equal(reason(() => plan(['test/a.test.js', STEP_SEPARATOR])), 'bad_input');
+});

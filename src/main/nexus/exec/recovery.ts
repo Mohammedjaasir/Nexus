@@ -318,13 +318,28 @@ export function contractMet(required: readonly string[], outputs: readonly Stage
  * runner refused, an OOM kill, a non-zero exit of a recipe without a test report, or a missing contract output (a tree
  * output is judged by its validators instead).
  */
-export function exitFailure(recipe: RecipeDef, exit: { code: number | null; oomKilled: boolean }, outputs: readonly StagedOutput[],
+const SIGNAL_NAMES: Readonly<Record<number, string>> = Object.freeze({ 1: 'SIGHUP', 2: 'SIGINT', 3: 'SIGQUIT', 4: 'SIGILL', 6: 'SIGABRT', 7: 'SIGBUS',
+  8: 'SIGFPE', 9: 'SIGKILL', 11: 'SIGSEGV', 13: 'SIGPIPE', 14: 'SIGALRM', 15: 'SIGTERM' });
+
+/**
+ * The exit as a sentence a reader can act on (fix round 1, item 15): `exit 137 (SIGKILL), OOMKilled false`. A code above
+ * 128 is a death by signal (128 + n); a reported signal name is used as given. Never a secret: numbers and fixed names.
+ */
+export function exitDetail(exit: { code: number | null; signal?: string | null; oomKilled: boolean }): string {
+  const code = exit.code === null ? 'no exit code' : `exit ${exit.code}`;
+  const sig = typeof exit.signal === 'string' && /^SIG[A-Z0-9]{1,10}$/.test(exit.signal) ? exit.signal
+    : exit.code !== null && exit.code > 128 && exit.code < 160 ? (SIGNAL_NAMES[exit.code - 128] ?? `signal ${exit.code - 128}`) : null;
+  return `${code}${sig ? ` (${sig})` : ''}, OOMKilled ${exit.oomKilled ? 'true' : 'false'}`;
+}
+
+export function exitFailure(recipe: RecipeDef, exit: { code: number | null; signal?: string | null; oomKilled: boolean }, outputs: readonly StagedOutput[],
   parsed: readonly ParsedOutput[], outputError?: string | null): { outcome: string; error: { code: string; message: string } } | null {
   const tests = recipe.parsers.includes('junit');
   const treeOutput = recipe.produces.some((k) => getKind(k)?.storage.includes('tree'));
   if (outputError) return { outcome: 'invalid_output', error: { code: outputError, message: `the outputs were refused: ${outputError}` } };
-  if (exit.oomKilled) return { outcome: 'oom', error: { code: 'oom', message: 'the container ran out of memory' } };
-  if (!tests && exit.code !== 0) return { outcome: 'nonzero_exit', error: { code: 'nonzero_exit', message: `exit code ${exit.code}` } };
+  if (exit.oomKilled) return { outcome: 'oom', error: { code: 'oom', message: `the container ran out of memory (${exitDetail(exit)})` } };
+  // An outside kill (docker kill: exit 137, not OOM) stays nonzero_exit, with the signal and the OOM flag in the error.
+  if (!tests && exit.code !== 0) return { outcome: 'nonzero_exit', error: { code: 'nonzero_exit', message: exitDetail(exit) } };
   if (!treeOutput && !contractMet(recipe.outputContract.required, outputs, parsed, recipe.executor === 'engine')) {
     return { outcome: 'invalid_output', error: { code: 'outputs_missing', message: `required outputs missing: ${recipe.outputContract.required.join(', ')}` } };
   }

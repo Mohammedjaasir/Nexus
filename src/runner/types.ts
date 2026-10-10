@@ -61,10 +61,12 @@ export interface RunnerDriver extends SandboxDriver {
   /** The local image Nexus built for a profile (labelled `nexus.profile`), with its context label. */
   imageInfo(profile: SandboxProfileId): Promise<ImageInfo>;
   /**
-   * A diagnosis's view of one container (B2a Task 12): its labels (ownership is checked by the caller first) and the
-   * fixed fact set of `docker inspect`; null when it does not exist. Throws when Docker cannot answer.
+   * A diagnosis's view of one container (B2a Task 12; fix round 1): ownership is checked FIRST from its labels alone
+   * (this install's `nexus.home` = `home` and an `nexus.attempt`); a container that is not owned is `{ owned: false }`
+   * and nothing else of it is read (never its environment). An owned one gives the fixed fact set of `docker inspect`.
+   * null when it does not exist; throws when Docker cannot answer.
    */
-  inspectFacts(containerId: string): Promise<{ labels: Record<string, string>; facts: DiagnoseContainerFacts } | null>;
+  inspectFacts(containerId: string, home: string): Promise<{ owned: false } | { owned: true; facts: DiagnoseContainerFacts } | null>;
 }
 
 /** The transport: a MessagePort-like object (node:worker_threads MessagePort in tests, Electron's in the app). */
