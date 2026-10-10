@@ -116,7 +116,9 @@ class FakeClock {
 }
 
 const tick = () => new Promise((r) => setImmediate(r));
-async function until(pred, what, ms = 4000) {
+// The wait only bounds how long a fake-driver event may take to arrive; the event itself is still required.
+// 15 s keeps a full `node --test test/` run (many files in parallel) from timing out on a loaded machine.
+async function until(pred, what, ms = 15_000) {
   const t0 = Date.now();
   for (;;) {
     if (pred()) return;
