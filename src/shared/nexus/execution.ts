@@ -19,7 +19,12 @@ export const HOME_TMPFS_MB = 256;
 
 export interface SandboxProfile {
   id: SandboxProfileId;
-  image: { repository: string; digest: `sha256:${string}` };   // pinned; recorded per attempt
+  /**
+   * `repository` and `digest` name the pinned base (recorded per attempt). `source`: `built` (default; every B2a
+   * profile: Nexus builds the image locally, so containers are created by the local image id `sha256:<id>`) or
+   * `pulled` (an image pulled from a registry by digest: containers are created by `repository@digest`).
+   */
+  image: { repository: string; digest: `sha256:${string}`; source?: 'built' | 'pulled' };
   user: { uid: 10001; gid: 10001 };                              // non-root
   defaults: ResourceLimits;
   /** The Nexus-owned entry (`nexus-entry <wallSeconds> … --`); the recipe argv follows it as `Cmd`. */
@@ -157,12 +162,15 @@ export const PARSER_IDS: readonly ParserId[] = ['junit', 'discovery', 'app-manif
 /** A parser's normalized result. `normalized` is schema-checked again by main before it becomes evidence. */
 export interface ParsedOutput { parser: ParserId; sourceSha256: string; normalized: unknown }
 
-/** Why the runner refused the contents of `/out` (no output from that attempt is trusted). */
+/**
+ * Why the runner refused the contents of `/out` (no output from that attempt is trusted). `secret_in_report`: a parser
+ * result held a secret-shaped value, so the runner withheld it (no secret leaves the runner in a message).
+ */
 export type OutputErrorCode =
   | 'symlink' | 'hardlink' | 'special_file' | 'bad_name' | 'file_locked' | 'too_many_files'
-  | 'output_too_large' | 'workspace_too_large';
+  | 'output_too_large' | 'workspace_too_large' | 'secret_in_report';
 export const OUTPUT_ERROR_CODES: readonly OutputErrorCode[] = ['symlink', 'hardlink', 'special_file', 'bad_name', 'file_locked',
-  'too_many_files', 'output_too_large', 'workspace_too_large'];
+  'too_many_files', 'output_too_large', 'workspace_too_large', 'secret_in_report'];
 
 // ----- attempt plans (main → runner); every path in a plan is main-owned, under the data home -----
 

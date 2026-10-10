@@ -12,6 +12,8 @@ import type { RunnerFs } from './types';
 
 export const LOG_CAP_BYTES = 50 * 2 ** 20;
 export const MAX_LINE_CHARS = 16_384;
+/** What an over-long unterminated line keeps back when it is flushed early (longer than any credential shape). */
+export const OVERLAP_CHARS = 512;
 export const TRUNCATED_TEXT = '[output truncated: the middle of the output was dropped]';
 
 type Stream = 'stdout' | 'stderr' | 'nexus';
@@ -48,25 +50,47 @@ export class LogWriter {
   bytes(): number { return this.written; }
   get truncatedMiddle(): boolean { return this.truncated; }
 
-  /** A chunk of container output: split into lines; a partial line waits for its end (or close). */
+  /**
+   * A chunk of container output: split into lines; a partial line waits for its end (or close). An unterminated line
+   * that grows past MAX_LINE_CHARS is flushed only up to its last separator (else all but the last OVERLAP_CHARS), so
+   * the token being written stays whole in the buffer and is redacted once it is complete: a key is never split
+   * before redaction.
+   */
   write(stream: 'stdout' | 'stderr', chunk: string): void {
     if (this.closed) return;
     const text = this.partial[stream] + chunk;
     const lines = text.split('\n');
     this.partial[stream] = lines.pop() ?? '';
-    if (this.partial[stream].length > MAX_LINE_CHARS) { lines.push(this.partial[stream]); this.partial[stream] = ''; }
     for (const l of lines) this.frame(stream, l.endsWith('\r') ? l.slice(0, -1) : l);
+    while (this.partial[stream].length > MAX_LINE_CHARS) {
+      // Keep at least the last OVERLAP_CHARS back (a phrase like `Authorization: Bearer <value>` stays together), and cut
+      // at the last separator before that point when there is one.
+      const p = this.partial[stream];
+      const limit = p.length - OVERLAP_CHARS;
+      const sep = Math.max(p.lastIndexOf(' ', limit), p.lastIndexOf('\t', limit));
+      const cut = sep > 0 ? sep : limit;
+      this.frame(stream, p.slice(0, cut));
+      this.partial[stream] = p.slice(cut);
+    }
   }
 
   /** A line written by the runner itself (redacted like any other). */
   nexus(text: string): void { if (!this.closed) this.frame('nexus', text); }
 
+  /** One logical line: redacted WHOLE first, then cut into frames (a secret never straddles a frame unredacted). */
   private frame(stream: Stream, line: string): void {
-    for (let i = 0; i < Math.max(1, line.length); i += MAX_LINE_CHARS) {
-      const piece = line.slice(i, i + MAX_LINE_CHARS);
-      const s = `${JSON.stringify({ ts: this.o.now(), stream, text: redactSecretText(piece) })}\n`;
+    const clean = redactSecretText(line);
+    const MARK = '[redacted]';
+    let i = 0;
+    do {
+      let cut = Math.min(clean.length, i + MAX_LINE_CHARS);
+      // A cut never splits a redaction marker (a reader always sees `[redacted]` whole).
+      const m = clean.lastIndexOf(MARK, cut - 1);
+      if (cut < clean.length && m > i && m < cut && m + MARK.length > cut) cut = m;
+      const s = `${JSON.stringify({ ts: this.o.now(), stream, text: clean.slice(i, cut) })}\n`;
       this.enqueue(s);
-    }
+      i = cut;
+    } while (i < clean.length);
   }
 
   private enqueue(s: string): void {

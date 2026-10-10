@@ -28,12 +28,12 @@ import {
   type SandboxProbe, type ServicePlan, type StagedOutput, type ToolPlan
 } from '../shared/nexus/execution';
 import {
-  parseRunnerMessage, ULID_RE, type AttemptPhase, type CancelReason, type ExitReason, type RefusalReason, type RunnerToMain
+  parseRunnerMessage, ULID_RE, type AttemptFailureClass, type AttemptPhase, type CancelReason, type ExitReason, type RefusalReason, type RunnerToMain
 } from '../shared/nexus/runnerProtocol';
 import { expectedNetworkName } from '../shared/nexus/preflightCheck';
 import { leaseFloorBytes } from '../shared/nexus/resourceGate';
 import { containsSecret, redactSecretText } from '../main/nexus/activity/redact';
-import { appManifestArgv, COMMIT_RE, readAppManifest, snapshot } from './git';
+import { appManifestArgv, COMMIT_RE, GitRunner } from './git';
 import { ImageBuilder } from './imageBuilder';
 import { LogWriter } from './logs';
 import { ObjectStore } from './objectStore';
@@ -44,7 +44,7 @@ import { APP_MANIFEST_MAX_BYTES, parseAppManifest } from './parsers/manifest';
 import { errCode, HomePaths, noLinkUnder } from './paths';
 import { httpProbe, type HttpProbe } from './probe';
 import { findAttemptDir, readPlanRecord, reconcileAnswer, releaseByLabels, removeResources, type PlanRecord } from './reconcile';
-import { DockerError, SpecError } from './sandbox/dockerDriver';
+import { DEPS_VOLUME_RE, DockerError, SpecError } from './sandbox/dockerDriver';
 import type { DockerRunner } from './sandbox/dockerCli';
 import { DU_ARGV, GUARD_POLL_MS, guardDecision, parseDuKib, WORKSPACE_MAX_BYTES, type GuardTrip } from './sandbox/sizeGuard';
 import { forwarderWithPort, mergePreflight, pickPort, serviceNetworkProblem } from './service';
@@ -83,6 +83,8 @@ export interface RunnerDeps {
   pickPort?: (taken: ReadonlySet<number>) => number;
   /** Called after a `shutdown` message was handled (the entry exits the process). */
   onShutdown?: () => void;
+  /** The git resolver (tests inject one); default: src/main/gitBinary.ts, resolved once, never inside the working folder. */
+  resolveGit?: () => Promise<string | null>;
 }
 
 type Kind = 'tool' | 'service' | 'engine';
@@ -123,6 +125,18 @@ interface ExitRecord { attemptId: string; exit: ExitInfo; reason?: ExitReason; g
 
 class Stop extends Error { constructor() { super('stopped'); this.name = 'Stop'; } }
 
+/**
+ * The class of an attempt's failure before its container ran: no space (Docker's or the data home's) is `disk_full`
+ * (the job waits for disk); another file system failure is `io_error`; anything else `docker_error`.
+ */
+export function failureClassOf(e: unknown): 'disk_full' | 'io_error' | 'docker_error' {
+  if (e instanceof DockerError) return e.kind === 'disk_full' ? 'disk_full' : 'docker_error';
+  const code = errCode(e);
+  if (code === 'ENOSPC' || code === 'EDQUOT') return 'disk_full';
+  if (/^E[A-Z]+$/.test(code)) return 'io_error';
+  return 'docker_error';
+}
+
 const msgOf = (e: unknown): string => redactSecretText(String((e as Error)?.message ?? e ?? 'error')).replace(/\s+/g, ' ').slice(0, 1000);
 
 export class RunnerCore {
@@ -140,6 +154,7 @@ export class RunnerCore {
   private profiles: SandboxProfile[] = [];
   private paths: HomePaths | null = null;
   private store: ObjectStore | null = null;
+  private git: GitRunner | null = null;
   private readonly builder: ImageBuilder;
   private stopped = false;
   private recordSeq = 0;
@@ -184,12 +199,15 @@ export class RunnerCore {
       case 'image.build.progress': return { ...m, phase: redactSecretText(m.phase).slice(0, 500) || 'building' };
       case 'image.build.done': return m.error !== undefined ? { ...m, error: redactSecretText(m.error).slice(0, 2000) || 'failed' } : m;
       case 'attempt.exited': {
-        const parsed = m.parsed.filter((p) => {
-          if (!containsSecret(p.normalized)) return true;
-          this.log(`[runner] the ${p.parser} result holds a secret-shaped value; it was withheld`);
-          return false;
-        });
-        return { ...m, parsed, ...(m.outputErrorEntry !== undefined ? { outputErrorEntry: redactSecretText(m.outputErrorEntry).slice(0, 400) || '?' } : {}) };
+        const entry = m.outputErrorEntry !== undefined ? { outputErrorEntry: redactSecretText(m.outputErrorEntry).slice(0, 400) || '?' } : {};
+        const withheld = m.parsed.find((p) => containsSecret(p.normalized));
+        if (!withheld) return { ...m, ...entry };
+        // Never silent: the outputs are refused with a reason main can show (`secret_in_report`), and nothing of
+        // them travels (no output of a refused /out is trusted).
+        this.log(`[runner] the ${withheld.parser} result holds a secret-shaped value; it was withheld`);
+        if (m.outputError) return { ...m, outputs: [], parsed: [], ...entry };
+        const source = m.outputs.find((o) => o.sha256 === withheld.sourceSha256)?.relPath ?? withheld.parser;
+        return { ...m, outputs: [], parsed: [], outputError: 'secret_in_report', outputErrorEntry: source };
       }
       default: return m;
     }
@@ -242,6 +260,8 @@ export class RunnerCore {
       this.paths = m.dataHome ? new HomePaths(m.dataHome) : null;
     } catch { this.paths = null; }
     this.store = this.paths ? new ObjectStore(this.paths, this.fs, this.sleep) : null;
+    // git runs from the data home (never from a repository folder), the repository named with -C.
+    this.git = this.paths ? new GitRunner({ cwd: this.paths.root, resolve: this.deps.resolveGit }) : null;
     this.stopped = false;
     this.post({ op: 'ready', bootId: m.bootId });
   }
@@ -340,7 +360,7 @@ export class RunnerCore {
   }
 
   /** A Docker failure of one attempt before it started: BOTH the attempt and its class (no release follows). */
-  private async fault(a: AttemptState, failureClass: 'disk_full' | 'docker_resources' | 'docker_error', message: string): Promise<void> {
+  private async fault(a: AttemptState, failureClass: AttemptFailureClass, message: string): Promise<void> {
     a.log?.nexus(`the container could not be created or started: ${message}`);
     this.post({ op: 'fault', message, attemptId: a.id, failureClass });
     a.settled = true;
@@ -350,7 +370,8 @@ export class RunnerCore {
   /** Docker's failure as a refusal or a classed fault. */
   private async dockerFailure(a: AttemptState, e: unknown): Promise<void> {
     if (e instanceof SpecError) return this.refuse(a, 'bad_plan', e.message);
-    const kind = e instanceof DockerError ? e.kind : 'docker_error';
+    if (!(e instanceof DockerError)) return this.fault(a, failureClassOf(e), msgOf(e));
+    const kind = e.kind;
     if (kind === 'image_missing') return this.refuse(a, 'image_missing', msgOf(e));
     const cls = kind === 'disk_full' ? 'disk_full' : kind === 'docker_resources' ? 'docker_resources' : 'docker_error';
     return this.fault(a, cls, msgOf(e));
@@ -403,7 +424,7 @@ export class RunnerCore {
       if (e instanceof Stop) return this.stopped ? undefined : await this.finishStopped(a);
       this.log(`[runner] attempt ${attemptId.slice(0, 10)} stopped on an error: ${msgOf(e)}`);
       if (a.settled || a.cleaned) return;
-      if (a.containerState === null) return await this.fault(a, 'docker_error', msgOf(e));
+      if (a.containerState === null) return await this.fault(a, failureClassOf(e), msgOf(e));
       // It ran but cannot be followed any more: stop it and stop heartbeating, so main's lease ends it (runner_lost,
       // retried when idempotent). Nothing is removed: the next restart's reconcile decides.
       a.log?.nexus('the runner lost track of the container and stopped it');
@@ -423,6 +444,7 @@ export class RunnerCore {
     if (!this.paths.same(plan.logPath, this.paths.logPath(plan.jobId, plan.attemptN))) return 'the log path is not this attempt\'s';
     if (plan.kind === 'engine') return null;
     if (!this.home) return 'this install has no label';
+    if (plan.staging.depsVolume && !DEPS_VOLUME_RE.test(plan.staging.depsVolume.name)) return 'the deps volume is not a dependency cache volume';
     const rl = plan.resourceLabels;
     if (!rl || rl['nexus.home'] !== this.home || rl['nexus.attempt'] !== attemptId || rl['nexus.job'] !== plan.jobId) return 'the resource labels are not this attempt\'s';
     const specs = plan.kind === 'tool' ? [plan.container] : [plan.app, plan.forwarder];
@@ -435,7 +457,8 @@ export class RunnerCore {
           const ok = (m.kind === 'input' && this.paths.same(m.hostPath, path.join(plan.workDir, 'in')) && m.readOnly)
             || (m.kind === 'out' && this.paths.same(m.hostPath, path.join(plan.workDir, 'out')));
           if (!ok) return 'a bind mount is not this attempt\'s staging folder';
-        } else if (!(m.kind === 'workspace' && m.hostPath === `nexus-ws-${attemptId}`) && !(m.kind === 'deps' && m.hostPath === plan.staging.depsVolume?.name)) {
+        } else if (!(m.kind === 'workspace' && m.hostPath === `nexus-ws-${attemptId}`)
+          && !(m.kind === 'deps' && m.hostPath === plan.staging.depsVolume?.name && DEPS_VOLUME_RE.test(m.hostPath))) {
           return 'a volume mount is not this attempt\'s';
         }
       }
@@ -527,7 +550,7 @@ export class RunnerCore {
       busy = true;
       void (async () => {
         try {
-          a.outBytes = await outBytes(this.fs, outDir, outLimit);
+          a.outBytes = await outBytes(this.fs, outDir, outLimit, plan.outputContract.maxFiles);
           let ws: number | null = null;
           if (a.outBytes <= outLimit) {
             try {
@@ -574,7 +597,7 @@ export class RunnerCore {
     if (pre) return this.refuse(a, pre.reason, pre.detail);
     await this.openLog(a);
     this.event(a, 'staging');
-    const staged = await stageInputs(this.fs, this.paths!, plan, a.workDir, a.abort.signal);
+    const staged = await stageInputs(this.fs, this.paths!, this.git!, plan, a.workDir, a.abort.signal);
     if (!staged.ok) return this.refuse(a, staged.reason, staged.detail);
     await this.writeRecord(a, 'plan.json', { plan } satisfies PlanRecord);
     this.checkStop(a);
@@ -618,7 +641,7 @@ export class RunnerCore {
     if (a.cancel && !a.stopIssued) { a.stopIssued = true; void this.stopAndKill(cid, a.cancel.graceMs); }
     await this.writeRecord(a, 'plan.json', { plan, startedAt, containerIds: [cid] } satisfies PlanRecord);
     const exit = await this.waitExit(a, cid);
-    if (!exit) { if (!a.released && this.vanished(a)) { a.settled = true; await this.cleanup(a); } return; }
+    if (!exit) { if (!a.released && this.vanished(a)) a.settled = true; return; }
     await this.collect(a, plan, exit);
   }
 
@@ -699,7 +722,7 @@ export class RunnerCore {
     if (pre) return this.refuse(a, pre.reason, pre.detail);
     await this.openLog(a);
     this.event(a, 'staging');
-    const staged = await stageInputs(this.fs, this.paths!, plan, a.workDir, a.abort.signal);
+    const staged = await stageInputs(this.fs, this.paths!, this.git!, plan, a.workDir, a.abort.signal);
     if (!staged.ok) return this.refuse(a, staged.reason, staged.detail);
     await this.writeRecord(a, 'plan.json', { plan: plan as unknown as Record<string, unknown> } satisfies PlanRecord);
     this.checkStop(a);
@@ -793,7 +816,7 @@ export class RunnerCore {
   private async waitService(a: AttemptState, appId: string, fwdId: string | null): Promise<void> {
     const exit = await this.waitExit(a, appId);
     if (fwdId) await this.stopAndKill(fwdId, 2_000);
-    if (!exit) { if (!a.released && this.vanished(a)) { a.settled = true; await this.cleanup(a); } return; }
+    if (!exit) { if (!a.released && this.vanished(a)) a.settled = true; return; }
     await this.collect(a, null, exit);
   }
 
@@ -812,14 +835,14 @@ export class RunnerCore {
     try {
       if (t.engine === 'repo.snapshot') {
         if (typeof t.repoPath !== 'string' || !path.isAbsolute(t.repoPath)) throw new Error('the project folder is not an absolute path');
-        const facts = await snapshot(t.repoPath, a.abort.signal);
+        const facts = await this.git!.snapshot(t.repoPath, a.abort.signal);
         const sha = createHash('sha256').update(JSON.stringify({ branch: facts.branch, commit: facts.commit, dirty: facts.dirty, tree: facts.tree })).digest('hex');
         parsed.push({ parser: 'repo-snapshot', sourceSha256: sha, normalized: facts });
         a.log?.nexus(`snapshot of ${facts.commit.slice(0, 12)}${facts.dirty ? ' (uncommitted changes are not included)' : ''}`);
       } else if (t.engine === 'sde.app.assemble') {
         if (typeof t.repoPath !== 'string' || !path.isAbsolute(t.repoPath) || !COMMIT_RE.test(t.commit)) throw new Error('the assembly plan is malformed');
         appManifestArgv(t.commit);
-        const r = await readAppManifest(t.repoPath, t.commit, APP_MANIFEST_MAX_BYTES, a.abort.signal);
+        const r = await this.git!.readAppManifest(t.repoPath, t.commit, APP_MANIFEST_MAX_BYTES, a.abort.signal);
         if (!r.ok) {
           code = 1;
           a.log?.nexus(r.reason === 'too_large' ? 'nexus.app.json is larger than 16 KiB; it was not read' : 'nexus.app.json is not in the build\'s commit');
@@ -893,9 +916,21 @@ export class RunnerCore {
     const kind: Kind = plan?.kind === 'service' ? 'service' : 'tool';
     const a = this.newState(attemptId, loc.jobId, loc.n, kind, plan, workDir, this.paths.logPath(loc.jobId, loc.n));
     a.adopted = true;
-    a.main = typeof containerId === 'string' && /^[0-9a-f]{64}$/.test(containerId) ? containerId : null;
+    // A container is this attempt's only when its labels say so (this install's nexus.home and this nexus.attempt);
+    // one that is not (or cannot be checked: Docker down) is never stopped or removed through this attempt.
+    const owned = async (id: unknown): Promise<boolean> => {
+      if (typeof id !== 'string' || !/^[0-9a-f]{64}$/.test(id)) return false;
+      try {
+        const f = await this.driver.inspectResource('container', id);
+        return !!f && f.labels['nexus.home'] === this.home && f.labels['nexus.attempt'] === attemptId;
+      } catch { return false; }
+    };
+    a.main = (await owned(containerId)) ? containerId : null;
+    if (!a.main && typeof containerId === 'string' && containerId) this.log('[runner] attempt.adopt names a container that cannot be confirmed as belonging to the attempt; it is never touched');
     if (a.main) a.containers.push(a.main);
-    if (kind === 'service' && Array.isArray(rec?.containerIds)) for (const c of rec!.containerIds) if (/^[0-9a-f]{64}$/.test(c) && !a.containers.includes(c)) a.containers.push(c);
+    if (kind === 'service' && Array.isArray(rec?.containerIds)) {
+      for (const c of rec!.containerIds) if (!a.containers.includes(c) && await owned(c)) a.containers.push(c);
+    }
     const exitRec = await this.readExit(workDir);
     if (exitRec && exitRec.attemptId === attemptId) {
       // A durable exit: finalized from the data home alone (no Docker needed), heartbeating `exited` meanwhile.
@@ -934,7 +969,7 @@ export class RunnerCore {
           this.armWall(a, plan.container.limits.wallClockMs, () => [cid], elapsed);
           this.armGuard(a, plan, cid);
           const exit = await this.waitExit(a, cid);
-          if (!exit) { if (!a.released && this.vanished(a)) { a.settled = true; await this.cleanup(a); } return; }
+          if (!exit) { if (!a.released && this.vanished(a)) a.settled = true; return; }
           return await this.collect(a, plan, exit);
         }
       } finally { if (a.released && !a.cleaned) await this.cleanup(a); }

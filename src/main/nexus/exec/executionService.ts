@@ -101,7 +101,7 @@ import { canRetry, isJobState, TERMINAL_JOB_STATES } from '../jobs/jobRules';
 import { JOB_KINDS, requireActiveParticipation, storedWorkspace, validateKey, type JobRow, type JobService } from '../jobs/jobService';
 import { attemptRow, HEARTBEAT_GAP_MS, LEASE_MS, heartbeatTx, insertAttemptTx, liveAttemptOf, transitionAttemptTx, type AttemptRow } from './attempts';
 import { appendJobEventTx, toJobEvent, type JobEvent, type JobEventRow } from './events';
-import { buildPlan, lockfileSha256Of, sandboxRecord, underDataHome, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
+import { buildPlan, imageRef, lockfileSha256Of, sandboxRecord, underDataHome, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
 import { homeLabel } from '../../../shared/nexus/homeLabel';
 import type { RunnerPort } from './runnerPort';
 import { backoffMs, DEFAULT_CAPS, leaseGuard, SOLO_MEMORY_SHARE, usableImage, type LiveUse, type ProbeCache, type SchedulerCaps } from './scheduler';
@@ -264,7 +264,7 @@ interface Capability {
 const PLATFORM: ScopeRef = { type: 'platform' };
 const LIVE_JOB_STATES: readonly JobState[] = ['queued', 'leased', 'running', 'awaiting_approval', 'retry_scheduled'];
 /** Attempt failures an idempotent recipe is retried for (infrastructure, not the work itself). */
-const RETRYABLE = new Set(['docker_resources', 'disk_full', 'container_vanished', 'docker_error', 'ingest_error', 'runner_lost']);
+const RETRYABLE = new Set(['docker_resources', 'disk_full', 'container_vanished', 'docker_error', 'io_error', 'ingest_error', 'runner_lost']);
 const CANCEL_GRACE_MS = 10_000;
 /** A gap between ticks longer than this is a stall of main (or the machine), not silence of the runner. */
 export const TICK_STALL_MS = 10_000;
@@ -668,6 +668,8 @@ export class ExecutionService {
           logBytes: m.logBytes, outBytes: m.outBytes });
         this.failJobTx(j.id, 'infra_error', error, now);
       });
+      // The runner keeps the attempt's workspace volume, networks and /out until it is released (nothing goes earlier).
+      this.send({ op: 'attempt.release', attemptId: a.id });
       return;
     }
     this.gapFlagged.delete(a.id);
@@ -1353,7 +1355,8 @@ export class ExecutionService {
     }
     const environment = {
       recipeId: recipe.id, recipeVersion: recipe.version, executor: recipe.executor, profile: cap.profile,
-      imageRef: profile ? `${profile.image.repository}@${profile.image.digest}` : null, imageId: image?.imageId ?? null,
+      // The reference the container is created from (a built image's local id; planBuilder.imageRef), and its base.
+      imageRef: profile && image?.imageId ? imageRef(profile, image.imageId as `sha256:${string}`) : null, imageId: image?.imageId ?? null,
       baseDigest: profile?.image.digest ?? null, contextSha256: image?.contextSha256 ?? null,
       dockerVersion: this.probe?.probe.version ?? null, runnerBootId: this.bootId, nexusVersion: this.deps.appVersion ?? null,
       lockfileSha256: lockfileSha256Of(inputs)
@@ -1700,6 +1703,15 @@ export class ExecutionService {
       const r = this.db.prepare('SELECT MAX(seq) AS s FROM job_events').get() as { s: number | null } | undefined;
       return typeof r?.s === 'number' ? r.s : 0;
     } catch { return 0; }
+  }
+
+  /**
+   * The attempts a `reconcile.list` would carry, WITHOUT recording a request (execWiring builds the message with it, and
+   * calls `reconcileList()` only once the send succeeded: a request that never left is never waited for).
+   */
+  reconcileCandidates(): { attemptId: string; containerId: string; kind: 'tool' | 'service' }[] {
+    if (!this.deps.available) return [];
+    return reconcileList(this.db);
   }
 
   /** What main sends in `reconcile.list` at runner `ready`: every live attempt whose container is recorded. */

@@ -48,10 +48,14 @@ export async function scanOut(fs: RunnerFs, outDir: string, limits: { maxFiles: 
   if (!root.isDirectory()) return { ok: false, code: 'special_file', entry: '.' };
   const files: OutFile[] = [];
   let bytes = 0;
+  // Every entry read counts (files and folders), and reading stops past the bound: a folder of millions of entries is
+  // never read into memory (`opendir`, one entry at a time).
+  const budget = { left: entryBudget(limits.maxFiles) };
   const walk = async (dir: string, rel: string, depth: number): Promise<OutScan | null> => {
     if (depth > MAX_OUT_DEPTH) return { ok: false, code: 'too_many_files', entry: rel };
-    const names = (await fs.readdir(dir)).sort();
-    for (const name of names) {
+    const names = await readNames(fs, dir, budget);
+    if (names === null) return { ok: false, code: 'too_many_files', entry: rel || '.' };
+    for (const name of names.sort()) {
       const r = rel ? `${rel}/${name}` : name;
       if (badName(name)) return { ok: false, code: 'bad_name', entry: r };
       const abs = path.join(dir, name);
@@ -75,13 +79,39 @@ export async function scanOut(fs: RunnerFs, outDir: string, limits: { maxFiles: 
   return bad ?? { ok: true, files, bytes };
 }
 
-/** The size guard's measure of `/out`: total bytes of regular files (lstat only; links are not followed or counted). */
-export async function outBytes(fs: RunnerFs, outDir: string, stopAbove: number): Promise<number> {
+/** How many entries (files and folders) a walk of `/out` reads at most: 2 x the file bound, plus one to see the excess. */
+export function entryBudget(maxFiles: number): number {
+  const n = Number.isSafeInteger(maxFiles) && maxFiles > 0 ? maxFiles : 10_000;
+  return 2 * n + 1;
+}
+
+/** The names in one folder, read one entry at a time; null once the shared budget is spent (the walk stops there). */
+async function readNames(fs: RunnerFs, dir: string, budget: { left: number }): Promise<string[] | null> {
+  const out: string[] = [];
+  const d = await fs.opendir(dir);
+  try {
+    for await (const ent of d) {
+      if (--budget.left < 0) return null;
+      out.push(ent.name);
+    }
+  } finally {
+    try { await d.close(); } catch { /* already closed by the iterator */ }
+  }
+  return out;
+}
+
+/**
+ * The size guard's measure of `/out`: total bytes of regular files (lstat only; links are not followed or counted). It
+ * stops past `stopAbove` bytes or `entryBudget(maxFiles)` entries (the final collect then refuses the tree).
+ */
+export async function outBytes(fs: RunnerFs, outDir: string, stopAbove: number, maxFiles = 10_000): Promise<number> {
   let total = 0;
+  const budget = { left: entryBudget(maxFiles) };
   const walk = async (dir: string, depth: number): Promise<void> => {
-    if (depth > MAX_OUT_DEPTH || total > stopAbove) return;
-    let names: string[];
-    try { names = await fs.readdir(dir); } catch { return; }
+    if (depth > MAX_OUT_DEPTH || total > stopAbove || budget.left < 0) return;
+    let names: string[] | null;
+    try { names = await readNames(fs, dir, budget); } catch { return; }
+    if (names === null) return;
     for (const name of names) {
       let st;
       try { st = await fs.lstat(path.join(dir, name)); } catch { continue; }

@@ -78,10 +78,13 @@ const count = (v: string | null): number | null => {
   if (v === null || !/^\s*\d{1,9}\s*$/.test(v)) return null;
   return Number(v.trim());
 };
+/** A `time` attribute (seconds) as whole milliseconds: 0 when missing or nonsense, never above a safe integer. */
 const millis = (v: string | null): number => {
   if (v === null) return 0;
   const t = Number(v.replace(/,/g, ''));
-  return Number.isFinite(t) && t >= 0 ? Math.round(t * 1000) : 0;
+  if (!Number.isFinite(t) || t < 0) return 0;
+  const ms = Math.round(t * 1000);
+  return Number.isSafeInteger(ms) ? ms : Number.MAX_SAFE_INTEGER;
 };
 
 /** Parses one JUnit report (the bytes of `/out/junit.xml`). */

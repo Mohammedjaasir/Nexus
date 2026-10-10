@@ -2,14 +2,17 @@
  * Execution wiring (B2a Task 11): starts the runner host and connects it to the execution core, in main.
  *
  * - The runner is attached with the platform's own boot id (`platform.bootId`, the one phase A re-owned for).
- * - At every runner `ready` (app start and every runner restart) main sends `reconcile.list` with
- *   `exec.reconcileList()`, calling it exactly then (that call records the request for the reconcile bound).
+ * - At every runner `ready` (app start and every runner restart) main sends `reconcile.list` (built from
+ *   `exec.reconcileCandidates()`, which records nothing) and calls `exec.reconcileList()` only once the send succeeded
+ *   (that call records the request for the reconcile bound: a request that never left is never waited for).
  * - The runner's `reconcile.result` goes to `exec.recoverPhaseB(system, platform.bootId, result)` (the core's own
  *   `onRunnerMessage` never sees it). Phase B's removal list is handed to the runner (`reconcile.remove`; it removes
  *   only resources labelled with this install's `nexus.home` and a `nexus.attempt`) and recorded once
  *   (`exec.orphan_removed`). Resources of this install naming an unknown attempt are logged and left in place.
  * - Once per app start, after the first phase B and before the scheduler's first tick: `exec.recoverBlobStore(system)`.
- *   A mid-session runner restart runs phase B again, never the blob store pass.
+ *   A mid-session runner restart runs phase B again, never the blob store pass. When the scheduler already ticks (it
+ *   started without a reconcile: the runner was unavailable or 2 minutes passed), the pass is skipped for this app start:
+ *   it holds the blob store's exclusive lock, and leases and ingests must not wait for it.
  * - The scheduler: `exec.tick` every 1 s once started (it also runs the 30 s approval expiry sweep and the 60 s probe
  *   refresh). It starts after that first phase B, or, when the runner never reconciles (it is unavailable, or 2 minutes
  *   pass), without it (the reconcile bound then ends what phase A left).
@@ -127,9 +130,14 @@ export async function startExecution(o: { platform: NexusPlatform; userData: str
     if (report && report.unknown.length > 0) log(`[nexus] ${report.unknown.length} labelled sandbox resource(s) name an attempt this database does not know; left in place`);
     if (firstPhaseB && !stopped) {
       firstPhaseB = false;
-      // Once per app start, after phase B and before the first tick.
-      try { await exec.recoverBlobStore(system); } catch (e) { log(`[nexus] blob store hygiene did not run (${(e as Error)?.name ?? 'error'})`); }
-      startTicking('after restart recovery');
+      if (ticking) {
+        // The scheduler already ticks (it started without a reconcile): no blob store pass this app start.
+        log('[nexus] blob store hygiene skipped: the scheduler started before the first reconcile');
+      } else {
+        // Once per app start, after phase B and before the first tick.
+        try { await exec.recoverBlobStore(system); } catch (e) { log(`[nexus] blob store hygiene did not run (${(e as Error)?.name ?? 'error'})`); }
+        startTicking('after restart recovery');
+      }
     }
     hint.poke();
   };
@@ -138,10 +146,12 @@ export async function startExecution(o: { platform: NexusPlatform; userData: str
     if (stopped) return;
     const op = (raw as { op?: unknown } | null)?.op;
     if (op === 'ready') {
-      // Exactly when reconcile.list is sent: the call records the request for the reconcile bound.
-      try { host.port.send({ op: 'reconcile.list', attempts: exec.reconcileList() }); } catch (e) {
+      // The request is recorded (reconcileList) only once it was sent.
+      let sent = false;
+      try { host.port.send({ op: 'reconcile.list', attempts: exec.reconcileCandidates() }); sent = true; } catch (e) {
         log(`[nexus] reconcile request not sent (${(e as Error)?.name ?? 'error'})`);
       }
+      if (sent) exec.reconcileList();
     } else if (op === 'reconcile.result') {
       void onReconcile(raw);
       return;

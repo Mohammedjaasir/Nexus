@@ -1,13 +1,31 @@
 import { spawn } from 'node:child_process';
 import { readFile, stat } from 'node:fs/promises';
+import * as path from 'node:path';
 import { safeJoin } from './fs';
+import { insideFolder, isGitBinary, resolveGitBinary, SAFE_GIT_CONFIG } from './gitBinary';
 
-/** Run git in `cwd` with `args`. Returns stdout text or an error. */
-function runGit(cwd: string, args: string[], timeoutMs = 8000): Promise<{
+/**
+ * The git binary, resolved once to an absolute path (src/main/gitBinary.ts): never `spawn('git', ..., { cwd: repo })`,
+ * which on Windows runs a `git.exe` planted in the repository. Never one inside main's own working folder.
+ */
+let gitBin: Promise<string | null> | null = null;
+function gitBinary(): Promise<string | null> {
+  return (gitBin ??= resolveGitBinary({ stat }, { notInside: [process.cwd()] }));
+}
+
+/**
+ * Run git on the repository at `cwd` with `args`. Returns stdout text or an error. The resolved binary runs with its own
+ * folder as the working folder and `-C <cwd>`, so nothing in `cwd` is ever launched; a binary inside `cwd` is refused.
+ */
+async function runGit(cwd: string, args: string[], timeoutMs = 8000): Promise<{
   ok: true; stdout: string;
 } | { ok: false; error: string }> {
+  if (typeof cwd !== 'string' || !cwd || cwd.includes('\0') || !path.isAbsolute(cwd)) return { ok: false, error: 'the folder is not an absolute path' };
+  const bin = await gitBinary();
+  if (!bin || !isGitBinary(bin)) return { ok: false, error: 'git is not installed' };
+  if (insideFolder(bin, cwd)) return { ok: false, error: 'git resolves inside the repository; refused' };
   return new Promise((resolve) => {
-    const proc = spawn('git', args, { cwd });
+    const proc = spawn(bin, ['-C', cwd, ...SAFE_GIT_CONFIG, ...args], { cwd: path.dirname(bin), windowsHide: true, shell: false });
     let stdout = '';
     let stderr = '';
     const timer = setTimeout(() => {

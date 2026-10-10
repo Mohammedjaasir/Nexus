@@ -172,6 +172,12 @@ const sameSet = (a: string[], b: string[]): boolean => {
   return sa.size === a.length && sa.size === sb.size && [...sa].every((x) => sb.has(x));
 };
 const PINNED_REF = /^(?:[a-z0-9][a-z0-9._\/:-]*@)?sha256:[0-9a-f]{64}$/;
+/**
+ * An image reference a container may be created from: a local image id `sha256:<64 hex>` (an image Nexus built: the
+ * B2a profiles) or `<repository>@sha256:<64 hex>` (an image pulled by digest). A tag never; a name that merely ends in
+ * `sha256:<hex>` without the `@` never.
+ */
+export function isPinnedImageRef(ref: unknown): ref is string { return typeof ref === 'string' && PINNED_REF.test(ref); }
 const IMAGE_ID = /^sha256:[0-9a-f]{64}$/;
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 

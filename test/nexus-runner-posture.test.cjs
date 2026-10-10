@@ -83,9 +83,13 @@ test('the only programs spawned under src/runner and src/main/nexusExec are dock
   for (const f of [...RUNNER, ...WIRING]) {
     for (const m of code(f).matchAll(/\b(spawn|execFile|fork)\s*\(\s*([^,)]+)/g)) sites.push({ file: rel(f), fn: m[1], first: m[2].trim() });
   }
-  // Besides docker and git: the runner itself (utilityProcess.fork of out/main/runner.js, pinned exactly below).
+  // Besides docker and git (both by their RESOLVED absolute paths): the runner itself (utilityProcess.fork of
+  // out/main/runner.js, pinned exactly below). Never spawn('git' (Windows would run a git.exe planted in the cwd).
   assert.deepEqual(sites.map((s) => `${s.file} ${s.fn}(${s.first}`).sort(),
-    ['src/runner/proc.ts spawn(\'git\'', 'src/runner/proc.ts spawn(dockerBin', 'src/main/nexusExec/runnerHost.ts fork(join(__dirname'].sort());
+    ['src/runner/proc.ts spawn(gitBin', 'src/runner/proc.ts spawn(dockerBin', 'src/main/nexusExec/runnerHost.ts fork(join(__dirname'].sort());
+  const { isGitBinary } = loadTs('src/main/gitBinary.ts');
+  assert.equal(isGitBinary('C:\\Program Files\\Git\\cmd\\git.exe', 'win32'), true);
+  for (const bad of ['git', 'git.exe', 'C:\\repo\\git.cmd', 'C:\\repo\\git.bat', 'C:\\x\\git.exe.bat']) assert.equal(isGitBinary(bad, 'win32'), false, bad);
   // The docker site launches only a path whose file name is docker / docker.exe.
   const { isDockerBinary, runDocker } = loadTs('src/runner/proc.ts');
   assert.equal(isDockerBinary('C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe'), true);
@@ -109,4 +113,26 @@ test('the runner\'s processes get a filtered environment: DOCKER_HOST only when 
   assert.equal(env.ANTHROPIC_API_KEY, undefined); assert.equal(env.GITHUB_TOKEN, undefined);
   assert.equal(toolEnv({ PATH: '/bin' }).DOCKER_HOST, undefined);
   assert.equal(env.GIT_TERMINAL_PROMPT, '0');
+});
+
+// ---------- Fix round 1 ----------
+
+test('git is launched only by its resolved absolute path, with -C and a safe config, in the runner AND in main (src/main/git.ts)', () => {
+  for (const f of [...RUNNER, ...ts('src/main')]) assert.doesNotMatch(code(f), /\bspawn\(\s*['"`]git(\.exe)?['"`]/, rel(f));
+  const main = code(path.join(ROOT, 'src/main/git.ts'));
+  assert.match(main, /spawn\(bin, \['-C', cwd, \.\.\.SAFE_GIT_CONFIG, \.\.\.args\], \{ cwd: path\.dirname\(bin\)/);
+  assert.match(main, /insideFolder\(bin, cwd\)/);
+  const runnerGit = code(path.join(ROOT, 'src/runner/git.ts'));
+  assert.match(runnerGit, /insideFolder\(bin, repoPath\)/);
+  assert.match(runnerGit, /gitPrefix\(repoPath, this\.hooksDir\)/);
+  const { SAFE_GIT_CONFIG } = loadTs('src/main/gitBinary.ts');
+  assert.deepEqual([...SAFE_GIT_CONFIG], ['-c', 'core.fsmonitor=false']);
+  const { gitPrefix } = loadTs('src/runner/git.ts');
+  assert.deepEqual(gitPrefix('C:\\repo', 'C:\\home\\.nexus-no-git-hooks'),
+    ['-C', 'C:\\repo', '-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=C:\\home\\.nexus-no-git-hooks']);
+});
+
+test('the workspace guard runs /usr/bin/du by its full path', () => {
+  const { DU_ARGV } = loadTs('src/runner/sandbox/sizeGuard.ts');
+  assert.deepEqual([...DU_ARGV], ['/usr/bin/du', '-s', '-x', '-k', '/workspace']);
 });

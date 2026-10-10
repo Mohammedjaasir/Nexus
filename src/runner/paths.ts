@@ -82,7 +82,8 @@ export async function ensureDirUnder(fs: RunnerFs, root: string, dir: string): P
       if (st.isSymbolicLink() || !st.isDirectory()) return false;
     } catch (e) {
       if (errCode(e) !== 'ENOENT') return false;
-      try { await fs.mkdir(cur); } catch (e2) { if (errCode(e2) !== 'EEXIST') return false; }
+      // A folder that cannot be made (no space, no access) is a file system failure, thrown for the caller to report.
+      try { await fs.mkdir(cur); } catch (e2) { if (errCode(e2) !== 'EEXIST') throw e2; }
       const st = await fs.lstat(cur);
       if (st.isSymbolicLink() || !st.isDirectory()) return false;
     }

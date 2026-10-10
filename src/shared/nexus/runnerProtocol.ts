@@ -104,9 +104,12 @@ export type RunnerToMain =
 
 export type RunnerOp = RunnerToMain['op'];
 
-/** Why an attempt failed before it started, as the runner classified Docker's answer. */
-export type AttemptFailureClass = 'disk_full' | 'docker_resources' | 'docker_error';
-export const ATTEMPT_FAILURE_CLASSES: readonly AttemptFailureClass[] = ['disk_full', 'docker_resources', 'docker_error'];
+/**
+ * Why an attempt failed before it started, as the runner classified Docker's answer or its own file system's
+ * (`disk_full`: no space, Docker's or the data home's; `io_error`: another file system failure while staging).
+ */
+export type AttemptFailureClass = 'disk_full' | 'docker_resources' | 'docker_error' | 'io_error';
+export const ATTEMPT_FAILURE_CLASSES: readonly AttemptFailureClass[] = ['disk_full', 'docker_resources', 'docker_error', 'io_error'];
 
 // ----- bounds -----
 

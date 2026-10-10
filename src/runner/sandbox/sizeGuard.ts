@@ -8,7 +8,8 @@
 export const GUARD_POLL_MS = 5_000;
 /** `/workspace` lives in a named volume inside the Docker VM: a checkout, its dependencies and build scratch. */
 export const WORKSPACE_MAX_BYTES = 8 * 2 ** 30;
-export const DU_ARGV: readonly string[] = Object.freeze(['du', '-s', '-x', '-k', '/workspace']);
+/** By its full path: a `du` earlier on the container's PATH (a repository's own bin folder) is never what runs. */
+export const DU_ARGV: readonly string[] = Object.freeze(['/usr/bin/du', '-s', '-x', '-k', '/workspace']);
 
 /** Bytes from `du -s -k` output (`<KiB>\t/workspace`), or null when it is not that. */
 export function parseDuKib(stdout: string): number | null {

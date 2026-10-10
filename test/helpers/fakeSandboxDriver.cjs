@@ -139,7 +139,7 @@ class FakeSandboxDriver {
   }
   async exec(id, argv, o) {
     this.rec('exec', id, argv, o);
-    if (argv[0] === 'du') return { exit: { code: 0, oomKilled: false, finishedAt: 0 }, stdout: `${this.duKib}\t/workspace\n`, stderr: '', truncated: false };
+    if (/(^|\/)du$/.test(argv[0])) return { exit: { code: 0, oomKilled: false, finishedAt: 0 }, stdout: `${this.duKib}\t/workspace\n`, stderr: '', truncated: false };
     return { exit: { code: 127, oomKilled: false, finishedAt: 0 }, stdout: '', stderr: 'not found', truncated: false };
   }
   async createVolume(name, labels) { this.rec('createVolume', name, labels); if (!this.volumes.has(name)) this.volumes.set(name, { ...labels }); }

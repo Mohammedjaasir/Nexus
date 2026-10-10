@@ -44,6 +44,15 @@ const { buildPlan } = loadTs('src/main/nexus/exec/planBuilder.ts');
 const { getRecipe } = loadTs('src/shared/nexus/recipes.ts');
 const { newId } = loadTs('src/main/nexus/db/ids.ts');
 const { inspectFor } = require('./helpers/fakeSandboxDriver.cjs');
+const { isGitBinary, insideFolder } = loadTs('src/main/gitBinary.ts');
+/** A runner git spawn: the resolved binary, from the data home, the repository by -C, the safe config; returns the subcommand argv. */
+function gitSub(s, w, repoDir) {
+  assert.ok(isGitBinary(s.cmd), `the resolved git binary, not ${s.cmd}`);
+  assert.ok(!insideFolder(s.cmd, repoDir), 'never a git inside the repository');
+  assert.equal(path.resolve(s.cwd), path.resolve(w.home), 'git runs from the data home');
+  assert.deepEqual(s.args.slice(0, 6), ['-C', repoDir, '-c', 'core.fsmonitor=false', '-c', `core.hooksPath=${path.join(w.home, '.nexus-no-git-hooks')}`]);
+  return s.args.slice(6);
+}
 
 const GIB = 2 ** 30;
 const NOW = 1_780_000_000_000;
@@ -273,7 +282,7 @@ test('D7 /workspace past its guard (du through docker exec): killed, workspace_t
   const e = await w.wait('attempt.exited', plan.attemptId);
   assert.equal(e.outputError, 'workspace_too_large');
   const ex = w.driver.callsOf('exec')[0];
-  assert.deepEqual([ex.args[0], ex.args[1]], [p.containerId, ['du', '-s', '-x', '-k', '/workspace']]);
+  assert.deepEqual([ex.args[0], ex.args[1]], [p.containerId, ['/usr/bin/du', '-s', '-x', '-k', '/workspace']]);
 });
 
 // ---------- D8-D10: outputs, hashing, logs ----------
@@ -391,9 +400,8 @@ test('D11 staging: git archive argv exact, run in the plan\'s project folder; a 
     metadata: { framework: 'node-test', files: ['test/a.test.js'] } }] });
   const before = SPAWNED.length;
   await start(w, plan);
-  const git = SPAWNED.slice(before).filter((s) => s.cmd === 'git');
-  assert.deepEqual(git.map((s) => s.args), [['archive', '--format=tar', r.commit]]);
-  assert.equal(path.resolve(git[0].cwd), path.resolve(r.dir));
+  const git = SPAWNED.slice(before).filter((s) => isGitBinary(s.cmd));
+  assert.deepEqual(git.map((s) => gitSub(s, w, r.dir)), [['archive', '--format=tar', r.commit]]);
   assert.equal(git[0].shell, false); assert.equal(git[0].windowsHide, true);
   const tar = fs.readFileSync(path.join(plan.workDir, 'in', 'src.tar'));
   const staging = JSON.parse(fs.readFileSync(path.join(plan.workDir, 'staging.json'), 'utf8'));
@@ -483,7 +491,7 @@ test('D14 repo.snapshot: git argv exact; the dirty flag from the status output l
   const before = SPAWNED.length;
   w.send({ op: 'attempt.start', attemptId, plan });
   const e = await w.wait('attempt.exited', attemptId);
-  assert.deepEqual(SPAWNED.slice(before).filter((s) => s.cmd === 'git').map((s) => s.args),
+  assert.deepEqual(SPAWNED.slice(before).filter((s) => isGitBinary(s.cmd)).map((s) => gitSub(s, w, r.dir)),
     [['rev-parse', '--verify', 'HEAD^{commit}'], ['symbolic-ref', '--short', '-q', 'HEAD'], ['status', '--porcelain=v1', '-z'], ['rev-parse', 'HEAD^{tree}']]);
   assert.deepEqual(w.one('attempt.provisioned', attemptId), { op: 'attempt.provisioned', attemptId });
   assert.equal(e.exit.code, 0);
@@ -508,7 +516,7 @@ test('D15 sde.app.assemble reads only nexus.app.json at the commit and refuses o
   const before = SPAWNED.length;
   w.send({ op: 'attempt.start', attemptId: plan.attemptId, plan });
   const e = await w.wait('attempt.exited', plan.attemptId);
-  assert.deepEqual(SPAWNED.slice(before).filter((s) => s.cmd === 'git').map((s) => s.args),
+  assert.deepEqual(SPAWNED.slice(before).filter((s) => isGitBinary(s.cmd)).map((s) => gitSub(s, w, r.dir)),
     [['cat-file', '-s', `${r.commit}:nexus.app.json`], ['show', `${r.commit}:nexus.app.json`]]);
   assert.deepEqual(e.parsed[0].normalized, { manifest });
   assert.equal(e.parsed[0].parser, 'app-manifest');
@@ -520,7 +528,7 @@ test('D15 sde.app.assemble reads only nexus.app.json at the commit and refuses o
   w.send({ op: 'attempt.start', attemptId: big.attemptId, plan: big });
   const e2 = await w.wait('attempt.exited', big.attemptId);
   assert.equal(e2.exit.code, 1); assert.deepEqual(e2.parsed, []);
-  assert.deepEqual(SPAWNED.slice(b0).filter((s) => s.cmd === 'git').map((s) => s.args[0]), ['cat-file'], 'never read');
+  assert.deepEqual(SPAWNED.slice(b0).filter((s) => isGitBinary(s.cmd)).map((s) => gitSub(s, w, r.dir)[0]), ['cat-file'], 'never read');
 });
 
 // ---------- D16-D17: dev deployments and egress ----------
@@ -589,6 +597,7 @@ function fakeDockerCli(o = {}) {
   return { runs, binary: async () => 'C:\\fake\\docker.exe', async run(argv, opts = {}) {
     runs.push({ argv: [...argv], opts });
     if (argv[0] === 'build') {
+      o.onBuild?.(argv);
       for (const l of o.progress ?? []) opts.onStderr?.(Buffer.from(`${l}\n`));
       if (o.hang) await new Promise((r) => { if (opts.signal?.aborted) r(); else opts.signal?.addEventListener('abort', r, { once: true }); });
       if (opts.signal?.aborted) return res({ code: null, aborted: true });
@@ -602,11 +611,17 @@ function imagesDir(w) {
   const d = path.join(w.dir, 'images');
   fs.mkdirSync(path.join(d, 'sde-node'), { recursive: true }); fs.mkdirSync(path.join(d, 'common'), { recursive: true });
   fs.writeFileSync(path.join(d, 'sde-node', 'Dockerfile'), 'FROM scratch\n'); fs.writeFileSync(path.join(d, 'common', 'nexus-entry'), '#!/bin/sh\n');
+  // Outside the hashed context: a root .dockerignore and another profile's file must never reach a build.
+  fs.writeFileSync(path.join(d, '.dockerignore'), 'common\n');
+  fs.mkdirSync(path.join(d, 'sde-python'), { recursive: true }); fs.writeFileSync(path.join(d, 'sde-python', 'Dockerfile'), 'FROM scratch\n');
   return d;
 }
 
 test('D20 image build: argv carries both labels and the infra/images context; progress events; cancel kills the CLI and reports cancelled; one build per profile', async () => {
-  const cli = fakeDockerCli({ progress: ['#1 [internal] load build definition', '#5 [2/4] RUN npm ci sk-ant-api03-abcdefghijklmnopqrstuv'] });
+  const sent = [];
+  const listAll = (d) => fs.readdirSync(d, { recursive: true }).map(String).map((x) => x.split(path.sep).join('/')).sort();
+  const cli = fakeDockerCli({ progress: ['#1 [internal] load build definition', '#5 [2/4] RUN npm ci sk-ant-api03-abcdefghijklmnopqrstuv'],
+    onBuild: (argv) => sent.push({ dir: argv[argv.length - 1], files: listAll(argv[argv.length - 1]) }) });
   const base = await world();
   const dir = imagesDir(base);
   const w = await world({ docker: cli, imagesDir: dir });
@@ -617,7 +632,11 @@ test('D20 image build: argv carries both labels and the infra/images context; pr
   assert.deepEqual(done, { op: 'image.build.done', buildId, outcome: 'succeeded', imageId: 'sha256:' + 'c'.repeat(64), sizeBytes: 12345 });
   const b = cli.runs.find((r) => r.argv[0] === 'build').argv;
   assert.ok(b.includes('nexus.profile=sde-node') && b.includes(`nexus.context-sha256=${ctx}`));
-  assert.equal(b[b.length - 1], dir); assert.equal(b[b.indexOf('--file') + 1], path.join(dir, 'sde-node', 'Dockerfile'));
+  // Fix round 1 (13): the context sent is exactly the hashed one, assembled under the data home, removed afterwards.
+  const ctxDir = path.join(w.home, 'work', '.image-context', buildId);
+  assert.equal(b[b.length - 1], ctxDir); assert.equal(b[b.indexOf('--file') + 1], path.join(ctxDir, 'sde-node', 'Dockerfile'));
+  assert.deepEqual(sent[0].files, ['common', 'common/nexus-entry', 'sde-node', 'sde-node/Dockerfile'], 'no .dockerignore, no other profile');
+  assert.equal(fs.existsSync(ctxDir), false, 'the assembled context is removed');
   const progress = w.of('image.build.progress');
   assert.ok(progress.length >= 2);
   assert.doesNotMatch(JSON.stringify(progress), /sk-ant-api03/);
@@ -893,7 +912,8 @@ test('CD5 docker invocation: --mount (never -v), --runtime runc, --restart no, n
   for (const k of ['nexus.attempt', 'nexus.boot', 'nexus.home', 'nexus.job', 'nexus.project', 'nexus.kind']) assert.equal(labels[k], plan.container.labels[k], k);
   assert.equal(labels['nexus.home'], w.label);
   const imgAt = argv.indexOf(plan.container.image.ref);
-  assert.match(plan.container.image.ref, /@sha256:[0-9a-f]{64}$/);
+  // Fix round 1 (6): a locally built image is created by its local id (preflight pins the same id).
+  assert.equal(plan.container.image.ref, IMAGE); assert.equal(plan.container.image.id, IMAGE);
   assert.deepEqual(argv.slice(imgAt + 1), plan.container.argv);
   // Volumes and networks the runner makes carry the plan's resource labels (with nexus.home from hello).
   await start(w, plan);
@@ -973,16 +993,277 @@ test('CD11 secrets: Docker\'s error text and parser results never carry a secret
   s.driver.exitContainer(pp.containerId, { code: 0 });
   const e = await s.wait('attempt.exited', p2.attemptId);
   assert.deepEqual(e.parsed, [], 'the secret-shaped result is withheld');
+  // Never silently: the outputs are refused with a reason main can show (fix round 1, item 9).
+  assert.equal(e.outputError, 'secret_in_report'); assert.equal(e.outputErrorEntry, 'junit.xml'); assert.deepEqual(e.outputs, []);
   assert.doesNotMatch(JSON.stringify(s.got), /sk-ant-api03-abcdef/);
   assert.doesNotMatch(JSON.stringify(ALL), /sk-ant-api03-[a-z]{6}|ghp_[a-z]{6}/);
+});
+
+// ---------- Fix round 1 (review of 0e7b8ce9) ----------
+
+/** A repository with a planted git: git.exe (another program), git.cmd and git.bat (each would write a marker). */
+function plantedRepo(w) {
+  const r = repo(w, { 'a.txt': 'a', 'nexus.app.json': JSON.stringify({ version: 1, profile: 'sde-node', run: ['node', 's.js'], port: 3000, healthPath: '/' }) });
+  const marker = path.join(r.dir, 'planted-ran.txt');
+  if (process.platform === 'win32') {
+    fs.copyFileSync(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'whoami.exe'), path.join(r.dir, 'git.exe'));
+    for (const ext of ['cmd', 'bat']) fs.writeFileSync(path.join(r.dir, `git.${ext}`), `@echo off\r\necho planted> "%~dp0planted-ran.txt"\r\n`);
+  } else {
+    fs.writeFileSync(path.join(r.dir, 'git'), `#!/bin/sh\necho planted > "${marker}"\n`, { mode: 0o755 });
+  }
+  return { ...r, marker };
+}
+
+test('FR1 (critical) a git planted in the repository never runs: staging, snapshot and assembly use the resolved git, from the data home, with -C', async () => {
+  const w = await world();
+  const r = plantedRepo(w);
+  const before = SPAWNED.length;
+  const plan = toolPlan(w, { repoPath: r.dir, inputs: [{ versionId: 'V1', slot: 'suite', contentHash: 'x', storage: { kind: 'git', commit: r.commit },
+    metadata: { framework: 'node-test', files: ['test/a.test.js'] } }] });
+  const p = await start(w, plan);
+  assert.equal(p.preflight.ok, true, 'the checkout was staged by the real git');
+  const tar = fs.readFileSync(path.join(plan.workDir, 'in', 'src.tar'));
+  assert.ok(tar.length > 0 && tar.includes(Buffer.from('a.txt')), 'a real tar of the commit');
+  const engine = (recipe, inputs) => {
+    const jobId = newId(NOW); const attemptId = newId(NOW);
+    return buildPlan({ job: { id: jobId, projectId: 'p-ledger' }, attempt: { id: attemptId, n: 1 }, bootId: BOOT, recipe: getRecipe(recipe),
+      dataHomeRoot: w.home, workRel: `work/${jobId}/1`, logRel: `logs/jobs/${jobId}/1.log`, inputs, repoPath: r.dir });
+  };
+  const snap = engine('repo.snapshot', []);
+  w.send({ op: 'attempt.start', attemptId: snap.attemptId, plan: snap });
+  const e1 = await w.wait('attempt.exited', snap.attemptId);
+  assert.equal(e1.exit.code, 0); assert.equal(e1.parsed[0].normalized.commit, r.commit);
+  const asm = engine('sde.app.assemble', [{ versionId: 'B', slot: 'build', contentHash: 'x', storage: { kind: 'tree' }, metadata: { commit: r.commit } }]);
+  w.send({ op: 'attempt.start', attemptId: asm.attemptId, plan: asm });
+  const e2 = await w.wait('attempt.exited', asm.attemptId);
+  assert.equal(e2.exit.code, 0); assert.equal(e2.parsed[0].normalized.manifest.port, 3000);
+  const spawned = SPAWNED.slice(before);
+  assert.ok(spawned.length >= 7);
+  for (const s of spawned) gitSub(s, w, r.dir);
+  assert.equal(fs.existsSync(r.marker), false, 'no planted program ran');
+});
+
+test('FR1b a resolved git inside the repository itself is refused (bad_plan), nothing runs', async () => {
+  const w = await world();
+  const r = repo(w, { 'a.txt': 'a' });
+  const inside = path.join(r.dir, process.platform === 'win32' ? 'git.exe' : 'git');
+  const { RunnerCore: Core } = loadTs('src/runner/core.ts');
+  const { port1, port2 } = new MessageChannel();
+  const got = []; port1.on('message', (m) => got.push(m));
+  const clock = new FakeClock(NOW);
+  const core = new Core(port2, { driver: new FakeSandboxDriver(), now: () => clock.now, fs: fsp, timers: clock, log: () => {}, freeBytes: async () => 100 * GIB,
+    sleep: async () => {}, resolveGit: async () => inside });
+  WORLDS.push({ core, port1 });
+  port1.postMessage({ op: 'hello', bootId: BOOT, dataHome: w.home, home: w.label, profiles: [PROFILE] });
+  await until(() => got.some((m) => m.op === 'ready'), 'ready');
+  const plan = toolPlan(w, { repoPath: r.dir, inputs: [{ versionId: 'V1', slot: 'suite', contentHash: 'x', storage: { kind: 'git', commit: r.commit },
+    metadata: { framework: 'node-test', files: ['test/a.test.js'] } }] });
+  const n0 = SPAWNED.length;
+  port1.postMessage({ op: 'attempt.start', attemptId: plan.attemptId, plan });
+  await until(() => got.some((m) => m.op === 'attempt.refused'), 'refused');
+  const ref = got.find((m) => m.op === 'attempt.refused');
+  assert.equal(ref.reason, 'bad_plan'); assert.match(ref.detail, /inside the repository/);
+  assert.equal(SPAWNED.length, n0, 'nothing spawned');
+});
+
+test('FR2 docker wait: a failed wait is never exit 0; not found -> thrown (missing); still running -> waits again; garbage output -> the inspected exit', async () => {
+  const base = { signal: null, stdoutBytes: 0, truncated: false, timedOut: false, aborted: false, error: null };
+  const script = (steps) => {
+    const calls = [];
+    return { calls, binary: async () => 'C:/x/docker.exe', run: async (argv) => {
+      calls.push(argv[0]);
+      const next = steps[argv[0]].shift();
+      return { ...base, ...next };
+    } };
+  };
+  const inspectOf = (status, code) => JSON.stringify([{ Id: 'a'.repeat(64), RestartCount: 0, State: { Status: status, ExitCode: code, OOMKilled: false, FinishedAt: '2026-10-09T10:00:00Z' } }]);
+  // DW1: wait fails (container removed mid-run) and inspect says not found -> thrown, never code 0.
+  const dw1 = script({ wait: [{ code: 1, stdout: '', stderr: 'Error response from daemon: No such container: abc' }],
+    inspect: [{ code: 1, stdout: '[]', stderr: 'Error: No such container: abc' }] });
+  await assert.rejects(new DockerDriver(dw1, { now: () => 42 }).wait('a'.repeat(64), new AbortController().signal), /No such container|gone/);
+  // DW2: the daemon is down -> thrown.
+  const dw2 = script({ wait: [{ code: 1, stdout: '', stderr: 'Cannot connect to the Docker daemon' }], inspect: [{ code: 1, stdout: '', stderr: 'Cannot connect to the Docker daemon' }] });
+  await assert.rejects(new DockerDriver(dw2, { now: () => 42 }).wait('a'.repeat(64), new AbortController().signal));
+  // DW3: the wait is cut short while the container still runs -> it waits again, then reads the recorded exit 7.
+  const dw3 = script({ wait: [{ code: 1, stdout: '', stderr: 'unexpected EOF' }, { code: 0, stdout: '7\n', stderr: '' }],
+    inspect: [{ code: 0, stdout: inspectOf('running', 0) }, { code: 0, stdout: inspectOf('exited', 7) }] });
+  const e3 = await new DockerDriver(dw3, { now: () => 42 }).wait('a'.repeat(64), new AbortController().signal);
+  assert.equal(e3.code, 7); assert.deepEqual(dw3.calls, ['wait', 'inspect', 'wait', 'inspect']);
+  // DW4: wait "succeeds" with garbage -> the inspected exit (3), never 0.
+  const dw4 = script({ wait: [{ code: 0, stdout: 'hello', stderr: '' }], inspect: [{ code: 0, stdout: inspectOf('exited', 3) }] });
+  assert.equal((await new DockerDriver(dw4, { now: () => 42 }).wait('a'.repeat(64), new AbortController().signal)).code, 3);
+  // DW5: it never ends -> bounded retries, then thrown.
+  const forever = { calls: [], binary: async () => 'C:/x/docker.exe', run: async (argv) => { forever.calls.push(argv[0]);
+    return argv[0] === 'wait' ? { ...base, code: 1, stdout: '', stderr: 'EOF' } : { ...base, code: 0, stdout: inspectOf('running', 0) }; } };
+  await assert.rejects(new DockerDriver(forever, { now: () => 42 }).wait('a'.repeat(64), new AbortController().signal), /could not be read/);
+  assert.equal(forever.calls.filter((c) => c === 'wait').length, 5);
+});
+
+test('FR3 logs: a secret straddling the frame split (5 cut points), a ghp_ token straddling it, and a key crossing the forced flush of an unterminated line are all stored redacted', async () => {
+  const w = await world();
+  const KEY = 'sk-ant-api03-' + 'A1b2C3d4E5'.repeat(9) + 'xyzAA';
+  const GHP = 'ghp_' + 'Z9y8X7w6V5'.repeat(3) + 'abcdef';
+  const { LogWriter } = loadTs('src/runner/logs.ts');
+  let k = 0;
+  const run = async (writes) => {
+    const file = path.join(w.home, 'logs', 'jobs', `fr3-${++k}.log`);
+    const lw = new LogWriter(fsp, w.home, file, { now: () => 1 });
+    await lw.open();
+    for (const [s, t] of writes) lw.write(s, t);
+    await lw.close();
+    const text = fs.readFileSync(file, 'utf8');
+    for (const l of text.trimEnd().split('\n')) JSON.parse(l);
+    return text;
+  };
+  for (const off of [4, 8, 13, 20, 40]) {
+    const t = await run([['stdout', 'x'.repeat(16384 - off) + ' ' + KEY + ' tail\n']]);
+    assert.doesNotMatch(t, /A1b2C3d4E5A1b2/, `L2 cut ${off + 1} chars into the key`);
+    assert.match(t, /\[redacted\]/);
+  }
+  assert.doesNotMatch(await run([['stdout', 'x'.repeat(16384 - 10) + ' ' + GHP + '\n']]), /Z9y8X7w6V5Z9/, 'L3');
+  const chunkA = 'y'.repeat(16380) + ' sk-ant-api03-A1b2C3';
+  const chunkB = KEY.slice('sk-ant-api03-A1b2C3'.length) + ' rest\n';
+  assert.doesNotMatch(await run([['stdout', chunkA], ['stdout', chunkB]]), /d4E5A1b2C3d4/, 'L4');
+  // A long unterminated line is still flushed in bounded pieces, and a bearer phrase near the cut stays together.
+  const t5 = await run([['stdout', 'z'.repeat(20000) + ' Authorization: Bearer abc.def.ghi-jkl-mno'], ['stdout', 'pqr more\n']]);
+  assert.doesNotMatch(t5, /abc\.def\.ghi|jkl-mnopqr/);
+  assert.ok(t5.trimEnd().split('\n').every((l) => JSON.parse(l).text.length <= 16384));
+});
+
+test('FR5 a container that vanishes: heartbeat missing, the attempt settled, and NOTHING removed (volume, networks, /out) until attempt.release', async () => {
+  const w = await world();
+  const plan = toolPlan(w);
+  const p = await start(w, plan);
+  outFile(plan, 'partial.txt', 'kept');
+  await w.driver.remove(p.containerId);
+  await until(() => w.of('attempt.heartbeat', plan.attemptId).some((m) => m.container === 'missing'), 'a missing heartbeat');
+  await w.advance(HEARTBEAT_MS);
+  assert.equal(w.driver.callsOf('removeVolume').length, 0, 'the workspace volume stays');
+  assert.ok(w.core.held().includes(plan.attemptId), 'the attempt is still held');
+  assert.ok(fs.existsSync(path.join(plan.workDir, 'out', 'partial.txt')));
+  assert.equal(w.of('attempt.exited', plan.attemptId).length, 0);
+  w.send({ op: 'attempt.release', attemptId: plan.attemptId });
+  await until(() => w.driver.callsOf('removeVolume').length === 1, 'removed at release');
+  assert.ok(fs.existsSync(path.join(plan.workDir, 'out', 'partial.txt')), 'the work folder stays even then');
+});
+
+test('FR6 a locally built image is created by its local id (preflight accepts it); a pulled one by repository@digest; tags and look-alikes refused', async () => {
+  const w = await world();
+  const plan = toolPlan(w);
+  assert.equal(plan.container.image.ref, IMAGE);
+  const p = await start(w, plan);
+  assert.equal(p.preflight.ok, true, p.preflight.problems.join('; '));
+  assert.equal(createArgv(plan.container).includes(IMAGE), true);
+  const { imageRef } = loadTs('src/main/nexus/exec/planBuilder.ts');
+  assert.equal(imageRef({ ...PROFILE, image: { ...PROFILE.image, source: 'pulled' } }, IMAGE), `nexus/sde-node@${PROFILE.image.digest}`);
+  assert.equal(imageRef(PROFILE, IMAGE), IMAGE);
+  for (const ref of ['nexus/sde-node:latest', 'localhost:5000/xsha256:' + 'a'.repeat(64), 'sha256:' + 'b'.repeat(64)]) {
+    assert.throws(() => createArgv({ ...plan.container, image: { ...plan.container.image, ref } }), /digest-pinned/, ref);
+  }
+  const svc = servicePlan(w);
+  assert.equal(svc.app.image.ref, IMAGE); assert.equal(svc.forwarder.image.ref, FWD_IMAGE);
+});
+
+test('FR7 image.build.start re-sent for a build that runs is idempotent (no answer for it)', async () => {
+  const base = await world();
+  const dir = imagesDir(base);
+  const hang = fakeDockerCli({ hang: true });
+  const w = await world({ docker: hang, imagesDir: dir });
+  const ctx = await contextSha256(fsp, dir, 'sde-node');
+  const id = newId(NOW);
+  w.send({ op: 'image.build.start', buildId: id, profile: 'sde-node', approvalId: 'A', contextSha256: ctx });
+  await until(() => hang.runs.some((r) => r.argv[0] === 'build'), 'build started');
+  w.send({ op: 'image.build.start', buildId: id, profile: 'sde-node', approvalId: 'A', contextSha256: ctx });
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(w.of('image.build.done').length, 0, 'the running build is not answered "already running"');
+  assert.equal(hang.runs.filter((r) => r.argv[0] === 'build').length, 1);
+  w.send({ op: 'image.build.cancel', buildId: id });
+  const d = await w.wait('image.build.done');
+  assert.equal(d.outcome, 'cancelled');
+});
+
+test('FR10 file system failures while staging are infrastructure faults: ENOSPC -> disk_full, EACCES -> io_error (never docker_error or bad_plan)', async () => {
+  for (const [code, cls] of [['ENOSPC', 'disk_full'], ['EACCES', 'io_error']]) {
+    const failing = { ...fsp, mkdir: async (p, ...r) => { if (String(p).endsWith(`${path.sep}in`)) { const e = new Error(code); e.code = code; throw e; } return fsp.mkdir(p, ...r); } };
+    const w = await world({ fs: failing });
+    const plan = toolPlan(w);
+    w.send({ op: 'attempt.start', attemptId: plan.attemptId, plan });
+    const f = await w.wait('fault', plan.attemptId);
+    assert.equal(f.failureClass, cls, code);
+    assert.equal(w.of('attempt.refused', plan.attemptId).length, 0);
+  }
+  const { failureClassOf } = loadTs('src/runner/core.ts');
+  assert.equal(failureClassOf(Object.assign(new Error('x'), { code: 'ENOSPC' })), 'disk_full');
+  assert.equal(failureClassOf(Object.assign(new Error('x'), { code: 'EIO' })), 'io_error');
+  assert.equal(failureClassOf(new Error('plain')), 'docker_error');
+});
+
+test('FR11 a deps volume must be nexus-deps-<profile>-<12 hex>: anything looser is refused', async () => {
+  const w = await world();
+  const plan = toolPlan(w);
+  const loose = 'nexus-deps-x';
+  plan.staging.depsVolume = { name: loose, readOnly: true };
+  plan.container.mounts.push({ kind: 'deps', hostPath: loose, containerPath: '/workspace/node_modules', readOnly: true });
+  w.send({ op: 'attempt.start', attemptId: plan.attemptId, plan });
+  const r = await w.wait('attempt.refused', plan.attemptId);
+  assert.equal(r.reason, 'bad_plan');
+  assert.equal(w.driver.callsOf('createVolume').length, 0);
+  const { DEPS_VOLUME_RE } = loadTs('src/runner/sandbox/dockerDriver.ts');
+  assert.ok(DEPS_VOLUME_RE.test('nexus-deps-sde-node-0123456789ab'));
+  for (const bad of ['nexus-deps-sde-node-0123', 'nexus-deps-evil-0123456789ab', `nexus-ws-${newId(NOW)}`, 'nexus-deps-sde-node-0123456789ab-x']) assert.ok(!DEPS_VOLUME_RE.test(bad), bad);
+  const good = toolPlan(w);
+  good.container.mounts.push({ kind: 'deps', hostPath: 'nexus-deps-evil', containerPath: '/deps', readOnly: true });
+  assert.throws(() => createArgv(good.container), /dependency cache/);
+});
+
+test('FR12 attempt.adopt checks the container\'s labels: one that is not this attempt\'s (or this install\'s) is never removed', async () => {
+  const w = await world();
+  const plan = toolPlan(w);
+  const p = await start(w, plan);
+  w.driver.exitContainer(p.containerId, { code: 0 });
+  await w.wait('attempt.exited', plan.attemptId);
+  const foreign = 'f'.repeat(64);
+  w.driver.containers.set(foreign, { id: foreign, name: 'user-thing', spec: plan.container, labels: { 'nexus.home': 'ffffffffffffffff', 'nexus.attempt': plan.attemptId },
+    state: 'exited', exit: { code: 0, oomKilled: false, finishedAt: 1 }, waiters: [], logs: [], logEnd: [] });
+  const r = await world({ driver: w.driver, homeDir: w.home });
+  r.send({ op: 'attempt.adopt', attemptId: plan.attemptId, containerId: foreign, logPath: plan.logPath });
+  await r.wait('attempt.exited', plan.attemptId);
+  r.send({ op: 'attempt.release', attemptId: plan.attemptId });
+  await until(() => !r.core.held().includes(plan.attemptId), 'released');
+  await new Promise((res) => setTimeout(res, 20));
+  assert.ok(w.driver.containers.has(foreign), 'the foreign container is untouched');
+  assert.ok(!w.driver.calls.some((c) => ['remove', 'stop', 'kill'].includes(c.op) && c.args[0] === foreign));
+  assert.ok(!w.driver.containers.has(p.containerId), 'the attempt\'s own labelled container is removed by label');
+});
+
+test('FR17 /out walks read folders one entry at a time and stop past the bound (millions of entries never fill memory)', async () => {
+  const w = await world();
+  const dir = path.join(w.home, 'work', 'fr17', 'out');
+  fs.mkdirSync(dir, { recursive: true });
+  for (let i = 0; i < 40; i++) fs.writeFileSync(path.join(dir, `f${i}.txt`), 'x');
+  let read = 0;
+  const counting = { ...fsp, opendir: async (p, ...r) => {
+    const d = await fsp.opendir(p, ...r);
+    const it = d[Symbol.asyncIterator].bind(d);
+    return { close: () => d.close(), [Symbol.asyncIterator]: () => { const i = it(); return { next: async () => { const x = await i.next(); if (!x.done) read++; return x; }, return: async () => { await d.close().catch(() => {}); return { done: true }; } }; } };
+  }, readdir: async () => { throw new Error('readdir is not used'); } };
+  const { scanOut, outBytes, entryBudget } = loadTs('src/runner/outputs.ts');
+  const r = await scanOut(counting, dir, { maxFiles: 3, maxBytes: 2 ** 20 });
+  assert.equal(r.ok, false); assert.equal(r.code, 'too_many_files');
+  assert.ok(read <= entryBudget(3) + 1, `read ${read} entries`);
+  read = 0;
+  await outBytes(counting, dir, 2 ** 30, 3);
+  assert.ok(read <= entryBudget(3) + 1, `outBytes read ${read}`);
+  fs.rmSync(path.join(w.home, 'work', 'fr17'), { recursive: true, force: true });
 });
 
 // ---------- D18, D19: over the whole suite (these run last) ----------
 
 test('D18 the runner spawned only docker and git, never through a shell', () => {
-  assert.ok(SPAWNED.some((s) => s.cmd === 'git'), 'the spy saw the runner\'s git');
+  assert.ok(SPAWNED.some((s) => isGitBinary(s.cmd)), 'the spy saw the runner\'s git');
   for (const s of SPAWNED) {
-    assert.ok(s.cmd === 'git' || /(^|[\\/])docker(\.exe)?$/i.test(s.cmd), `spawned ${s.cmd}`);
+    assert.ok(isGitBinary(s.cmd) || /(^|[\\/])docker(\.exe)?$/i.test(s.cmd), `spawned ${s.cmd}`);
+    assert.ok(path.isAbsolute(s.cmd), `by its resolved absolute path: ${s.cmd}`);
     assert.notEqual(s.shell, true);
   }
 });

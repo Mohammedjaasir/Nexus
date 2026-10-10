@@ -11,7 +11,7 @@
  */
 import * as path from 'node:path';
 import type { ServicePlan, ToolPlan } from '../shared/nexus/execution';
-import { archiveTo, COMMIT_RE, GitError } from './git';
+import { COMMIT_RE, GitError, type GitRunner } from './git';
 import { copyHashing, SourceChangedError } from './objectStore';
 import { badName } from './outputs';
 import { ensureDirUnder, errCode, noLinkUnder, type HomePaths } from './paths';
@@ -29,7 +29,12 @@ export function stagedPathOk(rel: string): boolean {
   return typeof rel === 'string' && rel.length > 0 && rel.length <= 1024 && !rel.startsWith('/') && rel.split('/').every((s) => !badName(s));
 }
 
-export async function stageInputs(fs: RunnerFs, paths: HomePaths, plan: ToolPlan | ServicePlan, workDir: string, signal?: AbortSignal): Promise<StageResult> {
+/**
+ * Stages the plan's inputs. A refusal is returned; a file system failure (no space, a locked folder, ...) is THROWN with
+ * its errno code, so the caller reports it as the infrastructure fault it is (`disk_full`, `io_error`), never `bad_plan`.
+ */
+export async function stageInputs(fs: RunnerFs, paths: HomePaths, git: GitRunner, plan: ToolPlan | ServicePlan, workDir: string,
+  signal?: AbortSignal): Promise<StageResult> {
   const inDir = path.join(workDir, 'in');
   const outDir = path.join(workDir, 'out');
   if (!(await ensureDirUnder(fs, paths.root, inDir)) || !(await ensureDirUnder(fs, paths.root, outDir))) {
@@ -43,11 +48,12 @@ export async function stageInputs(fs: RunnerFs, paths: HomePaths, plan: ToolPlan
       return { ok: false, reason: 'bad_plan', detail: 'the project folder is not an absolute path' };
     }
     const tar = path.join(inDir, 'src.tar');
-    try { await fs.unlink(tar); } catch (e) { if (errCode(e) !== 'ENOENT') return { ok: false, reason: 'bad_plan', detail: 'in/src.tar cannot be replaced' }; }
+    try { await fs.unlink(tar); } catch (e) { if (errCode(e) !== 'ENOENT') throw e; }
     try {
-      source = await archiveTo(fs, src.repoPath, src.commit, tar, { signal, maxBytes: SOURCE_MAX_BYTES });
+      source = await git.archiveTo(fs, src.repoPath, src.commit, tar, { signal, maxBytes: SOURCE_MAX_BYTES });
     } catch (e) {
-      return { ok: false, reason: 'bad_plan', detail: e instanceof GitError ? e.message : 'the checkout could not be written' };
+      if (e instanceof GitError) return { ok: false, reason: 'bad_plan', detail: e.message };
+      throw e;                                              // ENOSPC, EACCES, ...: the caller classifies it
     }
   }
   let blobs = 0;

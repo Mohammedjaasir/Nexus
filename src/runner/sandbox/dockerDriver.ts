@@ -24,7 +24,7 @@ import {
   HOME_TMPFS_MB, HOME_TMPFS_PATH, SANDBOX_UID, SANDBOX_USER, TMP_TMPFS_PATH,
   type ContainerLabels, type ContainerSpec, type ExitInfo, type PreflightReport, type SandboxProbe, type SandboxProfileId
 } from '../../shared/nexus/execution';
-import { comparePreflight, expectedNetworkName, publishNetworkName } from '../../shared/nexus/preflightCheck';
+import { comparePreflight, expectedNetworkName, isPinnedImageRef, publishNetworkName } from '../../shared/nexus/preflightCheck';
 import { redactSecretText } from '../../main/nexus/activity/redact';
 import type { RunResult } from '../proc';
 import type { CreateOptions, ImageInfo, ResourceFacts, ResourceKind, RunnerDriver } from '../types';
@@ -56,6 +56,10 @@ export class DockerError extends Error {
 }
 
 const NAME_RE = /^nexus-[A-Za-z0-9][A-Za-z0-9_.-]{0,200}$/;
+/** A dependency cache volume: `nexus-deps-<profile>-<12 hex of the lockfile hash>` (planBuilder's name), nothing looser. */
+export const DEPS_VOLUME_RE = /^nexus-deps-(?:sde-node|sde-python|qa-web|data-python|ml-python|dl-cpu)-[0-9a-f]{12}$/;
+/** How many times `wait` asks again while the container still runs (a `docker wait` cut short by the CLI or the daemon). */
+export const WAIT_RETRIES = 5;
 const LABEL_KEY_RE = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 const CONTAINER_ID_RE = /^[0-9a-f]{64}$/;
@@ -88,7 +92,11 @@ export function createArgv(spec: ContainerSpec, o: CreateOptions = {}): string[]
   if (!(l.cpus > 0) || !Number.isSafeInteger(l.memoryMb) || l.memoryMb < 1 || !Number.isSafeInteger(l.pids) || l.pids < 1
     || !Number.isSafeInteger(l.tmpfsMb) || l.tmpfsMb < 1) throw new SpecError('the limits are incomplete');
   if (spec.readOnlyRootfs !== true || spec.noNewPrivileges !== true || spec.capDrop?.[0] !== 'ALL') throw new SpecError('the sandbox flags are incomplete');
-  if (typeof spec.image?.ref !== 'string' || !/@?sha256:[0-9a-f]{64}$/.test(spec.image.ref)) throw new SpecError('the image is not digest-pinned');
+  // The comparator's own rule: a local image id (equal to the expected id), or repository@sha256. A tag never; a name
+  // that merely ends in sha256:<hex> never.
+  if (!isPinnedImageRef(spec.image?.ref) || (spec.image.ref.startsWith('sha256:') && spec.image.ref !== spec.image.id)) {
+    throw new SpecError('the image is not digest-pinned');
+  }
   const argv = ['create', '--pull', 'never', '--name', name, ...labelArgs(spec.labels as unknown as Record<string, string>),
     '--user', SANDBOX_USER, '--cpus', String(l.cpus), '--memory', `${l.memoryMb}m`, '--memory-swap', `${l.memoryMb}m`,
     '--pids-limit', String(l.pids), '--read-only',
@@ -108,6 +116,7 @@ export function createArgv(spec: ContainerSpec, o: CreateOptions = {}): string[]
     if (typeof m.containerPath !== 'string' || !m.containerPath.startsWith('/') || m.containerPath.includes('..')) throw new SpecError('a mount target is not absolute');
     const bind = /^[A-Za-z]:[\\/]/.test(m.hostPath) || m.hostPath.startsWith('/');
     if (!bind && !NAME_RE.test(m.hostPath)) throw new SpecError('a volume mount is not a nexus volume');
+    if (!bind && m.kind === 'deps' && !DEPS_VOLUME_RE.test(m.hostPath)) throw new SpecError('a deps mount is not a dependency cache volume');
     const fields = [`type=${bind ? 'bind' : 'volume'}`, `src=${m.hostPath}`, `dst=${m.containerPath}`];
     if (m.readOnly) fields.push('readonly');
     argv.push('--mount', fields.map(csvField).join(','));
@@ -242,15 +251,27 @@ export class DockerDriver implements RunnerDriver {
     return { code, oomKilled: state.OOMKilled === true, finishedAt: Number.isFinite(t) && t > 0 ? t : this.o.now() };
   }
 
+  /**
+   * The container's exit. `docker wait` must succeed AND print an integer; whatever it printed, the container is then
+   * inspected: exited or dead -> its recorded exit; running, created or restarting -> wait again (at most WAIT_RETRIES
+   * times); not found -> throw (the attempt is then reported missing). An unknown exit is never reported as code 0.
+   */
   async wait(containerId: string, signal: AbortSignal): Promise<ExitInfo> {
-    const r = await this.call('wait', ['wait', containerId], { timeoutMs: 0, signal });
-    if (r.aborted) throw new DockerError('wait', 'stopped waiting');
-    const rec = await this.inspectRaw(containerId);
-    if (!rec || !isObj(rec.State)) {
-      const code = Number(r.stdout.trim());
-      return { code: Number.isSafeInteger(code) ? code : null, oomKilled: false, finishedAt: this.o.now() };
+    for (let i = 0; i < WAIT_RETRIES; i++) {
+      const r = await this.call('wait', ['wait', containerId], { timeoutMs: 0, signal });
+      if (r.aborted || signal.aborted) throw new DockerError('wait', 'stopped waiting');
+      const printed = r.code === 0 && /^\s*-?\d{1,10}\s*$/.test(r.stdout) ? Number(r.stdout.trim()) : null;
+      const rec = await this.inspectRaw(containerId);               // throws when Docker cannot answer
+      if (!rec || !isObj(rec.State)) throw new DockerError('wait', 'No such container: the container is gone');
+      const status = String(rec.State.Status ?? '');
+      if (status === 'exited' || status === 'dead') {
+        const exit = this.exitOf(rec.State);
+        // The recorded state wins; wait's printed code fills only a missing one.
+        return printed !== null && exit.code === null ? { ...exit, code: printed } : exit;
+      }
+      // Still running, created or restarting (the wait was cut short): wait again.
     }
-    return this.exitOf(rec.State);
+    throw new DockerError('wait', 'the exit could not be read');
   }
 
   async inspect(containerId: string): Promise<{ state: 'created' | 'running' | 'exited' | 'missing'; exit?: ExitInfo; restartCount: number }> {

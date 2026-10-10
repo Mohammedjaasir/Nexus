@@ -156,3 +156,13 @@ test('J14 the manifest parser: a canonical per-file list of /out/dist and its ha
   assert.deepEqual(parseAppManifest('[1]'), { ok: false, reason: 'not_object' });
   assert.deepEqual(parseAppManifest('{'), { ok: false, reason: 'not_json' });
 });
+
+// ---------- Fix round 1 (review of 0e7b8ce9) ----------
+
+test('FR8 an absurd test time (1e308, 1e400, negative) is clamped to a safe integer of milliseconds, never Infinity', () => {
+  const r = parseJunit('<testsuites><testsuite><testcase name="a" time="1e308"/><testcase name="b" time="1e400"/><testcase name="c" time="-1"/><testcase name="d" time="9007199254740.993"/></testsuite></testsuites>');
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.value.cases.map((c) => c.ms), [Number.MAX_SAFE_INTEGER, 0, 0, Number.MAX_SAFE_INTEGER]);
+  for (const c of r.value.cases) assert.ok(Number.isSafeInteger(c.ms));
+  assert.equal(checkJunit(r.value).ok, true);
+});

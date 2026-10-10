@@ -251,6 +251,17 @@ test('W3 a runner that never reconciles: the scheduler starts when the host is u
   const h2 = await startExecution({ platform: nx2, userData: userDataOf(w), log: () => {}, fork: hung.fork, timers: clock, now: () => clock.now });
   clock.advance(STARTUP_RECONCILE_WAIT_MS - 1_000); assert.equal(h2.ticking(), false);
   clock.advance(1_000); assert.equal(h2.ticking(), true);
+  // Fix round 1 (4): the slow runner answers after the fallback started the scheduler: phase B runs, the blob store
+  // pass does NOT (it would hold the exclusive lock while leases and ingests run).
+  let blob2 = 0; const origBlob2 = nx2.exec.recoverBlobStore.bind(nx2.exec); nx2.exec.recoverBlobStore = (...a) => { blob2++; return origBlob2(...a); };
+  let phaseB2 = 0; const origB2 = nx2.exec.recoverPhaseB.bind(nx2.exec); nx2.exec.recoverPhaseB = (...a) => { phaseB2++; return origB2(...a); };
+  hung.children.at(-1).say({ op: 'ready', bootId: nx2.bootId });
+  await until(() => hung.children.at(-1).posted.some((m) => m.op === 'reconcile.list'), 'reconcile.list');
+  hung.children.at(-1).say({ op: 'reconcile.result', docker: 'running', attempts: [], labelled: [] });
+  await until(() => phaseB2 === 1, 'phase B');
+  await flush();
+  assert.equal(blob2, 0, 'no blob store pass once the scheduler ticks');
+  clock.advance(1_000); assert.equal(h2.ticking(), true);
   const s2 = h2.stop(); clock.advance(STOP_TIMEOUT_MS); await s2;
   w.close();
 });
@@ -329,5 +340,40 @@ test('W5 startExecution does nothing when execution is not available', async () 
   const handle = await startExecution({ platform: w.nx, userData: userDataOf(w), log: (l) => logs.push(l), fork });
   assert.equal(handle, null); assert.equal(children.length, 0);
   assert.ok(logs.some((l) => /not available/.test(l)));
+  w.close();
+});
+
+// ---------- Fix round 1 (review of 0e7b8ce9) ----------
+
+test('W6 (16) the reconcile request is recorded only after reconcile.list was sent: a failed send records nothing', async () => {
+  const w = execWorld();
+  const { nx } = platformOn(w);
+  let recorded = 0; const orig = nx.exec.reconcileList.bind(nx.exec); nx.exec.reconcileList = () => { recorded++; return orig(); };
+  const clock = new FakeClock(w.now());
+  const s = scriptedFork();
+  const handle = await startExecution({ platform: nx, userData: userDataOf(w), log: () => {}, fork: s.fork, timers: clock, now: () => w.now() });
+  const child = s.children[0];
+  await until(() => child.posted.some((m) => m.op === 'reconcile.list'), 'the first reconcile.list');
+  assert.equal(recorded, 1, 'recorded once, after the send');
+  // The next send fails: nothing is recorded.
+  const post = child.post;
+  child.post = (m) => { if (m.op === 'reconcile.list') throw new Error('closed'); post(m); };
+  child.say({ op: 'ready', bootId: nx.bootId });
+  await flush();
+  assert.equal(recorded, 1, 'a request that never left is never recorded');
+  const st = handle.stop(); clock.advance(STOP_TIMEOUT_MS); await st;
+  w.close();
+});
+
+test('W7 (5) a container that vanished: main fails the attempt container_vanished AND releases it (the runner keeps its resources until then)', () => {
+  const w = execWorld();
+  const r = w.attach();
+  const job = w.exec.start(w.me, w.req('sde.tests.discover')).job;
+  w.exec.tick(w.now());
+  const a = w.provision(r, job.id);
+  assert.equal(r.sentOf('attempt.release').length, 0);
+  r.report({ op: 'attempt.heartbeat', attemptId: a.id, at: w.now(), logBytes: 0, outBytes: 0, container: 'missing' });
+  assert.equal(w.attempt(a.id).outcome, 'container_vanished');
+  assert.deepEqual(r.sentOf('attempt.release').map((m) => m.attemptId), [a.id]);
   w.close();
 });

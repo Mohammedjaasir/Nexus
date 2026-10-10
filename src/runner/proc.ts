@@ -4,10 +4,12 @@
  * never a shell (`shell: false`), never a command string, never a synchronous call; `windowsHide` on Windows; a
  * per-call timeout; capped stdout and stderr. The environment is the caller's filtered copy (no host secrets).
  *
- * The two `spawn(` calls below are the only ones under src/runner; nexus-runner-posture pins their first arguments.
+ * The two `spawn(` calls below are the only ones under src/runner (`dockerBin`, `gitBin`: absolute, resolved paths);
+ * nexus-runner-posture pins their first arguments.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import * as path from 'node:path';
+import { isGitBinary } from '../main/gitBinary';
 
 export interface RunOptions {
   cwd?: string;
@@ -86,9 +88,14 @@ export function runDocker(dockerBin: string, argv: readonly string[], o: RunOpti
   return collect(child, o);
 }
 
-/** Runs `git` with an argv array in a fixed folder (the project folder main accepted). */
-export function runGit(argv: readonly string[], o: RunOptions & { cwd: string }): Promise<RunResult> {
-  const child = spawn('git', [...argv], { cwd: o.cwd, env: o.env, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+/**
+ * Runs git at its resolved absolute path (src/main/gitBinary.ts) with an argv array, from a neutral working folder (the
+ * data home; the repository is named with `-C`). Never `spawn('git', ..., { cwd: repo })`: on Windows that runs a
+ * `git.exe` planted in the repository. Refuses any other binary.
+ */
+export function runGit(gitBin: string, argv: readonly string[], o: RunOptions & { cwd: string }): Promise<RunResult> {
+  if (!isGitBinary(gitBin)) return Promise.reject(new Error('only the resolved git binary is launched'));
+  const child = spawn(gitBin, [...argv], { cwd: o.cwd, env: o.env, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
   return collect(child, o);
 }
 

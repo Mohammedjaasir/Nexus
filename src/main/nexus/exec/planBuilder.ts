@@ -150,6 +150,15 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
  */
 export { homeLabel };
 
+/**
+ * The reference a container is created from: the local image id for an image Nexus built (every B2a profile; a built
+ * image has no repository digest, so `repository@digest` would name the BASE image, which is not present), else the
+ * pulled image's `repository@digest`. Preflight pins the local id either way.
+ */
+export function imageRef(profile: SandboxProfile, imageId: `sha256:${string}`): string {
+  return profile.image.source === 'pulled' ? `${profile.image.repository}@${profile.image.digest}` : imageId;
+}
+
 /** The labels of an attempt's volumes and networks (and the base of its containers' labels). */
 function attemptLabels(ctx: PlanContext): ResourceLabels {
   return { 'nexus.job': ctx.job.id, 'nexus.attempt': ctx.attempt.id, 'nexus.boot': ctx.bootId, 'nexus.project': ctx.job.projectId,
@@ -304,7 +313,7 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
     name: `nexus-${attempt.id.toLowerCase()}`,
     labels: { ...attemptLabels(ctx), 'nexus.kind': 'tool' },
     profile: profile.id,
-    image: { ref: `${profile.image.repository}@${profile.image.digest}`, id: ctx.imageId },
+    image: { ref: imageRef(profile, ctx.imageId), id: ctx.imageId },
     entrypoint: [...profile.entrypoint],
     argv: expandArgv(recipe, framework, ctx.inputs),
     imageEnv: [...profile.imageEnv],
@@ -388,14 +397,14 @@ function buildServicePlan(ctx: PlanContext, base: ServiceBase): ServicePlan {
   const network: NetworkMode = { mode: 'service-internal', network: internal };
   const app: ContainerSpec = {
     name: `nexus-${attempt.id.toLowerCase()}-app`, labels: labels('service'), profile: profile.id,
-    image: { ref: `${profile.image.repository}@${profile.image.digest}`, id: ctx.imageId },
+    image: { ref: imageRef(profile, ctx.imageId), id: ctx.imageId },
     entrypoint: [...profile.entrypoint], argv, imageEnv: [...profile.imageEnv], env: envFor(recipe, profile.id, null), mounts, network,
     limits: { ...limitsFor(recipe), wallClockMs: lifetime }, readOnlyRootfs: true, capDrop: ['ALL'], noNewPrivileges: true,
     service: { containerPort: port, healthPath }
   };
   const forwarder: ContainerSpec = {
     name: `nexus-${attempt.id.toLowerCase()}-fwd`, labels: labels('forwarder'), profile: 'nexus-fwd',
-    image: { ref: `${fwd.image.repository}@${fwd.image.digest}`, id: s.forwarderImageId },
+    image: { ref: imageRef(fwd, s.forwarderImageId), id: s.forwarderImageId },
     entrypoint: [...fwd.entrypoint], argv: [...ARGV_TEMPLATES['fwd.socat-loopback'], `TCP:app:${port}`], imageEnv: [...fwd.imageEnv],
     env: checkEnv({ HOME: '/home/nexus' }), mounts: [], network,
     limits: { cpus: FORWARDER_LIMITS.cpus, memoryMb: FORWARDER_LIMITS.memoryMb, pids: PIDS_LIMIT, wallClockMs: lifetime,
