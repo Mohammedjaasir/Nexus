@@ -1,6 +1,6 @@
-# Nexus platform core (schema v7 and v8)
+# Nexus platform core (schema v7, v8 and v9)
 
-This is the reference for the Nexus platform core. It has two parts.
+This is the reference for the Nexus platform core. It has three parts.
 
 **Part I (sections 1 to 19)** covers the B0b platform core: schema v7, the authorization chain, the activity log, the job, version and agent-session state tables, and the lineage vocabulary. It also has the v7 migration procedure and the operator runbook for backup, hold and restore.
 
@@ -10,12 +10,18 @@ This is the reference for the Nexus platform core. It has two parts.
 - the `nexus:*` IPC surface;
 - the workspace authority flip and the screens built on it.
 
-Part I is kept as the B0b reference. Where B1 changed a statement in it, the section says so and links to Part II.
+**[Part III](#part-iii-schema-v9-and-b2a) (sections 30 to 48)** covers B2a, the execution core:
+- schema v9 (execution records, blobs, validations, approvals, deployments), opt-in until verification, and its runbook;
+- the scheduler, the runner process, the sandbox, networks and approvals, and restart recovery;
+- evidence-based completion and the validators;
+- the 20 execution channels, the domain registry, the resource gate, the pending wiring and the known limitations.
 
-**Why one document.** The B1 material is a part of this file, not a separate `platform-b1.md`, for three reasons:
-- the B1 brief names this file;
-- v8 is built on v7's tables, rules and runbook, so the restore, hold and downgrade steps read best side by side;
-- `test/nexus-core-identity-scan.test.cjs` scans this file, so the B1 text is covered by the same guard without widening that test.
+Part I is kept as the B0b reference. Where B1 or B2a changed a statement in it, the section says so and links to Part II or Part III.
+
+**Why one document.** The B1 and B2a material is part of this file, not a separate `platform-b1.md` or `platform-b2a.md`, for three reasons:
+- the B1 and B2a briefs name this file;
+- v8 and v9 are built on v7's tables, rules and runbook, so the restore, hold and downgrade steps read best side by side;
+- `test/nexus-core-identity-scan.test.cjs` scans this file, so the later text is covered by the same guard without widening that test.
 
 The code is the source of truth. Table, index and trigger names below are copied from `V7_DDL` and `V7_EXPECTED` in `src/main/nexus/db/schemaV7.ts`, and `test/nexus-db-migration.test.cjs` pins those names against a real database. Where the code differs from the B0b plan, the code is described and the difference is listed in [section 17](#17-differences-from-the-plan-and-the-architecture).
 
@@ -33,6 +39,8 @@ B1 changes three of these statements:
 - Screens read the platform tables ([section 28](#28-the-renderer)).
 
 Nothing executes in B1 either, and jobs and sessions are still created by no product path.
+
+B2a (Part III) builds the execution core: jobs, attempts, a sandboxed runner and evidence. It is **not yet switched on**. v9 is opt-in, and the app does not start the runner until the pending wiring lands ([section 45](#45-pending-wiring)). So on a real database, the two statements above still hold.
 
 ---
 
@@ -70,6 +78,28 @@ Nothing executes in B1 either, and jobs and sessions are still created by no pro
 27. [Versions from the UI: mark ready, promote, discard and link sources](#27-versions-from-the-ui-mark-ready-promote-discard-and-link-sources)
 28. [The renderer](#28-the-renderer)
 29. [B1: differences between the code and the plan](#29-b1-differences-between-the-code-and-the-plan)
+
+[Part III: Schema v9 and B2a](#part-iii-schema-v9-and-b2a)
+
+30. [Status: what B2a is, and is not](#30-status-what-b2a-is-and-is-not)
+31. [Where the B2a code lives](#31-where-the-b2a-code-lives)
+32. [Schema v9: tables, triggers, indexes and seeds](#32-schema-v9-tables-triggers-indexes-and-seeds)
+33. [The v9 migration and its runbook](#33-the-v9-migration-and-its-runbook)
+34. [The execution model](#34-the-execution-model)
+35. [Restart recovery](#35-restart-recovery)
+36. [The sandbox](#36-the-sandbox)
+37. [Networks and approvals](#37-networks-and-approvals)
+38. [Evidence-based completion](#38-evidence-based-completion)
+39. [Recipes: what each SDE step runs](#39-recipes-what-each-sde-step-runs)
+40. [The IPC surface](#40-the-ipc-surface)
+41. [The domain registry](#41-the-domain-registry)
+42. [The resource gate and the test:exec gate](#42-the-resource-gate-and-the-testexec-gate)
+43. [Python](#43-python)
+44. [Observability map](#44-observability-map)
+45. [Pending wiring](#45-pending-wiring)
+46. [Known limitations](#46-known-limitations)
+47. [B2a: differences from the plan and rulings](#47-b2a-differences-from-the-plan-and-rulings)
+48. [Deferred after B2a](#48-deferred-after-b2a)
 
 ---
 
@@ -447,6 +477,19 @@ B1 also adds `LineageService.linkSources`. A user records `derived_from` edges (
 | `implements` | A version that realises a specification or design version | unassigned |
 
 The brief's eight are `derived_from`, `trained_on`, `evaluated_on`, `implements`, `serves`, `built_from`, `deployed_as` and `depends_on` (`BRIEF_LINEAGE_RELATIONS`).
+
+**Since v9: 36 relations (ruling R2).** v9 adds four rows with `INSERT OR IGNORE`. No existing row changes ([section 32.5](#325-seeds)).
+
+| Relation | Meaning | `planned_phase` |
+|---|---|---|
+| `covers` | A test suite or test case that covers a requirement | B2c |
+| `transformed_by` | A dataset produced by a preprocessing pipeline or a cleaning query | B3 |
+| `configured_by` | A training run configured by an architecture or configuration version | B6 |
+| `monitors` | A monitoring report that monitors an inference service version | B5 |
+
+The four new rows use the B2a phase numbering. The 32 rows above keep the older labels, and ruling R3 maps old to new ([section 32.5](#325-seeds)): B2 → B2c, B3a → B3, B3b → B4, B4 → B5, B5 → B6, and B6 (deploy) → local scope only. `implements` keeps `unassigned`, but its meaning is now documented: a change set that implements a requirement, first written in B2b.
+
+B2a's ingest writes `derived_from`, `built_from` and `assembled_from`, with the sources `job_input` and `ingest` ([section 32.5](#325-seeds)). `LineageService.record` still refuses `ingest` edges from any principal but the system.
 
 ---
 
@@ -838,8 +881,82 @@ To check a restore without launching the app: open the restored `harness.db` wit
     - Complete participations are not listed in the Workspaces section.
 24. **Unchanged by B1, and still true:** the terminal session transition does not cascade (item 4), and the activity chain cannot detect tail deletion (item 1).
 
+**Added in B2a** (schema v9 and the execution core; see [Part III](#part-iii-schema-v9-and-b2a)):
+
+25. **v9 is opt-in, and the app does not start execution.**
+    - `V9_ENABLED_BY_DEFAULT` is false. Until the pending `index.ts` edits land, nothing in the app enables v9, starts the runner, or registers channels #22 to #41.
+    - Real databases stay at v8, and the B1 behaviour is unchanged.
+    - The edits wait for the peer session's commit and the user's approval ([section 45](#45-pending-wiring)).
+26. **The egress network has no host allow-list.**
+    - An approved dependency install runs on a per-job bridge (`nexus-egress-<jobId>`) with ordinary outbound access.
+    - Install scripts are disabled (`npm ci --ignore-scripts`, `pip --only-binary=:all:`), and every package must match a lockfile hash (`npm ci` integrity, `pip --require-hashes`).
+    - **Other hosts are not blocked.** The registries in the approval request are what is expected, not what is enforced. The approval summary says so.
+    - Image preparation has the same limit. An egress proxy with an allow-list is deferred, and this is reported to the user as a constraint 5 limitation.
+27. **The discovery ceiling is about 1,300 files.**
+    - A discovered test list is kept whole in the suite version's metadata, which is limited to 64 KiB. The list must be whole, because a test run judges coverage against it.
+    - With typical path lengths, that holds about 1,300 files, well below `MAX_DISCOVERED_FILES` (5,000).
+    - A larger list is refused `invalid_output` / `discovery_too_large`, and is not retried.
+28. **`#41` runs blob GC only.**
+    - `nexus:blobs:gc` lists and removes unreferenced blobs that are more than 24 h old.
+    - Nothing yet reclaims the work folders (`work/<job>/<n>`), attempt logs, image build logs or `nexus-deps-*` volumes. They accumulate in the data home and in Docker.
+29. **A job waiting for git leaves abandoned attempt rows.**
+    - While git is missing, a waiting job is leased again after each backoff (2 s, doubling to 60 s), and each runner refusal (`git_missing`) leaves one `abandoned` attempt row.
+    - Over hours this is about 60 rows an hour per waiting job.
+    - The scheduler has no git probe yet, unlike Docker and images. Holding such jobs without leasing them is a final-batch carry.
+30. **Docker resources from a deleted data home need manual cleanup.**
+    - Recovery removes only resources whose `nexus.home` is this install's, and whose `nexus.attempt` names an ended attempt of this database ([section 35.5](#355-orphan-scoping)).
+    - Containers, volumes and networks left by a data home that was later deleted (for example a scratch `--user-data-dir`) are never removed automatically. Recovery reports the ones whose attempt id this database does not know, and leaves them in place.
+    - **To find them:** `docker ps -a --filter label=nexus.attempt`, `docker volume ls --filter label=nexus.attempt` and `docker network ls --filter label=nexus.attempt`. Compare their `nexus.home` label with the labels of the data homes you still use, and remove only the others.
+31. **The socat pin is unverified.**
+    - `infra/images/nexus-fwd/Dockerfile` installs `socat=1.8.0.0-r0`. Resolving Alpine package versions needs APKINDEX, which was outside the approved metadata scope.
+    - If the pin is wrong, the first `nexus-fwd` build fails loudly. The fix is to edit the version, then run `node tools/nexus-lock-images.cjs --rehash` and `--check`.
+32. **The real-Docker suites have not run.**
+    - The disk is far below the 30 GiB gate: `test:exec` last reported 3.5 GiB free at the Docker data volume, and exited 3. No image has been built.
+    - So none of the following is proven against Docker yet: K1 to K11 (sandbox), L1 to L16 (lifecycle and recovery), X1 to X12 (recipes), the Nexus entry inside the images, `npm ci` against the generated lockfile, pip with hashes, the forwarder, and `host.docker.internal` reaching a loopback listener.
+    - The same flows pass through the fake sandbox driver.
+33. **Windows has no `O_NOFOLLOW`.**
+    - The runner opens `/out` files and stored objects with `O_RDONLY|O_NOFOLLOW`, which is a no-op on Windows.
+    - There, the guard is an lstat (a regular file with one link), followed by an identity re-check on the open handle: device, inode, size and link count.
+    - How Windows sees a symlink made inside a container in a bind-mounted `/out` is a Verification item.
+34. **Legacy `src/main/hive.ts` still runs git by name.** It calls `spawnSync('git', …, { cwd: root })`, so a planted `git` in that folder could run. This predates B2a and is out of its scope. All B2a and B1 git calls go through the resolved absolute binary (`src/main/gitBinary.ts`).
+35. **A checkout is one commit, archived.**
+    - `git archive` leaves out submodules, LFS content and `export-ignore` paths.
+    - Uncommitted changes are never included. The UI note says "Tests run on commit <short>; uncommitted changes are not included."
+36. **Test attribution.**
+    - node's JUnit reporter names no file, so node:test suites run one file at a time, and the runner attributes the cases.
+    - For other frameworks, a multi-file suite whose report names no file, judged against a file-level discovered list, reads `error` / `unattributed_report`. That is never a pass.
+    - pytest's discovery is id-level, so it is judged by id.
+37. **Dev deployment limits.**
+    - A preview binds only to `127.0.0.1`.
+    - It lives for a fixed 2 hours.
+    - At most 2 run at once.
+    - It can have no environment variables or secrets: a manifest that names env variables is refused.
+    - It is never requeued.
+    - Its job completes (`stopped`) only when the runner reports the exit after a passed health check.
+38. **The data home is fixed** at `<userData>/nexus`. Moving it is deferred. Its contents are not part of the database backup.
+39. **No GPU.** The probe reports a detected GPU, but `usableInContainers` is always false. GPU use is FUTURE.
+40. **No disk quota.** The storage driver cannot cap a container's disk. The runner's 5-second size guard kills a container whose `/out` exceeds the recipe's cap or whose `/workspace` exceeds 8 GiB. A container can therefore overshoot by up to one poll interval of writing before it is killed. The `/tmp` and `/home/nexus` tmpfs mounts are hard caps.
+41. **Logs.**
+    - An attempt log is capped at 50 MiB. Past the cap, the middle is dropped and replaced by one marker.
+    - Lines are redacted before they are framed. A token run of more than 4,096 characters with no separator, straddling a forced flush of an unterminated line, can still be split. No known credential shape is that long.
+42. **The entry's timeout and host sleep.**
+    - Main leaves sleep-like gaps out of the wall clock, up to 1 × the wall clock.
+    - The Nexus entry's own `timeout` (`NEXUS_WALL_SECONDS`, the recipe's wall clock from the container start) does not know about those gaps. Whether it fires after a host sleep depends on the Docker VM's clock, and this is untested.
+    - If it fires, the attempt fails. It never completes.
+43. **v9 changes two earlier statements.**
+    - **The v9 triggers stay in the file.** A file migrated to v9 and later opened without `enableV9` keeps its three `jobs` backstop triggers. B0b-style completion of a `tool.run` job without an attempt is refused there.
+    - **Cancel now cascades for execution jobs.** `nexus:job:cancel` (`ExecutionService.cancel`) cascades to children first. The B0b `JobService.requestCancel` in item 4 is unchanged.
+44. **Older builds on a v9 file.**
+    - The B1 build (`d7abc87b`) keeps its delete guard ([section 33.9](#339-downgrade-the-d7abc87b-build-on-a-v9-database)).
+    - The B0b build (`e2fceec`) opens a v9 file as newer than v7, with its delete guard off, exactly as item 13 describes for v8.
+45. **Image builds.**
+    - A build fails `timeout` after 10 minutes without progress, or after 180 minutes in all.
+    - Any runner-wide fault (a fault naming no attempt, the runner leaving `ready`, or a replaced runner) interrupts every running build. The user can request it again.
+46. **What an install proves.** A dependency install completes only when its single output `lock.sha256` equals both the repository version's lockfile hash and the hash in the approval it consumed (`sde.deps.lock_matches`, advisory, Task 13 review fixes). That proves which lockfile was installed. It does not prove where the packages came from (item 26).
+47. **The data home after a restore.** The data home is not part of the database backup, so a restore to v8 leaves its blobs, logs and work folders in place. The v8 schema does not read them. After a later re-migration, the first blob store hygiene pass sweeps unindexed objects older than 24 h. Work folders and logs stay (item 28).
+
 Further operational notes:
-- **Backups accumulate.** Every migration attempt that reaches the backup step writes a new file. Since B1 that includes the `harness-v7-<UTC>.db` backups of the v8 step. Nothing prunes `userData/backups`.
+- **Backups accumulate.** Every migration attempt that reaches the backup step writes a new file. Since B1 that includes the `harness-v7-<UTC>.db` backups of the v8 step, and since B2a the `harness-v8-<UTC>.db` backups of the v9 step. Nothing prunes `userData/backups`.
 - **No minimum-version guard.** Nothing stops a pre-B0b build from opening a v7 database (D1). That is by design, and the downgrade test covers it.
 - **Workspace rows are never retired or deleted in B0b.** `retired_at` exists for later phases.
 - **Test B1 flows on a scratch userData only.** Try saves and handoffs only on a scratch userData folder, for example by launching with `--user-data-dir=<temp>`, never on the userData you work in. B1 artifacts (receipts included), versions and handoffs are never deleted, and a project that has any of them cannot be deleted (the delete guard, `hasPlatformRecords`). A trial save or handoff on a real project stays for good and blocks deleting that project.
@@ -937,6 +1054,29 @@ The B1 differences are listed in [section 29](#29-b1-differences-between-the-cod
 
 B1 did not start B0c, B2 or any execution work.
 
+**Delivered in B2a** (moved off the lists above). The schema is v9 ([Part III](#part-iii-schema-v9-and-b2a)), opt-in until verification:
+- `job_attempts`, leases and heartbeats, the scheduler (`ix_jobs_sched`), Docker execution through a runner `utilityProcess`, the cancel cascade to children (`ix_jobs_parent`), and R.2 restart recovery, adapted. Its orphan rule is superseded ([section 35](#35-restart-recovery)). The scheduler and lease rows now drive `leased` and `retry_scheduled`.
+- The blob store: `blobs`, `version_blobs`, GC, and `tree` storage for ingested versions.
+- `validations`, the validator registry and the finalize rule for engine-made drafts. The user's Revalidate covers a `cancelled_partial` draft.
+- `approvals` for egress and image preparation. These are once-only user consent, not capability tokens.
+- `deployments`, limited to local dev previews on `127.0.0.1`.
+- The DomainSpec registry (v3) with six first-class domains and a startup check.
+- Repository artifacts: `ux_repository_per_project` and `repo.snapshot`.
+- Four lineage relations (`covers`, `transformed_by`, `configured_by`, `monitors`) and the documented meaning of `implements`.
+- `ix_versions_hash`, `ix_versions_job`, `ux_versions_job_path` and `ix_jobs_retry_due`.
+
+**Deferred after B2a** (the next phases; the full list is in [section 48](#48-deferred-after-b2a)):
+
+| Item | Phase |
+|---|---|
+| AgentRuntime and the Claude CLI adapter, agent principals and capability tokens, encrypted secrets, spending caps, the MCP server; how job outcomes drive agent sessions | B2b |
+| Change sets: implement, review, accept and iterate; `implements` edges; the repository write approval | B2b |
+| QA workflows and `covers` edges; handoff states and routes beyond B1 | B2c |
+| `data-scientist` workspace rows (M4); DA, DS, ML and DL workflows beyond the problem statements | B3 to B6 |
+| An egress host allow-list; GC of work folders, logs and dependency caches; moving the data home; GPU use | Later |
+| The execution UI (Runs from jobs, evidence, actions, approvals, deployments, setup) | B2a Tasks 14 and 15 |
+| The B0b and B1 items not listed under "Delivered" above: `reviews`, `reviewRequired` gating, multi-user grants, the activity anchor, scheduled backups, the linear redactor rewrite | As listed above |
+
 ---
 
 ## 19. Tests
@@ -964,6 +1104,43 @@ The real-SQLite files print one skip banner each under plain `node --test test/`
 | `test/nexus-core-append-only-writes.test.cjs` | `test:focused` | No `OR REPLACE` or `DO UPDATE` on protected tables in `src/main/nexus` and `src/main/nexusIpc` |
 | `test/nexus-core-restore-tool.test.cjs` | `test:focused` | Adds the header read (bytes 60 to 63, big-endian) and the matching hold switch for v6 and v7 backups, through the CLI |
 | `test/nexus-participation.test.cjs`, `nexus-platform-state`, `nexus-error-copy`, `nexus-workspaces-section`, `nexus-artifact-model`, `nexus-activity-model`, `nexus-artifacts-page`, `nexus-handoff-model` | `test:focused` | The pure renderer models (through `load-ts`), plus source pins on the `.tsx` files |
+
+**B2a test files.**
+
+Three runners apply. `test:db` runs every `nexus-db-*` and `nexus-platform-*` file under Electron-as-node. The `test/nexus-exec-*` files run only under `test:exec`, behind the resource preflight ([section 42](#42-the-resource-gate-and-the-testexec-gate)). The plain-node files run under `node --test test/` today. Until the pending `package.json` edit, they are not part of `npm run test:focused` ([section 45](#45-pending-wiring)).
+
+| File | Runner | Covers |
+|---|---|---|
+| `test/nexus-db-v9-schema.test.cjs` | `test:db` | The v9 module: names and counts, every trigger and CHECK, the shape check, verification and rollback |
+| `test/nexus-db-v9-migration.test.cjs` | `test:db` | The v9 step: M0 (off by default), M1 to M17, the hold cascade, the marker and auto-hold, the post-check, the reason precedence, and the backstops B1 and B2 |
+| `test/nexus-db-phase-a.test.cjs` | `test:db` | Adds the `d7abc87b` downgrade on a v9 database |
+| `test/nexus-platform-blobs.test.cjs` | `test:db` | `BlobIndex` and the data home: the ingest and GC lock, confinement, the GC dry run and apply |
+| `test/nexus-platform-exec-scheduler.test.cjs` | `test:db` | Leases, caps, heartbeats, stalls and sleep, cancel, timeout, retry and backoff, availability, and the event-loop budget (C1 to C24, N1 to N3, R1 to R4, Palt, C20b) |
+| `test/nexus-platform-exec-validation.test.cjs` | `test:db` | Ingest, validators, finalize, revalidate, dedupe, evidence shape, and O10 to O17 (N1 to N12, E1 to E14, R1 to R15, S1 to S5) |
+| `test/nexus-platform-exec-approvals.test.cjs` | `test:db` | Approvals A1 to A10, image builds, dev deployments D1 to D10, snapshots R1 to R4, and the bypass and secret sweeps |
+| `test/nexus-platform-exec-recovery.test.cjs` | `test:db` | Restart recovery RC1 to RC20, D1 to D11, F1 to F8 and G1 to G7: the six restart states of constraint 10, durable exits, orphan scoping and the reconcile bound |
+| `test/nexus-platform-exec-wiring.test.cjs` | `test:db` | `startExecution` and the runner host: restarts, reconcile routing, the blob pass, the hint, quit (H1 to H3, W1 to W8) |
+| `test/nexus-platform-exec-recipes.test.cjs` | `test:db` | X1 to X12 and the F-* flows through the fake sandbox driver, with real main, runner, git, hashing and parsers |
+| `test/nexus-platform-ipc-exec.test.cjs` | `test:db` | Channels #22 to #41 and `nexus:hint` through the wrapper: hostile arguments, envelopes and the push rate |
+| `test/nexus-platform-exec-security.test.cjs` | `test:db` | The constraint 11 sweep (S1 to S9): unauthorized execution and file access, traversal, references, secrets, approval and network bypass, malformed requests |
+| `test/nexus-platform-b2a-flows.test.cjs` | `test:db` | End-to-end flows (F1 onward) and F-OBS. After each one: O1 to O22 = 0, an empty `foreign_key_check`, `integrity_check` ok, and the activity chain verified |
+| `test/nexus-exec-sandbox.test.cjs`, `nexus-exec-lifecycle.test.cjs`, `nexus-exec-recovery.test.cjs`, `nexus-exec-recipes.test.cjs` | `test:exec` (gated) | Real Docker: K1 to K11, L1 to L12, L13 to L16 and X1 to X12. **Not run yet** (disk below the gate). |
+| `test/nexus-core-exec-contracts.test.cjs` | plain node | The shared contracts, the resource gate, the preflight comparator and the runner protocol parser |
+| `test/nexus-core-vendor-neutral.test.cjs` | plain node | No vendor-specific concept in the shared contracts |
+| `test/nexus-core-domain-registry.test.cjs`, `test/nexus-domain-registry-clean.test.cjs` | plain node | DR0 to DR12 and the e2e title check; persona-free domain data |
+| `test/nexus-core-runner.test.cjs`, `test/nexus-core-junit.test.cjs` | plain node | The runner with a fake driver (D1 to D24, CD*, FR*, RV*) and the JUnit and discovery parsers (J1 to J14) |
+| `test/nexus-runner-posture.test.cjs` | plain node | The runner's posture: spawn sites, no database, no Python, git only by its resolved path |
+| `test/nexus-core-git-binary.test.cjs` | plain node | git resolution and the planted-binary cases (GB1 to GB7) |
+| `test/nexus-core-exec-preflight-runner.test.cjs` | plain node | The `test:exec` preflight and gate (P1 to P9) |
+| `test/nexus-core-image-lock.test.cjs`, `test/nexus-core-exec-diagnose.test.cjs`, `test/nexus-core-exec-entry.test.cjs` | plain node | The image lock (IL1 to IL5); diagnose (DG1 to DG6); the Nexus entry on Git's POSIX sh (E1 to E9) |
+| `test/nexus-core-docs-v9-names.test.cjs` | plain node | This document: the v9 name list in [section 32.6](#326-the-v9-name-list) equals `V9_EXPECTED`, the DDL block equals `V9_DDL`, and the trigger and index tables name only v9 objects |
+
+B2a also extended five existing tests, and weakened none:
+- `nexus-platform-composition` (41 channels, the push, the process boundaries);
+- `nexus-caller-paths` (no path-like key in any request schema);
+- `nexus-core-append-only-writes` (`V9_DDL`);
+- `nexus-core-identity-scan` (the runner, the execution wiring and their fixtures);
+- `nexus-core-policy` (the new actions).
 
 ---
 
@@ -1822,3 +1999,1603 @@ The code wins. Each item says what the code does.
 16. **The restore-tool hint** names a switch only for v6 (`NEXUS_DB_HOLD_V7`) and v7 (`NEXUS_DB_HOLD_V8`) backups. Any other version, or an unreadable header, gets a plain sentence, because no `NEXUS_DB_HOLD_V9` or older switch exists.
 17. **Two more v7 test files** needed the mechanical C8 `holdV8: true` edit: `nexus-db-phase-a` and `nexus-platform-activity`.
 18. **The renderer.** Artifacts and Handoffs lists page by a larger limit, because the channels have no cursor. Sorting by name is done in the renderer. The Passport's handoff list reads at most 20 handoffs and their details. "Hand off…" appears only on active versions, though the send sheet offers candidate versions too, and only when another active participation of the project can receive it.
+
+---
+
+# Part III: Schema v9 and B2a
+
+B2a is the execution core. It adds seven things:
+- **Schema v9.** It is additive and opt-in, and it runs with the v7 and v8 safety procedure.
+- **The execution core in main.** Jobs are leased to attempts by a scheduler, with leases and heartbeats, cancel, timeout, retry and restart recovery.
+- **A runner `utilityProcess`.** It drives Docker and git, and opens no database.
+- **Evidence and validators.** A version leaves draft only on validated evidence.
+- **Approvals** for network egress and image preparation.
+- **Local dev deployments** behind a loopback forwarder, and a **content-addressed blob store**.
+- **The domain registry** (DomainSpec v3), plus **20 new `nexus:*` channels** and one push channel.
+
+Parts I and II still describe v7, v8, B0b and B1. Where B2a changed a statement there, that section says so and points here. As in the earlier parts, the code is the source of truth, and the task reports and the controller's rulings record why it differs from the B2a plan. [Section 47](#47-b2a-differences-from-the-plan-and-rulings) lists those differences.
+
+## 30. Status: what B2a is, and is not
+
+**What runs for real, by domain.**
+
+| Domain | Steps that run for real (REAL) | Everything else |
+|---|---|---|
+| SDE | Requirement, Project, Repository, Code, Tests, Build, Application, Dev deployment, Logs and diagnostics. These run against a real repository. | AI-assisted implementation, Review and Iteration are FUTURE (B2b). |
+| Data Analyst | Business question only: an inline problem statement | FUTURE (B3) |
+| ML Engineer | Problem only: an inline problem statement | FUTURE (B5) |
+| DL Engineer | Problem only: an inline problem statement | FUTURE (B6) |
+| QA/Test Engineer | None | FUTURE (B2c) |
+| Data Scientist | None. No project can take part in `data-scientist` until B4 adds its workspace row, so even its problem step is FUTURE. | FUTURE (B4) |
+
+The DA, ML and DL steps are real in a narrow sense:
+- a user writes a problem statement;
+- it is stored as an inline `problem_statement` version;
+- `problem.schema` validates it.
+
+Nothing else in those three domains runs. **None of the six domains is complete.** No step is shown as done without validated evidence ([section 38](#38-evidence-based-completion)).
+
+**How far the REAL SDE steps are proven.**
+- Requirement, Project, Code and the problem statements need no container. They are proven end to end now.
+- Repository snapshots run git through the runner. They are proven with real git.
+- Tests, Build, Application, Dev deployment and Diagnostics need Docker. They are proven through the fake sandbox driver, which uses real main, the real runner, real git, real hashing and real parsers, with recorded container outputs.
+- The real-Docker suites have not run, and no image has been built ([section 42](#42-the-resource-gate-and-the-testexec-gate)).
+
+**Wiring status.**
+- **v9 is opt-in.** `V9_ENABLED_BY_DEFAULT = false` in `src/main/db.ts`. It stays false until the user's verification go-ahead. Making it the default is a separate one-line commit ([section 33.1](#331-opt-in)).
+- **The app does not start the runner yet.** `src/main/index.ts` does not pass `execution` to `createNexusPlatform`, does not call `startExecution`, and does not register the 20 execution channels. The edits are written but wait for the peer session and the user ([section 45](#45-pending-wiring)).
+- **On a real database today:** the schema stays at v8, nothing executes, and the B1 screens work as before.
+- **No renderer code calls the new channels yet.** The execution UI is later work (B2a Tasks 14 and 15).
+
+**What B2a is not.**
+- No agent runs. The AgentRuntime, the Claude CLI adapter, capability tokens, encrypted secrets and spending caps are B2b.
+- There is no GPU use.
+- There is no change-set accept or review.
+- There is no QA, DA, DS, ML or DL workflow beyond the problem statements.
+- Deployments are local previews on `127.0.0.1` only.
+
+---
+
+## 31. Where the B2a code lives
+
+| Path | Role |
+|---|---|
+| `src/main/nexus/db/schemaV9.ts` | `V9_DDL` (frozen migration text), `V9_EXPECTED`, `v9ShapeProblem`, `verifyV9` and `applyV9`. |
+| `src/main/nexus/db/v9Seed.ts` | The frozen v9 seeds: attempt, approval and deployment states and transitions, and the four lineage relations. |
+| `src/main/db.ts` | `migrateV9` (a sibling of the v8 step), `V9_ENABLED_BY_DEFAULT`, the `enableV9` and `holdV9` options, `V9_FAILURE_LIMIT`, `executionAvailable`, `lastMigrationV9` and `executionUnavailableReason`. `PLATFORM_RECORD_TABLES` adds `deployments` and `approvals`. |
+| `src/main/nexus/exec/executionService.ts` | The core: start, lease, tick, runner messages, cancel, retry, timeout and the ingest hand-off. |
+| `src/main/nexus/exec/scheduler.ts` | The caps and lease guards (pure). |
+| `src/main/nexus/exec/attempts.ts`, `attemptRules.ts`, `events.ts` | Attempt rows, the lease and heartbeat, and `job_events`. |
+| `src/main/nexus/exec/planBuilder.ts` | Builds every container, service and engine plan: argv templates, the env allow-list, mounts and labels. |
+| `src/main/nexus/exec/ingest.ts` | `IngestService` and `INGEST_RULES`. |
+| `src/main/nexus/exec/recovery.ts` | Phases A and B, orphan decisions, the reconcile bound, blob store hygiene and `RUNNER_RECOVERY_CONTRACT`. |
+| `src/main/nexus/exec/execQueries.ts`, `diagnosticReport.ts`, `runnerPort.ts` | The reads behind channels #24, #28, #32 and #34; the diagnostic report; the runner port interface. |
+| `src/main/nexus/validation/*` | `validationService.ts` (record, finalize, revalidate), `checkRunner.ts` (validate jobs), `normalized.ts` (re-checks the runner's parser output), `evidenceShape.ts` and `validators/*`. |
+| `src/main/nexus/approvals/*` | `ApprovalService`: egress and image approvals, and image builds. |
+| `src/main/nexus/deployments/*` | `DeploymentService`: dev deployments. |
+| `src/main/nexus/repo/repoService.ts` | Snapshot requests and the app manifest reader. |
+| `src/main/nexus/blobs/blobIndex.ts` | `BlobIndex`: blob rows, the ingest and GC lock, and the GC dry run and apply. |
+| `src/main/nexus/registryImpl.ts` | The registry check at startup. |
+| `src/main/nexus/platform.ts` | Composes all of the above, with `isV9File`, `bootId` and recovery at startup. |
+| `src/main/nexusExec/runnerHost.ts` | Forks the runner (`utilityProcess`) and supervises it. |
+| `src/main/nexusExec/execWiring.ts` | `startExecution`: hello, reconcile, tick, hint and quit. Also the log and preview readers, and `execIpcPort`. |
+| `src/main/nexusExec/dataHome.ts`, `profiles.ts` | The data home layout and confinement; the sandbox profiles loaded from `infra/images/lock.json`. |
+| `src/main/gitBinary.ts`, `src/main/git.ts` | git resolved to an absolute path; `repositoryCheck` and `resolveCommit`. |
+| `src/runner/*` | The runner, built to `out/main/runner.js`: `core.ts`, `sandbox/dockerCli.ts`, `sandbox/dockerDriver.ts`, `sandbox/sizeGuard.ts`, `staging.ts`, `outputs.ts`, `objectStore.ts`, `logs.ts`, `junitMerge.ts`, `parsers/*`, `git.ts`, `probe.ts`, `service.ts`, `imageBuilder.ts`, `reconcile.ts` and `diagnose.ts`. |
+| `src/shared/nexus/*` | The pure contracts: `execution.ts`, `runnerProtocol.ts`, `preflightCheck.ts`, `resourceGate.ts`, `recipes.ts`, `validators.ts`, `evidence.ts`, `actions.ts`, `domainSpec.ts`, `domains/*`, `registryCheck.ts`, `homeLabel.ts`, `stepState.ts`, `secretShape.ts`, `repoSnapshot.ts`, `kinds.ts`, `capabilities.ts` and `runtime.ts`. |
+| `src/main/nexusIpc/*` | Channels #22 to #41, and `nexus:hint`. |
+| `src/preload/index.ts` | 20 more methods, plus `onNexusHint`. |
+| `infra/images/*` | The three image contexts (`sde-node`, `sde-python`, `nexus-fwd`), `common/nexus-entry` and `lock.json`. |
+| `tools/run-exec-tests.cjs`, `tools/nexus-lock-images.cjs`, `tools/nexus-prepare-images.cjs` | The `test:exec` gate and runner; the image pin tool; the image builder for Verification. |
+
+The process boundaries are pinned by tests:
+- `src/main/nexus` never imports Electron, and `utilityProcess` appears only in `runnerHost.ts` (`test/nexus-platform-composition.test.cjs`).
+- The runner opens no database and spawns only the resolved `docker` and `git` binaries (`test/nexus-runner-posture.test.cjs`).
+
+---
+
+## 32. Schema v9: tables, triggers, indexes and seeds
+
+v9 is additive:
+- every statement is `CREATE … IF NOT EXISTS` or `INSERT OR IGNORE`;
+- no v1 to v8 table is altered, and no FK is added to one;
+- no v1 to v8 row is rewritten;
+- `V7_DDL` and `V8_DDL` are unchanged.
+
+The only rows v9 adds to an older table are four new `lineage_relations` rows.
+
+`V9_EXPECTED` holds:
+- **15 tables**, with their columns in DDL order;
+- **23 named indexes**: 16 on v9 tables, and 7 on v7 tables;
+- **33 triggers**: 30 on v9 tables, and 3 backstops on the v7 `jobs` table.
+
+`test/nexus-db-v9-schema.test.cjs` pins these names and counts against a real database. `test/nexus-core-docs-v9-names.test.cjs` pins this section against `V9_EXPECTED` and `V9_DDL`.
+
+The plan had 14 tables. `version_attempts` was added by the Task 4 ruling, so that every ingested version names the attempt that produced it.
+
+**One edit before release.** `V9_DDL` was edited once before v9 had ever run on a real database. In B2a Task 9, the `deployments.stop_reason` CHECK gained `refused`, `preflight_failed`, `runner_lost` and `exit_not_reported`, so that a row stores its true end cause. `V9_ENABLED_BY_DEFAULT` was false at the time, and no database outside the tests held v9. From now on the text is frozen like `V7_DDL` and `V8_DDL`: a later change needs a new migration.
+
+### 32.1 Tables
+
+| Group | Table | What it holds |
+|---|---|---|
+| Attempts | `attempt_states`, `attempt_transitions` | The attempt vocabulary: 7 states and 10 transitions. |
+| | `job_attempts` | One row per try of a job: `n` (unique per job), `state`, `boot_id` (the boot that created it) and `lease_owner` (the boot that owns it now), `lease_expires_at`, `heartbeat_at`, `container_id`, the exit (`exit_code`, `signal`, `oom_killed`), `outcome`, the redacted `error_json`, `sandbox_json` (what actually ran), `environment_json` (image, digests, versions), `runtime_kind`/`runtime_ref`, `log_path` (relative to the data home) with `log_bytes`, `out_bytes`, `usage_json` and the timestamps. |
+| Events | `job_events` | Append-only, redacted execution facts: `seq` AUTOINCREMENT, the time, the project, job, attempt, image build, approval and deployment references, a `type`, a `summary` (at most 200 characters) and `data_json` (at most 4 KiB). Heartbeats are not events. |
+| Blobs | `blobs` | Content-addressed bytes by `sha256`: size, media type, `created_at`, `last_referenced_at` and `verified_at`. The bytes live in the data home, not in SQLite. |
+| | `version_blobs` | The bytes a version holds: `(version_id, sha256, role, path)`. `role` is `content`, `manifest`, `file`, `discovery`, `junit`, `report` or `log`. The path is relative and confined by CHECK. |
+| | `version_attempts` | The attempt that produced each ingested version: `version_id` → `(job_id, attempt_n)`. |
+| Evidence | `validations` | Append-only validator results: version, validator id and version, `stage`, `status` (`passed`, `failed`, `error` or `skipped`), `blocking` / `advisory`, `summary`, `evidence_json` (a typed array, at most 64 KiB), the job and attempt that produced it, `created_by`, and the start and finish times. |
+| Approvals | `approval_states`, `approval_transitions` | 5 states and 4 transitions. |
+| | `approvals` | Once-only user consent: a `reason`, a `summary`, the exact `request_json` and its `request_sha256`, who asked (`requested_by`, `on_behalf_of`), `expires_at`, the decision (`decided_by`, `decided_at`, `decision` `once` or `deny`) and the consumption (`consumed_at`, `consumed_by_job_id`, `consumed_by_attempt_n`). |
+| Images | `image_builds` | One approved image preparation per row: profile, the approval it consumed, status, `context_sha256`, `base_digest`, `image_id`, size, log path, error and requester. Image builds are not project-scoped, so they are not jobs. |
+| Deployments | `deployment_states`, `deployment_transitions` | 5 states and 9 transitions. |
+| | `deployments` | A local dev deployment of an application version. It records the project, participation, subject version and job (one deployment per job), `environment` (`local-preview` only), `bind_address` (`127.0.0.1` only, by CHECK), `host_port`, `status`, the last 50 probes in `health_json`, `stop_reason`, `stopped_by`, `created_by` and the timestamps. |
+
+The approval `reason` vocabulary has six values. B2a writes only `egress.deps` and `image.prepare`. `egress.weights`, `repo.write_refs`, `training.long` and `blobs.gc` are vocabulary for later phases.
+
+**ON DELETE behaviour.**
+- `job_attempts.job_id`, both `version_blobs` references, `validations.version_id`, `approvals.project_id`, and the project, participation and subject references of `deployments` are RESTRICT.
+- Every v9 record table has a no-delete trigger, except `blobs`: a blob may be removed by GC, but `tr_blobs_delete` refuses the delete of a blob that a version holds. The six lookup tables have no triggers, like the v7 and v8 vocabularies.
+- `hasPlatformRecords` now also counts `deployments` and `approvals`. So a project with any of them cannot be deleted, as in [section 12](#12-workspaces-participation-and-phase-a).
+
+### 32.2 The DDL
+
+This is `V9_DDL`, as it runs, copied from `src/main/nexus/db/schemaV9.ts`. In the TypeScript source, the backslash of the three `NOT LIKE '%\%'` patterns is written `\\`, so that the template literal keeps it. The test named above compares this block with `V9_DDL` byte for byte.
+
+```sql
+-- ===== attempt vocabulary =====
+CREATE TABLE IF NOT EXISTS attempt_states (
+  state       TEXT PRIMARY KEY CHECK (state GLOB '[a-z]*' AND length(state) BETWEEN 2 AND 32),
+  terminal    INTEGER NOT NULL CHECK (terminal IN (0,1)),
+  description TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS attempt_transitions (
+  from_state TEXT NOT NULL REFERENCES attempt_states(state),
+  to_state   TEXT NOT NULL REFERENCES attempt_states(state),
+  PRIMARY KEY (from_state, to_state),
+  CHECK (from_state <> to_state)
+);
+
+-- ===== job attempts: what actually executed, one row per try =====
+CREATE TABLE IF NOT EXISTS job_attempts (
+  id               TEXT PRIMARY KEY,
+  job_id           TEXT NOT NULL REFERENCES jobs(id) ON DELETE RESTRICT,
+  n                INTEGER NOT NULL CHECK (n >= 1),
+  state            TEXT NOT NULL REFERENCES attempt_states(state),
+  boot_id          TEXT NOT NULL CHECK (length(boot_id) = 26),          -- the boot that created it (immutable)
+  lease_owner      TEXT NOT NULL CHECK (length(lease_owner) = 26),      -- the boot that owns it now (adoption moves it)
+  lease_expires_at INTEGER NOT NULL,
+  heartbeat_at     INTEGER,
+  container_id     TEXT CHECK (container_id IS NULL OR (length(container_id) = 64 AND container_id NOT GLOB '*[^0-9a-f]*')),
+  exit_code        INTEGER,
+  signal           TEXT CHECK (signal IS NULL OR length(signal) BETWEEN 1 AND 32),
+  oom_killed       INTEGER CHECK (oom_killed IS NULL OR oom_killed IN (0,1)),
+  outcome          TEXT CHECK (outcome IS NULL OR (outcome GLOB '[a-z]*' AND length(outcome) <= 32)),
+  error_json       TEXT CHECK (error_json IS NULL OR json_valid(error_json)),          -- redacted {code,message}
+  sandbox_json     TEXT CHECK (sandbox_json IS NULL OR (json_valid(sandbox_json) AND length(sandbox_json) <= 32768)),
+  environment_json TEXT CHECK (environment_json IS NULL OR (json_valid(environment_json) AND length(environment_json) <= 8192)),
+  runtime_kind     TEXT CHECK (runtime_kind IS NULL OR length(runtime_kind) BETWEEN 1 AND 32),
+  runtime_ref      TEXT CHECK (runtime_ref IS NULL OR length(runtime_ref) BETWEEN 1 AND 128),
+  log_path         TEXT CHECK (log_path IS NULL OR (length(log_path) <= 200 AND log_path NOT LIKE '/%'
+                     AND log_path NOT LIKE '%:%' AND log_path NOT LIKE '%..%' AND log_path NOT LIKE '%\%')),
+  log_bytes        INTEGER NOT NULL DEFAULT 0 CHECK (log_bytes >= 0),
+  out_bytes        INTEGER NOT NULL DEFAULT 0 CHECK (out_bytes >= 0),
+  usage_json       TEXT CHECK (usage_json IS NULL OR json_valid(usage_json)),
+  created_at       INTEGER NOT NULL,
+  started_at       INTEGER,
+  finished_at      INTEGER,
+  updated_at       INTEGER NOT NULL,
+  UNIQUE (job_id, n),
+  CHECK ((state IN ('starting','running')) = (finished_at IS NULL)),
+  CHECK (state <> 'running' OR started_at IS NOT NULL),
+  CHECK (state <> 'succeeded' OR (exit_code IS NOT NULL AND outcome IS NOT NULL)),
+  CHECK (state NOT IN ('running','succeeded') OR (sandbox_json IS NOT NULL AND environment_json IS NOT NULL))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_attempts_live      ON job_attempts(job_id) WHERE state IN ('starting','running');
+CREATE INDEX        IF NOT EXISTS ix_attempts_lease     ON job_attempts(state, lease_expires_at) WHERE state IN ('starting','running');
+CREATE INDEX        IF NOT EXISTS ix_attempts_container ON job_attempts(container_id) WHERE container_id IS NOT NULL;
+CREATE TRIGGER IF NOT EXISTS tr_attempts_insert BEFORE INSERT ON job_attempts
+BEGIN
+  SELECT RAISE(ABORT, 'an attempt starts as starting, unfinished and without a container')
+    WHERE NEW.state <> 'starting' OR NEW.finished_at IS NOT NULL OR NEW.container_id IS NOT NULL OR NEW.exit_code IS NOT NULL;
+  SELECT RAISE(ABORT, 'an attempt is inserted with the lease of its job and carries the job attempt count')
+    WHERE NOT EXISTS (SELECT 1 FROM jobs j WHERE j.id = NEW.job_id AND j.state = 'leased' AND j.attempts = NEW.n);
+  SELECT RAISE(ABORT, 'a new attempt is owned by the boot that created it')
+    WHERE NEW.lease_owner <> NEW.boot_id;
+END;
+CREATE TRIGGER IF NOT EXISTS tr_attempts_transition BEFORE UPDATE OF state ON job_attempts
+WHEN NEW.state IS NOT OLD.state
+BEGIN
+  SELECT RAISE(ABORT, 'illegal attempt transition')
+    WHERE NOT EXISTS (SELECT 1 FROM attempt_transitions t WHERE t.from_state = OLD.state AND t.to_state = NEW.state);
+END;
+CREATE TRIGGER IF NOT EXISTS tr_attempts_identity BEFORE UPDATE ON job_attempts
+WHEN NEW.id IS NOT OLD.id OR NEW.job_id IS NOT OLD.job_id OR NEW.n IS NOT OLD.n
+  OR NEW.boot_id IS NOT OLD.boot_id OR NEW.created_at IS NOT OLD.created_at
+  OR (OLD.container_id IS NOT NULL AND NEW.container_id IS NOT OLD.container_id)
+  OR (OLD.log_path IS NOT NULL AND NEW.log_path IS NOT OLD.log_path)
+BEGIN SELECT RAISE(ABORT, 'attempt identity, container and log path are immutable once set'); END;
+CREATE TRIGGER IF NOT EXISTS tr_attempts_terminal_frozen BEFORE UPDATE ON job_attempts
+WHEN OLD.state IN ('succeeded','failed','cancelled','timed_out','abandoned')
+BEGIN SELECT RAISE(ABORT, 'a finished attempt is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS tr_attempts_no_delete BEFORE DELETE ON job_attempts
+BEGIN SELECT RAISE(ABORT, 'attempts are never deleted'); END;
+
+-- ===== image builds: approved image preparations (not project-scoped, so not jobs) =====
+CREATE TABLE IF NOT EXISTS image_builds (
+  id             TEXT PRIMARY KEY,
+  profile_id     TEXT NOT NULL CHECK (profile_id GLOB '[a-z]*' AND length(profile_id) BETWEEN 3 AND 32),
+  approval_id    TEXT NOT NULL UNIQUE REFERENCES approvals(id),
+  status         TEXT NOT NULL CHECK (status IN ('running','succeeded','failed','cancelled','interrupted')),
+  context_sha256 TEXT NOT NULL CHECK (length(context_sha256) = 64 AND context_sha256 NOT GLOB '*[^0-9a-f]*'),
+  base_digest    TEXT NOT NULL CHECK (base_digest GLOB 'sha256:*' AND length(base_digest) = 71),
+  image_id       TEXT CHECK (image_id IS NULL OR (image_id GLOB 'sha256:*' AND length(image_id) = 71)),
+  size_bytes     INTEGER CHECK (size_bytes IS NULL OR size_bytes >= 0),
+  log_path       TEXT CHECK (log_path IS NULL OR (length(log_path) <= 200 AND log_path NOT LIKE '/%' AND log_path NOT LIKE '%..%' AND log_path NOT LIKE '%:%'
+                   AND log_path NOT LIKE '%\%')),
+  error_json     TEXT CHECK (error_json IS NULL OR json_valid(error_json)),
+  requested_by   TEXT NOT NULL REFERENCES principals(id),
+  started_at     INTEGER NOT NULL,
+  finished_at    INTEGER,
+  CHECK ((status = 'running') = (finished_at IS NULL)),
+  CHECK (status <> 'succeeded' OR (image_id IS NOT NULL AND size_bytes IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS ix_image_builds_profile ON image_builds(profile_id, started_at DESC);
+CREATE TRIGGER IF NOT EXISTS tr_image_builds_insert BEFORE INSERT ON image_builds
+BEGIN
+  SELECT RAISE(ABORT, 'an image build starts running') WHERE NEW.status <> 'running' OR NEW.image_id IS NOT NULL;
+  SELECT RAISE(ABORT, 'an image build needs an approved, consumed image.prepare approval for this profile and context')
+    WHERE NOT EXISTS (SELECT 1 FROM approvals a WHERE a.id = NEW.approval_id AND a.reason = 'image.prepare'
+      AND a.status = 'approved' AND a.consumed_at IS NOT NULL
+      AND json_extract(a.request_json, '$.profileId') = NEW.profile_id
+      AND json_extract(a.request_json, '$.contextSha256') = NEW.context_sha256);
+  SELECT RAISE(ABORT, 'an image build is requested by the principal its approval was requested for')
+    WHERE NEW.requested_by IS NOT (SELECT a.on_behalf_of FROM approvals a WHERE a.id = NEW.approval_id);
+END;
+CREATE TRIGGER IF NOT EXISTS tr_image_builds_update BEFORE UPDATE ON image_builds
+BEGIN
+  SELECT RAISE(ABORT, 'a finished image build is immutable') WHERE OLD.status <> 'running';
+  SELECT RAISE(ABORT, 'image build identity is immutable')
+    WHERE NEW.id IS NOT OLD.id OR NEW.profile_id IS NOT OLD.profile_id OR NEW.approval_id IS NOT OLD.approval_id
+       OR NEW.context_sha256 IS NOT OLD.context_sha256 OR NEW.base_digest IS NOT OLD.base_digest
+       OR NEW.requested_by IS NOT OLD.requested_by OR NEW.started_at IS NOT OLD.started_at;
+END;
+CREATE TRIGGER IF NOT EXISTS tr_image_builds_no_delete BEFORE DELETE ON image_builds
+BEGIN SELECT RAISE(ABORT, 'image builds are never deleted'); END;
+
+-- ===== job events: append-only, redacted execution facts (heartbeats are not events) =====
+CREATE TABLE IF NOT EXISTS job_events (
+  seq            INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts             INTEGER NOT NULL,
+  project_id     TEXT REFERENCES projects(id),
+  job_id         TEXT REFERENCES jobs(id),
+  attempt_n      INTEGER CHECK (attempt_n IS NULL OR attempt_n >= 1),
+  image_build_id TEXT REFERENCES image_builds(id),
+  approval_id    TEXT REFERENCES approvals(id),
+  deployment_id  TEXT REFERENCES deployments(id),
+  type           TEXT NOT NULL CHECK (type IN ('job.transition','attempt.transition','attempt.provisioned','attempt.progress',
+                   'attempt.output','attempt.heartbeat_gap','approval','deployment','validation','image_build','recovery','preflight')),
+  summary        TEXT NOT NULL CHECK (length(summary) BETWEEN 1 AND 200),
+  data_json      TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(data_json) AND length(data_json) <= 4096),
+  CHECK (job_id IS NOT NULL OR image_build_id IS NOT NULL OR approval_id IS NOT NULL),
+  CHECK (attempt_n IS NULL OR job_id IS NOT NULL),
+  FOREIGN KEY (job_id, attempt_n) REFERENCES job_attempts(job_id, n)
+);
+CREATE INDEX IF NOT EXISTS ix_job_events_job     ON job_events(job_id, seq) WHERE job_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_job_events_project ON job_events(project_id, seq) WHERE project_id IS NOT NULL;
+CREATE TRIGGER IF NOT EXISTS tr_job_events_insert BEFORE INSERT ON job_events
+BEGIN
+  SELECT RAISE(ABORT, 'a job event names the project of its job')
+    WHERE NEW.job_id IS NOT NULL AND (SELECT project_id FROM jobs WHERE id = NEW.job_id) IS NOT NEW.project_id;
+  SELECT RAISE(ABORT, 'a job event names the project of its approval')
+    WHERE NEW.approval_id IS NOT NULL AND (SELECT project_id FROM approvals WHERE id = NEW.approval_id) IS NOT NEW.project_id;
+  SELECT RAISE(ABORT, 'a job event names the project of its deployment')
+    WHERE NEW.deployment_id IS NOT NULL AND (SELECT project_id FROM deployments WHERE id = NEW.deployment_id) IS NOT NEW.project_id;
+  SELECT RAISE(ABORT, 'an event without a job, approval or deployment names no project')
+    WHERE NEW.project_id IS NOT NULL AND NEW.job_id IS NULL AND NEW.approval_id IS NULL AND NEW.deployment_id IS NULL;
+END;
+CREATE TRIGGER IF NOT EXISTS tr_job_events_no_update BEFORE UPDATE ON job_events
+BEGIN SELECT RAISE(ABORT, 'job events are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS tr_job_events_no_delete BEFORE DELETE ON job_events
+BEGIN SELECT RAISE(ABORT, 'job events are append-only'); END;
+
+-- ===== content-addressed blobs and the versions that hold them =====
+CREATE TABLE IF NOT EXISTS blobs (
+  sha256             TEXT PRIMARY KEY CHECK (length(sha256) = 64 AND sha256 NOT GLOB '*[^0-9a-f]*'),
+  bytes              INTEGER NOT NULL CHECK (bytes >= 0),
+  media_type         TEXT NOT NULL CHECK (length(media_type) BETWEEN 3 AND 100),
+  created_at         INTEGER NOT NULL,
+  last_referenced_at INTEGER NOT NULL,
+  verified_at        INTEGER
+);
+CREATE TRIGGER IF NOT EXISTS tr_blobs_identity BEFORE UPDATE ON blobs
+WHEN NEW.sha256 IS NOT OLD.sha256 OR NEW.bytes IS NOT OLD.bytes OR NEW.media_type IS NOT OLD.media_type OR NEW.created_at IS NOT OLD.created_at
+BEGIN SELECT RAISE(ABORT, 'blob identity is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS tr_blobs_delete BEFORE DELETE ON blobs
+WHEN EXISTS (SELECT 1 FROM version_blobs vb WHERE vb.sha256 = OLD.sha256)
+BEGIN SELECT RAISE(ABORT, 'a blob held by a version is never deleted'); END;
+CREATE TABLE IF NOT EXISTS version_blobs (
+  version_id TEXT NOT NULL REFERENCES artifact_versions(id) ON DELETE RESTRICT,
+  sha256     TEXT NOT NULL REFERENCES blobs(sha256) ON DELETE RESTRICT,
+  role       TEXT NOT NULL CHECK (role IN ('content','manifest','file','discovery','junit','report','log')),
+  path       TEXT NOT NULL DEFAULT '' CHECK (length(path) <= 1024 AND path NOT LIKE '/%' AND path NOT LIKE '%\%'
+               AND path <> '..' AND path NOT LIKE '../%' AND path NOT LIKE '%/../%' AND path NOT LIKE '%/..'
+               AND instr(path, char(0)) = 0),
+  PRIMARY KEY (version_id, sha256, role, path)
+);
+CREATE INDEX IF NOT EXISTS ix_version_blobs_sha ON version_blobs(sha256);
+CREATE TRIGGER IF NOT EXISTS tr_version_blobs_insert BEFORE INSERT ON version_blobs
+BEGIN
+  SELECT RAISE(ABORT, 'bytes are attached to a version only while it is a draft')
+    WHERE (SELECT status FROM artifact_versions WHERE id = NEW.version_id) IS NOT 'draft';
+END;
+CREATE TRIGGER IF NOT EXISTS tr_version_blobs_no_update BEFORE UPDATE ON version_blobs
+BEGIN SELECT RAISE(ABORT, 'version blobs are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS tr_version_blobs_no_delete BEFORE DELETE ON version_blobs
+BEGIN SELECT RAISE(ABORT, 'version blobs are immutable'); END;
+
+-- ===== version attempts: the attempt that produced each ingested version (written by ingest) =====
+CREATE TABLE IF NOT EXISTS version_attempts (
+  version_id TEXT PRIMARY KEY REFERENCES artifact_versions(id),
+  job_id     TEXT NOT NULL,
+  attempt_n  INTEGER NOT NULL,
+  FOREIGN KEY (job_id, attempt_n) REFERENCES job_attempts(job_id, n)
+);
+CREATE TRIGGER IF NOT EXISTS tr_version_attempts_insert BEFORE INSERT ON version_attempts
+BEGIN
+  SELECT RAISE(ABORT, 'a version is bound to an attempt of the job that produced it')
+    WHERE (SELECT produced_by_job_id FROM artifact_versions WHERE id = NEW.version_id) IS NOT NEW.job_id;
+END;
+CREATE TRIGGER IF NOT EXISTS tr_version_attempts_no_update BEFORE UPDATE ON version_attempts
+BEGIN SELECT RAISE(ABORT, 'version attempts are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS tr_version_attempts_no_delete BEFORE DELETE ON version_attempts
+BEGIN SELECT RAISE(ABORT, 'version attempts are append-only'); END;
+
+-- ===== validations: append-only validator results with their evidence =====
+CREATE TABLE IF NOT EXISTS validations (
+  id                TEXT PRIMARY KEY,
+  version_id        TEXT NOT NULL REFERENCES artifact_versions(id) ON DELETE RESTRICT,
+  validator_id      TEXT NOT NULL CHECK (validator_id GLOB '[a-z]*' AND length(validator_id) BETWEEN 3 AND 64),
+  validator_version TEXT NOT NULL CHECK (length(validator_version) BETWEEN 1 AND 16),
+  stage             TEXT NOT NULL CHECK (stage IN ('register','candidate','promote')),
+  status            TEXT NOT NULL CHECK (status IN ('passed','failed','error','skipped')),
+  blocking          INTEGER NOT NULL CHECK (blocking IN (0,1)),
+  advisory          INTEGER NOT NULL CHECK (advisory IN (0,1)),
+  summary           TEXT NOT NULL CHECK (length(summary) BETWEEN 1 AND 500),
+  evidence_json     TEXT NOT NULL CHECK (json_valid(evidence_json) AND json_type(evidence_json) = 'array' AND length(evidence_json) <= 65536),
+  job_id            TEXT REFERENCES jobs(id),
+  attempt_n         INTEGER CHECK (attempt_n IS NULL OR attempt_n >= 1),
+  created_by        TEXT NOT NULL REFERENCES principals(id),
+  started_at        INTEGER NOT NULL,
+  finished_at       INTEGER NOT NULL,
+  CHECK (finished_at >= started_at),
+  CHECK (NOT (blocking = 1 AND advisory = 1)),
+  CHECK (attempt_n IS NULL OR job_id IS NOT NULL),
+  FOREIGN KEY (job_id, attempt_n) REFERENCES job_attempts(job_id, n)
+);
+CREATE INDEX IF NOT EXISTS ix_validations_version ON validations(version_id, validator_id, finished_at);
+CREATE INDEX IF NOT EXISTS ix_validations_job     ON validations(job_id) WHERE job_id IS NOT NULL;
+CREATE TRIGGER IF NOT EXISTS tr_validations_insert BEFORE INSERT ON validations
+BEGIN
+  SELECT RAISE(ABORT, 'a validation job belongs to the project of the version')
+    WHERE NEW.job_id IS NOT NULL AND (SELECT project_id FROM jobs WHERE id = NEW.job_id)
+       IS NOT (SELECT project_id FROM artifact_versions WHERE id = NEW.version_id);
+  SELECT RAISE(ABORT, 'a passed or failed blocking result is recorded only by the system')
+    WHERE NEW.blocking = 1 AND NEW.status IN ('passed','failed')
+      AND (SELECT kind FROM principals WHERE id = NEW.created_by) IS NOT 'system';
+END;
+CREATE TRIGGER IF NOT EXISTS tr_validations_no_update BEFORE UPDATE ON validations
+BEGIN SELECT RAISE(ABORT, 'validations are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS tr_validations_no_delete BEFORE DELETE ON validations
+BEGIN SELECT RAISE(ABORT, 'validations are append-only'); END;
+
+-- ===== approvals: once-only user consent =====
+CREATE TABLE IF NOT EXISTS approval_states (
+  state       TEXT PRIMARY KEY CHECK (state GLOB '[a-z]*' AND length(state) BETWEEN 2 AND 32),
+  terminal    INTEGER NOT NULL CHECK (terminal IN (0,1)),
+  description TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS approval_transitions (
+  from_state TEXT NOT NULL REFERENCES approval_states(state),
+  to_state   TEXT NOT NULL REFERENCES approval_states(state),
+  PRIMARY KEY (from_state, to_state),
+  CHECK (from_state <> to_state)
+);
+CREATE TABLE IF NOT EXISTS approvals (
+  id                TEXT PRIMARY KEY,
+  project_id        TEXT REFERENCES projects(id) ON DELETE RESTRICT,
+  job_id            TEXT REFERENCES jobs(id),
+  session_id        TEXT REFERENCES agent_sessions(id),
+  reason            TEXT NOT NULL CHECK (reason IN ('egress.deps','egress.weights','image.prepare','repo.write_refs','training.long','blobs.gc')),
+  summary           TEXT NOT NULL CHECK (length(summary) BETWEEN 1 AND 500),
+  request_json      TEXT NOT NULL CHECK (json_valid(request_json) AND length(request_json) <= 8192),
+  request_sha256    TEXT NOT NULL CHECK (length(request_sha256) = 64 AND request_sha256 NOT GLOB '*[^0-9a-f]*'),
+  status            TEXT NOT NULL REFERENCES approval_states(state),
+  requested_by      TEXT NOT NULL REFERENCES principals(id),
+  on_behalf_of      TEXT NOT NULL REFERENCES principals(id),
+  requested_at      INTEGER NOT NULL,
+  expires_at        INTEGER NOT NULL,
+  decided_by        TEXT REFERENCES principals(id),
+  decided_at        INTEGER,
+  decision          TEXT CHECK (decision IS NULL OR decision IN ('once','deny')),
+  consumed_at       INTEGER,
+  consumed_by_job_id    TEXT,
+  consumed_by_attempt_n INTEGER,
+  status_changed_at INTEGER NOT NULL,
+  CHECK (expires_at > requested_at),
+  CHECK ((decided_by IS NULL) = (decided_at IS NULL)),
+  CHECK ((decision IS NULL) = (decided_at IS NULL)),
+  CHECK (consumed_at IS NULL OR status = 'approved'),
+  CHECK (reason NOT IN ('egress.deps','egress.weights') OR (job_id IS NOT NULL AND project_id IS NOT NULL)),
+  CHECK (reason <> 'image.prepare' OR (job_id IS NULL AND project_id IS NULL)),
+  CHECK ((decided_at IS NOT NULL) = (status IN ('approved','denied'))),
+  CHECK ((consumed_by_job_id IS NULL) = (consumed_by_attempt_n IS NULL)),
+  CHECK (consumed_by_job_id IS NULL OR consumed_at IS NOT NULL),
+  CHECK (consumed_at IS NULL OR consumed_by_job_id IS job_id),
+  FOREIGN KEY (consumed_by_job_id, consumed_by_attempt_n) REFERENCES job_attempts(job_id, n)
+);
+CREATE INDEX IF NOT EXISTS ix_approvals_status ON approvals(status, expires_at);
+CREATE INDEX IF NOT EXISTS ix_approvals_project ON approvals(project_id, requested_at DESC) WHERE project_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_approvals_job_pending ON approvals(job_id) WHERE job_id IS NOT NULL AND status = 'pending';
+CREATE TRIGGER IF NOT EXISTS tr_approvals_insert BEFORE INSERT ON approvals
+BEGIN
+  SELECT RAISE(ABORT, 'an approval starts pending, undecided and unconsumed')
+    WHERE NEW.status <> 'pending' OR NEW.decided_at IS NOT NULL OR NEW.consumed_at IS NOT NULL;
+  SELECT RAISE(ABORT, 'an approval job belongs to its project')
+    WHERE NEW.job_id IS NOT NULL AND (SELECT project_id FROM jobs WHERE id = NEW.job_id) IS NOT NEW.project_id;
+  SELECT RAISE(ABORT, 'an approval session belongs to its project')
+    WHERE NEW.session_id IS NOT NULL AND (SELECT project_id FROM agent_sessions WHERE id = NEW.session_id) IS NOT NEW.project_id;
+END;
+CREATE TRIGGER IF NOT EXISTS tr_approvals_transition BEFORE UPDATE OF status ON approvals
+WHEN NEW.status IS NOT OLD.status
+BEGIN
+  SELECT RAISE(ABORT, 'illegal approval transition')
+    WHERE NOT EXISTS (SELECT 1 FROM approval_transitions t WHERE t.from_state = OLD.status AND t.to_state = NEW.status);
+  SELECT RAISE(ABORT, 'only a user approves or denies, once, recording who and when')
+    WHERE NEW.status IN ('approved','denied') AND (NEW.decided_by IS NULL
+      OR (SELECT kind FROM principals WHERE id = NEW.decided_by) IS NOT 'user'
+      OR NEW.decision IS NOT (CASE NEW.status WHEN 'approved' THEN 'once' ELSE 'deny' END));
+  SELECT RAISE(ABORT, 'expiry and withdrawal are not decisions')
+    WHERE NEW.status IN ('expired','withdrawn') AND (NEW.decided_by IS NOT NULL OR NEW.decision IS NOT NULL);
+END;
+CREATE TRIGGER IF NOT EXISTS tr_approvals_once BEFORE UPDATE ON approvals
+WHEN NEW.id IS NOT OLD.id OR NEW.project_id IS NOT OLD.project_id OR NEW.job_id IS NOT OLD.job_id
+  OR NEW.session_id IS NOT OLD.session_id OR NEW.reason IS NOT OLD.reason OR NEW.summary IS NOT OLD.summary
+  OR NEW.request_json IS NOT OLD.request_json OR NEW.request_sha256 IS NOT OLD.request_sha256
+  OR NEW.requested_by IS NOT OLD.requested_by OR NEW.on_behalf_of IS NOT OLD.on_behalf_of
+  OR NEW.requested_at IS NOT OLD.requested_at OR NEW.expires_at IS NOT OLD.expires_at
+  OR (OLD.decided_at IS NOT NULL AND (NEW.decided_by IS NOT OLD.decided_by OR NEW.decided_at IS NOT OLD.decided_at OR NEW.decision IS NOT OLD.decision))
+  OR (OLD.consumed_at IS NOT NULL AND (NEW.consumed_at IS NOT OLD.consumed_at
+    OR NEW.consumed_by_job_id IS NOT OLD.consumed_by_job_id OR NEW.consumed_by_attempt_n IS NOT OLD.consumed_by_attempt_n))
+  OR (OLD.status <> 'pending' AND NEW.status IS NOT OLD.status)
+BEGIN SELECT RAISE(ABORT, 'an approval request is immutable; its decision and its consumption are recorded once'); END;
+CREATE TRIGGER IF NOT EXISTS tr_approvals_no_delete BEFORE DELETE ON approvals
+BEGIN SELECT RAISE(ABORT, 'approvals are never deleted'); END;
+
+-- ===== deployments: local dev deployments of an application version =====
+CREATE TABLE IF NOT EXISTS deployment_states (
+  state       TEXT PRIMARY KEY CHECK (state GLOB '[a-z]*' AND length(state) BETWEEN 2 AND 32),
+  terminal    INTEGER NOT NULL CHECK (terminal IN (0,1)),
+  description TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS deployment_transitions (
+  from_state TEXT NOT NULL REFERENCES deployment_states(state),
+  to_state   TEXT NOT NULL REFERENCES deployment_states(state),
+  PRIMARY KEY (from_state, to_state),
+  CHECK (from_state <> to_state)
+);
+CREATE TABLE IF NOT EXISTS deployments (
+  id                 TEXT PRIMARY KEY,
+  project_id         TEXT NOT NULL REFERENCES projects(id) ON DELETE RESTRICT,
+  participation_id   TEXT NOT NULL REFERENCES project_workspaces(id) ON DELETE RESTRICT,
+  subject_version_id TEXT NOT NULL REFERENCES artifact_versions(id) ON DELETE RESTRICT,
+  job_id             TEXT NOT NULL UNIQUE REFERENCES jobs(id),
+  environment        TEXT NOT NULL CHECK (environment = 'local-preview'),
+  bind_address       TEXT NOT NULL DEFAULT '127.0.0.1' CHECK (bind_address = '127.0.0.1'),
+  host_port          INTEGER CHECK (host_port IS NULL OR host_port BETWEEN 1024 AND 65535),
+  status             TEXT NOT NULL REFERENCES deployment_states(state),
+  health_json        TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(health_json) AND json_type(health_json) = 'array' AND length(health_json) <= 16384),
+  stop_reason        TEXT CHECK (stop_reason IS NULL OR stop_reason IN ('user','idle','cancel','app_quit','recovery','exited','probe_failed','start_timeout',
+                       'refused','preflight_failed','runner_lost','exit_not_reported')),
+  stopped_by         TEXT REFERENCES principals(id),
+  created_by         TEXT NOT NULL REFERENCES principals(id),
+  started_at         INTEGER NOT NULL,
+  stopped_at         INTEGER,
+  status_changed_at  INTEGER NOT NULL,
+  updated_at         INTEGER NOT NULL,
+  CHECK ((status IN ('stopped','failed')) = (stopped_at IS NOT NULL)),
+  CHECK ((status IN ('stopped','failed')) = (stop_reason IS NOT NULL)),
+  CHECK ((status = 'stopped') = (stopped_by IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS ix_deployments_project ON deployments(project_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS ix_deployments_live    ON deployments(status) WHERE status IN ('starting','healthy','unhealthy');
+CREATE INDEX IF NOT EXISTS ix_deployments_subject ON deployments(subject_version_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_deployments_port_live ON deployments(host_port)
+  WHERE host_port IS NOT NULL AND status IN ('starting','healthy','unhealthy');
+CREATE TRIGGER IF NOT EXISTS tr_deployments_insert BEFORE INSERT ON deployments
+BEGIN
+  SELECT RAISE(ABORT, 'a deployment starts as starting') WHERE NEW.status <> 'starting' OR NEW.stopped_at IS NOT NULL;
+  SELECT RAISE(ABORT, 'the deploying participation must be active and in this project')
+    WHERE NOT EXISTS (SELECT 1 FROM project_workspaces p WHERE p.id = NEW.participation_id AND p.project_id = NEW.project_id AND p.status = 'active');
+  SELECT RAISE(ABORT, 'a deployment subject is an application or inference service version of this project')
+    WHERE NOT EXISTS (SELECT 1 FROM artifact_versions v JOIN artifacts a ON a.id = v.artifact_id
+      WHERE v.id = NEW.subject_version_id AND v.project_id = NEW.project_id AND a.kind IN ('application','inference_service')
+        AND v.status IN ('draft','candidate','active'));
+  SELECT RAISE(ABORT, 'a deployment is run by a tool job of this project and participation')
+    WHERE NOT EXISTS (SELECT 1 FROM jobs j WHERE j.id = NEW.job_id AND j.kind = 'tool.run'
+      AND j.project_id = NEW.project_id AND j.participation_id = NEW.participation_id);
+END;
+CREATE TRIGGER IF NOT EXISTS tr_deployments_transition BEFORE UPDATE OF status ON deployments
+WHEN NEW.status IS NOT OLD.status
+BEGIN
+  SELECT RAISE(ABORT, 'illegal deployment transition')
+    WHERE NOT EXISTS (SELECT 1 FROM deployment_transitions t WHERE t.from_state = OLD.status AND t.to_state = NEW.status);
+END;
+CREATE TRIGGER IF NOT EXISTS tr_deployments_identity BEFORE UPDATE ON deployments
+WHEN NEW.id IS NOT OLD.id OR NEW.project_id IS NOT OLD.project_id OR NEW.participation_id IS NOT OLD.participation_id
+  OR NEW.subject_version_id IS NOT OLD.subject_version_id OR NEW.job_id IS NOT OLD.job_id OR NEW.environment IS NOT OLD.environment
+  OR NEW.bind_address IS NOT OLD.bind_address OR NEW.created_by IS NOT OLD.created_by OR NEW.started_at IS NOT OLD.started_at
+  OR (OLD.host_port IS NOT NULL AND NEW.host_port IS NOT OLD.host_port)
+  OR OLD.status IN ('stopped','failed')
+BEGIN SELECT RAISE(ABORT, 'deployment identity is immutable and a finished deployment is frozen'); END;
+CREATE TRIGGER IF NOT EXISTS tr_deployments_no_delete BEFORE DELETE ON deployments
+BEGIN SELECT RAISE(ABORT, 'deployments are never deleted'); END;
+
+-- ===== execution backstops on the v7 jobs table (additive triggers; constraint 4) =====
+CREATE TRIGGER IF NOT EXISTS tr_jobs_completed_needs_attempt BEFORE UPDATE OF state ON jobs
+WHEN NEW.state IS NOT OLD.state AND NEW.state IN ('completed','partial') AND NEW.kind IN ('tool.run','validate')
+BEGIN
+  SELECT RAISE(ABORT, 'a tool or validate job completes only when its current attempt succeeded')
+    WHERE NEW.state = 'completed' AND NOT EXISTS (SELECT 1 FROM job_attempts a
+      WHERE a.job_id = NEW.id AND a.n = NEW.attempts AND a.state = 'succeeded');
+  SELECT RAISE(ABORT, 'a tool or validate job ends partial only when its current attempt finished')
+    WHERE NEW.state = 'partial' AND NOT EXISTS (SELECT 1 FROM job_attempts a
+      WHERE a.job_id = NEW.id AND a.n = NEW.attempts AND a.state IN ('succeeded','failed'));
+END;
+CREATE TRIGGER IF NOT EXISTS tr_jobs_attempts_monotonic BEFORE UPDATE OF attempts ON jobs
+WHEN NEW.attempts < OLD.attempts
+BEGIN SELECT RAISE(ABORT, 'a job attempt count never decreases'); END;
+CREATE TRIGGER IF NOT EXISTS tr_jobs_end_after_attempts BEFORE UPDATE OF state ON jobs
+WHEN NEW.state IS NOT OLD.state AND NEW.state IN ('queued','retry_scheduled','completed','partial','failed','cancelled','timed_out','interrupted')
+BEGIN
+  SELECT RAISE(ABORT, 'a job ends or goes back to waiting only after its live attempt has ended')
+    WHERE EXISTS (SELECT 1 FROM job_attempts a WHERE a.job_id = NEW.id AND a.state IN ('starting','running'));
+END;
+
+-- ===== indexes on v7 tables used by the execution core (additive) =====
+CREATE INDEX IF NOT EXISTS ix_jobs_sched       ON jobs(state, priority, created_at);
+CREATE INDEX IF NOT EXISTS ix_jobs_retry_due   ON jobs(next_attempt_at) WHERE state = 'retry_scheduled';
+CREATE INDEX IF NOT EXISTS ix_jobs_parent      ON jobs(parent_job_id) WHERE parent_job_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_versions_job_path ON artifact_versions(produced_by_job_id, output_path)
+  WHERE output_path IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_versions_job     ON artifact_versions(produced_by_job_id) WHERE produced_by_job_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_versions_hash    ON artifact_versions(content_hash);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_repository_per_project ON artifacts(project_id) WHERE kind = 'repository';
+```
+
+### 32.3 Triggers
+
+The services enforce the same rules in TypeScript and return typed `PlatformError`s. The triggers are the backstop.
+
+| Trigger | Enforces |
+|---|---|
+| `tr_attempts_insert` | An attempt starts as `starting`, unfinished, with no container and no exit. It is inserted only while its job is `leased` and `jobs.attempts = n`, so the lease and the insert share one transaction. A new attempt is owned by the boot that created it. |
+| `tr_attempts_transition` | A state change must be a row of `attempt_transitions`. |
+| `tr_attempts_identity` | `id`, `job_id`, `n`, `boot_id` and `created_at` never change. `container_id` and `log_path` are set once. |
+| `tr_attempts_terminal_frozen` | A finished attempt (`succeeded`, `failed`, `cancelled`, `timed_out` or `abandoned`) is immutable. |
+| `tr_attempts_no_delete` | Attempts are never deleted. |
+| `tr_image_builds_insert` | A build starts `running`, needs an `image.prepare` approval that is approved and consumed for this profile and context hash, and is requested by the principal the approval was for. |
+| `tr_image_builds_update` | A finished build is immutable, and its identity never changes. |
+| `tr_image_builds_no_delete` | Image builds are never deleted. |
+| `tr_job_events_insert` | An event names the project of its job, approval and deployment. An event with none of them names no project. |
+| `tr_job_events_no_update`, `tr_job_events_no_delete` | Events are append-only. |
+| `tr_blobs_identity` | `sha256`, `bytes`, `media_type` and `created_at` never change. |
+| `tr_blobs_delete` | A blob that a version holds is never deleted. |
+| `tr_version_blobs_insert` | Bytes are attached to a version only while it is a draft. |
+| `tr_version_blobs_no_update`, `tr_version_blobs_no_delete` | Version blobs are immutable. |
+| `tr_version_attempts_insert` | A version is bound only to an attempt of the job that produced it. |
+| `tr_version_attempts_no_update`, `tr_version_attempts_no_delete` | Append-only. |
+| `tr_validations_insert` | A validation job belongs to the version's project. A `passed` or `failed` **blocking** result is recorded only by the system principal. |
+| `tr_validations_no_update`, `tr_validations_no_delete` | Validations are append-only. |
+| `tr_approvals_insert` | An approval starts pending, undecided and unconsumed. Its job and session belong to its project. |
+| `tr_approvals_transition` | A status change must be a row of `approval_transitions`. Only a principal of kind `user` approves or denies, once, recording who and when, and `approved` records `once` and `denied` records `deny`. An expiry or a withdrawal is not a decision. |
+| `tr_approvals_once` | The request is immutable. The decision is recorded once, and so is the consumption. A non-pending approval never changes status again. |
+| `tr_approvals_no_delete` | Approvals are never deleted. |
+| `tr_deployments_insert` | A deployment starts `starting`. Its participation is active and in this project. Its subject is a draft, candidate or active `application` or `inference_service` version of this project. Its job is a `tool.run` job of this project and participation. |
+| `tr_deployments_transition` | A status change must be a row of `deployment_transitions`. |
+| `tr_deployments_identity` | Identity, environment, bind address and requester never change. `host_port` is set once. A stopped or failed deployment is frozen. |
+| `tr_deployments_no_delete` | Deployments are never deleted. |
+| `tr_jobs_completed_needs_attempt` | On the v7 `jobs` table: a `tool.run` or `validate` job becomes `completed` only when its **current** attempt (`n = jobs.attempts`) `succeeded`, and becomes `partial` only when its current attempt finished (`succeeded` or `failed`). |
+| `tr_jobs_attempts_monotonic` | On `jobs`: `attempts` never decreases. |
+| `tr_jobs_end_after_attempts` | On `jobs`: a job never ends, and never goes back to `queued` or `retry_scheduled`, while it has a live (`starting` or `running`) attempt. |
+
+The CHECKs on `job_attempts` add four more rules:
+- an attempt is unfinished exactly while it is `starting` or `running`;
+- `running` needs `started_at`;
+- `succeeded` needs both `exit_code` and `outcome`;
+- `running` and `succeeded` need both `sandbox_json` and `environment_json`.
+
+**The three `jobs` triggers outlive "off".** They are part of the file. A v9 file opened later without `enableV9` keeps them. On such a file, B0b-style completion of a `tool.run` job without an attempt is refused, while the platform and handoffs work normally.
+
+**The known trigger limit is still closed by a source rule.** `test/nexus-core-append-only-writes.test.cjs` derives its protected set from `V7_DDL`, `V8_DDL` and `V9_DDL` ([section 21.3](#213-triggers)).
+
+### 32.4 Indexes and their access reasons
+
+| Index | On | Access path it serves |
+|---|---|---|
+| `UNIQUE (job_id, n)` (auto) | `job_attempts` | A job's attempts in order; the attempt-number backstop; the FK target of `job_events`, `validations`, `version_attempts` and `approvals`. |
+| `ux_attempts_live` (unique, partial) | `job_attempts(job_id)` live only | At most one live attempt per job; "the live attempt of job J" on every runner report and on cancel. |
+| `ix_attempts_lease` (partial) | `job_attempts(state, lease_expires_at)` live only | Restart recovery (every live attempt) and the lease-expiry sweep. |
+| `ix_attempts_container` (partial) | `job_attempts(container_id)` | Runner reports and recovery map a container id to its attempt. |
+| `ix_image_builds_profile` | `image_builds(profile_id, started_at DESC)` | Health and the scheduler: the latest build per profile (expected image id, context hash). |
+| `UNIQUE (approval_id)` (auto) | `image_builds` | One build per approval. |
+| `ix_job_events_job` (partial) | `job_events(job_id, seq)` | A job's events in order (job detail). |
+| `ix_job_events_project` (partial) | `job_events(project_id, seq)` | `nexus:events:since` with a project. Without a project it uses the `seq` primary key. |
+| PK `sha256` | `blobs` | Blob upsert at ingest; existence checks. |
+| PK `(version_id, sha256, role, path)` | `version_blobs` | A version's bytes: previews, the integrity re-hash. |
+| `ix_version_blobs_sha` | `version_blobs(sha256)` | GC's "is this blob referenced", `tr_blobs_delete`, and the FK check from `blobs`. |
+| PK `version_id` | `version_attempts` | The producing attempt of a version. |
+| `ix_validations_version` | `validations(version_id, validator_id, finished_at)` | The latest result per (version, validator): `nexus:version:validations`, `finalizeIfReady`, the step state. |
+| `ix_validations_job` (partial) | `validations(job_id)` | The results a job produced; the evidence backstop. |
+| `ix_approvals_status` | `approvals(status, expires_at)` | The expiry sweep; the pending list. |
+| `ix_approvals_project` (partial) | `approvals(project_id, requested_at DESC)` | A project's approvals, newest first. |
+| `ux_approvals_job_pending` (unique, partial) | `approvals(job_id)` pending only | One pending approval per job; "the pending approval of job J". |
+| `ix_deployments_project` | `deployments(project_id, started_at DESC)` | A project's deployments, newest first. |
+| `ix_deployments_live` (partial) | `deployments(status)` live only | Recovery, the probe pass and the live-service cap. |
+| `ix_deployments_subject` | `deployments(subject_version_id)` | The deployments of an application version. |
+| `ux_deployments_port_live` (unique, partial) | `deployments(host_port)` live only | No two live deployments on one host port. |
+| PK `(from_state, to_state)` (auto) | the three transition tables | The transition-trigger lookups. |
+| `ix_jobs_sched` | `jobs(state, priority, created_at)` | The scheduler pick: queued jobs by priority, then age. |
+| `ix_jobs_retry_due` (partial) | `jobs(next_attempt_at)` | Due retries (`retry_scheduled`). |
+| `ix_jobs_parent` (partial) | `jobs(parent_job_id)` | The cancel cascade to children; a check job's parent. |
+| `ux_versions_job_path` (unique, partial) | `artifact_versions(produced_by_job_id, output_path)` | Ingest idempotency by (job, output path). |
+| `ix_versions_job` (partial) | `artifact_versions(produced_by_job_id)` | A job's outputs; marking a cancelled job's drafts `cancelled_partial`. |
+| `ix_versions_hash` | `artifact_versions(content_hash)` | Dedupe by content hash at ingest. |
+| `ux_repository_per_project` (unique, partial) | `artifacts(project_id) WHERE kind = 'repository'` | One `repository` artifact per project. This was deferred from B1 (ruling C5). |
+
+The last seven are on v7 tables. They are additive, and the v7 shape check ignores extra objects.
+
+Not built:
+- an index on `job_events(type)`, because no query filters by type alone;
+- an index on `blobs(last_referenced_at)`, because GC scans the table under its lock;
+- an index on `job_events(image_build_id)`. A build's last progress is read from memory, and after a restart by a backwards scan of `job_events`.
+
+### 32.5 Seeds
+
+The seeds are in `src/main/nexus/db/v9Seed.ts`, written with `INSERT OR IGNORE`. `verifyV9` re-reads every row with all its columns, and checks that each v9 lookup table holds exactly its seed.
+
+**Attempt states** (7):
+
+| `state` | `terminal` | Meaning |
+|---|---|---|
+| `starting` | 0 | Leased; the sandbox is being provisioned, or the attempt is waiting for an approval |
+| `running` | 0 | The sandbox passed preflight and the work is executing |
+| `succeeded` | 1 | The work exited and its outputs were ingested |
+| `failed` | 1 | The work or its sandbox failed |
+| `cancelled` | 1 | Cancelled by the user, or with its parent |
+| `timed_out` | 1 | The wall clock expired |
+| `abandoned` | 1 | Lost before it could finish: a restart, a runner refusal or a vanished sandbox |
+
+The 10 attempt transitions:
+- `starting` → `running`, `succeeded`, `failed`, `cancelled` or `abandoned`;
+- `running` → `succeeded`, `failed`, `cancelled`, `timed_out` or `abandoned`.
+
+**Approval states** (5): `pending` (not terminal), then `approved`, `denied`, `expired` and `withdrawn` (all terminal). The 4 transitions all leave `pending`.
+
+**Deployment states** (5): `starting`, `healthy` and `unhealthy` (live), then `stopped` and `failed` (terminal). The 9 transitions are:
+- `starting` → `healthy`, `failed` or `stopped`;
+- `healthy` ↔ `unhealthy`;
+- `healthy` or `unhealthy` → `stopped` or `failed`.
+
+**Four lineage relations (ruling R2).** These are added to the v7 vocabulary. No existing row changes.
+
+| Relation | Meaning | `planned_phase` |
+|---|---|---|
+| `covers` | A test suite or test case that covers a requirement | B2c |
+| `transformed_by` | A dataset produced by a preprocessing pipeline or a cleaning query | B3 |
+| `configured_by` | A training run configured by an architecture or configuration version | B6 |
+| `monitors` | A monitoring report that monitors an inference service version | B5 |
+
+So the vocabulary is now 36 relations ([section 9](#9-lineage-and-the-32-relation-vocabulary)). B2a writes none of the four.
+
+**The phase renumbering (ruling R3, documentation only).** The 32 v7 rows and Part I use the older phase numbering. The four v9 rows, the domain registry and this part use the new one. The v7 rows are frozen seed data and are not rewritten. `planned_phase` is documentation only, so nothing behaves differently.
+
+| Old label (v7 rows, Part I) | Now |
+|---|---|
+| B2 (QA) | B2c |
+| B3a (DA) | B3 |
+| B3b (DS) | B4 |
+| B4 (ML) | B5 |
+| B5 (DL) | B6 |
+| B6 (deploy) | Local scope only: dev deployments in B2a, local inference services in B5. Anything wider is FUTURE. |
+
+**The meaning of `implements`** (D12). The v7 row keeps `planned_phase = 'unassigned'`, because rewriting a v7 row is forbidden. Its meaning is now documented: a change set that implements a requirement. Its first writer is B2b. Nothing in B2a writes it.
+
+**What B2a writes.**
+- `derived_from`: a repository snapshot from the previous snapshot; a test suite from the repository it was discovered in; a diagnostic report from the application it diagnosed; and every new output version from the previous version of its artifact.
+- `built_from`: a build from its repository.
+- `assembled_from`: an application from its build.
+
+The sources are `job_input` for a job's granted inputs, and `ingest` for the previous version and the diagnosed application.
+
+### 32.6 The v9 name list
+
+This list is copied from `V9_EXPECTED`, in its order. `test/nexus-core-docs-v9-names.test.cjs` checks that it equals `V9_EXPECTED` exactly. It also checks that every `ix_`, `ux_` and `tr_` name in sections 32.3 and 32.4 is a v9 name.
+
+```text
+tables: attempt_states, attempt_transitions, job_attempts, image_builds, job_events, blobs, version_blobs, version_attempts, validations, approval_states, approval_transitions, approvals, deployment_states, deployment_transitions, deployments
+indexes: ux_attempts_live, ix_attempts_lease, ix_attempts_container, ix_image_builds_profile, ix_job_events_job, ix_job_events_project, ix_version_blobs_sha, ix_validations_version, ix_validations_job, ix_approvals_status, ix_approvals_project, ux_approvals_job_pending, ix_deployments_project, ix_deployments_live, ix_deployments_subject, ux_deployments_port_live, ix_jobs_sched, ix_jobs_retry_due, ix_jobs_parent, ux_versions_job_path, ix_versions_job, ix_versions_hash, ux_repository_per_project
+triggers: tr_attempts_insert, tr_attempts_transition, tr_attempts_identity, tr_attempts_terminal_frozen, tr_attempts_no_delete, tr_image_builds_insert, tr_image_builds_update, tr_image_builds_no_delete, tr_job_events_insert, tr_job_events_no_update, tr_job_events_no_delete, tr_blobs_identity, tr_blobs_delete, tr_version_blobs_insert, tr_version_blobs_no_update, tr_version_blobs_no_delete, tr_version_attempts_insert, tr_version_attempts_no_update, tr_version_attempts_no_delete, tr_validations_insert, tr_validations_no_update, tr_validations_no_delete, tr_approvals_insert, tr_approvals_transition, tr_approvals_once, tr_approvals_no_delete, tr_deployments_insert, tr_deployments_transition, tr_deployments_identity, tr_deployments_no_delete, tr_jobs_completed_needs_attempt, tr_jobs_attempts_monotonic, tr_jobs_end_after_attempts
+```
+
+---
+
+## 33. The v9 migration and its runbook
+
+### 33.1 Opt-in
+
+`PersistStore.open()` runs v9 only when it is enabled. Four things decide that:
+- **`PersistOpenOptions.enableV9`.** When the caller does not set it, the default is `V9_ENABLED_BY_DEFAULT`, which is **false**.
+- **v9 off, on a v8 file.** The file stays at v8. The outcome is `skipped: not_enabled`, and `executionUnavailableReason` is `'not_enabled'`. The platform and handoffs are unchanged, and nothing is written: no backup, no marker and no v9 object.
+- **v9 off, on a v9 file.** The v9 shape is still checked. Execution reports `not_enabled`, and the platform and handoffs work.
+- **The default flip.** Making v9 the default is one line: `V9_ENABLED_BY_DEFAULT = true`. It comes in a separate small commit after the user's verification go-ahead, together with the test edits that commit needs (section 45).
+
+Only tests enable v9 today. The pending `index.ts` line maps `NEXUS_ENABLE_V9=1` to `enableV9: true`, and never passes an explicit `false`, which would override the default after the flip (ruling F1).
+
+### 33.2 Procedure
+
+`PersistStore.open()` runs the v7 step ([section 14](#14-migration-procedure)), then the v8 step ([section 22.1](#221-procedure)), then `migrateV9` through `migrateV9Guarded`. `open()` never throws because of v9: an unexpected throw logs `[db] v9 step: unexpected error=<redacted>; execution disabled`, and the platform and handoffs stay as the v8 step left them.
+
+1. **Decide.**
+   - **v8 not in place:** v7 or v8 was held, skipped or failed, or either shape check failed. The outcome is `skipped: v8_unavailable`, and no v9 line is logged.
+   - **`from > 9`:** the newer-schema branch logs `[db] schema v<n> is newer than this build (v9); opened for legacy use only, platform disabled, nothing migrated`.
+   - **Already at v9:** `v9ShapeProblem(db, true)` runs. A problem logs `[db] v9 shape check failed: <problem>; execution disabled`. The outcome is `not_needed`.
+   - **Not enabled:** `[db] v9 migration: not enabled; database stays at v8`. This is logged only on a v8 file whose v8 step is in place.
+   - **Held** (`holdV9`, or `holdV8` or `holdV7`, which imply it): the outcome is `skipped: held`.
+   - **The v9 failure marker counts 3 or more:** the outcome is `skipped: held` (`repeated_failure`), and no backup is taken.
+2. **Pre-checks.** These run only when the file held data before this `open()`:
+   - `integrity_check` is `ok`;
+   - free space in `backups` is at least 2 × (`harness.db` + `-wal`);
+   - the row counts of every table are taken.
+
+   A failure skips v9 (`precheck_failed` or `insufficient_disk`), and the file stays at v8.
+3. **Backup** of the v8 database: `userData/backups/harness-v8-<UTC>.db`. It is written, verified and hashed exactly like the v7 and v8 backups, with `user_version = 8`. A failure gives `skipped: backup_failed`. A fresh database takes no v9 backup.
+4. **Migrate**, in ONE `BEGIN IMMEDIATE` transaction: `applyV9`, then `user_version = 9`, then COMMIT. `applyV9` runs, in order:
+   1. `v7ShapeProblem(db, true)` and `v8ShapeProblem(db, true)` must both be null;
+   2. `v9ShapeProblem(db, false)` refuses a pre-existing object of the wrong shape;
+   3. `V9_DDL`;
+   4. the seeds;
+   5. the `nexus_migrations` row 9;
+   6. one `db.migrated` activity row, only if that record is new;
+   7. `verifyV9`. It checks the exact v7, v8 and v9 shapes, every seed row, exact seed counts in the v9 lookup tables, and an empty `foreign_key_check`. It also checks that every pre-existing table kept its row count, with these exceptions: `activity` and `nexus_migrations` grow by 1, `sqlite_sequence` is not compared, and `lineage_relations` grows by exactly the number of rows the seed inserted (at most 4).
+5. **After COMMIT:** the v9 failure marker is deleted and `quick_check` runs. If it is not `ok`, execution stays off and the log names the backup. The platform and handoffs stay on, because the v7 and v8 objects are unchanged.
+6. **On a throw in step 4:** SQLite rolls everything back, including `user_version`. The file stays at v8, the backup is kept, and the marker is incremented.
+
+The outcome is `PersistStore.lastMigrationV9`. `lastMigration` (v7) and `lastMigrationV8` keep their contracts.
+
+**Store getters.**
+- `platformAvailable` is true at v7, v8 or v9 when the v7 shape check passed.
+- `handoffsAvailable` is true at v8 or v9 when the v8 check passed.
+- `executionAvailable` is true only when all of these hold:
+  - v9 is enabled for this `open()`;
+  - the store is at v9, and the v9 post-check (or the reopen shape check) passed;
+  - handoffs are available.
+- `hasPlatformRecords` counts `artifacts`, `jobs`, `agent_sessions`, `handoffs`, `deployments` and `approvals`.
+
+The platform adds two conditions of its own. `createNexusPlatform` builds the execution services only when:
+- the caller passes `execution: true`;
+- handoffs are on;
+- `v9ShapeProblem` is null;
+- the registry check passes ([section 41](#41-the-domain-registry)).
+
+### 33.3 The `nexus_migrations` row 9
+
+After a successful v9 step, `nexus_migrations` has a third row:
+- `version = 9` and `from_version = 8`;
+- `applied_at` (ms) and `app_version`;
+- `backup_file`: the basename (`harness-v8-<UTC>.db`). It is NULL for a fresh database;
+- `backup_sha256`: the same value as the `backup ok` line;
+- `backup_bytes`;
+- `row_counts_json`: the pre-migration counts;
+- `backfill_json` = `'{}'`.
+
+The `db.migrated` activity row has actor `system`, `entity_id` `'9'`, and details `{from: 8, to: 9, backupFile, backupSha256}`.
+
+### 33.4 Log lines, in order
+
+Every line is prefixed with an ISO timestamp. As before, lines never carry row contents, kv values or full paths.
+
+**First launch of a v8 database with v9 enabled (success):**
+```
+[db] schema version 8
+[db] v9 precheck ok integrity=ok integrityMs=<n> free=<bytes|unknown> needed=<n>
+[db] backup ok file=harness-v8-<UTC>.db bytes=<n> sha256=<hex> from=8 writeMs=<n> verifyMs=<n> hashMs=<n>
+[db] row counts <table>=<n> ...
+[db] v9 migration: start from=8
+[db] v9 migration: success to=9 durationMs=<n> attemptStates=7 approvalStates=5 deploymentStates=5 relationsAdded=4
+[nexus] execution core ready: runner not attached
+[nexus] platform ready: principals ok, workspaces added=0, primaries set=<n> cleared=<n>, sessions interrupted=0, jobs interrupted=0 requeued=0
+[nexus] execution recovery: adopted=0 finalized=0 requeued=0 interrupted=0 expired=0 pending=0
+```
+The two `[nexus]` lines that mention execution appear only when main composes the platform with `execution: true`, which is part of the pending wiring.
+
+**v9 not enabled (today's default), on a v8 file:**
+```
+[db] schema version 8
+[db] v9 migration: not enabled; database stays at v8
+[nexus] platform ready: ...
+```
+
+**Fresh database:**
+- the v7 and v8 lines of [section 22.3](#223-log-lines-in-order);
+- `[db] fresh database: no v9 backup needed`;
+- the `start` and `success` lines.
+
+**Every later launch at v9:** `[db] schema version 9`, then the `[nexus]` lines. There is no second backup and no migration.
+
+**Held:**
+```
+[db] v9 migration: skipped reason=held (NEXUS_DB_HOLD_V9=1); database stays at v8
+```
+The parenthesis names `NEXUS_DB_HOLD_V8=1` or `NEXUS_DB_HOLD_V7=1` when only one of those is set. The switches are read only when v9 is enabled.
+
+**The v9 transaction failed:**
+```
+[db] v9 migration: failed from=8 error=<redacted>; database left at v8; backup kept at harness-v8-<UTC>.db
+[db] v9 migration will be retried at the next launch (failure <n> of 3); set NEXUS_DB_HOLD_V9=1 to stay on v8
+```
+- On the third failure, the second line reads instead: `[db] v9 migration has failed 3 times in a row; it is held from the next launch (held: repeated_failure)`.
+- On a fresh database, the first line ends `no backup (fresh database)`.
+
+**Held after repeated failures:**
+```
+[db] v9 migration: skipped reason=held: repeated_failure count=3; database stays at v8; no new backup taken
+[db] to retry v9, quit and delete harness.db.v9-failures.json next to harness.db; existing backups are kept (restore one with the restore tool, tools/nexus-db-restore.cjs, if needed)
+```
+
+**Other skips (the file stays at v8):**
+- `[db] v9 migration: skipped reason=precheck_failed detail=…; database left at v8`, or `reason=insufficient_disk detail=free=<n> needed=<n>`;
+- `[db] backup failed stage=<stage> error=…`, then `[db] v9 migration: skipped reason=backup_failed detail=stage=<stage>; database left at v8`.
+
+**Post-commit check failed:** `[db] v9 post-check FAILED; execution disabled; restore from backup harness-v8-<UTC>.db`.
+
+**Execution held at startup on a v9 file** (execution off for any reason):
+```
+[nexus] execution recovery held: execution is off (<reason>); jobs with a live attempt are left for the next start with execution on
+```
+
+**Registry check failed:** `[nexus] domain registry check failed: <n> problem(s); execution is off (first: …)`.
+
+### 33.5 The hold cascade, the failure marker and auto-hold
+
+| What | Where and how |
+|---|---|
+| Hold switch | `NEXUS_DB_HOLD_V9=1` keeps the database at v8 when v9 is enabled. `NEXUS_DB_HOLD_V8=1` and `NEXUS_DB_HOLD_V7=1` imply it: the holds cascade v7 → v8 → v9. While v9 is not enabled, the switches are not read for v9 at all. |
+| Failure marker | `userData/harness.db.v9-failures.json`, next to the database: `{"count":n,"lastFailureAt":<ms>}`. It is separate from the v7 and v8 markers. Each failed v9 transaction increments it, and a successful commit deletes it. Skips do not count. |
+| Auto-hold | At 3 consecutive failures (`V9_FAILURE_LIMIT`), v9 holds itself and takes no new backup. To retry, quit and delete `harness.db.v9-failures.json`. |
+| Backups | `userData/backups/harness-v8-<UTC>.db`, next to the older ones. Nothing prunes them. |
+
+### 33.6 When execution alone is off
+
+`PersistStore.executionUnavailableReason` says why execution is off while the platform is on. It is null when execution is available, and also when the whole platform is off.
+
+| Reason | Set when |
+|---|---|
+| `not_enabled` | v9 was not enabled for this `open()`, and v8 is in place. This is the default today. |
+| `held` | A hold switch kept the file at v8 (or v8 itself is held). |
+| `auto_held` | The v9 marker reached 3 (or v8 is auto-held). |
+| `backup_failed` | The `harness-v8` backup failed (or the `harness-v7` one, for v8). |
+| `failed` | The v9 transaction rolled back, the post-check failed, a pre-check or the disk check skipped v9, or the step threw (or v8 failed). |
+| `shape` | The file is at v9, but the v9 shape check failed on reopen (or the v8 one did). |
+
+When v8 is not in place, the reason is the handoffs reason, whatever `enableV9` says, because execution needs handoffs. The platform adds three reasons of its own: `v8_unavailable`, `registry_invalid` and `not_started`.
+
+The execution channels #24 to #41 then answer `{ ok: false, code: 'platform_unavailable', reason: 'execution_unavailable', subReason }`. #22 and #23 and every B1 channel still answer normally.
+
+### 33.7 Runbook: enabling v9
+
+Do this only after the user's verification go-ahead, and only once the pending wiring ([section 45](#45-pending-wiring)) has landed. Until then, nothing in the app can enable v9.
+
+1. **Quit the app.** Copy `harness.db` and any `-wal` and `-shm` to a folder outside userData. This is your independent fallback. The migration takes its own verified backup as well, but do not rely on it alone.
+2. **Check free space.** v9 itself needs 2 × the database in `backups`. The execution gate needs 30 GiB free at the data home, and `test:exec` also checks the Docker data volume ([section 42](#42-the-resource-gate-and-the-testexec-gate)).
+3. **Launch once with `NEXUS_ENABLE_V9=1`,** or launch normally after the default flip.
+4. **Check the log** for the lines in [section 33.4](#334-log-lines-in-order), and note the `backup ok … from=8` sha256.
+5. **Check the file** with Electron-as-node: `user_version` is 9, `integrity_check` is `ok`, `nexus_migrations` row 9 is present, and `foreign_key_check` is empty.
+
+To try execution without touching your real data, launch with `--user-data-dir=<temp>` first. This follows the standing rule that click-throughs run only on a scratch userData. Executions, versions, approvals and deployments are never deleted, and a project that has any of them cannot be deleted.
+
+### 33.8 Restore to v8
+
+You do not need a restore after a failed v9 transaction: the file is still v8. Restore after a v9 post-check failure, or when the user asks to go back to v8. Follow [section 15.6](#156-restore-procedure) with the v8 backup:
+
+1. Quit the app. Copy `harness.db`, `-wal` and `-shm` outside userData.
+2. Take the sha256 from the v9 `backup ok … from=8` line, or from `nexus_migrations` row 9 (`backup_sha256`).
+3. Dry run:
+   ```
+   node tools/nexus-db-restore.cjs --db <userData>/harness.db --backup <userData>/backups/harness-v8-<UTC>.db --sha256 <hex>
+   ```
+4. Apply: the same command with `--apply`.
+5. Relaunch. The tool reads the backup's `user_version` from its header, and for a v8 backup prints: `Next: launch with NEXUS_DB_HOLD_V9=1 to stay on schema v8, or launch normally: a build with schema v9 enabled migrates it again (a new backup is taken first); a build without it stays on v8.` While v9 is not enabled, a normal launch stays at v8. If the v9 marker reached 3, delete `harness.db.v9-failures.json` before you retry.
+
+The data home `<userData>/nexus` is not part of the database backup. After a restore to v8 it keeps its blobs, logs and work folders. The v8 schema does not read them, and a later v9 migration starts with empty v9 tables. The first blob store hygiene pass after execution starts removes unindexed objects older than 24 hours. Docker resources labelled for the data home are left in place ([section 35.5](#355-orphan-scoping)).
+
+To check a restore without launching, open the file with Electron-as-node. Expect `user_version` 8, `integrity_check` `ok`, and the row counts of row 9's `row_counts_json`.
+
+### 33.9 Downgrade: the `d7abc87b` build on a v9 database
+
+The B1 build (`d7abc87b`) knows schemas up to v8. On a v9 database:
+- It logs `[db] schema v9 is newer than this build (v8); opened for legacy use only, platform disabled, nothing migrated`. The outcome is `skipped: newer_schema`.
+- Phase A works: list, save, and delete a project that has no platform records. `user_version` stays 9.
+- **Its delete guard stays on.** The B1 guard is `version >= 7`, and it counts `artifacts`, `jobs`, `agent_sessions` and `handoffs`. Every B2a deployment names a job of its project, and every project-scoped B2a approval names a job too. So the guard sees them through `jobs`, and refuses the delete without writing.
+- The current build then reopens the file with `not_needed` for all three steps.
+
+`test/nexus-db-phase-a.test.cjs` pins this ("the B1 build d7abc87b opens a v9 database as newer"). Older builds behave as before. For example, `e2fceec` (B0b) opens a v9 file as newer than v7, and its delete guard is off, as [section 16, item 13](#16-known-limitations-and-operational-notes) describes for v8. Nothing stops an older build from opening a v9 database (D1, unchanged).
+
+---
+
+## 34. The execution model
+
+### 34.1 Three processes, one authority
+
+| Process | Holds | Never |
+|---|---|---|
+| Electron main | SQLite (the only authority for job state), the platform, the scheduler, ingest, validators, approvals and deployments | runs Docker or a recipe command |
+| Runner (`utilityProcess`, `out/main/runner.js`) | the per-attempt state machine; Docker and git calls; staging, hashing, parsing and logs | opens the database, decides a job's state, or derives its own install label |
+| Docker | the containers, volumes and networks | sees the host beyond its mounts |
+
+Main and the runner talk over a MessagePort, using `src/shared/nexus/runnerProtocol.ts`. Main validates every runner message with `parseRunnerMessage`. It then accepts the message only when all three of these hold:
+- the attempt is known;
+- its `lease_owner` is this boot;
+- an `attempt.event` seq is strictly increasing.
+
+Anything else is dropped with one log line and no write.
+
+`startExecution` runs the start-up sequence:
+1. Fork the runner. `runnerHost` restarts a crashed runner after 1 s, 5 s, then 30 s. After 5 restarts in 10 minutes it gives up with `Execution is unavailable: the runner stopped repeatedly`.
+2. Attach it with `platform.bootId`.
+3. At every runner `ready`, send `reconcile.list` and route the answer to phase B ([section 35](#35-restart-recovery)).
+4. Start the 1-second scheduler tick after the first phase B. If the runner is unavailable, or 2 minutes pass, the tick starts anyway.
+5. Push `nexus:hint` at most 4 times a second.
+
+On quit, `stop()` first stops every live dev deployment (`app_quit`). It then tells the runner to shut down, and kills it after 5 s.
+
+### 34.2 Jobs and attempts
+
+A user action (`nexus:job:start`) creates a `tool.run` job that names a recipe. The job keeps the v7 state table ([section 10](#10-jobs-and-the-job-state-table)). An attempt is one try.
+
+| Job move | B2a cause |
+|---|---|
+| `queued → leased` | The scheduler leases it, in ONE IMMEDIATE transaction: a compare-and-set on `state = 'queued'`, `attempts + 1`, and attempt n inserted (`starting`, `lease_owner = bootId`, `lease_expires_at = now + 60 s`). It also records `sandbox_json` and `environment_json`, one activity row and one event. |
+| `leased → running` | A container attempt: an `attempt.provisioned` report with a passing preflight and the planned image id. An engine attempt: a report without a container. An egress recipe: main moves it to `running` (phase `approval`) when it asks for the approval. |
+| `running → awaiting_approval` | The egress approval row is created, in the same transaction. |
+| `awaiting_approval → running` | The user answers `once`. The approval is consumed for this attempt and the plan is sent. |
+| `awaiting_approval → failed` | Denied, expired, or consumed but not started within 15 minutes (`approval_stale`). The outcome is `denied`. |
+| `leased → queued` | The runner refused before start with a waiting reason, or the plan could not be sent. The attempt is `abandoned`, and the job waits with a backoff of 2 s doubling to 60 s (`next_attempt_at`). |
+| `running → completed` | The exit was made durable, the contract outputs are present, ingest committed, and the evidence backstop holds ([section 38.3](#383-what-never-completes-a-job)). |
+| `running` or `leased → failed` | `limits_not_applied` (preflight), `nonzero_exit`, `invalid_output`, `oom`, `no_evidence`, `ingest_unavailable`, a refusal that fails, or an infrastructure fault. |
+| any live state → `cancelled` | The user cancels; a parent cancels. |
+| `running` / `awaiting_approval → timed_out` | The wall clock ran out ([section 34.4](#344-timeouts-stalls-and-sleep)). |
+| live → `interrupted` | Recovery finds work that it can neither adopt nor retry. |
+| `failed` / `timed_out → retry_scheduled → queued` | `canRetry`, for idempotent recipes and infrastructure failures only ([section 34.5](#345-failure-classes-and-retry)). |
+
+Every job transition writes one activity row and one `job_events` row, in the same transaction. Attempt transitions write `job_events` only. `JobDetailView` names the attempt list `attemptHistory`, because `Job.attempts` is already the count.
+
+### 34.3 The scheduler, leases and heartbeats
+
+The 1-second tick does this, in order:
+1. writes the heartbeats received since the last tick, in one transaction;
+2. moves due retries to `queued`;
+3. runs the timeout sweep, the lease-expiry sweep and the heartbeat-gap sweep;
+4. considers queued jobs by `ix_jobs_sched` (priority 0 first, then age).
+
+There is no lease at all while blob GC holds its exclusive lock.
+
+A queued job is leased only when every guard passes. The first guard that fails sets the job's `phase`:
+
+| Guard | Waiting reason |
+|---|---|
+| The runner is ready (and fewer than 3 consecutive sends have failed) | `waiting:runner` |
+| Docker is running (container recipes) | `waiting:docker` |
+| The profile image is present and matches its pin. A dev deployment also needs `nexus-fwd`. | `waiting:image` |
+| Free space at the data home ≥ max(5 GiB, 2 × the recipe's output cap) | `waiting:disk` |
+| Slots: at most 3 job containers and 2 service containers | `waiting:slots` |
+| Memory: live containers reserve at most 60 % of Docker's memory. With nothing live, one container may use up to 85 %. | `waiting:memory` |
+
+A runner refusal after the lease can also set a waiting phase. For example, when git is missing the runner refuses `git_missing`: the attempt is `abandoned`, and the job is requeued with the backoff and reads `waiting:git`.
+
+Engine recipes need only the runner. A project may have at most 20 jobs that are queued or live (`queue_full` on start). Approval waits hold no slot and no memory. The cached probe is refreshed every 60 s.
+
+**Leases.**
+- A lease lasts 60 s (`LEASE_MS`). Heartbeats arrive from the runner every 15 s, from `attempt.start` onward, and each one extends the lease.
+- The message handler keeps heartbeats in memory. The next tick writes them, so `heartbeat_at` can lag by up to a second.
+- A 45 s gap writes one `attempt.heartbeat_gap` event.
+- A live attempt of this boot whose lease expires fails `runner_lost`.
+- After 3 consecutive failed sends, the runner counts as not ready until a fresh `probe.result` or `ready` arrives. Probing goes on meanwhile.
+
+### 34.4 Timeouts, stalls and sleep
+
+Each recipe has a wall clock: 15 minutes for installs, tests and builds; 5 minutes for discovery; 60 s for engine recipes; the 2-hour lifetime plus 10 minutes for a dev deployment. Main is the timeout authority. Its clock runs from the lease, minus the time the job spent in `awaiting_approval`.
+
+**Stalls (a tick gap over 10 s).** Leases move forward by the gap only, at most once per 60 s window, and the runner is probed. So an attempt keeps exactly the lease it had left before the stall. Heartbeats queued during the stall are written before the sweep.
+
+**Sleep-like gaps (5 minutes or more)** are left out of the wall clock. The total left out per attempt is capped at 1 × its wall clock. So a laptop sleep longer than the remaining budget ends the attempt `timed_out`, which is an honest outcome the user can retry. This was a controller ruling.
+
+**Two backstops sit inside the sandbox:**
+- the Nexus entry runs the recipe under `timeout -s TERM -k 10 <NEXUS_WALL_SECONDS>`, where `NEXUS_WALL_SECONDS` is the recipe's wall clock, set by main;
+- the runner's own timer fires at 2 × the wall clock from the container start. If it fires first, main records `timed_out`.
+
+### 34.5 Failure classes and retry
+
+An idempotent recipe with attempts left is retried only for infrastructure failures:
+- `docker_resources`, `disk_full`, `docker_error` and `io_error` (a `fault` that names the attempt);
+- `container_vanished`;
+- `ingest_error`;
+- `runner_lost`.
+
+The backoff is 10 s, 60 s, then 300 s.
+
+These are never retried: `timed_out`, `nonzero_exit`, `invalid_output` (and its reasons), `oom` and `limits_not_applied`. These runner refusals fail the job at once: `bad_plan`, `network_not_approved`, `unknown_attempt` and `input_changed`. Any other refusal waits.
+
+The idempotent recipes are `repo.snapshot`, the two installs, discovery, `sde.app.assemble` and `sde.diagnose`. Test runs, builds and dev deployments are not idempotent. A dev deployment is never requeued: `deployments.job_id` is unique.
+
+### 34.6 Cancel
+
+`nexus:job:cancel` (`ExecutionService.cancel`) does the following in one transaction:
+1. cascades to the children first (`ix_jobs_parent`);
+2. withdraws a pending approval;
+3. ends the live attempt `cancelled`;
+4. flags the job's drafts `cancelled_partial`;
+5. cancels the job.
+
+`attempt.cancel` is sent after commit: the runner stops with a 10 s grace, then kills. A later exit of a cancelled attempt is dropped, so cancel wins a race with an exit. The B0b `JobService.requestCancel` is unchanged and still does not cascade ([section 16, item 4](#16-known-limitations-and-operational-notes)).
+
+### 34.7 The data home
+
+The data home is fixed at `<userData>/nexus` in B2a. Every path in it is main-owned. The renderer never names one.
+
+```
+objects/<2 hex>/<62 hex>     content-addressed blobs; objects/tmp/ for in-flight writes
+logs/jobs/<jobId>/<n>.log    attempt logs: JSON frames, redacted on write, capped at 50 MiB
+logs/images/<buildId>.log    image build logs
+work/<jobId>/<n>/{in,out}    staging; kept until main sends attempt.release
+```
+
+**Confinement** (`confineToDataHome`) applies B1's segment rules on every platform. It refuses:
+- absolute, drive, UNC and `\\?\` paths;
+- NUL, `..`, alternate data streams and reserved device names;
+- a segment that ends in a dot or a space.
+
+It then lstats each step. Any link or junction is refused, and so is a final file with more than one hard link. Every write is async, which is the posture rule.
+
+**Docker-side scratch.** Each resource carries `nexus.job`, `nexus.attempt`, `nexus.boot`, `nexus.project` and `nexus.home`:
+- `nexus-ws-<attemptId>`: the `/workspace` volume;
+- `nexus-deps-<profile>-<12 hex>`: dependency caches, written only by an approved install and mounted read-only afterwards;
+- `nexus-egress-<jobId>`: the egress bridge;
+- `nexus-svc-<jobId>` and `nexus-pub-<jobId>`: the dev deployment networks.
+
+`nexus.home` is the first 16 hex characters of sha256 of the resolved data home path. On Windows the path is first lowercased and stripped of any `\\?\` prefix (`src/shared/nexus/homeLabel.ts`).
+
+---
+
+## 35. Restart recovery
+
+Recovery rebuilds everything from SQLite. The runner holds no state that main must trust. The path is chosen by the **file**, never by `enableV9`:
+- `isV9File` is true when `user_version` is 9 or more, or when `job_attempts` exists;
+- on a v9 file, `startup()` runs phase A instead of B1's `jobs.recoverAfterRestart`;
+- on a v7 or v8 file, B1's routine is unchanged.
+
+**Two rules hold for every decision:**
+- each decision is one IMMEDIATE transaction, with exactly one `exec.recover` activity row and one `recovery` event;
+- recovery never completes a job. A completion needs a real exit, ingest and evidence.
+
+### 35.1 Phase A (startup, database only)
+
+Every `leased`, `running` or `awaiting_approval` job is handled in its own transaction:
+
+| Situation | Decision |
+|---|---|
+| No live attempt (agent runs, B0b jobs) | B1's rule (`JobService.recoverJobTx`). |
+| Waiting for approval: pending and unexpired, or already consumed by this attempt | Keeps waiting. The attempt is re-owned (`lease_owner := bootId`, one fresh lease). |
+| Waiting for approval, past `expires_at`, or denied | The approval becomes `expired`, the attempt fails, and the job fails `denied` (`approval_expired`). |
+| Engine attempt (the work lived in the dead runner) | `abandoned`. A leased job goes back to `queued`. A running job goes to `retry_scheduled` when idempotent with attempts left, else `interrupted`. |
+| Main check (a `validate` job without a recipe) | `abandoned`. A leased check is requeued. A running check is interrupted, and the same check is queued again as a new job (deviation RC9). |
+| Container recipe, no container recorded | `abandoned`. A leased tool job goes back to `queued`. A dev deployment or a running job is retried or interrupted. |
+| Container recorded | Left for phase B (`pending`). |
+
+Then pending approvals past their time that no waiting job holds expire, and image builds left `running` become `interrupted` (`restarted`).
+
+Phase A logs `[nexus] execution recovery: adopted=0 finalized=0 requeued=<n> interrupted=<n> expired=<n> pending=<n>`.
+
+### 35.2 Phase B (at every runner `ready`)
+
+Main sends `reconcile.list`, and the runner answers one `reconcile.result`. The answer is parsed by the protocol's own parser, and its boot id must be the attached runner's. Each live attempt with a recorded container is then decided in its own transaction. An entry that is unreported, has another container id, or arrives while Docker is not running counts as `missing`.
+
+| Container | Decision |
+|---|---|
+| `running` | **Adopted**: one fresh lease, and `attempt.adopt` sent. The runner reattaches the log and resumes heartbeats and any probe loop. A dev deployment keeps its status. |
+| `exited` | If the inspected exit and the staged list already show the exit cannot pass (OOM, a non-zero exit of a non-test recipe, a missing contract output), the attempt fails and is released. Otherwise it is **adopted for finalization**: phase `collecting`, no wall clock, one fresh lease and `attempt.adopt`. The runner re-hashes `/out` from the data home and reports `attempt.exited` again, and that report is ingested exactly like a live exit. |
+| `created` or `missing` | `abandoned`. A tool job is retried (idempotent) or interrupted. A dev deployment is interrupted with its deployment stopped (`recovery`). If its deployment had already stopped before the restart, the job fails `exit_not_reported`. |
+
+Approval waits still owned by another boot are re-owned. The line is `[nexus] execution recovery at runner ready: adopted=.. finalized=.. requeued=.. interrupted=.. reowned=.. orphans=.. docker=..`.
+
+### 35.3 The reconcile bound
+
+An attempt that phase A left pending must be decided within a bound:
+- **The anchor.** The bound is 10 minutes after the later of phase A and the **first** reconcile request after it. Later requests never move the anchor (ruling on R3-1).
+- **Waiting for an answer.** While a request has had no phase B, the bound waits up to 5 more minutes. So the latest it can fall is the first request plus 15 minutes.
+- **When it falls.** At most every 30 s, the scheduler fails each still-unreconciled attempt `runner_lost`, using the core's failure rule (retried when idempotent). It sends `attempt.cancel` (grace 10 s, reason `timeout`) when a runner is attached.
+- **Durable exits are never failed by the bound.** They keep waiting, and a later phase B finalizes them.
+- **The headline meanwhile.** A job whose live attempt another boot owns reads `waiting:runner`.
+
+### 35.4 Durable exits
+
+An accepted exit is made durable before ingest, in its own transaction: job phase `collecting`, plus one `attempt.output` event. Phase B adopts such an attempt for finalization **whatever the container or Docker state**, with event reason `exit_durable`. The runner re-hashes `<dataHome>/work/<job>/<n>/out` and reads the exit it recorded beside it (`exit.json`), so no Docker is needed. An attempt this process is ingesting right now is skipped. A replayed exit is dropped. Ingest is idempotent, so an exit is ingested once.
+
+### 35.5 Orphan scoping
+
+This supersedes plan R.2's orphan rule (controller ruling, Task 10 review). Plan R.2 would have removed `nexus.*` resources of other boots. That is unsafe:
+- click-throughs on a scratch userData share the Docker daemon with the real app;
+- so does `test:exec`.
+
+Phase B therefore lists a labelled resource for removal (reason `attempt_ended`) **only when all of these hold**:
+- its `nexus.home` equals this install's;
+- it has a `nexus.attempt` that this database's `job_attempts` knows;
+- that attempt has ended;
+- it is not a `nexus-deps-*` volume. Dependency caches are shared by later attempts.
+
+Some resources are never listed:
+- another install's resources;
+- unlabelled resources, or ones with only other `nexus.*` keys;
+- resources of live attempts, whoever owns them;
+- resources without a data home label.
+
+Attempt ids that the database does not know are logged and recorded in one `exec.recover` row (`unknown_resources`), and left in place. Main sends the list as `reconcile.remove`. The runner re-checks the labels, stops each resource with a 10 s grace, removes it by id, and main records one `exec.orphan_removed` row.
+
+The cost of the ruling: **resources left by a deleted data home are never removed automatically** ([section 16](#16-known-limitations-and-operational-notes), item 30).
+
+### 35.6 Blob store hygiene
+
+`exec.recoverBlobStore` runs once per app start, after the first phase B and before the first tick. It does not run if the tick started first, or at a mid-session runner restart. It holds the blob store's exclusive lock, and it:
+- sweeps `objects/tmp` files older than 24 h;
+- removes unindexed objects older than 24 h, but only while no attempt is live;
+- closes a lone `started` GC run once nothing younger remains;
+- reports hard-linked or undeletable leftovers `failed` on every pass, and never deletes them.
+
+### 35.7 Hold mode
+
+On a v9 file whose execution is off, phase A recovers only jobs without a live attempt, by B1's rule. It writes no v9 table. Jobs with a live attempt are left exactly as they are for the next start with execution on.
+
+The runner side of all this is exported as `RUNNER_RECOVERY_CONTRACT` (`src/main/nexus/exec/recovery.ts`).
+
+---
+
+## 36. The sandbox
+
+Every container goes through three steps, in this order: **create, inspect (preflight), start**. The preflight compares `docker inspect` with the spec (`src/shared/nexus/preflightCheck.ts`, pure). Any problem removes the container, fails the attempt `limits_not_applied` and the job `infra_error`, and writes one `preflight` event that lists the problems.
+
+| Control | Applied as | Checked by preflight |
+|---|---|---|
+| CPU | `--cpus` (recipe: 1 or 2; forwarder 0.5) | `NanoCpus` |
+| Memory | `--memory` = `--memory-swap` (no swap): 1 or 2 GiB; forwarder 128 MiB | `Memory`, `MemorySwap` |
+| Processes | `--pids-limit 512` | `PidsLimit` |
+| Root and temp | `--read-only`; `/tmp` tmpfs of 512 MiB (forwarder 16 MiB); `/home/nexus` tmpfs of 256 MiB | `ReadonlyRootfs`, the tmpfs keys and sizes |
+| Privileges | `--cap-drop ALL`, `no-new-privileges`, `--user 10001:10001`, no `--privileged`, no devices | `CapDrop`, `CapAdd` empty, `SecurityOpt`, `Privileged`, `User`, `Devices` |
+| Mounts | only the spec's: `/in` read-only, `/out` (a bind under the data home), `/workspace` (a named volume), the deps cache read-only | the exact set of destination, RW flag and type. Never the Docker socket or the host root. |
+| Network | `none` by default ([section 37](#37-networks-and-approvals)) | `NetworkMode`; `none` has no endpoint; no port bindings except the forwarder's `127.0.0.1` |
+| Image | the pinned local image id (`sha256:<id>`), `--pull never` | the exact image id, entrypoint, `Cmd` and env names |
+| Runtime | `--runtime runc`, `--restart no`, no `--rm`, private IPC and cgroup namespaces | each field |
+| Labels | `nexus.*` | exact |
+| Wall clock | the entry's `timeout` and the runner's backstop ([section 34.4](#344-timeouts-stalls-and-sleep)) | recorded |
+
+**Env.** A container gets only the names on `ALLOWED_ENV_NAMES` plus the image's own ENV names, with values set by main. Main checks every value with `containsSecret` and the secret-shape rules. No secret ever reaches a container in B2a, because the secret store is B2b.
+
+**What this storage driver cannot enforce.**
+- **There is no disk quota.** Docker's storage driver (overlayfs or the containerd snapshotter) has no per-container quota. The runner's **size guard** stands in for one. Every 5 s it measures `/out` on the host, with an lstat walk that never follows a link, and `/workspace` inside the container, with `/usr/bin/du -s -x -k /workspace` run through `docker exec`. It kills the container when `/out` exceeds the recipe's output cap (`output_too_large`) or `/workspace` exceeds 8 GiB (`workspace_too_large`).
+- **The overshoot is bounded but real.** A container can write for up to one poll interval (5 s), plus the time of the walk, past its limit before it is killed. The tmpfs mounts are hard caps, charged to the memory cgroup. The host-side lease floor stops new leases below max(5 GiB, 2 × the output cap).
+
+**Checkouts never write the user's repository.**
+- The code reaches a container as `git archive --format=tar <commit>`. The runner writes it into `work/<job>/<n>/in/src.tar`, hashing it as it goes, and the entry extracts it into `/workspace`.
+- B2a creates no worktree and no ref in the user's `.git`.
+- **What a checkout leaves out:** submodules, LFS content, `export-ignore` paths and uncommitted changes. The UI note is "Tests run on commit <short>; uncommitted changes are not included."
+
+**git on the host.**
+- git is resolved once to an absolute path (`src/main/gitBinary.ts`), from absolute PATH folders and the usual install folders.
+- It is launched with `-C <repo>` from a neutral folder, never by name.
+- A git binary inside the repository is refused.
+- Every runner call adds `-c core.fsmonitor=false -c core.hooksPath=<an empty folder>`, and main adds `-c core.fsmonitor=false`.
+- A missing git is reported as `setup:git_missing` (main) or the refusal `git_missing` (runner). The job then waits (`waiting:git`).
+
+**Outputs.**
+- The runner walks `/out` with lstat only. It refuses symlinks, hard links, special files and bad names, and nothing outside `/out` is opened.
+- It hashes each file into the object store with an `O_NOFOLLOW` open.
+- The node:test JUnit merge writes its temporary file in the work folder, which is never mounted, and replaces `junit.xml` only when that is absent or a plain single-link file.
+
+**Logs.**
+- Each line is redacted as a whole before it is cut into frames.
+- A log is capped at 50 MiB. Past the cap, the head and tail are kept and one marker replaces the middle.
+
+---
+
+## 37. Networks and approvals
+
+| Mode | Used by | How | Approval |
+|---|---|---|---|
+| `none` | every recipe by default: snapshot, discovery, tests, build, assemble, diagnose | `--network none` | none |
+| `egress-approved` | `sde.deps.node` and `sde.deps.python` only | A per-job bridge `nexus-egress-<jobId>`, labelled and removed with the attempt. `npm ci --ignore-scripts`, or `pip install --only-binary=:all: --require-hashes --no-deps`. | A1, per job |
+| image preparation | `docker build` of a profile | the daemon pulls the pinned base and installs the pinned packages | A2, per build |
+| `service-internal` | the dev deployment's app container | `docker network create --internal nexus-svc-<jobId>`; no egress | none |
+| forwarder | `nexus-fwd` (socat) | joins `nexus-svc-<jobId>` and `nexus-pub-<jobId>`; publishes only `127.0.0.1:<port>:8080`, with the port from 49152 to 65535 | none |
+
+**A1, egress for a dependency install.**
+1. At lease, main creates a pending `egress.deps` approval. Its `request_json` holds the recipe id and version, the job id, the lockfile sha256, the profile, and the expected registries: `registry.npmjs.org`, or `pypi.org` and `files.pythonhosted.org`. Its `request_sha256` is the sha256 of the canonical request.
+2. The approval expires after 15 minutes. An install whose repository version records no lockfile hash fails at lease (`lockfile_missing`), and no approval is asked for.
+3. `nexus:approval:respond` with `once` decides, consumes the approval for the job's **current** attempt, and resumes the job, all in one transaction.
+4. The plan carries the approval (`plan.approval`). The runner refuses an egress network whose approval id is missing, differs, or was consumed by another job or attempt (`network_not_approved`).
+5. A `deny`, an expiry, or a consumption more than 15 minutes old fails the job `denied`. A second answer is `illegal_transition`.
+
+**A2, image preparation.** `nexus:setup:prepareImage` creates a pending `image.prepare` approval. Its request holds the profile, the context sha256, the base digest, the estimated bytes and the free bytes.
+- Before any row is written, the request is refused below the resource gate, for an unknown profile, or while a build of that profile runs.
+- `once` consumes the approval and inserts a `running` image build. `tr_image_builds_insert` refuses a build without such an approval.
+- A build fails `timeout` after 10 minutes without progress, or after 180 minutes in all.
+- Any runner-wide fault interrupts every running build.
+
+**Who may answer.** Only a stored, enabled principal of kind `user` may answer (`approval.respond`, which is owner-level). The system, agents and forged principals are denied and audited. `tr_approvals_transition` refuses any other decider.
+
+**What the consent says.** The approval summary states exactly what is enforced: "Install scripts are disabled and packages must match the lockfile hashes … Packages are expected from registry.npmjs.org; other hosts are not blocked in this release." **There is no host allow-list** ([section 16](#16-known-limitations-and-operational-notes), item 26).
+
+**Dev deployments.**
+- A preview runs the application manifest's validated `run` argv: 1 to 32 plain strings, never a shell string.
+- It is reachable only on `127.0.0.1` through the forwarder.
+- It becomes `healthy` on the first `200` from its health path. It becomes `unhealthy` after 3 failed probes, and `healthy` again after 2 good ones. It fails `probe_failed` if it is still `starting` 60 s after its container started.
+- It stops after a fixed 2 hours (`idle`).
+- At most 2 run at once.
+- A manifest that names env variables is refused: "secrets for dev deployments are not supported yet".
+- A user's stop completes the job `stopped` only if the deployment had passed its health check and the exit code is known.
+
+---
+
+## 38. Evidence-based completion
+
+A job is never complete because of an exit code of 0, a file existing, a README, a folder, or a status a tool printed (user constraint 4). Completion needs validated, persisted evidence that is bound to the job, its attempt and the resulting version.
+
+### 38.1 Validators
+
+The definitions are in `src/shared/nexus/validators.ts`, and the implementations in `src/main/nexus/validation/validators/*`.
+
+| Validator | Kind | Stage | Runs in | Fails when |
+|---|---|---|---|---|
+| `git.head_resolves` | repository | register | main | The commit does not resolve in the project folder through main's own `resolveCommit`, or its full hash differs. |
+| `req.schema` | requirement | register | main | No title, no acceptance criterion, a repeated criterion id, a body over 32 KiB, or a secret. |
+| `problem.schema` | problem_statement | register | main | No question, or a field breaks the schema. |
+| `suite.discovered` | test_suite | register | main | No test was discovered, or the list's hash differs. |
+| `sde.tests_pass` | test_suite | candidate | a child test job | It checks, in this order: `junit_missing`, `parser_contract` (`error`), `counts_mismatch`, `no_tests`, `discovery_truncated`, `undiscovered_ids`, `discovered_not_run`, `exit_inconsistent`, `tests_failed`. An unattributed report on a multi-file list is `error` / `unattributed_report`. |
+| `build.exit_zero` | build | candidate | main | A non-zero exit. This is one check among four, never enough on its own. |
+| `build.manifest_present` | build | candidate | main | The output tree is missing or empty. |
+| `build.output_hashed` | build | candidate | main | A file of the tree has no stored blob. |
+| `blob.integrity` | build | candidate | the runner (re-hash) | A re-hash differs, or an object is missing. No answer within 60 s is `error`. |
+| `app.manifest_schema` | application | register | main | `nexus.app.json` breaks its schema. |
+| `app.preview_health` | application | candidate | the dev deployment | No `200` within 60 s, the container exited, or the port is bound anywhere but `127.0.0.1`. |
+| `diag.schema` | diagnostic_report | register | main | A field has no inspect, probe or log source, or nothing was observed at all (`nothing_observed`). |
+| `sde.deps.lock_matches` (advisory) | repository | candidate | main, at install ingest | The exit is not 0; `lock.sha256` is missing, not the only output, or not 64 hex characters; or it differs from the repository version's lockfile hash or from the hash of the approval this attempt consumed. |
+
+The first twelve are blocking. `sde.deps.lock_matches` came with the Task 13 review fixes. It is advisory: it records an install's own evidence on the repository version and never gates that version.
+
+**Evidence** is a typed list (`src/shared/nexus/evidence.ts`): `hash`, `number` (with a JSON pointer into a hashed file), `exit`, `junit`, `schema`, `file`, `http`, `git`, `user`, `inspect`, `log` and `case`.
+- `checkEvidence` refuses any other shape (`error` / `bad_evidence`).
+- Secret-shaped evidence is stored as `[]`, with `error` / `secret_in_evidence`.
+- Evidence over 64 KiB is `error` / `evidence_too_large`.
+- `error` means the check could not run. It is never a pass.
+
+### 38.2 Blocking and advisory rows; finalize
+
+- **Who records results.** Only the system principal records a blocking `passed` or `failed` result. This is enforced by the service and by `tr_validations_insert`.
+- **Blocking rows go on drafts only.** A result recorded on a version that is no longer a draft is written advisory (`blocking = 0`, `advisory = 1`). It is still bound to (job, n), so the evidence backstop holds. A user's test run on a candidate suite records an advisory row, and the suite stays a candidate.
+- **What counts.** A version's status is read from the **latest blocking** row per validator: newest `finished_at`, then insertion order. Advisory rows are shown as run results and never gate anything.
+- **`finalizeIfReady`** moves only engine-made drafts (made by a job or a session):
+  - every blocking register and candidate validator of the kind has a latest `passed` row → `candidate`;
+  - any `failed` → `failed`;
+  - any `error` → the version stays a draft (`validation_state = 'error'`), and Revalidate can recover it.
+
+  A `repository` candidate is promoted `active` in the same transaction, by the system on the user's behalf. A user's own draft is never finalized here: Mark ready (B1) does that.
+
+### 38.3 What never completes a job
+
+These rules hold in layers:
+1. **The exit is durable first** (phase `collecting`), and ingest runs in one transaction under the blob store's shared lock.
+2. **Contract outputs** are re-read from the runner's report and re-validated (`normalized.ts`). A secret-shaped value, an oversized list or tree, or a link in `/out` refuses the outputs (`invalid_output`). Nothing is stored.
+3. **No ingest rule means no completion.** A recipe without one fails `ingest_unavailable` / `no_ingest_rule`.
+4. **The evidence backstop.** After ingest, the core requires a `validations` row or a `version_attempts` row bound to (job, current attempt). Otherwise the job fails `no_evidence`. A deduplicated output still records a validation bound to (job, n).
+5. **The database backstop.** `tr_jobs_completed_needs_attempt` refuses `completed` unless the current attempt `succeeded`. `succeeded` needs `exit_code`, `outcome`, `sandbox_json` and `environment_json` (CHECK).
+6. **A step is done** only on a candidate or active version whose blocking validators passed (`stepStateFrom`, `src/shared/nexus/stepState.ts`). It is never done on a completed job alone.
+
+A test run that exits non-zero but leaves a parsable JUnit is a **completed** job, and the product failure is in `sde.tests_pass`. A build is judged by its four validators, not by the bare `dist/**` contract.
+
+### 38.4 The O1 to O22 invariants
+
+`test/helpers/orphans.cjs` holds the invariant queries. `allOrphans(db)` must count 0 after every flow, together with an empty `foreign_key_check`, an `ok` `integrity_check` and a verified activity chain.
+
+| Id | Must be empty |
+|---|---|
+| O1 to O9 | The B1 set: artifacts with no version; bad current pointers; handoff subject counts, receipts and conversion edges; version participations; references to a missing project; activity rows that name no row. |
+| O10 | Attempts whose job is missing, or whose `n` exceeds `jobs.attempts`. |
+| O11 | Jobs with more than one live attempt. |
+| O12 | Terminal jobs with a live attempt. |
+| O13 | Succeeded attempts missing `exit_code`, `outcome`, `environment_json` or `sandbox_json`. |
+| O14 | `version_blobs` or blob storage references naming a missing blob. |
+| O15 | Validations naming a missing version, job or attempt. |
+| O16 | Job-produced candidate or active versions whose latest blocking row for some blocking validator of their kind is not `passed`. |
+| O17 | Completed `tool.run` or `validate` jobs whose current attempt has neither an ingested version nor a validation. |
+| O18 | Live attempts whose job is not `leased`, `running` or `awaiting_approval`. |
+| O19 | A blob version without its `content` blob, or a tree version whose `file` blobs do not match its file list. |
+| O20 | Live deployments whose job is terminal. |
+| O21 | Pending approvals past `expires_at` after an expiry sweep (`sweptAt`). |
+| O22 | Validations bound to a job of another project than their version's. |
+
+O10 to O17 come from Task 8. O18 to O22 come from Task 13: they cover the Task 13 brief's O10, O12, O13, O14 and O15 under new numbers, so that Task 8's exact-key tests stay unchanged.
+
+---
+
+## 39. Recipes: what each SDE step runs
+
+The recipes are data in `src/shared/nexus/recipes.ts`. Main builds every argv from fixed templates (`ARGV_TEMPLATES` in `planBuilder.ts`). The renderer never supplies any part of a command, path, network, image or limit.
+
+| Step | Recipe | Executor | Output, then evidence |
+|---|---|---|---|
+| Requirement | none: `nexus:artifact:saveInline` | main | an inline `requirement` → `req.schema` |
+| Repository | `repo.snapshot` | engine: 4 fixed git argv in the runner | a `repository` version (`git` storage: commit, branch, dirty, tree) → `git.head_resolves` |
+| Tests (discover) | `sde.test.discover` | container, `none` | a `test_suite` with the whole discovered list in its metadata → `suite.discovered` |
+| Tests (run) | `sde.test.node` or `sde.test.pytest`, as a child `validate` job | container, `none` | the JUnit result → `sde.tests_pass` |
+| Build | `sde.build.node` or `sde.build.python` | container, `none` | a `build` tree (`dist/**` or wheels) → the four build validators |
+| Application | `sde.app.assemble` | engine: `git cat-file -s`, then `git show <commit>:nexus.app.json` (at most 16 KiB) | an `application` → `app.manifest_schema`, then `app.preview_health` |
+| Dev deployment | `sde.preview.start` | service: the app plus the `nexus-fwd` forwarder | a deployment row; health → `app.preview_health` |
+| Logs and diagnostics | `sde.diagnose` | engine: label-checked `docker inspect`, plus hashed log ranges | a `diagnostic_report` → `diag.schema` |
+| (dependencies) | `sde.deps.node` or `sde.deps.python` | container, `egress-approved` | `lock.sha256` → `sde.deps.lock_matches` (advisory) |
+
+**node:test attribution.** node's JUnit reporter names no file. So the entry runs each discovered file on its own (`nexus-node-test`), and the runner merges the reports into `/out/junit.xml`, attributing each case from main's own `perFileJunit` mapping. A file whose report is missing gives no case, and the suite then fails `discovered_not_run`.
+
+**Builds.** A build is keyed by (commit, tree). The same tree from another commit is a new version with its own `built_from` edge, while its blobs still deduplicate as blobs.
+
+**Fixed limits.** At most 5,000 discovered files, 5,000 tree files, 20,000 JUnit cases and 16 MiB of JUnit. A JUnit file with a DOCTYPE or an ENTITY is refused.
+
+---
+
+## 40. The IPC surface
+
+B2a adds 20 invoke channels (#22 to #41) and one push. **No renderer code calls them yet.**
+- **Registration.** `NEXUS_CHANNELS` stays B1's frozen 21. The new ones are `NEXUS_EXEC_CHANNELS` (20), and `NEXUS_ALL_CHANNELS` is all 41. `registerNexusIpc` registers the 20 only when main passes an execution dependency. Until the pending `index.ts` edit lands, main registers B1's 21 only, and the 20 preload methods would reject with "no handler" (Task 13 deviation, accepted by ruling).
+- **The wrapper.** Every channel goes through the one `handler()` wrapper. It checks the platform, then handoffs where needed, then execution (#24 to #41), then validates the request, resolves `user:local`, makes one service call, and returns the envelope.
+- **What a request may carry.** Ids come from the renderer. No channel accepts a folder, file, image, network, argv, command or env.
+
+| # | Channel | Authorization | Service call |
+|---|---|---|---|
+| 22 | `nexus:domains:list` | the wrapper only; static registry | `DOMAINS.map(domainView)` |
+| 23 | `nexus:platform:health` | `platform.health` | `exec.health()` (cache only) |
+| 24 | `nexus:actions:available` | `project.read`; the version's `artifact.read`; per action `authorize` (no audit row for a list) | `queries.actionsFor` |
+| 25 | `nexus:job:start` | `job.create` in the stored participation; each input readable | `exec.start`, or `repo.requestSnapshot` for the snapshot action |
+| 26 | `nexus:jobs:list` | `job.read` | `exec.list` (limit clamped to 500) |
+| 27 | `nexus:job:get` | `job.read` | `exec.get` |
+| 28 | `nexus:job:logs` | `job.read` | a confined, re-redacted log page of at most 256 KiB |
+| 29 | `nexus:job:cancel` | `job.cancel` | `exec.cancel` |
+| 30 | `nexus:job:retry` | `job.create` | `exec.retry` |
+| 31 | `nexus:events:since` | `job.read` | `exec.eventsSince` (limit 500) |
+| 32 | `nexus:version:validations` | `artifact.read` | the latest blocking row per validator is `status`; the newest advisory row is `latestRun` |
+| 33 | `nexus:version:revalidate` | `version.revalidate` | `validation.revalidate`, which answers `{ jobs }` |
+| 34 | `nexus:version:preview` | `artifact.read` | a paged preview of at most 256 KiB |
+| 35 | `nexus:artifact:saveInline` | a user principal; `artifact.create` and `version.register` | `artifacts.saveInline` (requirement or problem statement) |
+| 36 | `nexus:deployments:list` | `job.read` | `deployments.list` |
+| 37 | `nexus:deployment:stop` | users only; `deployment.stop` | `deployments.stop` |
+| 38 | `nexus:approvals:list` | `approval.read` | `approvals.list` |
+| 39 | `nexus:approval:respond` | users only; `approval.respond` in the approval's project | `approvals.respond` (`once` or `deny`; anything else is `bad_request`) |
+| 40 | `nexus:setup:prepareImage` | users only; `approval.respond` platform-wide | `approvals.requestImage` |
+| 41 | `nexus:blobs:gc` | `blob.gc` platform-wide (admin), for both the dry run and the apply | the blob GC dry run, or the apply with the dry run's `expectedCandidatesHash` |
+| push | `nexus:hint` | none | `{ lastSeq }` only, at most 4 per second, sent by `startExecution` |
+
+**What the views leave out.** No principal id, params, sandbox or environment record, container id, log or object location, or env value. Image ids are shortened to `sha256:` plus 12 hex characters. A deployment URL is only `http://127.0.0.1:<port><healthPath>`.
+
+**No system-only door.** No system-only method is reachable from IPC, and the IPC test I-P4 scans for 25 such names. `resumeApproved` in particular is never mapped: `respond` is the one door.
+
+**Policy.** B2a adds these actions:
+- `approval.read` and `platform.health` (viewer);
+- `deployment.stop` and `version.revalidate` (member);
+- `blob.gc` (admin);
+- `approval.respond` (owner);
+- `approval.create`, `deployment.transition` and `exec.ingest` (system only).
+
+---
+
+## 41. The domain registry
+
+The registry is DomainSpec v3, in `src/shared/nexus/domainSpec.ts` and `domains/*`. Six domains are data: their steps, kinds, capability ceiling, recipes, actions, handoff routes and modules. `CURRENT_SUB_PHASE` is `B2a`. A step may be REAL or PARTIAL only once that sub-phase has reached it.
+
+**The step state is computed from records.** It is never ticked by hand.
+
+**`checkRegistry(DOMAINS, B2A_IMPL)`** checks that:
+- every id resolves;
+- every REAL step names an `e2eTestId` that is a word of a `test('…')` title in the end-to-end files;
+- every Docker-dependent REAL step has a title in `test/nexus-exec-recipes.test.cjs` itself.
+
+**At startup, `registryImpl.ts`** also compares `B2A_IMPL` with what main has actually registered: the planned recipes, the validators main can run, and the ingest rules (`INGEST_RULES`, with `NOT_INGESTED` naming each implemented recipe whose outputs are never ingested, and why). Any problem keeps execution off (`registry_invalid`), and nothing throws.
+
+---
+
+## 42. The resource gate and the test:exec gate
+
+**The resource gate** (`src/shared/nexus/resourceGate.ts`, pure) blocks heavy execution below these limits:
+- 30 GiB free (32.2 GB);
+- Docker missing or stopped;
+- less than 4 GiB of Docker memory, or fewer than 2 CPUs;
+- a missing or mismatched image.
+
+From 30 to 40 GiB free it passes with a warning. Sizes are binary, and the UI prints both units.
+
+`nexus:platform:health` and the action availability carry the gate's problems as actionable `setup:*` reasons with fixed sentences, for example "Docker is not running. Start Docker Desktop and try again." `requestImage` is refused below the gate before any row is written.
+
+**`test:exec`** is `node tools/run-exec-tests.cjs` today. The `npm run test:exec` script is part of the pending wiring.
+- **The preflight.** It runs five checks and prints every failing one with exact numbers and the action to take:
+  - **disk:** 30 GiB at the located Docker data volume and at the temp data home;
+  - **docker:** a Linux server;
+  - **memory:** 4 GiB and 2 CPUs;
+  - **images:** the three images, labelled with the context hash `lock.json` pins;
+  - **env:** no `NEXUS_DB_HOLD_*` variable, and the temp data home is not inside the real userData.
+- **The report.** It writes `<tmp>/nexus-test-exec-preflight.json` every time.
+- **The run.** It runs `test/nexus-exec-*.test.cjs` under Electron-as-node with the `test:db` rules.
+- **The exit code:** 0 for a pass, 1 for a failure, and 3 for not run.
+- **No bypass.** Each heavy file also runs the preflight itself (`test/helpers/execGate.cjs`), and fails when it does not pass. No environment variable skips it. Under plain node, the files print the usual skip banner.
+
+**On this machine, test:exec has never passed its preflight.** Its last run printed `NOT RUN: free disk 3.5 GiB < 30 GiB at C:\Users\pc\AppData\Local\Docker\wsl …`, plus one line for each of the three missing images, and exited 3. So the real-Docker suites have never run: `nexus-exec-sandbox` (K1 to K11), `nexus-exec-lifecycle` (L1 to L12), `nexus-exec-recovery` (L13 to L16) and `nexus-exec-recipes` (X1 to X12).
+
+**The images** are pinned in `infra/images/lock.json`: base digests, lockfiles, `contextSha256`, `estimatedBytes` and `versions`.
+- `sde-node` is node 20.20.2 (bookworm-slim), with jest-junit and mocha-junit-reporter installed by `npm ci --ignore-scripts`. About 205 MiB.
+- `sde-python` is CPython 3.11 (slim-bookworm), with pytest, build, wheel and setuptools installed by `pip --require-hashes --no-deps --only-binary`. About 150 MiB.
+- `nexus-fwd` is alpine 3.20 with `socat=1.8.0.0-r0`. About 12 MiB. The socat pin is unverified.
+
+`tools/nexus-lock-images.cjs` fetches metadata only, and `--check` verifies the lock offline. `tools/nexus-prepare-images.cjs --build` builds through the app's own image builder, and only above the gate.
+
+---
+
+## 43. Python
+
+B2a needs Python only inside the `sde-python` image, to run a repository's pytest suite and `python -m build`. Nexus itself runs no Python: `nexus_tools` is B3.
+- **The host's Python is never spawned.** `test/nexus-runner-posture.test.cjs` pins that nothing under `src/main` or `src/runner` spawns `python`, `py`, `pip`, `uv` or `pytest`.
+- **The environment is recorded per attempt** (constraint 8): the profile, the base digest, the context sha256, the local image id, and the image's `nexus.versions` label (for example the Python and pytest versions). The image's build self-test checks that label against the installed tools.
+- **Installs** use `pip install --only-binary=:all: --require-hashes --no-deps -r /workspace/requirements.txt --target /deps` behind the A1 approval.
+
+---
+
+## 44. Observability map
+
+Constraint 13 says that every job durably records the facts below. Each one is answered from stored records. Test F-OBS in `test/nexus-platform-b2a-flows.test.cjs` answers each with one query.
+
+| Question | Stored where |
+|---|---|
+| Who or what started it | `jobs.requested_by` and `on_behalf_of`, and the `job.create` activity row. For a system check job, `parent_job_id` leads to the user's job. For image builds, `image_builds.requested_by` plus the approval's `decided_by`. |
+| Domain and project | `jobs.project_id`, `workspace_id` and `participation_id` |
+| Inputs | `job_inputs (version_id, role, content_hash)`; `jobs.params_json` (exact, with secrets refused) |
+| Allowed tools | `jobs.recipe_id`, `capabilities_json` and `limits_json`; the recipe version in `environment_json`; the network mode and approval id in `sandbox_json` |
+| Environment | `job_attempts.environment_json`: image id and versions, base digest, context sha256, profile, lockfile sha256, recipe id and version, Nexus version, Docker version and runner boot. It is copied to each output version's `environment_json`. |
+| What actually executed | `job_attempts.sandbox_json` holds the argv (the first 200 entries, the count and the sha256), env **names**, mounts, network, limits, container id, the full preflight report and the size guard's configuration. The attempt row holds `exit_code`, `signal`, `oom_killed` and the times. Also the log (`log_path`, `log_bytes`) and the `attempt.*` events. |
+| Evidence produced | `validations` (status, typed evidence, validator version, job, attempt); `version_blobs` and `blobs` |
+| Why it succeeded or failed | `jobs.state`, `outcome` and `error_json`; the attempt's `outcome` and `error_json`; validation summaries; `recovery` events |
+| The resulting artifact or version | `artifact_versions.produced_by_job_id` and `output_path`; `version_attempts`; `attempt.output` events; deployments by `job_id` |
+
+---
+
+## 45. Pending wiring
+
+These edits are written but **not applied**. They touch files that the peer session owns: `src/main/index.ts`, `package.json` and `package-lock.json`. They wait for the peer session to commit its own changes to those files, and then for the user's approval. The exact text is in the task reports (`.superpowers/sdd/2026-10-08-nexus-b2a-plan/task-5-report.md`, `task-7-report.md`, `task-10-report.md`, `task-11-report.md`, `task-12-report.md` and `task-13-report.md`). The later report wins where two differ.
+
+**`package.json` and `package-lock.json`:**
+1. The dependency `"fast-xml-parser": "5.11.2"`, written by `npm install --save-exact fast-xml-parser@5.11.2` (user-approved network item). It is installed `--no-save` today, and the runner bundles it.
+2. The script `"test:exec": "node tools/run-exec-tests.cjs"`.
+3. These plain-node B2a test files appended to `test:focused`:
+   - `test/nexus-core-exec-contracts.test.cjs`
+   - `test/nexus-core-vendor-neutral.test.cjs`
+   - `test/nexus-core-domain-registry.test.cjs`
+   - `test/nexus-domain-registry-clean.test.cjs`
+   - `test/nexus-core-runner.test.cjs`
+   - `test/nexus-core-junit.test.cjs`
+   - `test/nexus-runner-posture.test.cjs`
+   - `test/nexus-core-exec-preflight-runner.test.cjs`
+   - `test/nexus-core-image-lock.test.cjs`
+   - `test/nexus-core-exec-diagnose.test.cjs`
+   - `test/nexus-core-exec-entry.test.cjs`
+
+   Also `test/nexus-core-git-binary.test.cjs` and `test/nexus-core-docs-v9-names.test.cjs`, which no report lists yet. All of these run today under `node --test test/`.
+
+**`src/main/index.ts`:**
+1. **`persist.open({ … })`:** `holdV9: process.env.NEXUS_DB_HOLD_V9 === '1'` and `enableV9: process.env.NEXUS_ENABLE_V9 === '1' ? true : undefined`. It must never pass `false` (ruling F1).
+2. **Module state:** `executionUnavailableReason` (set from `persist.executionUnavailableReason` after `open`, and reset in the startup catch), `nexusExecution` (the `ExecutionHandle`) and `stopExecutionForQuit`.
+3. **`createNexusPlatform` options:**
+   - `execution: persist.executionAvailable`;
+   - `executionUnavailableReason`;
+   - `dataHome: resolveDataHome(app.getPath('userData'))`;
+   - `profiles` and `imageContexts` from `loadImageProfiles(imagesDirFor(…))`, logging `[nexus] sandbox profiles not loaded: …` on a problem;
+   - `acceptFsRoot`;
+   - `isRepository: repositoryCheck` (not `isRepo`);
+   - `resolveCommit`;
+   - `appVersion: app.getVersion()`.
+4. **Start:** after `nexusPlatform?.startup()`, call `startExecution({ platform, userData, log, hintTargets })` exactly once, when execution is available.
+5. **`registerNexusIpc`** gains `executionUnavailableReason: () => executionUnavailableReason` and `exec: () => executionHandle`, which registers channels #22 to #41.
+6. **Quit:** `before-quit` awaits the bounded `stop()` (at most 10 s) before `app.quit()`, so that dev deployments do not survive a fast quit.
+7. **Comments:** the comments around the `persist.open` call that describe v7 and v8 only are refreshed to cover v9, `NEXUS_DB_HOLD_V9` and the enable switch.
+
+**`test/nexus-platform-composition.test.cjs`** gains three pins once those lines exist. They cannot pass before then:
+- the exact `enableV9` form, plus a ban on `enableV9: false`;
+- `NEXUS_DB_HOLD_V9` honoured by main;
+- `startExecution(` exactly once, after `nexusPlatform?.startup();`, plus `executionUnavailableReason: () => executionUnavailableReason`.
+
+**The default flip** comes later, as its own commit after the user's go-ahead:
+- `V9_ENABLED_BY_DEFAULT = true`;
+- M0 in `test/nexus-db-v9-migration.test.cjs` flips with it;
+- `holdV9: true` is added where the v8-migration, phase-a, v8-schema, handoffs and activity tests assert v8 after an unheld open.
+
+Until all of this lands, the app runs exactly as B1 did.
+
+---
+
+## 46. Known limitations
+
+The B2a limitations are items 25 to 47 of [section 16](#16-known-limitations-and-operational-notes), next to the B0b and B1 items. In short:
+
+| Item | Limitation |
+|---|---|
+| 25 | v9 is opt-in, and the app does not start execution yet |
+| 26 | The egress network has no host allow-list |
+| 27 | The discovery ceiling is about 1,300 files |
+| 28 | `#41` runs blob GC only; work folders, logs and dependency caches are never reclaimed |
+| 29 | A job waiting for git leaves about 60 abandoned attempt rows per hour |
+| 30 | Docker resources from a deleted data home need manual cleanup |
+| 31 | The socat pin is unverified |
+| 32 | The real-Docker suites have not run (the disk is below the 30 GiB gate) |
+| 33 | Windows has no `O_NOFOLLOW`; an identity re-check stands in |
+| 34 | Legacy `src/main/hive.ts` still runs git by name |
+| 35 to 47 | What a checkout includes; node:test attribution; dev deployment limits; the fixed data home; no GPU; no disk quota; log caps; the entry's timeout and host sleep; the v9 triggers on a file with v9 off; older builds on v9; image build deadlines; what an install proves; the data home after a restore |
+
+---
+
+## 47. B2a: differences from the plan and rulings
+
+Each item records what the code does now, and the code wins. The "Ruling" lines of the controller's ledger are binding.
+
+| Id | Difference | Status |
+|---|---|---|
+| R2 | Four lineage relations are added in v9 (`covers`, `transformed_by`, `configured_by`, `monitors`). `implements` gets its documented meaning. | Implemented ([section 32.5](#325-seeds)). |
+| R3 | `planned_phase` renumbering, documentation only. | Documented ([section 32.5](#325-seeds)). The v7 rows are unchanged. |
+| R6 | A runner `utilityProcess` with no database, the platform and SQLite in main, and the B1 invoke surface plus one `nexus:hint` push, instead of a `window.nexus` bridge. | Implemented. |
+| Opt-in | User decision: v9 is off until verification (`V9_ENABLED_BY_DEFAULT = false`, `enableV9`). | In effect. |
+| `version_attempts` | Not in the plan's DDL. It was added with the constraint 4 backstops (Task 4 ruling): the three `jobs` triggers and the attempt CHECKs. | In effect. |
+| `stop_reason` | The CHECK was widened before v9 shipped, so that a row stores the true end cause (Task 9 ruling). | In effect. |
+| Orphan rule | **Plan R.2's orphan rule is superseded.** Removal is scoped by `nexus.home` plus a `nexus.attempt` of an ended attempt in this database (Task 10 ruling). | In effect ([section 35.5](#355-orphan-scoping)). |
+| Durable exits | Durable exits are adopted for finalization whatever the Docker state. The bound is anchored to the first reconcile request, plus up to 5 minutes. | In effect. |
+| RC3, RC9 | The v7 job table has no `running → queued`. A recovered running job goes through `retry_scheduled`, or is interrupted. A running main check is interrupted and queued again as a new job. | Accepted deviations. |
+| Ingest timing | Ingest runs synchronously when nothing contends for the lock. It is async only for snapshots and GC waits. It always runs after the exit is durable. | Accepted. |
+| Builds | A build is keyed by (commit, tree), not by tree alone (Task 12 ruling). | In effect. |
+| Diagnostic report | Its edge to the application is `derived_from` (source `ingest`). The plan named `depends_on`. | In effect. |
+| Wall clock | The entry reads `NEXUS_WALL_SECONDS` (an allow-listed env set by main), instead of an argv prefix. Sleep-like gaps are excluded up to 1 × the wall clock. | Accepted (Task 12 and Task 7 rulings). |
+| L5 | An outside `docker kill` is recorded as `nonzero_exit`, with exit detail `exit 137 (SIGKILL), OOMKilled false`. There is no new outcome. | Accepted. |
+| Channels | `NEXUS_CHANNELS` stays 21. The 20 new channels are `NEXUS_EXEC_CHANNELS`, registered only with execution dependencies (Task 13 ruling). | In effect. |
+| #33 | It answers `{ jobs }`, one check job per blocking validator, not `{ job }`. | Accepted. |
+| #41 | Blob GC only. | Accepted; recorded as a limitation. |
+| O18 to O22 | The Task 13 brief's O10, O12, O13, O14 and O15 are numbered O18 to O22. O21 needs `sweptAt`. | Accepted. |
+| `test:focused` | Plain-node B2a tests are not registered yet (ruling: package.json is peer-held). | Pending ([section 45](#45-pending-wiring)). |
+| DA, ML, DL | The problem steps are REAL, because inline problem statements are real (Task 2 ruling). The Data Scientist problem step is FUTURE (B4). | In effect. |
+| Agents | AgentRuntime, the Claude CLI adapter, secrets and spending caps are B2b (ruling). | Not in B2a. |
+
+---
+
+## 48. Deferred after B2a
+
+| Item | Phase |
+|---|---|
+| AgentRuntime and the Claude CLI adapter (behind the replaceable interface), agent principals `agent:<sessionId>`, capability tokens, encrypted secret storage, spending and rate caps, the Nexus MCP server | B2b |
+| Change sets: AI-assisted implementation, review, accept and iteration; the first `implements` edges; the repository write approval (`repo.write_refs`) | B2b |
+| QA workflows, `covers` edges, handoff routes to QA | B2c |
+| DA (B3), DS (B4), ML (B5) and DL (B6) workflows beyond the problem statements; `nexus_tools` Python; GPU use | B3 to B6 |
+| An egress proxy with a host allow-list | Later (plan "Later"); reported to the user as a constraint 5 limitation |
+| GC of work folders, logs and dependency caches; the data home relocation | Later |
+| The scheduler holding `waiting:git` jobs without leasing until git is found | Final batch carry |
+| Hardening carries: `diag.schema` refusing any non-inspected status under an inspect source; `stat({ bigint: true })` in `readPlainFile` and the object store; the runner re-checking a service argv for the step separator | Final batch carry |
+| Verification items: Linux `cp -P` keeping links in `dist` (collection refuses them); the forwarder's supervising shell under real signals; the socat pin; how Windows sees container-made symlinks in `/out`; the real inspect capture for P7 | Verification |
+| The renderer: Runs from jobs, Folio evidence, actions, approvals, deployments, setup, and registry-driven domain language | B2a Tasks 14 and 15 |
+| Temp-folder teardown in pre-B2a tests that leak `nx-*` folders | Final batch, after asking the user |
