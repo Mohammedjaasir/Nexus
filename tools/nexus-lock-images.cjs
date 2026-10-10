@@ -61,7 +61,9 @@ const APK_SHA_RE = /^[0-9a-f]{64}$/;
 
 /** The pinned version of an Alpine package in its Dockerfile: the `apk fetch ... <name>=<version>` the build checks. */
 function apkVersion(docker, name) {
-  return (new RegExp(`apk fetch [^\\n]*\\b${name}=([0-9A-Za-z._-]+)`).exec(docker) ?? [])[1] ?? null;
+  // The pinned version is the one in the checked file name on the `sha256sum -c` line (`/tmp/nexus-apk/<name>-<ver>.apk`):
+  // apk fetch takes a bare name, so that file name plus its sha256 is what decides the version.
+  return (new RegExp(`/tmp/nexus-apk/${name}-([0-9][0-9A-Za-z._-]*)\\.apk"?\\s*\\|\\s*sha256sum -c`).exec(docker) ?? [])[1] ?? null;
 }
 /** The Dockerfile's `ARG <arg>="<value>"` default, or null when the line is missing. */
 function argDefault(docker, arg) {
