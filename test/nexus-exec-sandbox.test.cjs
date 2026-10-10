@@ -20,7 +20,9 @@ if (realDockerOrSkip()) {
   const { DockerDriver } = require('./load-ts.cjs')('src/runner/sandbox/dockerDriver.ts');
   const { dockerCli } = require('./load-ts.cjs')('src/runner/sandbox/dockerCli.ts');
   const { parseEgressLine } = require('./load-ts.cjs')('src/shared/nexus/egressPolicy.ts');
-  const fixture = (name) => fsx.readFileSync(pathx.join(__dirname, 'fixtures', 'exec', name), 'utf8');
+  // A script fixture is stored as `<name>.tpl` (like the app fixtures execFakeWorld copies) so a plain `node --test test/`
+  // never runs it as a test file; it is read here by its real name.
+  const fixture = (name) => { const p = pathx.join(__dirname, 'fixtures', 'exec', name); return fsx.readFileSync(fsx.existsSync(p) ? p : `${p}.tpl`, 'utf8'); };
   /** A loopback HTTP server on the host that counts every connection and request it receives (K8: it must receive none). */
   async function countingServer() {
     let hits = 0;
