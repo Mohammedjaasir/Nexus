@@ -8,9 +8,15 @@ import type { VersionStatus } from '@shared/nexus/platform';
 import type {
   ArtifactDetail, ArtifactSummaryView, ArtifactView, LineageNodeView, LineageView, NexusFail, NexusResult, VersionContent, VersionView
 } from '@shared/nexus/ipc';
+import { getDomain } from '@shared/nexus/domains';
+import { blockingValidatorsFor } from '@shared/nexus/validators';
 import { errorCopy } from '../data/errorCopy';
 
-const KIND_LABEL: Record<string, string> = { git_commit: 'Commit', text_file: 'Text file', handoff_receipt: 'Received' };
+const KIND_LABEL: Record<string, string> = {
+  git_commit: 'Commit', text_file: 'Text file', handoff_receipt: 'Received',
+  // B2a kinds that the plain words would misname.
+  repository: 'Repository snapshot', problem_statement: 'Problem statement', diagnostic_report: 'Diagnostic report'
+};
 
 /** "Commit", "Text file", "Received"; any other kind reads as its words ("change_set" → "Change set"). */
 export function kindLabel(kind: string): string {
@@ -19,6 +25,15 @@ export function kindLabel(kind: string): string {
   const words = kind.replace(/[_-]+/g, ' ').trim();
   return words ? words[0].toUpperCase() + words.slice(1) : 'Artifact';
 }
+
+/** A kind in its workspace's own words (the registry's vocabulary: a DA problem statement is a "Business question"). */
+export function kindLabelIn(kind: string, workspaceId: string | null | undefined): string {
+  const v = workspaceId ? getDomain(workspaceId)?.vocabulary[kind] : undefined;
+  return v ? v.singular : kindLabel(kind);
+}
+
+/** True when versions of this kind are checked before they leave draft (their validation state means something). */
+export const kindIsChecked = (kind: string): boolean => blockingValidatorsFor(kind).length > 0;
 
 const STATUS_LABEL: Record<VersionStatus, string> = { draft: 'draft', candidate: 'ready', active: 'active', failed: 'failed', deprecated: 'deprecated' };
 

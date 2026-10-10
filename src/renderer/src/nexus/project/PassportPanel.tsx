@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import { WorkspacesSection } from './WorkspacesSection';
 import { ArtifactPassport } from './ArtifactPassport';
 import { ActivitySection } from './ActivitySection';
+import { ProjectActions } from './ActionBar';
 import type { ArtifactSummary } from './spineModel';
 import type { SaveSource } from './saveSheetModel';
 import type { HandoffStart } from '../handoffs/handoffModel';
@@ -109,6 +110,7 @@ function SourcePassport({ project, node, headSha, onRefreshProject, onOpenTermin
         </section>
       ))}
       {node.kind === 'source' && <WorkspacesSection key={project.id} projectId={project.id} />}
+      {node.kind === 'source' && <ProjectActions projectId={project.id} artifacts={artifacts} />}
       {p.versions.length > 0 && (
         <section>
           <h2>Versions</h2>

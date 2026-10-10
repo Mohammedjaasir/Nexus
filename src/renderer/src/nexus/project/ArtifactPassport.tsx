@@ -11,9 +11,14 @@ import { PASSPORT_HANDOFF_READS, canHandOff, hasReceiver, type HandoffStart } fr
 import { Button } from '../ui/Button';
 import { Popover } from '../ui/Sheet';
 import type { ArtifactNode, ArtifactSummary } from './spineModel';
+import { ActionBar } from './ActionBar';
+import { DeploymentsSection } from './DeploymentsSection';
+import { EvidenceSection } from './EvidenceSection';
+import { KindViewer } from './kindViewers';
+import { checksWord } from './evidenceModel';
 import {
   IDLE_ACTIONS, LINK_CANDIDATE_ARTIFACTS, actionDoneText, actionsFor, actionPendingText, actionFailed, actionFailureText, actionLabel, actionSucceeded, artifactPassportView,
-  askActionConfirm, beginAction, canLinkSources, candidateArtifactIds, cancelActionConfirm, confirmText, passportActionsFor,
+  askActionConfirm, beginAction, canLinkSources, candidateArtifactIds, cancelActionConfirm, confirmText, kindIsChecked, kindLabelIn, passportActionsFor,
   shouldReloadAfterAction, sourceChoices, type ActionState, type PassportActionKind, type PassportLink, type SourceChoice
 } from './artifactModel';
 
@@ -250,7 +255,7 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
   return (
     <aside className="nx-passport" aria-labelledby="nx-passport-title">
       <header>
-        <p className="nx-passport__kind">{view.kind}</p>
+        <p className="nx-passport__kind">{kindLabelIn(artifact.kind, artifact.ownerWorkspaceId)}</p>
         <h2 id="nx-passport-title" className="nx-passport__title">{view.title}</h2>
       </header>
       <section>
@@ -271,6 +276,7 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
                 <span className="nx-id">v{row.versionNo}</span>
                 <span className="nx-apx__version">
                   <span>{row.status}{row.current ? ', current' : ''}{row.shown && !row.current ? (onSpine ? ', shown on the spine' : ', shown here') : ''}</span>
+                  {v && kindIsChecked(artifact.kind) && checksWord(v.validationState, v.status) && <span className="nx-muted">{checksWord(v.validationState, v.status)}</span>}
                   {row.content && <span className="nx-apx__content">{row.content}</span>}
                   {row.subject && <span className="nx-muted">{row.subject}</span>}
                   {v && (allowed.length > 0 || handOff) && !confirming && (
@@ -312,6 +318,15 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
           })}
         </ol>
       </section>
+      {shownVersion && <KindViewer kind={artifact.kind} version={shownVersion} />}
+      {shownVersion && <EvidenceSection key={shownVersion.id} version={shownVersion} />}
+      {shownVersion && artifact.ownerWorkspaceId && ownerActive && artifact.status === 'active' && (
+        <ActionBar projectId={project.id} workspaceId={artifact.ownerWorkspaceId} title="Actions"
+          version={{ id: shownVersion.id, kind: artifact.kind, status: shownVersion.status }} artifacts={artifacts} />
+      )}
+      {artifact.kind === 'application' && artifact.ownerWorkspaceId && (
+        <DeploymentsSection projectId={project.id} workspaceId={artifact.ownerWorkspaceId} versionIds={loaded.detail.versions.map((x) => x.id)} />
+      )}
       <Links title="Sources" links={view.upstream} truncated={view.upstreamTruncated} empty="No sources recorded for this version.">
         {linkable && shownVersion && (
           <div className="nx-apx__link">

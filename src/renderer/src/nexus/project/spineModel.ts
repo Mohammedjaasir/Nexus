@@ -2,7 +2,8 @@ import type { VersionStatus } from '@shared/nexus/platform';
 import type { ArtifactSummaryView } from '@shared/nexus/ipc';
 import { UNASSIGNED_LABEL } from '../workspaces/mapping';
 import { viewOf, type ParticipationIndex, type ParticipationRow } from '../workspaces/participation';
-import { kindLabel, shownVersionOf, statusLabel } from './artifactModel';
+import { kindIsChecked, kindLabel, shownVersionOf, statusLabel } from './artifactModel';
+import { checksWord } from './evidenceModel';
 
 export type ChangeKind = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked';
 export type GitState =
@@ -125,4 +126,25 @@ export function tabStopId(nodeIds: string[], selectedId: string): string | null 
 export function kindOf(index: string, worktree: string): ChangeKind {
   const c = (index.trim() || worktree.trim())[0];
   return c === 'A' ? 'added' : c === 'D' ? 'deleted' : c === 'R' ? 'renamed' : 'modified';
+}
+
+// ---------- B2a: the checks word of each artifact node ----------
+
+/** The shown versions whose checks the Spine reads (kinds that are checked before they leave draft), capped. */
+export const SPINE_CHECK_READS = 40;
+export function checkedVersionIds(artifacts: readonly ArtifactSummary[]): { nodeId: string; versionId: string }[] {
+  const out: { nodeId: string; versionId: string }[] = [];
+  for (const s of artifacts) {
+    if (s.artifact.status !== 'active' || !kindIsChecked(s.artifact.kind)) continue;
+    const v = shownVersionOf(s);
+    if (v) out.push({ nodeId: `artifact:${s.artifact.id}`, versionId: v.id });
+  }
+  return out.slice(0, SPINE_CHECK_READS);
+}
+
+/** Node id -> its checks word, from the versions read (validation state and status); a node without one is left out. */
+export function spineChecks(reads: readonly { nodeId: string; validationState: 'pending' | 'passed' | 'failed' | 'error'; status: VersionStatus }[]): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const r of reads) { const w = checksWord(r.validationState, r.status); if (w) m.set(r.nodeId, w); }
+  return m;
 }

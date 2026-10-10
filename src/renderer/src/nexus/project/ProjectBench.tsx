@@ -26,6 +26,36 @@ import { FocusSurface } from './FocusSurface';
 import { Passport } from './PassportPanel';
 import { SaveArtifactSheet } from './SaveArtifactSheet';
 import type { SaveSource } from './saveSheetModel';
+import { nexusClient } from '../data/nexusClient';
+import { useHealth } from '../data/useExecution';
+import { ExecutionNotice } from '../components/ExecutionNotice';
+import { ExecutionSetupSheet } from '../components/ExecutionSetupSheet';
+import { JobLogSheet } from '../runs/JobLogSheet';
+import { ApprovalsSection } from './ApprovalsSection';
+import { RequirementSheet } from './RequirementSheet';
+import { ExecutionUiContext, type ExecutionUi } from './execContext';
+import type { LogRange } from './evidenceModel';
+import { checkedVersionIds, spineChecks } from './spineModel';
+import type { ArtifactSummary } from './spineModel';
+
+/** The checks word of each checked artifact node (nexus:version:get of its shown version), read again on rev. */
+function useSpineChecks(artifacts: ArtifactSummary[]): Map<string, string> {
+  const rev = usePlatform((s) => s.rev);
+  const wanted = useMemo(() => checkedVersionIds(artifacts), [artifacts]);
+  const key = wanted.map((w) => w.versionId).join(',');
+  const [checks, setChecks] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    if (wanted.length === 0) { setChecks(new Map()); return; }
+    let alive = true;
+    void Promise.all(wanted.map((w) => nexusClient.versionGet(w.versionId))).then((rs) => {
+      if (!alive) return;
+      const reads = rs.flatMap((r, i) => (r.ok ? [{ nodeId: wanted[i].nodeId, validationState: r.data.validationState, status: r.data.status }] : []));
+      setChecks(spineChecks(reads));
+    });
+    return () => { alive = false; };
+  }, [key, rev]);
+  return checks;
+}
 
 /** The project route: opens the project, then shows the Spine workbench. */
 export function ProjectBench({ id, tool }: { id: string; tool: ProjectTool }) {
@@ -172,12 +202,30 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   const onHandOff = canWrite ? openHandoff : undefined;
   // Writes turned off (the platform became unavailable): the sheets go and do not come back by themselves.
   useEffect(() => { if (!canWrite) { setSaveSource(null); setHandoffStart(null); } }, [canWrite]);
+  // B2a execution: the setup sheet, the writing sheet and the log reader live at the bench; the Folio opens them.
+  const { availability } = useHealth();
+  const checks = useSpineChecks(artifacts);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [write, setWrite] = useState<{ workspaceId: string; kind: 'requirement' | 'problem_statement' } | null>(null);
+  const [log, setLog] = useState<{ jobId: string; range?: LogRange | null } | null>(null);
+  const closeSetup = useCallback(() => setSetupOpen(false), []);
+  const execUi = useMemo<ExecutionUi>(() => ({
+    projectId: project.id,
+    openSetup: () => setSetupOpen(true),
+    openWrite: (w) => { if (canWrite) setWrite({ workspaceId: w.workspaceId, kind: w.kind }); },
+    openLog: (l) => setLog(l)
+  }), [project.id, canWrite]);
 
   return (
+    <ExecutionUiContext.Provider value={execUi}>
     <div className="nx-workbench">
       {mobile && <MobileRuns projectId={project.id} />}
       <Spine groups={groups} selectedId={tool === 'completion' || tool === 'runs' ? '' : node.id} onSelect={onSelect}
-        line={line} onRetryLine={reloadArtifacts} truncated={artifactsTruncated} focusRequest={focusRequest} onFocused={focused} />
+        line={line} onRetryLine={reloadArtifacts} truncated={artifactsTruncated} focusRequest={focusRequest} onFocused={focused} checks={checks} />
+      <div className="nx-xstrip">
+        <ExecutionNotice availability={availability} onSetup={execUi.openSetup} />
+        <ApprovalsSection projectId={project.id} />
+      </div>
       <div className="nx-bench">
         <ToolRail projectId={project.id} rootPath={project.rootPath} tool={tool} hasChanges={hasChanges} onOpenTerminal={openTerminal}
           extra={!wide && (
@@ -196,6 +244,13 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
         <SaveArtifactSheet project={project} initial={saveSource} artifacts={artifacts} onClose={closeSave} onSaved={onSaved} />
       )}
       {handoffStart && canWrite && <SendHandoffSheet start={handoffStart} artifacts={artifacts} onClose={closeHandoff} />}
+      <ExecutionSetupSheet open={setupOpen} onClose={closeSetup} />
+      {write && canWrite && (
+        <RequirementSheet projectId={project.id} workspaceId={write.workspaceId} kind={write.kind} onClose={() => setWrite(null)}
+          onSaved={(artifactId) => { setWrite(null); onSaved(artifactId); }} />
+      )}
+      {log && <JobLogSheet jobId={log.jobId} range={log.range ?? null} onClose={() => setLog(null)} />}
     </div>
+    </ExecutionUiContext.Provider>
   );
 }

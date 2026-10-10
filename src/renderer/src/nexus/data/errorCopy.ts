@@ -12,7 +12,7 @@ export interface ErrorCopy {
    * - busy / internal: a passing failure; show "try again", never the degraded mode.
    * - refused: the request itself was refused.
    */
-  kind: 'unavailable' | 'handoffs_unavailable' | 'busy' | 'internal' | 'refused';
+  kind: 'unavailable' | 'handoffs_unavailable' | 'execution_unavailable' | 'busy' | 'internal' | 'refused';
 }
 
 /** Every error code a nexus:* channel can answer with. */
@@ -98,14 +98,76 @@ export function handoffsNotice(subReason: string | null | undefined): string {
   return why ? `Handoffs are not available because ${why}.` : 'Handoffs are not available on this database.';
 }
 
+// ---------- B2a: execution (jobs, checks, dev deployments) ----------
+
+/**
+ * Why execution alone is off (the sub-reason of execution_unavailable). `unreachable` is the renderer's own: an
+ * execution channel that is not registered in main (a rejected call) answers it, so the screen says so plainly.
+ */
+const EXECUTION_WHY: Record<string, string> = {
+  held: 'the database upgrade that adds it is held',
+  auto_held: 'the database upgrade that adds it was held after an earlier problem',
+  backup_failed: 'the backup before the database upgrade that adds it failed',
+  failed: 'the database upgrade that adds it did not complete',
+  shape: 'its tables do not have the expected layout',
+  not_enabled: 'it is not turned on in this build of the app',
+  v8_unavailable: 'the database upgrade it builds on is not in place',
+  registry_invalid: 'the domain registry failed its startup check',
+  not_started: 'the execution runner has not started',
+  unreachable: 'it did not answer, so it is not connected in this build of the app'
+};
+export const EXECUTION_SUB_REASONS: readonly string[] = Object.freeze(Object.keys(EXECUTION_WHY));
+
+/** The one line shown where jobs, checks and dev deployments would be. */
+export function executionNotice(subReason: string | null | undefined): string {
+  const why = subReason ? EXECUTION_WHY[subReason] : undefined;
+  return why
+    ? `Running jobs is not available because ${why}. Artifacts, handoffs and activity still work.`
+    : 'Running jobs is not available right now. Artifacts, handoffs and activity still work.';
+}
+
+/** The setup sentences (main's SETUP_MESSAGES in nexusIpc/envelope.ts, word for word). */
+export const SETUP_TEXT: Readonly<Record<string, string>> = Object.freeze({
+  docker_missing: 'Docker is not installed, so this cannot run on this computer yet.',
+  docker_stopped: 'Docker is not running. Start Docker Desktop and try again.',
+  docker_memory_low: 'Docker has too little memory for this. Give Docker more memory in its settings.',
+  image_missing: 'A sandbox image this needs is not prepared yet.',
+  image_mismatch: 'A sandbox image this needs does not match the pinned version. Prepare it again.',
+  disk_low: 'There is not enough free disk space for this.',
+  runner_unavailable: 'The execution runner is not available right now.',
+  git_missing: 'Git is not installed, so this cannot run on this computer yet.'
+});
+
+/** Sentences for the B2a refusal reasons a person can act on (kept apart from REASON_TEXT, which mirrors main). */
+export const EXEC_REASON_TEXT: Readonly<Record<string, string>> = Object.freeze({
+  queue_full: 'Too many runs are waiting already. Try again when some have finished.',
+  input_not_allowed: 'That version cannot be an input here: it is still a draft, of another kind or of another project.',
+  secret_in_params: 'A value looks like it holds a secret, so nothing was started.',
+  kind_not_authorable: 'That kind of artifact cannot be written by hand.',
+  bad_content: 'Some fields are missing or too long. Check them and save again.',
+  kind_not_in_domain: 'This workspace does not write that kind of artifact.',
+  unknown_action: 'That action does not exist in this release.',
+  action_not_in_domain: 'That action does not belong to this workspace.'
+});
+
+/** The sentence for a setup:* reason (or the generic unavailable sentence). */
+export function setupText(reason: string | null | undefined): string {
+  const id = typeof reason === 'string' && reason.startsWith('setup:') ? reason.slice(6) : reason ?? '';
+  return Object.prototype.hasOwnProperty.call(SETUP_TEXT, id) ? SETUP_TEXT[id] : CODE_TEXT.unavailable;
+}
+
 export function errorCopy(code: string, reason?: string | null, subReason?: string | null): ErrorCopy {
   if (code === 'platform_unavailable') {
     if (reason === 'busy') return { text: BUSY_TEXT, retry: true, kind: 'busy' };
     if (reason === 'handoffs_unavailable') return { text: handoffsNotice(subReason), retry: false, kind: 'handoffs_unavailable' };
+    if (reason === 'execution_unavailable') return { text: executionNotice(subReason), retry: false, kind: 'execution_unavailable' };
+  }
+  if (code === 'unavailable') return { text: setupText(reason), retry: false, kind: 'refused' };
+  if (code === 'platform_unavailable') {
     return { text: unavailableNotice(reason), retry: false, kind: 'unavailable' };
   }
   if (code === 'internal') return { text: CODE_TEXT.internal, retry: true, kind: 'internal' };
-  const byReason = reason ? REASON_TEXT[reason] : undefined;
+  const byReason = reason ? REASON_TEXT[reason] ?? EXEC_REASON_TEXT[reason] : undefined;
   const byCode = Object.prototype.hasOwnProperty.call(CODE_TEXT, code) ? CODE_TEXT[code as NexusErrorCode] : undefined;
   return { text: byReason ?? byCode ?? 'The request was refused.', retry: false, kind: 'refused' };
 }

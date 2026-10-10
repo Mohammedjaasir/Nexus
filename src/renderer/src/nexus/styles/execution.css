@@ -1,0 +1,74 @@
+/* B2a execution in the Spine + Folio: the notice strip, approvals, the setup sheet, the log reader, jobs, evidence,
+   kind viewers, dev deployments, the writing sheet. Tokens only. Status is always words; a rule tells rows apart. */
+.nx-xstrip { display: grid; gap: var(--nx-s2); padding: var(--nx-s2) var(--nx-s4); border-bottom: 1px solid var(--nx-line); background: var(--nx-surface); }
+.nx-xstrip:empty { display: none; }
+.nx-exn { padding: var(--nx-s2) var(--nx-s3); }
+
+/* Approval rows (project/ApprovalsSection.tsx) and dev deployment rows (project/DeploymentsSection.tsx). */
+.nx-xq { display: grid; gap: var(--nx-s2); }
+.nx-xq__title { margin: 0; font: 600 12px/1.2 var(--nx-font); color: var(--nx-text-3); }
+.nx-xq__list, .nx-xd__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--nx-s2); }
+.nx-xq__row, .nx-xd__row { display: grid; gap: var(--nx-s1); padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line); border-left: 3px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-surface); font-size: 12.5px; }
+.nx-xq__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--nx-s2); margin: 0; }
+.nx-xq__word { font-weight: 600; color: var(--nx-text-2); }
+.nx-xq__text { margin: 0; color: var(--nx-ink); overflow-wrap: anywhere; }
+.nx-xq__meta { margin: 0; }
+.nx-xq__facts { display: grid; gap: 2px; margin: 0; }
+.nx-xq__facts > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: var(--nx-s2); }
+.nx-xq__facts dt { color: var(--nx-text-3); }
+.nx-xq__facts dd { margin: 0; overflow-wrap: anywhere; font-family: var(--nx-font-id); font-size: 11.5px; }
+.nx-xq__acts { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
+.nx-xq__confirm { display: grid; gap: var(--nx-s2); padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); background: var(--nx-sunken); }
+.nx-xq__confirm p { margin: 0; color: var(--nx-text-2); }
+
+/* The setup sheet (components/ExecutionSetupSheet.tsx) and the log reader (runs/JobLogSheet.tsx). */
+.nx-xs, .nx-xl { flex: 1; min-height: 0; display: grid; align-content: start; gap: var(--nx-s3); padding: var(--nx-s4); overflow: auto; font: 400 13px/1.5 var(--nx-font); color: var(--nx-ink); }
+.nx-xs__head { display: grid; gap: 4px; }
+.nx-xs__kind { margin: 0; font-size: 11px; color: var(--nx-text-3); }
+.nx-xs__title { margin: 0; font: 700 16px/1.2 var(--nx-font-display); color: var(--nx-ink); }
+.nx-xs__lead { margin: 0; color: var(--nx-text-2); }
+.nx-xs__sub { margin: 0 0 var(--nx-s1); font: 600 12px/1.2 var(--nx-font); color: var(--nx-text-3); }
+.nx-xs__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--nx-s2); }
+.nx-xs__row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 2px var(--nx-s3); padding: var(--nx-s2) 0 var(--nx-s2) var(--nx-s3); border-left: 3px solid var(--nx-line); }
+.nx-xs__row[data-state="problem"] { border-left-color: var(--nx-ink); }
+.nx-xs__label { font-weight: 600; }
+.nx-xs__word { color: var(--nx-text-2); font-weight: 600; }
+.nx-xs__text, .nx-xs__action, .nx-xs__btn { grid-column: 2; overflow-wrap: anywhere; }
+.nx-xs__action { color: var(--nx-text-2); }
+.nx-xs__actions { display: flex; flex-wrap: wrap; gap: var(--nx-s2); }
+.nx-xl__attempts { display: flex; flex-wrap: wrap; gap: var(--nx-s1); }
+.nx-xl__attempts [aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--nx-ink); font-weight: 650; }
+.nx-xl__text { margin: 0; max-height: 60vh; overflow: auto; padding: var(--nx-s3); border: 1px solid var(--nx-line); border-radius: var(--nx-r-obj); background: var(--nx-sunken); font: 400 11.5px/1.5 var(--nx-font-code); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Jobs in the Runs tool (runs/ProjectRuns.tsx). The strip reuses .nx-run. */
+.nx-xj { display: grid; gap: var(--nx-s3); }
+.nx-xj__title { margin: 0; font: 600 12px/1.2 var(--nx-font); color: var(--nx-text-3); }
+
+/* Evidence and kind viewers in the artifact Passport. */
+.nx-xe__headline { margin: 0 0 var(--nx-s2); font-weight: 650; }
+.nx-xe__list, .nx-xv__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--nx-s2); }
+.nx-xe__row { display: grid; gap: 2px; padding-left: var(--nx-s2); border-left: 1px solid var(--nx-line-strong); }
+.nx-xe__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--nx-s2); margin: 0; }
+.nx-xe__word { font-weight: 600; color: var(--nx-text-2); }
+.nx-xe__text { margin: 0; color: var(--nx-text-2); overflow-wrap: anywhere; }
+.nx-xe__facts { display: grid; gap: 2px; margin: 0; }
+.nx-xe__facts > div { display: grid; grid-template-columns: minmax(0, 1fr); }
+.nx-xe__facts dt { color: var(--nx-text-3); }
+.nx-xe__facts dd { margin: 0 0 var(--nx-s1); overflow-wrap: anywhere; }
+.nx-xv__rows li { display: flex; flex-wrap: wrap; gap: var(--nx-s2); overflow-wrap: anywhere; }
+.nx-xv__name { font-family: var(--nx-font-id); font-size: 11.5px; }
+.nx-xv__word { font-weight: 600; color: var(--nx-text-2); }
+.nx-xv__title { margin: 0; font-weight: 650; }
+.nx-xv__body { margin: 0; white-space: pre-wrap; color: var(--nx-text-2); }
+.nx-xv__text { margin: 0; padding: var(--nx-s2); border: 1px solid var(--nx-line); border-radius: var(--nx-r-ctl); background: var(--nx-sunken); font: 400 11.5px/1.5 var(--nx-font-code); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Action sentences (project/ActionBar.tsx) and the writing sheet's criteria (project/RequirementSheet.tsx). */
+.nx-xa__why { list-style: none; margin: var(--nx-s2) 0 0; padding: 0; display: grid; gap: var(--nx-s1); color: var(--nx-text-2); }
+.nx-xa__why li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); }
+.nx-xw__crit { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: var(--nx-s2); }
+
+@media (max-width: 767px) {
+  .nx-xs__row { grid-template-columns: minmax(0, 1fr); }
+  .nx-xs__text, .nx-xs__action, .nx-xs__btn { grid-column: 1; }
+  .nx-xq__facts > div { grid-template-columns: minmax(0, 1fr); }
+}

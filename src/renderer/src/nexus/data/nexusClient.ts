@@ -2,6 +2,9 @@
 // a NexusResult; a rejected invoke or a malformed answer becomes
 // { ok: false, code: 'internal' }, so callers never need a try/catch. No React.
 import type {
+  ActionAvailabilityView, ActionsQuery, ApprovalDecisionArg, ApprovalView, ApprovalsListFilter, BlobGcArgs, BlobGcView, DeploymentView,
+  DeploymentsListFilter, DomainSpecView, EventsPageView, EventsQuery, HealthView, ImageProfileArg, InlineSaveView, JobDetailView, JobLogsQuery,
+  JobStartArgs, JobStartView, JobView, JobsListFilter, LogPageView, NexusHint, PreviewQuery, PreviewView, SaveInlineArgs, ValidationResultView,
   ActivityPage, ActivityView, ArtifactDetail, ArtifactSummaryView, ArtifactsListFilter, HandoffDetailView, HandoffSummaryView,
   HandoffsListFilter, LineageQuery, LineageView, LinkSourcesView, NexusFail, NexusResult, ParticipationView, SaveCommitArgs,
   SaveResultView, SaveTextFileArgs, SendHandoffArgs, SendHandoffView, VersionDetail, VersionView
@@ -17,6 +20,39 @@ async function call<T>(run: () => Promise<NexusResult<T>>): Promise<NexusResult<
   } catch {
     return INTERNAL;
   }
+}
+
+/**
+ * B2a execution channels (#22-#41). Until main registers them (the deferred index.ts edit) the invoke rejects with
+ * "no handler"; that is not a passing failure but "execution is not connected", so the screen shows the honest
+ * notice instead of "try again". The sub-reason `unreachable` is the renderer's own word for it.
+ */
+export const EXECUTION_UNREACHABLE: NexusFail = {
+  ok: false, code: 'platform_unavailable', reason: 'execution_unavailable', subReason: 'unreachable', message: 'Execution did not answer.'
+};
+
+async function execCall<T>(run: () => Promise<NexusResult<T>>): Promise<NexusResult<T>> {
+  try {
+    const r = await run();
+    if (r && typeof r === 'object' && (r.ok === true || (r.ok === false && typeof r.code === 'string'))) return r;
+    return INTERNAL;
+  } catch {
+    return EXECUTION_UNREACHABLE;
+  }
+}
+
+const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+/** A ULID minted once per user intent (main refuses a second job for the same intent). */
+export function newIntentId(at: number = Date.now()): string {
+  let t = Math.max(0, Math.floor(at));
+  let time = '';
+  for (let i = 0; i < 10; i++) { time = CROCKFORD[t % 32] + time; t = Math.floor(t / 32); }
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  let rand = '';
+  for (let i = 0; i < 16; i++) rand += CROCKFORD[bytes[i] & 31];
+  return time + rand;
 }
 
 export const nexusClient = {
@@ -45,7 +81,40 @@ export const nexusClient = {
   handoffDecline: (handoffId: string, note?: string): Promise<NexusResult<HandoffDetailView>> => call(() => window.cth.nexusHandoffDecline(handoffId, note)),
   handoffWithdraw: (handoffId: string): Promise<NexusResult<HandoffDetailView>> => call(() => window.cth.nexusHandoffWithdraw(handoffId)),
   activityByProject: (projectId: string, page?: ActivityPage): Promise<NexusResult<ActivityView[]>> =>
-    call(() => window.cth.nexusActivityByProject(projectId, page))
+    call(() => window.cth.nexusActivityByProject(projectId, page)),
+  // ---------- B2a execution (#22-#41) ----------
+  domainsList: (): Promise<NexusResult<DomainSpecView[]>> => execCall(() => window.cth.nexusDomainsList()),
+  platformHealth: (): Promise<NexusResult<HealthView>> => execCall(() => window.cth.nexusPlatformHealth()),
+  actionsAvailable: (q: ActionsQuery): Promise<NexusResult<ActionAvailabilityView[]>> => execCall(() => window.cth.nexusActionsAvailable(q)),
+  jobStart: (args: JobStartArgs): Promise<NexusResult<JobStartView>> => execCall(() => window.cth.nexusJobStart(args)),
+  jobsList: (filter?: JobsListFilter): Promise<NexusResult<JobView[]>> => execCall(() => window.cth.nexusJobsList(filter)),
+  jobGet: (jobId: string): Promise<NexusResult<JobDetailView>> => execCall(() => window.cth.nexusJobGet(jobId)),
+  jobLogs: (jobId: string, q: JobLogsQuery): Promise<NexusResult<LogPageView>> => execCall(() => window.cth.nexusJobLogs(jobId, q)),
+  jobCancel: (jobId: string): Promise<NexusResult<JobView>> => execCall(() => window.cth.nexusJobCancel(jobId)),
+  jobRetry: (jobId: string, intentId: string): Promise<NexusResult<{ job: JobView }>> => execCall(() => window.cth.nexusJobRetry(jobId, intentId)),
+  eventsSince: (q: EventsQuery): Promise<NexusResult<EventsPageView>> => execCall(() => window.cth.nexusEventsSince(q)),
+  versionValidations: (versionId: string): Promise<NexusResult<ValidationResultView[]>> => execCall(() => window.cth.nexusVersionValidations(versionId)),
+  versionRevalidate: (versionId: string, intentId: string): Promise<NexusResult<{ jobs: JobView[] }>> =>
+    execCall(() => window.cth.nexusVersionRevalidate(versionId, intentId)),
+  versionPreview: (versionId: string, q: PreviewQuery): Promise<NexusResult<PreviewView>> => execCall(() => window.cth.nexusVersionPreview(versionId, q)),
+  artifactSaveInline: (args: SaveInlineArgs): Promise<NexusResult<InlineSaveView>> => execCall(() => window.cth.nexusArtifactSaveInline(args)),
+  deploymentsList: (filter?: DeploymentsListFilter): Promise<NexusResult<DeploymentView[]>> => execCall(() => window.cth.nexusDeploymentsList(filter)),
+  deploymentStop: (deploymentId: string): Promise<NexusResult<DeploymentView>> => execCall(() => window.cth.nexusDeploymentStop(deploymentId)),
+  approvalsList: (filter?: ApprovalsListFilter): Promise<NexusResult<ApprovalView[]>> => execCall(() => window.cth.nexusApprovalsList(filter)),
+  approvalRespond: (approvalId: string, decision: ApprovalDecisionArg): Promise<NexusResult<ApprovalView>> =>
+    execCall(() => window.cth.nexusApprovalRespond(approvalId, decision)),
+  setupPrepareImage: (profile: ImageProfileArg, intentId: string): Promise<NexusResult<{ approval: ApprovalView; created: boolean }>> =>
+    execCall(() => window.cth.nexusSetupPrepareImage(profile, intentId)),
+  blobsGc: (args: BlobGcArgs): Promise<NexusResult<BlobGcView>> => execCall(() => window.cth.nexusBlobsGc(args)),
+  /** The nexus:hint push (the newest event seq only). Returns an unsubscribe; a no-op when the preload has none. */
+  onHint: (cb: (hint: NexusHint) => void): (() => void) => {
+    try {
+      const sub = window.cth.onNexusHint;
+      return typeof sub === 'function' ? sub(cb) : () => undefined;
+    } catch {
+      return () => undefined;
+    }
+  }
 };
 
 export type NexusClient = typeof nexusClient;
