@@ -11,7 +11,8 @@ import { isAtOrBefore } from '@shared/nexus/domainSpec';
 import { setupText } from '../data/errorCopy';
 import { gb, type ExecAvailability } from '../data/executionModel';
 
-/** Actions with their own place: Stop lives on the dev deployment row, Diagnose on a deployment or a run. */
+/** Actions with their own place: Stop and Diagnose live on the dev deployment row. A run row does not offer
+ *  Diagnose in this release. */
 export const PLACED_ACTIONS: readonly string[] = Object.freeze(['sde.preview.stop', 'sde.diagnose']);
 /** Prerequisites that need this computer's execution setup (Docker, an image, disk). */
 const MACHINE_PREREQS = /^(docker|disk:|image:)/;
@@ -80,6 +81,9 @@ export function actionBar(list: readonly ActionAvailabilityView[], ctx: ActionCo
       if (text) sentences.push({ actionId: a.actionId, text, setup: (a.reason ?? '').startsWith('setup:') });
       continue;
     }
+    // Free disk below the 30 GB gate is an advisory (availability stays ready; only image preparation and the
+    // execution checks need 30 GB), so heavy actions are never held for it here. Below the lease floor the
+    // availability is `setup` (no job starts), and main answers `setup:disk_low` itself.
     if (def.prerequisites.some((p) => MACHINE_PREREQS.test(p)) && ctx.availability.kind !== 'ready') {
       sentences.push({ actionId: a.actionId, text: `${a.label}: this computer is not ready to run it yet.`, setup: true });
       continue;
@@ -172,6 +176,16 @@ export function deploymentRow(d: DeploymentView, fmt: (t: number) => string = cl
 }
 
 // ---------- writing a requirement or a problem statement (#35) ----------
+
+/**
+ * The artifact name a save uses: the name typed, else the title or question, with every run of whitespace (a newline
+ * included) collapsed to one space, trimmed, at most 120 characters. A name is one line, so a newline in the question
+ * can never break the save.
+ */
+export function derivedName(name: string, fallback: string): string {
+  const one = (s: string) => s.replace(/\s+/g, ' ').trim();
+  return (one(name) || one(fallback)).slice(0, 120).trim();
+}
 
 export interface RequirementDraft { title: string; body: string; criteria: { id: string; text: string }[] }
 export interface ProblemDraft { question: string; context: string; audience: string; successCriteria: string[]; constraints: string[] }

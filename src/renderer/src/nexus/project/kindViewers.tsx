@@ -5,7 +5,7 @@ import { errorCopy } from '../data/errorCopy';
 import { useExecStore } from '../data/useExecution';
 import { Button } from '../ui/Button';
 import { useExecutionUi } from './execContext';
-import { logRangesOf, reportFacts } from './evidenceModel';
+import { logRangesOf, partialReportNote, reportFacts } from './evidenceModel';
 
 const PAGE_BYTES = 64 * 1024;
 
@@ -78,14 +78,19 @@ function Rows({ versionId, part, title, empty }: { versionId: string; part: Prev
   );
 }
 
-/** The version's content as text (#34 content), parsed as JSON where the kind is structured. */
-function useContent(versionId: string): { text: string | null; json: unknown; error: string | null; loaded: boolean } {
+/** The version's content as text (#34 content), parsed as JSON where the kind is structured. The JSON is parsed only
+ *  once every page is read (`more` is null); `readBytes` / `totalBytes` say how much of it is read so far. */
+function useContent(versionId: string): { text: string | null; json: unknown; error: string | null; loaded: boolean;
+  more: (() => void) | null; readBytes: number; totalBytes: number | null } {
   const p = usePreview(versionId, 'content');
   const text = p.pages.length ? p.pages.map((x) => x.text ?? '').join('') : null;
   let json: unknown = null;
   if (text !== null && p.more === null) { try { json = JSON.parse(text) as unknown; } catch { json = null; } }
-  return { text, json, error: p.error, loaded: p.loaded };
+  const readBytes = text === null ? 0 : new TextEncoder().encode(text).length;
+  const totalBytes = p.pages[0]?.totalBytes ?? null;
+  return { text, json, error: p.error, loaded: p.loaded, more: p.more, readBytes, totalBytes };
 }
+
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
@@ -124,10 +129,21 @@ function DiagnosticReport({ version }: { version: VersionView }) {
   const ui = useExecutionUi();
   if (!c.loaded) return null;
   if (c.error) return <section><h2>Report</h2><p className="nx-muted">{c.error}</p></section>;
+  // A report past one page cannot be parsed from its first part: say so and offer the rest, never "no fact".
+  if (c.more) {
+    return (
+      <section>
+        <h2>Report</h2>
+        <p className="nx-muted">{partialReportNote(c.readBytes, c.totalBytes)}</p>
+        <Button variant="quiet" onClick={c.more}>Load more</Button>
+      </section>
+    );
+  }
   const facts = reportFacts(c.json);
   const subject = isObj(c.json) && isObj(c.json.subject) ? c.json.subject : null;
   const jobId = subject && subject.target === 'job' && typeof subject.id === 'string' ? subject.id : null;
-  const ranges = jobId ? logRangesOf(c.json, jobId, 1).map((r) => ({ ...r, attempt: null })) : [];
+  // Each range keeps the attempt id the report names; the log reader opens exactly that attempt (#27's history carries ids).
+  const ranges = jobId ? logRangesOf(c.json, jobId, []) : [];
   return (
     <section>
       <h2>Report</h2>

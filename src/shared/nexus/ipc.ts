@@ -193,6 +193,8 @@ export interface JobView {
   cancelRequested: boolean;
 }
 export interface AttemptSummaryView {
+  /** The attempt's own id (B2a final review): a diagnostic report's log range names it, so a link opens exactly that attempt. */
+  id: string;
   n: number; state: string; outcome: string | null; exitCode: number | null; signal: string | null; oomKilled: boolean | null;
   /** The network mode the attempt ran with (`none`, `egress-approved`, `service-internal`, `not-applicable`). */
   network: string | null;

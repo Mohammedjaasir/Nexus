@@ -39,9 +39,11 @@ const count = (w, sql, ...a) => w.db.prepare(`SELECT COUNT(*) AS n FROM ${sql}`)
 const ACT = loadTs('src/renderer/src/nexus/project/activityModel.ts');
 const ACT_CTX = { names: new Map(), versionNos: new Map(), workspaceLabel: (x) => x, now: h.NOW };
 /** An activity row as the activity channel shows it (no principal ids; the model reads only allow-listed details). */
-const actView = (r) => ({ seq: r.seq, ts: r.ts, action: r.action, status: r.status, actorKind: r.actor_kind, onBehalfOfUser: r.on_behalf_of !== null,
-  entityType: r.entity_type, entityId: r.entity_id, projectId: r.project_id, workspaceId: r.workspace_id, artifactId: r.artifact_id,
-  versionId: r.version_id, details: JSON.parse(r.details_json) });
+// B2a final review C1: the view comes from the real IPC mapping (writer.toEntry, then dto.activityView), so a detail
+// key the DTO drops is dropped here too and the sentence reads what the renderer really receives.
+const ACT_DTO = loadTs('src/main/nexusIpc/dto.ts');
+const { toEntry: actEntry } = loadTs('src/main/nexus/activity/writer.ts');
+const actView = (r) => ACT_DTO.activityView(actEntry(r));
 const acts = (w, action, entityId) => w.db.prepare(`SELECT * FROM activity WHERE action = ?${entityId ? ' AND entity_id = ?' : ''} ORDER BY seq`)
   .all(...(entityId ? [action, entityId] : [action]));
 /** Every text column of the execution records, for secret scans. */

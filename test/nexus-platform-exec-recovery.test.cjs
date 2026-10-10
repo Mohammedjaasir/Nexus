@@ -40,9 +40,11 @@ const CTX = { contextSha256: 'c4'.repeat(32), baseDigest: 'sha256:' + 'b5'.repea
 const MANIFEST = { version: 1, profile: 'sde-node', run: ['node', 'dist/server.js'], port: 3000, healthPath: '/health', env: [] };
 const code = (c, reason) => (e) => e.code === c && (reason === undefined || e.detail?.reason === reason);
 const ACT_CTX = { names: new Map(), versionNos: new Map(), workspaceLabel: (x) => x, now: h.NOW };
-const actView = (r) => ({ seq: r.seq, ts: r.ts, action: r.action, status: r.status, actorKind: r.actor_kind, onBehalfOfUser: r.on_behalf_of !== null,
-  entityType: r.entity_type, entityId: r.entity_id, projectId: r.project_id, workspaceId: r.workspace_id, artifactId: r.artifact_id,
-  versionId: r.version_id, details: JSON.parse(r.details_json) });
+// B2a final review C1: the view comes from the real IPC mapping (writer.toEntry, then dto.activityView), so a detail
+// key the DTO drops is dropped here too and the sentence reads what the renderer really receives.
+const ACT_DTO = loadTs('src/main/nexusIpc/dto.ts');
+const { toEntry: actEntry } = loadTs('src/main/nexus/activity/writer.ts');
+const actView = (r) => ACT_DTO.activityView(actEntry(r));
 
 function healthy(w) {
   assert.deepEqual(w.orphans(), ALL_ZERO, JSON.stringify(execOrphanRows(w.db)));
@@ -953,16 +955,17 @@ test('D7 blob store hygiene: stale tmp files and unindexed objects older than 24
 });
 
 test('D11 every recovery decision reads as a sentence; none says completed', () => {
+  // B2a final review C1: through the real IPC mapping (dto.activityView), as the renderer receives the row.
+  const say = (details) => ACT.activityText(ACT_DTO.activityView({ seq: 1, id: 'a', ts: h.NOW, actorKind: 'system', actorId: 'system', onBehalfOf: null,
+    sessionId: null, jobId: 'j', attemptN: 1, workspaceId: 'sde', projectId: 'p', artifactId: null, versionId: null, entityType: 'job', entityId: 'j',
+    action: 'exec.recover', status: 'succeeded', details, prevHash: '', hash: '' }), ACT_CTX);
   for (const d of ['requeue', 'retry', 'interrupt', 'reown', 'expire', 'adopt', 'finalize', 'fail', 'exit_lost', 'image_interrupted', 'orphans',
     'unknown_resources', 'unreconciled']) {
-    const text = ACT.activityText({ seq: 1, ts: h.NOW, action: 'exec.recover', status: 'succeeded', actorKind: 'system', onBehalfOfUser: false,
-      entityType: 'job', entityId: 'j', projectId: 'p', workspaceId: 'sde', artifactId: null, versionId: null, details: { decision: d, reason: 'x' } }, ACT_CTX);
+    const text = say({ decision: d, reason: 'x' });
     assert.ok(text.length > 0 && !text.startsWith('Recorded'), `${d}: ${text}`);
     assert.doesNotMatch(text, /\bcompleted\b/i, d);
   }
   assert.ok(ACT.ACTIVITY_ACTIONS.includes('exec.recover'));
-  const say = (details) => ACT.activityText({ seq: 1, ts: h.NOW, action: 'exec.recover', status: 'succeeded', actorKind: 'system', onBehalfOfUser: false,
-    entityType: 'job', entityId: 'j', projectId: 'p', workspaceId: 'sde', artifactId: null, versionId: null, details }, ACT_CTX);
   // finalize is said before the result is known (a non-zero exit too): it never reads as success.
   assert.doesNotMatch(say({ decision: 'finalize' }), /finish|success|succeed|complete|done|passed/i);
   assert.equal(say({ decision: 'fail', status: 'oom' }), 'Job failed: it ran out of memory while the app was closed');
@@ -976,6 +979,13 @@ test('D11 every recovery decision reads as a sentence; none says completed', () 
   restart(w);
   const row = recoverActs(w, j.id)[0];
   assert.equal(ACT.activityText(actView(row), ACT_CTX), 'Job queued again after a restart: it had not started yet');
+  assert.equal(actView(row).details.decision, 'requeue', 'the decision survives the IPC mapping');
+  // Each decision keeps its own words; one this build does not know reads neutrally, never "recovered".
+  assert.equal(say({ decision: 'interrupt' }), 'Job interrupted by a restart');
+  assert.match(say({ decision: 'fail', status: 'something_new' }), /^Job failed/);
+  assert.equal(say({ decision: 'brand_new' }), ACT.RECOVER_NEUTRAL);
+  assert.equal(say({}), 'Restart recovery recorded a decision');
+  assert.doesNotMatch(ACT.RECOVER_NEUTRAL, /recovered|complet|success/i);
   assert.equal(row.on_behalf_of, w.me.id);
   healthy(w); w.close();
 });

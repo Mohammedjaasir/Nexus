@@ -119,18 +119,31 @@ export function checksWord(state: VersionView['validationState'] | null | undefi
 
 // ---------- log ranges (a diagnostic report's facts point at exact log bytes) ----------
 
-/** A range of an attempt log: open it in the log reader at `offset` for `length` bytes. */
-export interface LogRange { jobId: string; attempt: number | null; offset: number; length: number; sha256: string; label: string }
+/**
+ * A range of an attempt log: open it in the log reader at `offset` for `length` bytes. `attemptId` is the attempt the
+ * report names; `attempt` is its number once known (from the job's attempt history, which carries each attempt's id).
+ */
+export interface LogRange { jobId: string; attemptId: string | null; attempt: number | null; offset: number; length: number; sha256: string; label: string }
+
+/** The attempt number a range points at: its own number, else the attempt in the history whose id the report names. */
+export function rangeAttempt(range: Pick<LogRange, 'attempt' | 'attemptId'>, history: readonly { id: string; n: number }[]): number | null {
+  if (range.attempt !== null) return range.attempt;
+  if (range.attemptId === null) return null;
+  return history.find((a) => a.id === range.attemptId)?.n ?? null;
+}
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const nonNegInt = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
 
+const ATTEMPT_ID = /^[0-9A-Za-z_-]{1,64}$/;
+
 /**
- * The log ranges a diagnostic report's fields cite, for the job whose logs they are (`jobId`). The report names an
- * attempt by an id the views do not carry, so the attempt is known only when the job has exactly one
- * (`attempts === 1`); otherwise `attempt` is null and the reader asks which attempt to open.
+ * The log ranges a diagnostic report's fields cite, for the job whose logs they are (`jobId`). Each range keeps the
+ * attempt id the report names. `attempts` is either the job's attempt history (`{ id, n }` per attempt, from #27):
+ * the range then carries the exact attempt number; or a bare count: the number is known only when the job has
+ * exactly one attempt, and otherwise the log reader resolves the id against the job's own history.
  */
-export function logRangesOf(report: unknown, jobId: string, attempts: number): LogRange[] {
+export function logRangesOf(report: unknown, jobId: string, attempts: number | readonly { id: string; n: number }[]): LogRange[] {
   if (!isObj(report) || !Array.isArray(report.fields)) return [];
   const seen = new Set<string>();
   const out: LogRange[] = [];
@@ -138,13 +151,23 @@ export function logRangesOf(report: unknown, jobId: string, attempts: number): L
     if (!isObj(f) || !isObj(f.source) || f.source.type !== 'log') continue;
     const s = f.source;
     if (!nonNegInt(s.offset) || !nonNegInt(s.length) || typeof s.sha256 !== 'string') continue;
-    const key = `${s.offset}:${s.length}:${s.sha256}`;
+    const attemptId = typeof s.attemptId === 'string' && ATTEMPT_ID.test(s.attemptId) ? s.attemptId : null;
+    const key = `${attemptId ?? ''}:${s.offset}:${s.length}:${s.sha256}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ jobId, attempt: attempts === 1 ? 1 : null, offset: s.offset, length: s.length, sha256: shortHash(s.sha256),
+    const attempt = Array.isArray(attempts) ? rangeAttempt({ attempt: null, attemptId }, attempts)
+      : attempts === 1 ? 1 : null;
+    out.push({ jobId, attemptId, attempt, offset: s.offset, length: s.length, sha256: shortHash(s.sha256),
       label: `Bytes ${s.offset} to ${s.offset + s.length} of the run log` });
   }
   return out;
+}
+
+/** The note a report larger than one page shows until it is read whole: its facts are not shown from part of it. */
+export function partialReportNote(readBytes: number, totalBytes: number | null): string {
+  return typeof totalBytes === 'number' && totalBytes > 0
+    ? `This report is larger than one page: ${readBytes} of ${totalBytes} bytes read. Its facts show once it is read whole.`
+    : 'This report is larger than one page. Its facts show once it is read whole.';
 }
 
 /** An object or array value as short JSON text (never "[object Object]"). */

@@ -160,3 +160,31 @@ test('pin (fix round 1): the full rail is an ordered ruled line, not a grid of c
   assert.match(css, /\.nx-lrail__step\[data-state="failed"\]::before/);
   assert.match(css, /\.nx-lrail__bar li\[data-state="failed"\]/, 'a failed step is marked in the compact rail too');
 });
+
+test('C6b (final review) a version past the Spine read cap claims no state, never "In progress"', () => {
+  const S = loadTs('src/renderer/src/nexus/project/spineModel.ts');
+  const art = (i, kind, latest) => ({ artifact: { id: `a${i}`, kind, status: 'active', ownerWorkspaceId: 'sde', name: `n${i}` },
+    current: null, latest: { id: `v${i}`, versionNo: 1, status: latest } });
+  // 40 checked requirement drafts fill the read cap; the test suite draft is the 41st, so its checks are never read.
+  const artifacts = [...Array.from({ length: S.SPINE_CHECK_READS }, (_, i) => art(i, 'requirement', 'candidate')), art(99, 'test_suite', 'draft')];
+  const wanted = S.checkedVersionIds(artifacts);
+  assert.equal(wanted.length, S.SPINE_CHECK_READS);
+  assert.ok(!wanted.some((w) => w.versionId === 'v99'), 'past the cap');
+  const checks = new Map(wanted.map((w) => [w.versionId, { 'req.schema': 'passed' }]));
+  const records = S.railRecordsFor({ workspaceId: 'sde', artifacts, checks, liveActions: [], deploymentHealthy: false, participating: true });
+  assert.deepEqual(records.versions.find((v) => v.kind === 'test_suite'), { kind: 'test_suite', status: 'draft', validators: {}, unread: true });
+  const r = rail('sde', records);
+  const tests = r.steps.find((s) => s.id === 'tests');
+  assert.equal(tests.state, null, 'no state is claimed for the unread step');
+  assert.equal(tests.word, 'In this release');
+  assert.equal(r.steps.find((s) => s.id === 'requirement').state, 'done', 'read steps keep their state');
+  // The same draft once read with no result yet is a draft being checked: in progress.
+  const read = S.railRecordsFor({ workspaceId: 'sde', artifacts, checks: new Map([...checks, ['v99', {}]]), liveActions: [], deploymentHealthy: false, participating: true });
+  assert.equal(rail('sde', read).steps.find((s) => s.id === 'tests').state, 'in_progress');
+  // An unchecked kind has nothing to read: it is never marked unread.
+  const plain = S.railRecordsFor({ workspaceId: 'sde', artifacts: [art(7, 'git_commit', 'candidate')], checks: new Map(), liveActions: [], deploymentHealthy: false, participating: true });
+  assert.equal(plain.versions[0].unread, undefined);
+  // The summary counts only steps with a state (requirement, and project from the participation record).
+  assert.match(L.railSummary(r), /^2 of 9 steps in this release done/, 'requirement and project; the unread step is not counted as moving');
+  assert.doesNotMatch(L.railSummary(r), /in progress/);
+});

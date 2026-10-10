@@ -73,7 +73,7 @@ function flavourOf(j: Pick<JobView, 'actionId' | 'recipeId' | 'kind'>): Flavour 
 
 const RAN: Record<Flavour, string> = {
   tests: 'Tests ran', discover: 'Tests were listed', build: 'The build ran', deps: 'Dependencies were installed', snapshot: 'The snapshot was taken',
-  assemble: 'The application was assembled', preview: 'The dev deployment started', diagnose: 'The diagnosis ran', check: 'The check ran', other: 'The run finished'
+  assemble: 'The application was assembled', preview: 'The dev deployment started', diagnose: 'The diagnosis ran', check: 'The check ran', other: 'The run ended'
 };
 
 /** A reason from a record (a check summary, an error message): lower-cased first letter, no trailing full stop. */

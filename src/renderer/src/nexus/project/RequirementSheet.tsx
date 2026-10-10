@@ -5,7 +5,7 @@ import { usePlatform } from '../data/platformStore';
 import { Sheet } from '../ui/Sheet';
 import { Button } from '../ui/Button';
 import { kindLabelIn } from './artifactModel';
-import { nextCriterionId, problemContent, requirementContent, type ProblemDraft, type RequirementDraft } from './actionModel';
+import { derivedName, nextCriterionId, problemContent, requirementContent, type ProblemDraft, type RequirementDraft } from './actionModel';
 
 /** Write a requirement (title, body, acceptance criteria with stable ids) or a problem statement (question, context,
  *  audience, success criteria, constraints). Saving makes a draft; main checks it, and Mark ready in the Passport
@@ -30,7 +30,7 @@ export function RequirementSheet({ projectId, workspaceId, kind, onClose, onSave
     if (pending) return;
     const built = kind === 'requirement' ? requirementContent(req) : problemContent(prob);
     if ('problem' in built) { setError(built.problem); return; }
-    const title = (name.trim() || (kind === 'requirement' ? req.title : prob.question).trim()).slice(0, 120);
+    const title = derivedName(name, kind === 'requirement' ? req.title : prob.question);
     setPending(true); setError(null);
     const r = await nexusClient.artifactSaveInline({ projectId, workspaceId, kind, target: { name: title }, content: built.content });
     setPending(false);

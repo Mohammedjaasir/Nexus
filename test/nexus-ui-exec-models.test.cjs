@@ -116,6 +116,33 @@ test('U-E1 log ranges carry {jobId, offset, length}; the attempt only when the j
   assert.equal(one[0].sha256, 'b'.repeat(12));
   assert.equal(EV.logRangesOf(report, 'J9', 2)[0].attempt, null);
   assert.deepEqual(EV.logRangesOf(null, 'J9', 1), []);
+  // Final review item 4: AttemptSummaryView carries the attempt id, so a multi-attempt job's link is exact.
+  assert.equal(one[0].attemptId, 'A1');
+  const multi = { ...report, fields: [...report.fields,
+    { name: 'log.frames', value: 3, source: { type: 'log', attemptId: 'A2', offset: 100, length: 50, sha256: 'b'.repeat(64) } }] };
+  const history = [{ id: 'A1', n: 1 }, { id: 'A2', n: 2 }, { id: 'A3', n: 3 }];
+  const exact = EV.logRangesOf(multi, 'J9', history);
+  assert.deepEqual(exact.map((r) => [r.attemptId, r.attempt]), [['A1', 1], ['A2', 2]], 'the same bytes of two attempts are two ranges, each exact');
+  const unresolved = EV.logRangesOf(multi, 'J9', []);
+  assert.deepEqual(unresolved.map((r) => r.attempt), [null, null]);
+  assert.equal(EV.rangeAttempt(unresolved[1], history), 2, 'the log reader resolves the id against the job history');
+  assert.equal(EV.rangeAttempt({ attempt: null, attemptId: 'ZZ' }, history), null, 'an unknown id names no attempt');
+  assert.equal(EV.rangeAttempt({ attempt: null, attemptId: null }, history), null);
+  assert.equal(EV.logRangesOf({ fields: [{ name: 'x', source: { type: 'log', attemptId: '../etc', offset: 1, length: 1, sha256: 'b'.repeat(64) } }] }, 'J9', history)[0].attemptId,
+    null, 'an id of another shape is dropped');
+  const viewer = src('project/kindViewers.tsx');
+  assert.match(viewer, /logRangesOf\(c\.json, jobId, \[\]\)/);
+  assert.doesNotMatch(viewer, /attempt: null \}\)\)/, 'the viewer no longer throws the attempt away');
+  const reader = src('runs/JobLogSheet.tsx');
+  assert.match(reader, /rangeAttempt\(range, history\)/);
+  assert.match(reader, /target !== null && target === shown \? range\.offset : 0/, 'the offset applies only to its own attempt');
+  const { jobDetailView } = loadTs('src/main/nexusIpc/dto.ts');
+  const d = jobDetailView({ id: 'J9', kind: 'tool.run', projectId: 'p', workspaceId: 'sde', actionId: null, recipeId: null, state: 'failed', phase: null,
+    headline: 'failed', outcome: null, error: null, attempts: 2, retryOf: null, parentJobId: null, requestedBy: 'user:local', inputs: [], createdAt: 1, updatedAt: 1,
+    startedAt: null, finishedAt: null, nextAttemptAt: null, cancelRequestedAt: null, approvals: [], outputs: [], deployment: null,
+    attemptHistory: [1, 2].map((n) => ({ id: `A${n}`, n, state: 'failed', outcome: null, exitCode: 1, signal: null, oomKilled: false, network: 'none', preflight: null,
+      error: null, createdAt: 1, startedAt: 1, finishedAt: 2, imageId: null, profile: null })) });
+  assert.deepEqual(d.attemptHistory.map((a) => [a.id, a.n]), [['A1', 1], ['A2', 2]], 'the DTO sends each attempt id');
   const facts = EV.reportFacts(report);
   assert.equal(facts.find((f) => f.name === 'container.exitCode').source, 'docker inspect State.ExitCode');
   assert.equal(facts.find((f) => f.name === 'log.frames').source, 'run log range');
@@ -269,19 +296,41 @@ const health = (o = {}) => ({
 });
 const rowOf = (h, id, ctx) => X.setupSheet(h, ctx).find((r) => r.id === id);
 
-test('U-H1 disk below the gate: the exact numbers and what to do', () => {
-  const h = health({ disk: { dataHomeFreeBytes: 18 * GIB, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'below_required' }, problems: ['disk_low'] });
+test('U-H1 disk below the gate (ruled, final review C2): an advisory with the exact numbers; jobs run, only Prepare image waits', () => {
+  const h = health({ images: [{ profile: 'sde-node', present: true, matches: true }, { profile: 'sde-python', present: false, matches: false }],
+    disk: { dataHomeFreeBytes: 18 * GIB, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'below_required' }, problems: ['disk_low', 'image_missing:sde-python'] });
   const r = rowOf(h, 'disk');
-  assert.equal(r.text, 'Free disk is 18 GB; execution needs 30 GB (40 GB recommended)');
-  assert.equal(r.state, 'problem');
-  assert.match(r.action, /Free up space/);
-  assert.equal(r.word, 'Needs attention');
-  const a = X.availabilityFrom({ unavailable: null }, { ok: true, data: h });
-  assert.equal(a.kind, 'setup');
-  assert.deepEqual(a.problems, ['disk_low']);
+  assert.equal(r.text, 'Free disk is 18 GB; preparing images and the execution checks need 30 GB (40 GB recommended)');
+  assert.equal(r.state, 'advisory', 'below 30 GB is an advisory, not a blocker');
+  assert.equal(r.word, 'Jobs run; images cannot be prepared');
+  assert.match(r.action, /^Jobs can run while there is room for their output\. Free up space .* to prepare images\.$/);
+  // Only "Prepare image" is unavailable, with the reason in numbers.
+  const img = rowOf(h, 'image:sde-python');
+  assert.equal(img.prepare, null);
+  assert.equal(img.action, 'It can be prepared once the disk has 30 GB free.');
+  // Availability is not `setup` for this reason: main's `disk_low` gate id alone blocks nothing.
+  const ready = health({ disk: h.disk, problems: ['disk_low'] });
+  const a = X.availabilityFrom({ unavailable: null }, { ok: true, data: ready });
+  assert.equal(a.kind, 'ready');
+  assert.deepEqual(a.advisories, ['Free disk is 18 GB; preparing images and the execution checks need 30 GB (40 GB recommended).']);
+  assert.deepEqual(X.noticeFor(a), { text: a.advisories[0], setup: true });
+  assert.equal(X.setupLead(a, X.setupSheet(ready)), 'Jobs can run on this computer.');
+  // Heavy actions are not disabled for it: with main's answer "available", the run buttons stay.
+  const bar = AM.actionBar([{ actionId: 'sde.build.run', label: 'Build', stepId: 'build', available: true, reason: null, needsApproval: false,
+    inputs: [{ slot: 'repository', kinds: ['repository'], min: 1, max: 1 }] }], { workspaceId: 'sde', availability: a, version: { kind: 'repository', status: 'active' } });
+  assert.deepEqual(bar.buttons.map((b) => b.actionId), ['sde.build.run']);
+  // Below the lease floor no job starts: that alone is a setup problem, with the floor in numbers.
+  const floor = health({ disk: { ...h.disk, dataHomeFreeBytes: 3 * GIB }, problems: ['disk_low'] });
+  const f = X.availabilityFrom({ unavailable: null }, { ok: true, data: floor });
+  assert.deepEqual([f.kind, f.problems], ['setup', ['disk_low']]);
+  const fr = rowOf(floor, 'disk');
+  assert.deepEqual([fr.state, fr.text], ['problem', 'Free disk is 3 GB; preparing images and the execution checks need 30 GB (40 GB recommended); below 5 GB no job starts']);
   // 35 GB: it runs, below the recommendation (never stated as a problem).
   const mid = rowOf(health({ disk: { ...h.disk, dataHomeFreeBytes: 35 * GIB, gate: 'below_recommended' } }), 'disk');
-  assert.deepEqual([mid.state, mid.text], ['advisory', 'Free disk is 35 GB; execution needs 30 GB (40 GB recommended)']);
+  assert.deepEqual([mid.state, mid.text], ['advisory', 'Free disk is 35 GB; preparing images and the execution checks need 30 GB (40 GB recommended)']);
+  // Not measured: never ready.
+  const unk = X.availabilityFrom({ unavailable: null }, { ok: true, data: health({ disk: { ...h.disk, dataHomeFreeBytes: null, gate: 'unknown' }, problems: ['disk_low'] }) });
+  assert.equal(unk.kind, 'unknown');
   assert.equal(X.gb(18.96 * GIB), '18.9 GB', 'free space is never rounded up');
 });
 
@@ -563,4 +612,28 @@ test('(fix round 1, item 13) the loopback address opens through a guarded helper
 
 test('(fix round 1, item 14) the hint pull stops when the cursor does not move', () => {
   assert.match(src('data/useExecution.ts'), /if \(knownSeq <= before\) break;/);
+});
+
+// ---------- final review C (renderer) ----------
+
+test('C5 the derived name collapses whitespace: a newline in the question never breaks the save', () => {
+  assert.equal(AM.derivedName('', 'Why do\nusers\r\n  churn?\t'), 'Why do users churn?');
+  assert.equal(AM.derivedName('  My\nname ', 'ignored'), 'My name');
+  assert.equal(AM.derivedName(' \n ', 'Fallback title'), 'Fallback title');
+  assert.ok(!/\s{2}|\n/.test(AM.derivedName('', `${'a '.repeat(100)}\n${'b'.repeat(50)}`)));
+  assert.ok(AM.derivedName('', 'x'.repeat(300)).length <= 120);
+  const sheet = src('project/RequirementSheet.tsx');
+  assert.match(sheet, /const title = derivedName\(name, kind === 'requirement' \? req\.title : prob\.question\);/);
+});
+
+test('C7 PLACED_ACTIONS says where each lives; the diagnostic report pages and says when it is larger than one page', () => {
+  const am = src('project/actionModel.ts');
+  assert.match(am, /Stop and Diagnose live on the dev deployment row\. A run row does not offer\n \*  Diagnose in this release\./);
+  assert.doesNotMatch(src('runs/ProjectRuns.tsx'), /sde\.diagnose/, 'the comment matches the code: no Diagnose on run rows');
+  const kv = src('project/kindViewers.tsx');
+  assert.equal(EV.partialReportNote(65536, 200000), 'This report is larger than one page: 65536 of 200000 bytes read. Its facts show once it is read whole.');
+  assert.equal(EV.partialReportNote(10, null), 'This report is larger than one page. Its facts show once it is read whole.');
+  const diag = kv.slice(kv.indexOf('function DiagnosticReport'), kv.indexOf('function Repository'));
+  assert.match(diag, /if \(c\.more\) \{[\s\S]*partialReportNote\(c\.readBytes, c\.totalBytes\)[\s\S]*<Button variant="quiet" onClick=\{c\.more\}>Load more<\/Button>/);
+  assert.ok(diag.indexOf('if (c.more)') < diag.indexOf('reportFacts(c.json)'), 'never "no fact" from part of a report');
 });

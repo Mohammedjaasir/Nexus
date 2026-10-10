@@ -97,7 +97,11 @@ export function handoffDetailView(h: HandoffDetail): HandoffDetailView {
  */
 export const ACTIVITY_DETAIL_KEYS: readonly string[] = Object.freeze([
   'from', 'to', 'kind', 'versionNo', 'storageKind', 'relation', 'source', 'toVersionId', 'subjects', 'toWorkspaceId',
-  'receiptVersionId', 'withNote', 'reactivated', 'previous', 'rollback', 'workspaceId', 'result', 'inputs', 'edges'
+  'receiptVersionId', 'withNote', 'reactivated', 'previous', 'rollback', 'workspaceId', 'result', 'inputs', 'edges',
+  // B2a (final review C1): what the execution rows' sentences read. Each is a scalar main writes from a fixed set
+  // (an approval's reason and decision, an image build's or a failed recovery's status, a deployment stop's job
+  // effect, a recovery decision) or a count (`requested`); like every key here it is scrubbed and capped.
+  'reason', 'decision', 'status', 'job', 'requested'
 ]);
 const MAX_DETAIL_STRING = 64;
 
@@ -212,7 +216,8 @@ export function jobDetailView(d: JobDetail): JobDetailView {
   return {
     ...jobView(d),
     attemptHistory: d.attemptHistory.map((a) => ({
-      n: a.n, state: a.state, outcome: label(a.outcome), exitCode: a.exitCode, signal: label(a.signal), oomKilled: a.oomKilled,
+      // The attempt row's id (a ULID): no principal, path or host fact; a log range in a diagnostic report names it.
+      id: a.id, n: a.n, state: a.state, outcome: label(a.outcome), exitCode: a.exitCode, signal: label(a.signal), oomKilled: a.oomKilled,
       network: label(a.network), preflight: a.preflight ? { ok: a.preflight.ok, problems: a.preflight.problems.slice(0, 20).map((x) => text(x, 120)) } : null,
       imageIdShort: shortImageId(a.imageId), profile: label(a.profile), error: errorView(a.error),
       createdAt: a.createdAt, startedAt: a.startedAt, finishedAt: a.finishedAt

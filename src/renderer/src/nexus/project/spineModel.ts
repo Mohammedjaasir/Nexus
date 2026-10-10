@@ -178,7 +178,13 @@ export function railRecordsFor(i: {
   for (const s of i.artifacts) {
     if (s.artifact.status !== 'active' || s.artifact.ownerWorkspaceId !== i.workspaceId) continue;
     const v = shownVersionOf(s);
-    if (v) versions.push({ kind: s.artifact.kind, status: v.status, validators: i.checks.get(v.id) ?? {} });
+    if (!v) continue;
+    // A checked kind whose version was not read (past SPINE_CHECK_READS) has no known results: it is marked unread,
+    // so its step claims no state, never "In progress" from an empty list. An unchecked kind has no checks to read.
+    const read = i.checks.get(v.id);
+    if (read) versions.push({ kind: s.artifact.kind, status: v.status, validators: read });
+    else if (kindIsChecked(s.artifact.kind)) versions.push({ kind: s.artifact.kind, status: v.status, validators: {}, unread: true });
+    else versions.push({ kind: s.artifact.kind, status: v.status, validators: {} });
   }
   return { versions, liveActions: i.liveActions, participation: i.participating, deploymentHealthy: i.deploymentHealthy };
 }

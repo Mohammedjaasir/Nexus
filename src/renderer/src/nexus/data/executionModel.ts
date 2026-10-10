@@ -25,8 +25,10 @@ export type SetupProblemId = 'docker_missing' | 'docker_stopped' | 'docker_memor
  * - unknown: health not read yet (or a passing failure: `retry`);
  * - platform_off: the whole platform is off (its notice already says why);
  * - execution_off: execution itself is off (held migration, not turned on in this build, not connected);
- * - setup: execution is on, but this computer does not pass the gate (Docker, disk, images, runner);
- * - ready: heavy execution can run (an advisory, such as disk below the recommended size, may remain).
+ * - setup: execution is on, but jobs cannot run on this computer (Docker, images, the runner, or free disk below the
+ *   lease floor, where no job is started);
+ * - ready: jobs can run. An advisory may remain: free disk below 30 GB (only image preparation and the execution
+ *   checks need that; jobs still run above the lease floor) or below the recommended 40 GB.
  */
 export type ExecAvailability =
   | { kind: 'unknown'; text: string | null; retry: boolean; checking?: boolean }
@@ -39,7 +41,7 @@ const PROBLEM_ORDER: SetupProblemId[] = ['disk_low', 'docker_missing', 'docker_s
   'image_missing', 'image_mismatch', 'runner_unavailable', 'git_missing', 'probe_unreadable'];
 
 const PROBLEM_LINE: Record<SetupProblemId, string> = {
-  disk_low: 'there is not enough free disk',
+  disk_low: 'there is not enough free disk for the output of a job',
   docker_missing: 'Docker is not installed',
   docker_stopped: 'Docker is not running',
   docker_memory_low: 'Docker has too little memory',
@@ -50,6 +52,17 @@ const PROBLEM_LINE: Record<SetupProblemId, string> = {
   git_missing: 'git is not installed',
   probe_unreadable: 'this computer could not be checked'
 };
+
+/** True when free disk is known and below the floor under which main starts no job. */
+export function diskBelowFloor(d: HealthView['disk']): boolean {
+  return typeof d.dataHomeFreeBytes === 'number' && typeof d.leaseFloorBytes === 'number' && d.dataHomeFreeBytes < d.leaseFloorBytes;
+}
+
+/** The advisory below the 30 GB gate: jobs run, but images cannot be prepared and the execution checks cannot run. */
+export function diskGateAdvisory(d: HealthView['disk']): string | null {
+  if (d.gate !== 'below_required' || typeof d.dataHomeFreeBytes !== 'number') return null;
+  return `${diskLine(d)}.`;
+}
 
 /** The blocking problems of a HealthView, in the gate's order (advisories are not problems). */
 export function setupProblems(h: HealthView): { problems: SetupProblemId[]; profiles: string[] } {
@@ -63,7 +76,11 @@ export function setupProblems(h: HealthView): { problems: SetupProblemId[]; prof
   }
   if (h.docker.state === 'stopped') found.add('docker_stopped');
   if (h.docker.state === 'missing') found.add('docker_missing');
-  if (h.disk.gate === 'below_required') found.add('disk_low');
+  // B2a final review C2 (ruled): the 30 GB gate holds image preparation and the execution checks only; jobs run above
+  // the lease floor. Main's gate lists `disk_low` below 30 GB, so that id alone is not a blocking problem here: free
+  // disk blocks jobs only below the floor (main's #24 then answers `setup:disk_low`, and no job is leased).
+  found.delete('disk_low');
+  if (diskBelowFloor(h.disk)) found.add('disk_low');
   if (!h.runner.attached) found.add('runner_unavailable');
   return { problems: PROBLEM_ORDER.filter((p) => found.has(p)), profiles };
 }
@@ -95,8 +112,10 @@ export function availabilityFrom(platform: { unavailable: { reason: string | nul
   if (h.docker.state === 'unknown' || h.disk.gate === 'unknown' || h.disk.dataHomeFreeBytes === null) {
     return { kind: 'unknown', text: NOT_CHECKED, retry: false, checking: true };
   }
-  const advisories = h.disk.gate === 'below_recommended' && h.disk.dataHomeFreeBytes !== null
-    ? [`Free disk is ${gb(h.disk.dataHomeFreeBytes)}; ${gb(h.disk.recommendedBytes)} is recommended.`] : [];
+  const below = diskGateAdvisory(h.disk);
+  const advisories = below ? [below]
+    : h.disk.gate === 'below_recommended' && h.disk.dataHomeFreeBytes !== null
+      ? [`Free disk is ${gb(h.disk.dataHomeFreeBytes)}; ${gb(h.disk.recommendedBytes)} is recommended.`] : [];
   return { kind: 'ready', advisories };
 }
 
@@ -144,7 +163,7 @@ export function gpuLine(g: HealthView['gpu']): string {
 }
 
 export function diskLine(d: HealthView['disk']): string {
-  const need = `execution needs ${gb(d.requiredBytes)} (${gb(d.recommendedBytes)} recommended)`;
+  const need = `preparing images and the execution checks need ${gb(d.requiredBytes)} (${gb(d.recommendedBytes)} recommended)`;
   return d.dataHomeFreeBytes === null ? `Free disk could not be measured; ${need}` : `Free disk is ${gb(d.dataHomeFreeBytes)}; ${need}`;
 }
 
@@ -173,9 +192,16 @@ export function setupSheet(h: HealthView, ctx: { estimates?: ReadonlyMap<string,
     } else rows.push(row('cpus', 'Docker CPUs', 'ok', `Docker has ${d.cpus} CPUs; execution needs ${MIN_DOCKER_CPUS}.`));
   }
   const disk = h.disk;
-  if (disk.gate === 'below_required' || disk.dataHomeFreeBytes === null) {
-    rows.push(row('disk', 'Free disk', disk.dataHomeFreeBytes === null ? 'unknown' : 'problem', diskLine(disk),
-      'Free up space on the drive that holds the app data (Nexus deletes nothing itself), then check again.'));
+  const FREE_UP = 'Free up space on the drive that holds the app data (Nexus deletes nothing itself), then check again.';
+  if (disk.dataHomeFreeBytes === null) {
+    rows.push(row('disk', 'Free disk', 'unknown', diskLine(disk), FREE_UP));
+  } else if (diskBelowFloor(disk)) {
+    rows.push(row('disk', 'Free disk', 'problem', `${diskLine(disk)}; below ${gb(disk.leaseFloorBytes)} no job starts`, FREE_UP));
+  } else if (disk.gate === 'below_required') {
+    // Ruled (final review C2): an advisory, not a blocker. Jobs run; only image preparation and the execution checks wait.
+    rows.push({ ...row('disk', 'Free disk', 'advisory', diskLine(disk),
+      `Jobs can run while there is room for their output. ${FREE_UP.replace(', then check again.', ' to prepare images.')}`),
+    word: 'Jobs run; images cannot be prepared' });
   } else if (disk.gate === 'below_recommended') {
     rows.push(row('disk', 'Free disk', 'advisory', diskLine(disk), 'Jobs can run. Freeing more space keeps large builds from waiting.'));
   } else rows.push(row('disk', 'Free disk', 'ok', diskLine(disk)));
@@ -196,7 +222,10 @@ export function setupSheet(h: HealthView, ctx: { estimates?: ReadonlyMap<string,
       rows.push(row(`image:${img.profile}`, label, 'problem', text, 'Preparing downloads its pinned base once, after you approve it.',
         { profile: img.profile, label: prepareLabel(ctx.estimates?.get(img.profile), again) }));
     } else {
-      rows.push(row(`image:${img.profile}`, label, 'problem', text, 'It can be prepared once Docker is running and the disk has room.'));
+      rows.push(row(`image:${img.profile}`, label, 'problem', text, d.state !== 'running'
+        ? 'It can be prepared once Docker is running.'
+        : disk.dataHomeFreeBytes === null ? 'It can be prepared once free disk has been measured.'
+          : `It can be prepared once the disk has ${gb(disk.requiredBytes)} free.`));
     }
   }
   // HealthView has no git field: git is shown only when main reported it missing (never claimed as ready).

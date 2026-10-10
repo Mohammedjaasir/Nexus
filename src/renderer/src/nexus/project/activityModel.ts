@@ -168,7 +168,9 @@ function workspacePhrase(id: unknown, ctx: ActivityContext): string | null {
 /** Job states and agent session statuses, in words. */
 const JOB_STATE_WORDS: Record<string, string> = {
   queued: 'queued', leased: 'picked up', running: 'started running', awaiting_approval: 'is waiting for approval',
-  retry_scheduled: 'will be tried again', completed: 'completed', partial: 'completed in part', failed: 'failed',
+  // B2a final review: a job's state "completed" means it ran and its outputs were collected; whether its checks
+  // passed is a separate fact (a run whose tests failed is still a completed job), so the sentence never says more.
+  retry_scheduled: 'will be tried again', completed: 'ran; its checks give the result', partial: 'ran in part', failed: 'failed',
   cancelled: 'was stopped', timed_out: 'timed out', interrupted: 'was interrupted', open: 'opened'
 };
 
@@ -221,6 +223,8 @@ const RECOVER_FAIL_WORDS: Record<string, string> = {
   nonzero_exit: 'Job failed: it exited with an error while the app was closed',
   invalid_output: 'Job failed: it stopped while the app was closed without the outputs it needs'
 };
+/** An `exec.recover` row whose decision this build does not know: neutral, never "recovered". */
+export const RECOVER_NEUTRAL = 'Restart recovery recorded a decision';
 const pick = (table: Record<string, string>, key: unknown): string | null =>
   typeof key === 'string' && Object.prototype.hasOwnProperty.call(table, key) ? table[key] : null;
 
@@ -323,9 +327,11 @@ function sentence(row: ActivityView, ctx: ActivityContext): string | null {
         : 'Asked the sandbox runner to remove leftover sandbox resources of ended runs';
     }
     case 'exec.recover': {
+      // Each decision in its own words: a failure reads as a failure, an interruption as interrupted. Without a
+      // decision this build knows, the sentence claims nothing about the outcome.
       const decision = detail(row, 'decision');
       if (decision === 'fail') return pick(RECOVER_FAIL_WORDS, detail(row, 'status')) ?? 'Job failed: it stopped while the app was closed';
-      return pick(RECOVER_WORDS, decision) ?? 'Work recovered after a restart';
+      return pick(RECOVER_WORDS, decision) ?? RECOVER_NEUTRAL;
     }
     case 'project_workspace.primary_synced': {
       const ws = workspacePhrase(detail(row, 'workspaceId'), ctx);

@@ -33,6 +33,8 @@ const STATES = {
   'execution not connected': X.availabilityFrom({ unavailable: null }, { ok: false, code: 'platform_unavailable', reason: 'execution_unavailable', subReason: 'unreachable', message: 'm' }),
   'Docker stopped': X.availabilityFrom({ unavailable: null }, ok(health({ docker: { state: 'stopped' }, problems: ['docker_stopped'] }))),
   'disk below the gate': X.availabilityFrom({ unavailable: null }, ok(health({ disk: { dataHomeFreeBytes: 18 * GIB, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'below_required' }, problems: ['disk_low'] }))),
+  // Final review C2 (ruled): below 30 GB jobs still run (an advisory); below the lease floor no job starts.
+  'disk below the lease floor': X.availabilityFrom({ unavailable: null }, ok(health({ disk: { dataHomeFreeBytes: 3 * GIB, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'below_required' }, problems: ['disk_low'] }))),
   'image missing': X.availabilityFrom({ unavailable: null }, ok(health({ images: [{ profile: 'sde-node', present: false, matches: false }], problems: ['image_missing:sde-node'] }))),
   'not checked yet': X.availabilityFrom({ unavailable: null }, ok(health({ checkedAt: null, docker: { state: 'unknown' },
     disk: { dataHomeFreeBytes: null, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'unknown' } }))),
@@ -117,6 +119,81 @@ test('HA1 no domain is ever called complete; FUTURE steps never carry a state', 
   }
 });
 
+// Final review C6a: the B2a activity sentences (rows built as main writes them, mapped by the real dto.activityView)
+// and every job-run headline join the "never called complete" scan.
+const ACT = loadTs('src/renderer/src/nexus/project/activityModel.ts');
+const DTO = loadTs('src/main/nexusIpc/dto.ts');
+const R = loadTs('src/renderer/src/nexus/runs/jobRunModel.ts');
+const NEVER_COMPLETE = /\bcomplete(d)?\b|finished|end to end/i;
+const ACT_CTX = { names: new Map(), versionNos: new Map(), workspaceLabel: (x) => x, now: 1 };
+/** One activity row as main writes it (writer.ts ActivityEntry), with principal ids the DTO never sends. */
+const entry = (action, details, status = 'succeeded') => ({ seq: 1, id: 'act1', ts: 1, actorKind: 'system', actorId: 'system', onBehalfOf: 'user:local',
+  sessionId: null, jobId: 'j1', attemptN: 1, workspaceId: 'sde', projectId: 'p', artifactId: null, versionId: null, entityType: 'job', entityId: 'j1',
+  action, status, details, prevHash: '', hash: '' });
+const B2A_ROWS = [
+  ...['egress.deps', 'image.prepare'].map((reason) => ['approval.request', { reason }]),
+  ...['once', 'deny'].flatMap((decision) => ['egress.deps', 'image.prepare'].map((reason) => ['approval.respond', { reason, decision, consumedBy: null }])),
+  ['approval.expire', { reason: 'egress.deps' }], ['approval.withdraw', {}],
+  ['image_build.start', { buildId: 'b', profileId: 'sde-node' }],
+  ...['succeeded', 'interrupted', 'failed', 'cancelled'].map((status) => ['image_build.finish', { status, profileId: 'sde-node' }]),
+  ['deployment.start', { deploymentId: 'd' }],
+  ...['healthy', 'unhealthy'].map((to) => ['deployment.transition', { to }]),
+  ...['idle', 'app_quit', 'recovery', 'cancel', 'user', 'new_reason'].map((reason) => ['deployment.transition', { to: 'stopped', reason }]),
+  ...['probe_failed', 'exited', 'start_timeout', 'refused', 'preflight_failed', 'runner_lost', 'exit_not_reported'].map((reason) => ['deployment.transition', { to: 'failed', reason }]),
+  ...['completes_on_exit', 'cancelled', 'none'].map((job) => ['deployment.stop', { reason: 'user', job }]),
+  ...['requeue', 'retry', 'interrupt', 'reown', 'expire', 'adopt', 'finalize', 'fail', 'exit_lost', 'image_interrupted', 'orphans', 'unknown_resources',
+    'unreconciled', 'brand_new'].map((decision) => ['exec.recover', { decision, reason: 'container_exited', to: 'running' }]),
+  ...['oom', 'nonzero_exit', 'invalid_output', 'outputs_missing'].map((status) => ['exec.recover', { decision: 'fail', reason: 'container_exited', status, to: 'failed' }]),
+  ...[0, 1, 3].map((requested) => ['exec.orphan_removed', { requested }]),
+  ['version.revalidate', { intent: 'i', jobs: ['j2'] }],
+  ['job.create', {}], ['job.cancel', {}],
+  ...['queued', 'leased', 'running', 'awaiting_approval', 'retry_scheduled', 'completed', 'partial', 'failed', 'cancelled', 'timed_out', 'interrupted']
+    .map((to) => ['job.transition', { from: 'running', to }])
+];
+
+test('HA1 (final review C6a) no B2a activity sentence or job-run headline calls work complete', () => {
+  const texts = [];
+  for (const [action, details] of B2A_ROWS) {
+    for (const status of ['succeeded', 'failed', 'denied', 'cancelled']) {
+      const view = DTO.activityView(entry(action, details, status));
+      const text = ACT.activityText(view, ACT_CTX);
+      texts.push(text);
+      assert.doesNotMatch(text, NEVER_COMPLETE, `${action} ${JSON.stringify(details)} ${status}: ${text}`);
+      assert.ok(!text.startsWith('Recorded '), `${action}: a sentence, not the bare action name`);
+    }
+  }
+  // The sentences really read the details (the DTO keeps them): answers differ, and recovery decisions keep their words.
+  const say = (action, details) => ACT.activityText(DTO.activityView(entry(action, details)), ACT_CTX);
+  assert.notEqual(say('approval.respond', { reason: 'egress.deps', decision: 'once' }), say('approval.respond', { reason: 'egress.deps', decision: 'deny' }));
+  assert.match(say('exec.recover', { decision: 'fail', status: 'oom' }), /^Job failed/);
+  assert.match(say('exec.recover', { decision: 'interrupt' }), /interrupted/);
+  assert.equal(say('exec.recover', { decision: 'brand_new' }), 'Restart recovery recorded a decision');
+  assert.equal(say('job.transition', { to: 'completed' }), 'Job ran; its checks give the result');
+  for (const t of texts) assert.deepEqual(scanText(t, true), [], t);
+
+  // Every headline, for every kind of run, with and without a sourced reason: headline, word and stage labels.
+  const flavours = [...USER_ACTIONS.map((a) => ({ actionId: a.id, recipeId: null, kind: 'tool.run' })), { actionId: null, recipeId: null, kind: 'validate' },
+    { actionId: null, recipeId: 'something.else', kind: 'tool.run' }];
+  const HEADLINES = ['queued', 'waiting:runner', 'waiting:docker', 'waiting:image', 'waiting:disk', 'waiting:slots', 'waiting:memory', 'waiting:git',
+    'waiting:retry', 'provisioning', 'running', 'waiting_for_approval', 'collecting', 'validating', 'checks_passed', 'checks_failed',
+    'checks_could_not_run', 'failed', 'cancelled', 'timed_out', 'interrupted'];
+  let n = 0;
+  for (const f of flavours) {
+    for (const h of HEADLINES) {
+      for (const reason of [null, 'No tests were executed.']) {
+        const v = R.jobRun({ id: 'J', projectId: 'p', workspaceId: 'sde', state: 'completed', phase: null, headline: h, outcome: null, error: null, attempts: 1,
+          retryOf: null, parentJobId: null, requestedByKind: 'user', inputs: [], createdAt: 1, updatedAt: 1, startedAt: 1, finishedAt: null, nextAttemptAt: null,
+          cancelRequested: false, ...f }, { reason });
+        for (const t of [v.headline, v.word, v.title, ...v.stages.map((s) => s.label)]) {
+          n++;
+          assert.doesNotMatch(t, NEVER_COMPLETE, `${f.actionId ?? f.kind} / ${h}: ${t}`);
+        }
+      }
+    }
+  }
+  assert.ok(n > 1000, 'the headline scan is not vacuous');
+});
+
 test('HA1 no number without a source: rail numbers are sub-phase names or counts of the rail\'s own steps', () => {
   for (const v of L.bundledDomainViews()) {
     for (const records of RECORDS) {
@@ -141,8 +218,14 @@ test('HA1 no number without a source: rail numbers are sub-phase names or counts
   }
   // The setup sheet's numbers come from the health view itself.
   const rows = X.setupSheet(health({ disk: { dataHomeFreeBytes: 18 * GIB, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'below_required' } }));
-  assert.equal(rows.find((r) => r.id === 'disk').text, 'Free disk is 18 GB; execution needs 30 GB (40 GB recommended)');
-  assert.equal(rows.find((r) => r.id === 'image:sde-node').prepare, null, 'below the gate nothing can be prepared');
+  assert.equal(rows.find((r) => r.id === 'disk').text, 'Free disk is 18 GB; preparing images and the execution checks need 30 GB (40 GB recommended)');
+  // Final review C2: the gate's states, as ruled. Below 30 GB: ready with the advisory; below the floor: setup.
+  assert.equal(STATES['disk below the gate'].kind, 'ready');
+  assert.deepEqual(STATES['disk below the gate'].advisories, ['Free disk is 18 GB; preparing images and the execution checks need 30 GB (40 GB recommended).']);
+  assert.deepEqual([STATES['disk below the lease floor'].kind, STATES['disk below the lease floor'].problems], ['setup', ['disk_low']]);
+  const missing = X.setupSheet(health({ images: [{ profile: 'sde-node', present: false, matches: false }],
+    disk: { dataHomeFreeBytes: 18 * GIB, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'below_required' } }));
+  assert.equal(missing.find((r) => r.id === 'image:sde-node').prepare, null, 'below the gate no image can be prepared');
 });
 
 // ---------- HA2 ----------

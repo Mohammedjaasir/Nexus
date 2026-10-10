@@ -45,7 +45,9 @@ const STATUS_WORD: Record<StepStatus, string> = { REAL: 'In this release', PARTI
 
 /** Records of one project in one domain. Versions are the shown versions of the project's artifacts. */
 export interface RailRecords {
-  versions: { kind: string; status: 'draft' | 'candidate' | 'active' | 'failed' | 'deprecated'; validators: Readonly<Record<string, 'passed' | 'failed' | 'error' | 'skipped'>> }[];
+  versions: { kind: string; status: 'draft' | 'candidate' | 'active' | 'failed' | 'deprecated'; validators: Readonly<Record<string, 'passed' | 'failed' | 'error' | 'skipped'>>;
+    /** True when this version's checks were not read (past the Spine's read cap): a step of its kind claims no state. */
+    unread?: boolean }[];
   /** Action ids of this project's live jobs (queued, leased, running, awaiting approval, retry scheduled). */
   liveActions: readonly string[];
   participation: boolean;
@@ -90,7 +92,11 @@ export function railFor(view: DomainSpecView, records: RailRecords | null = null
     const future = s.status === 'FUTURE' || !isAtOrBefore(s.subPhase, view.currentSubPhase);
     const full = spec?.lifecycle.find((x) => x.id === s.id) ?? null;
     let state: StepState | null = null;
-    if (records && full && availability === null) {
+    // A step whose produced kind has a version with unread checks claims no state: its checks are not known, so it
+    // must not read "In progress" (or anything else) from an empty result list.
+    const doneKind = full && 'kind' in full.doneWhen ? full.doneWhen.kind : null;
+    const unread = !!records && doneKind !== null && records.versions.some((v) => v.unread === true && v.kind === doneKind);
+    if (records && full && availability === null && !unread) {
       const done = full.doneWhen;
       state = stepStateFrom(full, {
         versions: 'kind' in done ? records.versions.filter((v) => v.kind === done.kind).map((v) => ({ status: v.status, validators: v.validators })) : [],
