@@ -256,9 +256,15 @@ test('DR8 the recipe and validator tables match the B2a plan', () => {
   assert.equal(r('sde.test.discover').wallClockMs, 5 * 60_000);
   assert.deepEqual([r('repo.snapshot').retry.maxAttempts, r('sde.test.node').retry.maxAttempts, r('sde.test.node').retry.idempotent], [3, 1, false]);
   assert.deepEqual(r('sde.test.node').outputContract.required, ['junit.xml']);
+  // B2a Task 13 fix round 1 (the ruled defect): a dependency install's evidence, sde.deps.lock_matches, is the one ADVISORY
+  // validator; every other validator stays blocking.
   assert.deepEqual(VALIDATORS.map((v) => v.id), ['git.head_resolves', 'req.schema', 'problem.schema', 'suite.discovered', 'sde.tests_pass',
-    'build.exit_zero', 'build.manifest_present', 'build.output_hashed', 'blob.integrity', 'app.manifest_schema', 'app.preview_health', 'diag.schema']);
-  for (const v of VALIDATORS) assert.equal(v.blocking, true, v.id);
+    'build.exit_zero', 'build.manifest_present', 'build.output_hashed', 'blob.integrity', 'app.manifest_schema', 'app.preview_health', 'diag.schema',
+    'sde.deps.lock_matches']);
+  for (const v of VALIDATORS) assert.equal(v.blocking, v.id !== 'sde.deps.lock_matches', v.id);
+  const lock = VALIDATORS.find((v) => v.id === 'sde.deps.lock_matches');
+  assert.deepEqual([lock.kinds, lock.executes, lock.evidence], [['repository'], 'main', ['hash', 'exit']]);
+  assert.ok(!loadTs('src/shared/nexus/validators.ts').blockingValidatorsFor('repository').some((v) => v.id === lock.id), 'it never gates a repository version');
   assert.deepEqual(VALIDATORS.find((v) => v.id === 'sde.tests_pass').recipes, ['sde.test.node', 'sde.test.pytest']);
 });
 

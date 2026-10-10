@@ -24,6 +24,8 @@ export const ACTIVITY_DETAIL_ALLOW: readonly string[] = Object.freeze([
 export const ACTIVITY_ACTIONS: readonly string[] = Object.freeze([
   'artifact.create', 'artifact.archive',
   'version.register', 'version.update_draft', 'version.finalize', 'version.promote', 'version.discard',
+  // B2a Task 13 fix round 1: a user's Revalidate, recorded with its intent (IPC #33).
+  'version.revalidate',
   'lineage.write',
   'participation.attach', 'participation.withdraw',
   'handoff.send', 'handoff.accept', 'handoff.decline', 'handoff.withdraw',
@@ -243,6 +245,7 @@ function sentence(row: ActivityView, ctx: ActivityContext): string | null {
     case 'version.promote':
       return detail(row, 'rollback') === true ? `${versionPhrase(row, ctx)} made current again (roll back)` : `${versionPhrase(row, ctx)} made current`;
     case 'version.discard': return `${versionPhrase(row, ctx)} discarded`;
+    case 'version.revalidate': return `Checks run again on ${versionPhrase(row, ctx).replace(/^[VA]/, (c) => c.toLowerCase())}`;
     case 'lineage.write':
       return detail(row, 'source') === 'handoff_convert'
         ? `${versionPhrase(row, ctx)} linked to a version it received`

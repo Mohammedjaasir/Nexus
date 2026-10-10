@@ -31,14 +31,24 @@
  * - a diagnosis (B2a Task 12): the runner's facts re-validated, main's own probe table of the deployment added, the report
  *   stored inline as a `diagnostic_report` draft (lineage to the previewed application), `diag.schema` run, finalized.
  *
- * A recipe without an ingest rule here (dependency install) is refused with
- * `ingest_unavailable` / `no_ingest_rule`: unfinished work is never completed.
+ * - a dependency install (B2a Task 13 fix round 1, the `deps` rule): exit 0 is required and never enough. The run must
+ *   leave exactly its contract output `lock.sha256`, which `prepare` reads back from the blob store (small; its sha256
+ *   re-checked); `sde.deps.lock_matches` then requires 64 lowercase hex characters equal to BOTH the input repository
+ *   version's `metadata.lockfile.sha256` and the `lockfileSha256` of the approval consumed by THIS attempt. A missing file
+ *   is refused `missing_output`; a mismatch, an extra output, non-hex content or a secret-shaped value `invalid_output`;
+ *   nothing is stored on a refusal. On a pass the result is recorded ADVISORY on the repository version, bound to (job, n).
+ * - a failing test run (fix round 1): the failed and errored cases of the runner's normalized JUnit are kept with the
+ *   `sde.tests_pass` result as `case` evidence (failures first, at most MAX_LISTED_CASES and CASE_EVIDENCE_BUDGET, names
+ *   redacted and capped), the per-case table the junit_summary preview pages.
+ *
+ * A recipe without an ingest rule here is refused with `ingest_unavailable` / `no_ingest_rule`: unfinished work is never
+ * completed.
  */
 import { createHash } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import type { StagedOutput } from '../../../shared/nexus/execution';
 import type { Principal } from '../../../shared/nexus/platform';
-import { containsSecret } from '../activity/redact';
+import { containsSecret, REDACTED, redactSecretText } from '../activity/redact';
 import { hasProviderKey } from '../../../shared/nexus/secretShape';
 import type { ArtifactService } from '../artifact/artifactService';
 import { INLINE_MAX_BYTES } from '../artifact/versionRules';
@@ -47,6 +57,9 @@ import { PlatformError } from '../errors';
 import type { ResolveCommit, ValidationService } from '../validation/validationService';
 import { checkDiagnosis, checkDiscovery, checkGitFacts, COMMIT_RE, type ValidatorOutcome } from '../validation/normalized';
 import * as tests from '../validation/validators/testsPass';
+import * as depsLock from '../validation/validators/depsLockMatches';
+import { MAX_CASE_TEXT } from '../validation/evidenceShape';
+import type { Evidence } from '../../../shared/nexus/evidence';
 import { manifestSha256, exitZero, EXIT_ZERO, type TreeFile } from '../validation/validators/buildChecks';
 import type { AttemptExited, IngestContext, IngestDecision, IngestPort } from './executionService';
 import { MAX_DISCOVERED_FILES } from './planBuilder';
@@ -64,6 +77,11 @@ export interface IngestDeps {
   resolveCommit?: ResolveCommit | null;
   /** Fault injection for tests: called inside the transaction after the version rows are written. */
   faults?: { afterRows?: (recipeId: string) => void } | null;
+  /**
+   * The blob store's bytes (main's data home, src/main/nexusExec/dataHome.ts): a stored object of at most `maxBytes`,
+   * read through its confined path; `null` when it is not there, `'too_large'` when it is larger.
+   */
+  objects?: { readObjectBytes(sha256: string, maxBytes: number): Promise<Buffer | 'too_large' | null> } | null;
 }
 
 interface VersionRow { id: string; artifact_id: string; status: string; content_hash: string; storage_ref_json: string; metadata_json: string; draft_flag: string | null }
@@ -81,20 +99,55 @@ const jsonBytes = (v: unknown): number => Buffer.byteLength(JSON.stringify(v), '
 export const MAX_TREE_FILES = 5000;
 
 /** The ingest rule of each recipe: the one dispatch table of `ingestTx` (B2a Task 13 pins it to the registry's B2A_IMPL). */
-export const INGEST_RULES: Readonly<Record<string, 'snapshot' | 'discovery' | 'testRun' | 'build' | 'assemble' | 'diagnose'>> = Object.freeze({
+export const INGEST_RULES: Readonly<Record<string, 'snapshot' | 'discovery' | 'testRun' | 'build' | 'assemble' | 'diagnose' | 'deps'>> = Object.freeze({
   'repo.snapshot': 'snapshot', 'sde.test.discover': 'discovery', 'sde.test.node': 'testRun', 'sde.test.pytest': 'testRun',
-  'sde.build.node': 'build', 'sde.build.python': 'build', 'sde.app.assemble': 'assemble', 'sde.diagnose': 'diagnose'
+  'sde.build.node': 'build', 'sde.build.python': 'build', 'sde.app.assemble': 'assemble', 'sde.diagnose': 'diagnose',
+  'sde.deps.node': 'deps', 'sde.deps.python': 'deps'
 });
 /**
- * The implemented recipes whose outputs are never ingested, each with why: a dependency install has no evidence rule in
- * B2a (its exit is refused `no_ingest_rule`, so it never completes on an exit code alone), and a dev deployment is a
- * service (its evidence is `app.preview_health`, recorded while it runs).
+ * The implemented recipes whose outputs are never ingested, each with why: a dev deployment is a service (its evidence is
+ * `app.preview_health`, recorded while it runs).
  */
 export const NOT_INGESTED: Readonly<Record<string, string>> = Object.freeze({
-  'sde.deps.node': 'no evidence rule in B2a: refused no_ingest_rule',
-  'sde.deps.python': 'no evidence rule in B2a: refused no_ingest_rule',
   'sde.preview.start': 'a service: its evidence is app.preview_health'
 });
+/**
+ * The validators an ingest rule records that are not run through `runPure` (the registry check derives main's dispatched
+ * validators from this table): a test run records `sde.tests_pass` for the suite it ran (the `testRun` rule).
+ */
+const TEST_RUN_RECORDS: string = tests.ID;
+export const INGEST_RECORDED_VALIDATORS: Readonly<Record<string, 'testRun'>> = Object.freeze({ [TEST_RUN_RECORDS]: 'testRun' });
+/** The most failed or errored cases a test result lists, and the most characters they take in its evidence. */
+export const MAX_LISTED_CASES = 400;
+export const CASE_EVIDENCE_BUDGET = 32_768;
+
+/**
+ * The failed and errored cases of a normalized JUnit as `case` evidence: failures first, then errors, each name, class
+ * and file redacted and capped at MAX_CASE_TEXT; at most MAX_LISTED_CASES items and CASE_EVIDENCE_BUDGET characters. A
+ * name still secret-shaped after redaction is replaced whole, so the result never turns into `secret_in_evidence`.
+ */
+export function failingCaseEvidence(junit: unknown): Evidence[] {
+  const j = isObj(junit) && Array.isArray(junit.cases) ? junit.cases : [];
+  const cap = (s: unknown): string => {
+    const t = redactSecretText(typeof s === 'string' ? s : '').replace(/[\u0000-\u001f\u007f]+/g, ' ');
+    const c = t.length > MAX_CASE_TEXT ? `${t.slice(0, MAX_CASE_TEXT - 1)}…` : t;
+    return containsSecret(c) ? REDACTED : c;
+  };
+  const out: Evidence[] = [];
+  let used = 0;
+  for (const outcome of ['failed', 'errored'] as const) {
+    for (const c of j) {
+      if (!isObj(c) || c.outcome !== outcome) continue;
+      if (out.length >= MAX_LISTED_CASES) return out;
+      const item: Evidence = { type: 'case', name: cap(c.name), classname: cap(c.classname),
+        file: typeof c.file === 'string' && c.file.length > 0 ? cap(c.file) : null, outcome };
+      used += JSON.stringify(item).length + 1;
+      if (used > CASE_EVIDENCE_BUDGET) return out;
+      out.push(item);
+    }
+  }
+  return out;
+}
 
 /** What a diagnosis attempt was planned to read (its sandbox record), or null when the record does not say. */
 function plannedDiagnosis(sandboxJson: string | null): { containerIds: string[]; attemptIds: string[] } | null {
@@ -109,8 +162,12 @@ function plannedDiagnosis(sandboxJson: string | null): { containerIds: string[];
 export class IngestService implements IngestPort {
   constructor(private readonly db: Database.Database, private readonly deps: IngestDeps) {}
 
-  /** Async facts main observes itself, before the transaction: the snapshot's commit, resolved in the project folder. */
+  /**
+   * Async facts main observes itself, before the transaction: the snapshot's commit, resolved in the project folder; an
+   * install's `lock.sha256`, read back from the blob store (at most LOCK_OUTPUT_MAX_BYTES, its sha256 re-checked).
+   */
   prepare(ctx: IngestContext): unknown {
+    if (INGEST_RULES[ctx.recipe.id] === 'deps') return this.readLock(ctx);
     if (ctx.recipe.id !== 'repo.snapshot') return null;
     const parsed = ctx.exited.parsed.find((p) => p.parser === 'repo-snapshot')?.normalized
       ?? ctx.exited.parsed.find((p) => isObj(p.normalized))?.normalized;
@@ -133,8 +190,25 @@ export class IngestService implements IngestPort {
       case 'build': return this.build(ctx);
       case 'assemble': return this.assemble(ctx);
       case 'diagnose': return this.diagnose(ctx);
+      case 'deps': return this.depsInstall(ctx);
       default: return refuse('ingest_unavailable', 'no_ingest_rule', `outputs of ${ctx.recipe.id} are not ingested in this build`);
     }
+  }
+
+  /** The install's `lock.sha256` as stored (never trusted from the report): `{ lock: { text } | { error } | null }`. */
+  private readLock(ctx: IngestContext): unknown {
+    const staged = ctx.exited.outputs.filter((o) => o.relPath === depsLock.LOCK_OUTPUT);
+    // Missing, repeated or too large: the rule decides from the outputs alone; nothing is read.
+    if (staged.length !== 1 || !(staged[0].bytes <= depsLock.LOCK_OUTPUT_MAX_BYTES) || !/^[0-9a-f]{64}$/.test(staged[0].sha256)) return { lock: null };
+    const reader = this.deps.objects;
+    if (!reader) return { lock: { error: 'no_blob_store' } };
+    const want = staged[0].sha256;
+    return reader.readObjectBytes(want, depsLock.LOCK_OUTPUT_MAX_BYTES).then((b) => {
+      if (b === null) return { lock: { error: 'missing' } };
+      if (b === 'too_large') return { lock: { error: 'too_large' } };
+      if (createHash('sha256').update(b).digest('hex') !== want) return { lock: { error: 'hash_mismatch' } };
+      return { lock: { text: b.toString('utf8') } };
+    }, () => ({ lock: { error: 'unreadable' } }));
   }
 
   // ---------- helpers ----------
@@ -341,7 +415,11 @@ export class IngestService implements IngestPort {
       if (suite.status === 'draft') this.deps.blobs!.attachTx(token, suite.id, [{ sha256: staged.sha256, role: 'junit', path: `junit/${job.id}-${attempt.n}.xml` }]);
     }
     this.deps.faults?.afterRows?.(ctx.recipe.id);
-    this.deps.validation.recordOutcomeTx(suite.id, tests.ID, outcome, { jobId: job.id, attemptN: attempt.n });
+    // The per-case table (fix round 1): a judged report's failed and errored cases are kept with the result (failures
+    // first, bounded, redacted); the counts stay in the junit item.
+    const cases = outcome.evidence.some((e) => e.type === 'junit') ? failingCaseEvidence(parsed?.normalized) : [];
+    const recorded = cases.length > 0 ? { ...outcome, evidence: [...outcome.evidence, ...cases] } : outcome;
+    this.deps.validation.recordOutcomeTx(suite.id, TEST_RUN_RECORDS, recorded, { jobId: job.id, attemptN: attempt.n });
     const params = parse(job.params_json);
     this.deps.validation.finalizeIfReady(system, suite.id, { allowPartial: isObj(params) && params.revalidate === true });
     return ok;
@@ -431,6 +509,41 @@ export class IngestService implements IngestPort {
     this.deps.faults?.afterRows?.(ctx.recipe.id);
     this.deps.validation.runRegisterTx(system, v.id, { 'app.manifest_schema': manifest }, { jobId: job.id, attemptN: attempt.n });
     this.deps.validation.finalizeIfReady(system, v.id);
+    return ok;
+  }
+
+  // ---------- dependency install (B2a Task 13 fix round 1) ----------
+
+  /**
+   * Exit 0 is required and never enough: `sde.deps.lock_matches` judges the stored `lock.sha256` against the input
+   * repository version's lockfile hash and the approval THIS attempt consumed. A refusal stores nothing (`missing_output`
+   * for a missing file, `invalid_output` otherwise); a pass is recorded advisory on the repository version, bound to
+   * (job, n), and the job completes on it.
+   */
+  private depsInstall(ctx: IngestContext): IngestDecision {
+    const { job, attempt } = ctx;
+    const repo = this.inputs(job.id, 'repository')[0];
+    if (!repo) return refuse('invalid_output', 'bad_input', 'the install has no repository input');
+    const meta = parse(repo.metadata_json);
+    const lf = isObj(meta) && isObj(meta.lockfile) ? meta.lockfile : null;
+    const repositoryLock = lf && typeof lf.sha256 === 'string' ? lf.sha256 : null;
+    // The approval consumed by THIS attempt (a retry's attempt needs its own): its request names the lockfile hash.
+    const ap = this.db.prepare(`SELECT request_json FROM approvals WHERE job_id = ? AND consumed_by_job_id = ? AND consumed_by_attempt_n = ?
+      AND status = 'approved' AND reason = 'egress.deps' ORDER BY consumed_at DESC LIMIT 1`).get(job.id, job.id, attempt.n) as { request_json: string } | undefined;
+    const req = ap ? parse(ap.request_json) : null;
+    const approvalLock = isObj(req) && typeof req.lockfileSha256 === 'string' ? req.lockfileSha256 : null;
+    const facts = isObj(ctx.facts) ? ctx.facts : {};
+    const read = isObj(facts.lock) ? facts.lock as { text: string } | { error: string } : null;
+    const outcome = this.deps.validation.runPure(depsLock.ID, {
+      exit: { code: ctx.exited.exit.code, ...(ctx.exited.exit.signal ? { signal: ctx.exited.exit.signal } : {}), oomKilled: ctx.exited.exit.oomKilled },
+      outputs: ctx.exited.outputs.map((o) => ({ relPath: o.relPath, sha256: o.sha256, bytes: o.bytes })), read, repositoryLock, approvalLock
+    } satisfies depsLock.DepsLockFacts);
+    if (outcome.status !== 'passed') {
+      const reason = outcome.reason ?? 'invalid_output';
+      return refuse(reason === 'missing_output' ? 'missing_output' : 'invalid_output', reason, `the install was refused: ${outcome.summary}`);
+    }
+    this.deps.faults?.afterRows?.(ctx.recipe.id);
+    this.deps.validation.recordOutcomeTx(repo.version_id, depsLock.ID, outcome, { jobId: job.id, attemptN: attempt.n });
     return ok;
   }
 

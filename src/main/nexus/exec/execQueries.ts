@@ -6,13 +6,15 @@
  * happen in main's execution wiring (src/main/nexusExec), from the RELATIVE location returned here, confined to the
  * data home there.
  *
- * - actionsFor (#24): the domain's user actions with `available` and a reason: `planned`, `future`, `permission`,
+ * - actionsFor (#24): the domain's user actions with `available` and a reason: `planned`, `future`, `withdrawn` or
+ *   `complete` (the participation is not active: fix round 1, never reported as `permission`), `permission`,
  *   `not_applicable`, `blocked_by_step:<id>` (an input kind the step produces has no usable version yet) or the
  *   execution core's `setup:<id>`. Permission is decided without an audit row (a list is not an attempt).
  * - attemptLog (#28): the stored `log_path` of attempt n of a readable job (job.read).
  * - previewSource (#34): what a page of a version reads: its inline JSON, its git facts, its blob, its tree manifest
- *   (version_blobs `file` rows), its discovered tests (metadata) or its latest JUnit counts (failures first). The cases
- *   of a JUnit report are parsed in the runner only; main shows the counts the check recorded.
+ *   (version_blobs `file` rows), its discovered tests (metadata) or its latest JUnit table: the counts (failures first),
+ *   then the per-case rows, failed cases first, then errored ones (fix round 1: the `case` evidence the ingest kept with
+ *   the latest `sde.tests_pass` result, from the runner's normalized report; main never parses the XML).
  * - validationsFor (#32): per validator, the LATEST BLOCKING row (the version's status) and, apart from it, the newest
  *   advisory run (a user's run on a candidate, a deduplicated output): a run result, never the status.
  */
@@ -47,8 +49,11 @@ export interface ValidatorSummary {
   history: number;
 }
 
-/** A blob larger than this is not previewed (a page of it would say nothing useful). */
-export const PREVIEW_MAX_OBJECT_BYTES = 16 * 2 ** 20;
+/**
+ * A blob larger than this is not previewed (`too_large`). Fix round 1: a preview redacts the WHOLE content before it pages
+ * it (a cut can never split a secret), so the bound keeps one page request's redaction pass short.
+ */
+export const PREVIEW_MAX_OBJECT_BYTES = 4 * 2 ** 20;
 const LIVE_DEPLOYMENTS = "('starting','healthy','unhealthy')";
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const parse = (t: string | null): unknown => { if (t === null) return null; try { return JSON.parse(t) as unknown; } catch { return null; } };
@@ -94,7 +99,7 @@ export class ExecQueries {
         inputs: action.inputs.map((s) => ({ slot: s.slot, kinds: [...s.kinds], min: s.min, max: s.max })),
         needsApproval: recipes.some((r) => r!.network === 'egress-approved')
       };
-      const reason = this.reasonFor(action, step, versionKind, can, usable, producedBy, q.projectId);
+      const reason = this.reasonFor(action, step, versionKind, can, usable, producedBy, q.projectId, pw.status);
       view.available = reason === null;
       view.reason = reason;
       out.push(view);
@@ -104,9 +109,12 @@ export class ExecQueries {
 
   private reasonFor(action: NonNullable<ReturnType<typeof getUserAction>>, step: { status: string; subPhase: Parameters<typeof isAtOrBefore>[0] } | null,
     versionKind: string | null, can: (a: 'job.create' | 'artifact.create' | 'deployment.stop') => boolean,
-    usable: (kind: string, statuses: readonly VersionStatus[]) => boolean, producedBy: (kind: string) => string, projectId: string): string | null {
+    usable: (kind: string, statuses: readonly VersionStatus[]) => boolean, producedBy: (kind: string) => string, projectId: string,
+    participation: string): string | null {
     if (!isAtOrBefore(action.subPhase)) return 'planned';
     if (step && (step.status === 'FUTURE' || !isAtOrBefore(step.subPhase))) return 'future';
+    // The participation is withdrawn or complete: that is why nothing can start, not a missing permission.
+    if (participation !== 'active') return participation;
     const run = action.run;
     if ('inlineKind' in run) {
       if (!can('artifact.create')) return 'permission';
@@ -194,7 +202,8 @@ export class ExecQueries {
       const framework = typeof m.framework === 'string' ? m.framework : null;
       return { type: 'rows', rows: files.map((f) => ({ name: f, detail: framework, bytes: null, outcome: null })) };
     }
-    // junit_summary: the latest sde.tests_pass result's JUnit counts, failures first.
+    // junit_summary: the latest sde.tests_pass result's JUnit counts (failures first), then its per-case table: the failed
+    // cases, then the errored ones (each row: the test name, its file or class, its outcome).
     if (kind !== 'test_suite') return none();
     const r = this.db.prepare(`SELECT evidence_json, status FROM validations WHERE version_id = ? AND validator_id = 'sde.tests_pass'
       ORDER BY finished_at DESC, rowid DESC LIMIT 1`).get(v.id) as { evidence_json: string; status: string } | undefined;
@@ -209,6 +218,15 @@ export class ExecQueries {
       { name: 'skipped', detail: null, bytes: null, outcome: String(n('skipped') ?? 0) },
       { name: 'total', detail: r!.status, bytes: null, outcome: String(n('total') ?? 0) }
     ];
+    const cases = (ev as unknown[]).filter((e): e is Record<string, unknown> => isObj(e) && e.type === 'case'
+      && (e.outcome === 'failed' || e.outcome === 'errored') && typeof e.name === 'string');
+    for (const outcome of ['failed', 'errored'] as const) {
+      for (const c of cases) {
+        if (c.outcome !== outcome) continue;
+        const where = typeof c.file === 'string' && c.file.length > 0 ? c.file : typeof c.classname === 'string' && c.classname.length > 0 ? c.classname : null;
+        rows.push({ name: c.name as string, detail: where, bytes: null, outcome });
+      }
+    }
     return { type: 'rows', rows };
   }
 }

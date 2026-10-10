@@ -22,9 +22,17 @@ const MIN = 60_000;
 const LOCK = '3f'.repeat(32);
 const terminal = (s) => ['completed', 'partial', 'failed', 'cancelled', 'timed_out', 'interrupted'].includes(s);
 
-/** After every flow: no orphan of any kind (O1-O22), foreign keys, integrity, the activity chain. */
+/**
+ * After every flow: no orphan of any kind (O1-O22), foreign keys, integrity, the activity chain. O21 counts against a
+ * sweep (fix round 1): without the caller's `sweptAt`, the approval expiry sweep runs here at the world's own time.
+ */
 function sound(w, name, sweptAt) {
-  const o = allOrphans(w.db, sweptAt === undefined ? {} : { sweptAt });
+  if (sweptAt === undefined) {
+    sweptAt = typeof w.now === 'function' ? w.now() : w.clock.now;
+    w.nx.approvals?.expireDue(sweptAt);
+  }
+  assert.ok(Number.isSafeInteger(sweptAt), `${name}: a sweep time`);
+  const o = allOrphans(w.db, { sweptAt });
   assert.deepEqual(o, ALL_ZERO, `${name}: orphans ${JSON.stringify({ ...execOrphanRows(w.db), ...t13OrphanRows(w.db, { sweptAt }) })}`);
   assert.deepEqual(w.db.prepare('PRAGMA foreign_key_check').all(), [], `${name}: foreign keys`);
   assert.equal(w.db.pragma('integrity_check', { simple: true }), 'ok', `${name}: integrity`);
@@ -233,7 +241,19 @@ test('F-OBS the nine observability questions, one query each, for a finished job
 
 const egressWorld = () => execWorld({ approvals: 'real', realIngest: true, repoMeta: { lockfile: { sha256: LOCK } }, dockerMemoryBytes: 64 * GIB });
 
-test('F3 dependency install with approval once: waiting -> approved once -> the plan carries that approval -> it runs; with no evidence rule in B2a it never completes on its exit', async () => {
+/** An install through the handlers up to its running attempt: started, approved once, provisioned. */
+async function runningInstall(w, r, x) {
+  const s = await x.ok('nexus:job:start', startArgs('sde.deps.install', { inputs: [{ versionId: w.repoV, slot: 'repository' }] }));
+  w.exec.tick(w.now());
+  const ap = (await x.ok('nexus:approvals:list', { projectId: 'p-ledger', status: 'pending' })).find((y) => y.jobId === s.job.id);
+  await x.ok('nexus:approval:respond', ap.id, 'once');
+  w.provision(r, s.job.id);
+  return { jobId: s.job.id, approvalId: ap.id };
+}
+const lockRows = (w) => w.db.prepare("SELECT * FROM validations WHERE validator_id = 'sde.deps.lock_matches' ORDER BY rowid").all();
+const sha256Hex = (s) => require('node:crypto').createHash('sha256').update(Buffer.from(s)).digest('hex');
+
+test('F3 dependency install with approval once: waiting -> approved once -> the plan carries that approval -> it runs; it completes only on the stored lock.sha256 matching the repository and the approval (sde.deps.lock_matches evidence)', async () => {
   const w = egressWorld(); const r = w.attach(); const x = ipcOver(w);
   const a = (await x.ok('nexus:actions:available', { projectId: 'p-ledger', workspaceId: 'sde' })).find((y) => y.actionId === 'sde.deps.install');
   assert.deepEqual([a.available, a.needsApproval], [true, true]);
@@ -249,14 +269,148 @@ test('F3 dependency install with approval once: waiting -> approved once -> the 
   assert.deepEqual(plan.container.network, { mode: 'egress-approved', approvalId: ap.id, purpose: 'deps' });
   w.provision(r, s.job.id);
   assert.equal((await x.ok('nexus:job:get', s.job.id)).headline, 'running');
-  w.exitWith(r, s.job.id, { code: 0, outputs: [w.file('lock.sha256', LOCK)] });
+  const out = w.stored('lock.sha256', `${LOCK}\n`);
+  w.exitWith(r, s.job.id, { code: 0, outputs: [out] });
   await w.settle();
   const d = await x.ok('nexus:job:get', s.job.id);
-  assert.deepEqual([d.state, d.outcome, d.error.code], ['failed', 'ingest_unavailable', 'no_ingest_rule'], 'an exit alone completes nothing');
+  // Fix round 1 (the ruled defect): validated evidence completes it, never the exit alone.
+  assert.deepEqual([d.state, d.outcome, d.headline, d.error], ['completed', 'completed', 'checks_passed', null]);
   assert.equal(d.attemptHistory[0].network, 'egress-approved');
   assert.deepEqual(d.approvals.map((y) => y.status), ['approved']);
+  // The evidence row: on the repository version, ADVISORY, bound to (job, 1), with typed evidence.
+  const rows = lockRows(w);
+  assert.equal(rows.length, 1);
+  assert.deepEqual([rows[0].version_id, rows[0].job_id, rows[0].attempt_n, rows[0].status, rows[0].blocking, rows[0].advisory, rows[0].stage],
+    [w.repoV, s.job.id, 1, 'passed', 0, 1, 'candidate']);
+  assert.deepEqual(JSON.parse(rows[0].evidence_json), [{ type: 'exit', code: 0, oomKilled: false },
+    { type: 'hash', label: 'lock.sha256', sha256: out.sha256 }, { type: 'hash', label: 'lockfile', sha256: LOCK }]);
+  // Shown on the repository version as a run result, never its status (advisory rows never gate).
+  const v = (await x.ok('nexus:version:validations', w.repoV)).find((y) => y.validatorId === 'sde.deps.lock_matches');
+  assert.deepEqual([v.status, v.blocking, v.latestRun.status], [null, false, 'passed']);
+  assert.equal(w.version(w.repoV).status, 'candidate', 'the repository version is unchanged');
+  // The attempt's environment records the dependency cache the install wrote.
+  assert.equal(JSON.parse(w.attempts(s.job.id)[0].environment_json).depsVolume, `nexus-deps-sde-node-${LOCK.slice(0, 12)}`);
   w.nx.approvals.expireDue(w.now());
   sound(w, 'F3', w.now());
+  w.close();
+});
+
+test('F3b an install whose exit 0 is not backed by its lock.sha256 is refused and stores nothing: a missing file, non-hex content, an extra output, a non-zero exit, a secret-shaped value, a hash of another lockfile', async () => {
+  const OTHER = 'ab'.repeat(32);
+  const cases = [
+    // A missing lock.sha256 never reaches ingest: the core's contract rule refuses the exit (the rule's own refusal, missing_output, is F3d).
+    { name: 'missing file', outputs: () => [], want: ['invalid_output', 'outputs_missing'] },
+    { name: 'non-hex content', outputs: (w) => [w.stored('lock.sha256', 'not a lockfile hash\n')], want: ['invalid_output', 'not_hex'] },
+    { name: 'an extra output', outputs: (w) => [w.stored('lock.sha256', LOCK), w.stored('node_modules.txt', 'x')], want: ['invalid_output', 'extra_output'] },
+    { name: 'a non-zero exit', outputs: (w) => [w.stored('lock.sha256', LOCK)], code: 1, want: ['nonzero_exit', 'nonzero_exit'] },
+    { name: 'a secret-shaped value', outputs: (w) => [w.stored('lock.sha256', 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz012345\n')], want: ['invalid_output', 'secret_in_output'] },
+    { name: 'another lockfile', outputs: (w) => [w.stored('lock.sha256', OTHER)], want: ['invalid_output', 'repository_mismatch'] }
+  ];
+  for (const c of cases) {
+    const w = egressWorld(); const r = w.attach(); const x = ipcOver(w);
+    const { jobId } = await runningInstall(w, r, x);
+    const versions0 = w.db.prepare('SELECT COUNT(*) n FROM artifact_versions').get().n;
+    w.exitWith(r, jobId, { code: c.code ?? 0, outputs: c.outputs(w) });
+    await w.settle();
+    const d = await x.ok('nexus:job:get', jobId);
+    assert.deepEqual([d.state, d.outcome, d.error.code], ['failed', ...c.want], c.name);
+    assert.equal(d.attempts, 1, `${c.name}: never retried`);
+    assert.deepEqual(lockRows(w), [], `${c.name}: no evidence row`);
+    assert.equal(w.db.prepare('SELECT COUNT(*) n FROM validations WHERE job_id = ?').get(jobId).n, 0, `${c.name}: nothing bound to the attempt`);
+    assert.equal(w.db.prepare('SELECT COUNT(*) n FROM artifact_versions').get().n, versions0, `${c.name}: no version`);
+    noLeak(d, c.name);
+    assert.doesNotMatch(JSON.stringify(d), /sk-ant/, `${c.name}: never echoed`);
+    for (const t of ['jobs', 'job_attempts', 'job_events', 'activity']) {
+      assert.doesNotMatch(JSON.stringify(w.db.prepare(`SELECT * FROM ${t}`).all()), /sk-ant-api03-abcdef/, `${c.name}: ${t}`);
+    }
+    w.nx.approvals.expireDue(w.now());
+    sound(w, `F3b ${c.name}`, w.now());
+    w.close();
+  }
+});
+
+test('F3c a retried install (attempt 2) needs its own consumed approval: attempt 1\'s approval never completes attempt 2; with its own, it completes on its evidence bound to (job, 2)', async () => {
+  const w = egressWorld(); const r = w.attach(); const x = ipcOver(w);
+  const { jobId, approvalId: first } = await runningInstall(w, r, x);
+  // Attempt 1 is lost to a retryable Docker fault after its approval was consumed: the job is retried (idempotent, 2 attempts).
+  r.report({ op: 'fault', message: 'the docker daemon went away', attemptId: w.liveAttempt(jobId).id, failureClass: 'docker_error' });
+  assert.equal(w.jobState(jobId), 'retry_scheduled');
+  w.advance(10 * MIN); w.exec.tick(w.now()); w.exec.tick(w.now());
+  // Attempt 2 asks again: a NEW pending approval; the first stays consumed by attempt 1. No plan before the answer.
+  assert.equal(w.jobState(jobId), 'awaiting_approval');
+  const starts0 = r.sentOf('attempt.start').length;
+  const pending = (await x.ok('nexus:approvals:list', { status: 'pending' })).filter((y) => y.jobId === jobId);
+  assert.equal(pending.length, 1); assert.notEqual(pending[0].id, first);
+  const a1 = w.db.prepare('SELECT consumed_by_job_id AS j, consumed_by_attempt_n AS n FROM approvals WHERE id = ?').get(first);
+  assert.deepEqual([a1.j, a1.n], [jobId, 1]);
+  assert.equal(r.sentOf('attempt.start').length, starts0, 'attempt 2 gets no plan on attempt 1\'s approval');
+  await x.ok('nexus:approval:respond', pending[0].id, 'once');
+  assert.equal(r.lastStart().plan.container.network.approvalId, pending[0].id, 'the plan carries attempt 2\'s own approval');
+  w.provision(r, jobId);
+  w.exitWith(r, jobId, { code: 0, outputs: [w.stored('lock.sha256', LOCK)] });
+  await w.settle();
+  const d = await x.ok('nexus:job:get', jobId);
+  assert.deepEqual([d.state, d.headline, d.attempts], ['completed', 'checks_passed', 2]);
+  const rows = lockRows(w);
+  assert.deepEqual(rows.map((x2) => [x2.job_id, x2.attempt_n, x2.status]), [[jobId, 2, 'passed']]);
+  const a2 = w.db.prepare('SELECT consumed_by_attempt_n AS n FROM approvals WHERE id = ?').get(pending[0].id);
+  assert.equal(a2.n, 2);
+  w.nx.approvals.expireDue(w.now());
+  sound(w, 'F3c', w.now());
+  w.close();
+});
+
+test('F3d the deps rule itself: attempt n without an approval consumed by n is refused (approval_missing), a missing file is missing_output, each hash mismatch alone is refused, and a refusal writes nothing', async () => {
+  const { IngestService } = loadTs('src/main/nexus/exec/ingest.ts');
+  const depsLock = loadTs('src/main/nexus/validation/validators/depsLockMatches.ts');
+  const { getRecipe } = loadTs('src/shared/nexus/recipes.ts');
+  const w = egressWorld(); const r = w.attach(); const x = ipcOver(w);
+  const { jobId } = await runningInstall(w, r, x);
+  const out = w.stored('lock.sha256', LOCK);
+  const ing = new IngestService(w.db, { artifacts: w.nx.artifacts, validation: w.nx.validation, blobs: w.nx.blobs, now: () => w.now(),
+    objects: { readObjectBytes: async (sha, max) => w.dataHome.readObjectBytes(sha, max) } });
+  const exited = (outputs) => ({ exit: { code: 0, oomKilled: false }, outputs, parsed: [], logBytes: 0 });
+  const ctxOf = (attemptPatch, outputs) => ({ system: w.sys, job: w.job(jobId), attempt: { ...w.liveAttempt(jobId), ...attemptPatch },
+    recipe: getRecipe('sde.deps.node'), exited: exited(outputs), token: null });
+  const decide = async (attemptPatch, outputs) => {
+    const ctx = ctxOf(attemptPatch, outputs);
+    ctx.facts = await ing.prepare(ctx);
+    const before = w.db.prepare('SELECT COUNT(*) n FROM validations').get().n;
+    const res = w.db.transaction(() => ing.ingestTx(ctx)).immediate();
+    return { res, wrote: w.db.prepare('SELECT COUNT(*) n FROM validations').get().n - before, facts: ctx.facts };
+  };
+  // The stored bytes are read back and re-hashed (never the report's word).
+  assert.deepEqual(await ing.prepare(ctxOf({}, [out])), { lock: { text: LOCK } });
+  // Attempt 2 of this job has no approval of its own: attempt 1's consumed approval does not count.
+  const two = await decide({ n: 2 }, [out]);
+  assert.deepEqual([two.res.ok, two.res.outcome, two.res.error.code, two.wrote], [false, 'invalid_output', 'approval_missing', 0]);
+  // A missing lock.sha256 is missing_output (the rule's own refusal; end to end the core's contract rule refuses first).
+  const none = await decide({}, [w.stored('other.txt', 'x')]);
+  assert.deepEqual([none.res.ok, none.res.outcome, none.res.error.code, none.wrote], [false, 'missing_output', 'missing_output', 0]);
+  // A stored object that is gone or altered is never trusted.
+  const gone = w.file('lock.sha256', 'cd'.repeat(32));
+  assert.deepEqual((await decide({}, [gone])).res.error.code, 'lock_unreadable');
+  // Each hash mismatch alone (the validator, pure): the repository's, the approval's, and no approval at all.
+  const base = { exit: { code: 0, oomKilled: false }, outputs: [{ relPath: 'lock.sha256', sha256: out.sha256, bytes: 64 }], read: { text: LOCK },
+    repositoryLock: LOCK, approvalLock: LOCK };
+  assert.equal(depsLock.run(base).status, 'passed');
+  assert.equal(depsLock.run({ ...base, repositoryLock: 'ab'.repeat(32) }).reason, 'repository_mismatch');
+  assert.equal(depsLock.run({ ...base, approvalLock: 'ab'.repeat(32) }).reason, 'approval_mismatch');
+  assert.equal(depsLock.run({ ...base, approvalLock: null }).reason, 'approval_missing');
+  assert.equal(depsLock.run({ ...base, exit: { code: 0, oomKilled: true } }).reason, 'nonzero_exit');
+  assert.equal(depsLock.run({ ...base, read: { text: `${LOCK.slice(0, 63)}g` } }).reason, 'not_hex');
+  // Upper-case hex is not the contract (64 LOWERCASE hex) and a long hex run is secret-shaped to the redactor: refused.
+  assert.equal(depsLock.run({ ...base, read: { text: LOCK.toUpperCase() } }).reason, 'secret_in_output');
+  assert.equal(depsLock.run({ ...base, outputs: [{ relPath: 'lock.sha256', sha256: out.sha256, bytes: 4096 }] }).reason, 'not_hex');
+  assert.equal(depsLock.run({ ...base, read: { error: 'hash_mismatch' } }).reason, 'lock_unreadable');
+  for (const f of [base, { ...base, approvalLock: null }]) for (const e of depsLock.run(f).evidence) assert.ok(['exit', 'hash'].includes(e.type));
+  // Nothing above wrote a row; the attempt still runs and completes on its own approval.
+  assert.deepEqual(lockRows(w), []);
+  w.exitWith(r, jobId, { code: 0, outputs: [out] });
+  await w.settle();
+  assert.equal(w.jobState(jobId), 'completed');
+  w.nx.approvals.expireDue(w.now());
+  sound(w, 'F3d', w.now());
   w.close();
 });
 
@@ -373,6 +527,52 @@ test('F9 advisory rows never set a version status: a later run on a candidate sh
   assert.equal(w.version(r.suiteVersionId).status, 'candidate');
   sound(w, 'F9');
   w.close();
+});
+
+test('F10 a failing suite\'s JUnit table (#34): the counts, then the failed cases, then the errored ones; names redacted and capped; every row once through the row cursor; #32 never lists the cases; bounded', async () => {
+  const { junit } = require('./helpers/execWorld.cjs');
+  const TOKEN = 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789';
+  const w = execWorld({ realIngest: true }); const x = ipcOver(w);
+  const r = await w.runTests({ exit: 1, junit: junit([{ name: 'passes' }, { name: 'errors out', outcome: 'errored' }, { name: 'adds', outcome: 'failed' },
+    { name: `leaks ${TOKEN}`, outcome: 'failed' }, { name: 'y'.repeat(300), outcome: 'errored' }, { name: 'subtracts', outcome: 'failed' }]) });
+  assert.equal(w.version(r.suiteVersionId).status, 'failed');
+  const page = await x.ok('nexus:version:preview', r.suiteVersionId, { part: 'junit_summary', maxBytes: 65536 });
+  assert.deepEqual(page.rows.slice(0, 5).map((y) => [y.name, y.outcome]), [['failed', '3'], ['errored', '2'], ['passed', '1'], ['skipped', '0'], ['total', '6']]);
+  const cases = page.rows.slice(5);
+  assert.deepEqual(cases.map((y) => y.outcome), ['failed', 'failed', 'failed', 'errored', 'errored'], 'failures first, then errors');
+  assert.deepEqual(cases.slice(0, 3).map((y) => y.name), ['adds', 'leaks [redacted]', 'subtracts']);
+  assert.deepEqual(cases.map((y) => y.detail), Array(5).fill('test/a.test.js'));
+  assert.equal(cases[4].name.length, 200, 'a long name is capped');
+  assert.equal(page.totalRows, 10); assert.equal(page.nextRow, null);
+  noLeak(page); assert.doesNotMatch(JSON.stringify(page), /sk-ant/);
+  // The row cursor: small pages, every row exactly once, in order.
+  const seen = []; let from = 0; let pages = 0;
+  for (;;) {
+    const p = await x.ok('nexus:version:preview', r.suiteVersionId, { part: 'junit_summary', fromRow: from, maxBytes: 120 });
+    seen.push(...p.rows.map((y) => y.name)); pages++;
+    if (p.nextRow === null) break;
+    assert.equal(p.nextRow, from + p.rows.length); from = p.nextRow;
+  }
+  assert.deepEqual(seen, page.rows.map((y) => y.name)); assert.ok(pages > 2);
+  // The cases are kept as typed `case` evidence with the result; #32 lists the evidence without them.
+  const ev = JSON.parse(w.latest(r.suiteVersionId, 'sde.tests_pass').evidence_json);
+  assert.equal(ev.filter((e) => e.type === 'case').length, 5);
+  const v = (await x.ok('nexus:version:validations', r.suiteVersionId)).find((y) => y.validatorId === 'sde.tests_pass');
+  assert.ok(v.evidence.length > 0); assert.ok(v.evidence.every((e) => e.type !== 'case'));
+  sound(w, 'F10');
+  w.close();
+  // Bounded: 450 failing cases keep at most MAX_LISTED_CASES within CASE_EVIDENCE_BUDGET; the result is still `failed`, never `error`.
+  const { MAX_LISTED_CASES, CASE_EVIDENCE_BUDGET } = loadTs('src/main/nexus/exec/ingest.ts');
+  const w2 = execWorld({ realIngest: true });
+  const many = await w2.runTests({ exit: 1, junit: junit(Array.from({ length: 450 }, (_, i) => ({ name: `case number ${i}`, outcome: 'failed' }))) });
+  const row = w2.latest(many.suiteVersionId, 'sde.tests_pass');
+  const listed = JSON.parse(row.evidence_json).filter((e) => e.type === 'case');
+  assert.equal(row.status, 'failed');
+  assert.ok(listed.length > 0 && listed.length <= MAX_LISTED_CASES, String(listed.length));
+  assert.ok(JSON.stringify(listed).length <= CASE_EVIDENCE_BUDGET + listed.length);
+  assert.deepEqual(listed.slice(0, 2).map((e) => e.name), ['case number 0', 'case number 1']);
+  sound(w2, 'F10 bounded');
+  w2.close();
 });
 
 test('F-index the flow titles name the end-to-end ids of the REAL steps they prove', () => {

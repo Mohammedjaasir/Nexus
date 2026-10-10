@@ -61,6 +61,11 @@ import { requireStoredUser } from '../approvals/approvalService';
 import { DEPLOYMENT_STATUSES, LIVE_DEPLOYMENT_STATUSES } from './deploymentRules';
 
 /** The fixed lifetime of a dev deployment in B2a (idle traffic is not measurable). */
+/**
+ * The validators a dev deployment records while it runs (its health check), read by the registry check (B2a Task 13 fix
+ * round 1); `judgeTx` records exactly this one.
+ */
+export const DEPLOYMENT_VALIDATORS: readonly string[] = Object.freeze([preview.ID]);
 export const PREVIEW_LIFETIME_MS = PREVIEW_IDLE_TTL_MS;
 export const START_WINDOW_MS = preview.START_WINDOW_MS;
 export const HEALTH_KEEP = 50;
@@ -313,7 +318,7 @@ export class DeploymentService {
     const facts = { path, startedAt, container, bindAddress: d.bind_address,
       probes: probesOf(d.health_json).map((p) => ({ at: p.at, status: p.status, ms: p.ms })) };
     const outcome = given ?? preview.run(facts);
-    const res = this.deps.validation.recordOutcomeTx(d.subject_version_id, preview.ID, outcome, { jobId: d.job_id, attemptN: a.n, startedAt });
+    const res = this.deps.validation.recordOutcomeTx(d.subject_version_id, DEPLOYMENT_VALIDATORS[0], outcome, { jobId: d.job_id, attemptN: a.n, startedAt });
     this.deps.validation.finalizeIfReady(this.system(), d.subject_version_id);
     return { outcome, check: { id: res.id, status: res.status } };
   }

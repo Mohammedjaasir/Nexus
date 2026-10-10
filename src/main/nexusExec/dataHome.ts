@@ -22,7 +22,7 @@
  *
  * Async only (fs.promises): no synchronous file-system call here (the main posture ratchet).
  */
-import { lstat, mkdir, readdir, realpath, statfs, unlink } from 'node:fs/promises';
+import { lstat, mkdir, open, readdir, realpath, statfs, unlink } from 'node:fs/promises';
 import * as path from 'node:path';
 import { isUnderRoot } from '../fsRoots';
 import { relSegments } from '../nexusIpc/sources';
@@ -75,6 +75,12 @@ export interface DataHome {
   sweepObjectsTmp(cutoffMs: number): Promise<{ removed: number; failed: number }>;
   /** The confined object delete (`deleteObjectFiles`): a link, a hard link or a path outside is refused and reported. */
   deleteObjects(shas: readonly string[]): Promise<{ failed: string[] }>;
+  /**
+   * A small stored object's bytes (B2a Task 13 fix round 1: an install's `lock.sha256`), read through its confined path
+   * (`objectPath`: a link or a path leaving the data home is refused): null when it is not there or not a plain file,
+   * `'too_large'` when it holds more than `maxBytes`. The caller re-checks the sha256.
+   */
+  readObjectBytes(sha256: string, maxBytes: number): Promise<Buffer | 'too_large' | null>;
 }
 
 /** One object file as the hygiene pass sees it (never its bytes). */
@@ -249,6 +255,21 @@ export function resolveDataHome(userData: string): DataHome {
     listObjectFiles(limit: number) { return listObjectFiles(root, limit); },
     sweepObjectsTmp(cutoffMs: number) { return sweepObjectsTmp(root, cutoffMs); },
     deleteObjects(shas: readonly string[]): Promise<{ failed: string[] }> { return deleteObjectFiles(home, shas); },
+    async readObjectBytes(sha256: string, maxBytes: number): Promise<Buffer | 'too_large' | null> {
+      if (typeof sha256 !== 'string' || !SHA_RE.test(sha256) || !Number.isSafeInteger(maxBytes) || maxBytes < 0) return null;
+      const abs = await confineUnder(root, objectRel(sha256));
+      if (!abs) return null;
+      let fh;
+      try { fh = await open(abs, 'r'); } catch { return null; }
+      try {
+        const st = await fh.stat();
+        if (!st.isFile() || st.nlink > 1) return null;
+        if (st.size > maxBytes) return 'too_large';
+        const buf = Buffer.alloc(st.size);
+        const { bytesRead } = await fh.read(buf, 0, buf.length, 0);
+        return buf.subarray(0, bytesRead);
+      } finally { await fh.close(); }
+    },
     async ensure(): Promise<void> {
       const refuse = (why: string): never => { throw new PlatformError('invalid', `the data home layout is refused: ${why}`); };
       // The root first, before anything is created: an existing link or non-directory is refused.

@@ -38,7 +38,9 @@ const start = (w, patch = {}) => ({ projectId: 'p-ledger', workspaceId: 'sde', a
 const denials = (w) => w.db.prepare("SELECT COUNT(*) n FROM activity WHERE status = 'denied'").get().n;
 const counts = (w) => ['jobs', 'job_attempts', 'approvals', 'deployments', 'artifacts', 'artifact_versions', 'validations', 'image_builds']
   .map((t) => w.db.prepare(`SELECT COUNT(*) n FROM ${t}`).get().n);
+/** O1-O22 = 0 and the store's own checks. O21 counts against a sweep (fix round 1): without `o.sweptAt` the sweep runs here. */
 function healthy(w, o = {}) {
+  if (o.sweptAt === undefined) { o = { ...o, sweptAt: w.now() }; w.nx.approvals?.expireDue(o.sweptAt); }
   assert.deepEqual(allOrphans(w.db, o), ALL_ZERO);
   assert.deepEqual(w.db.prepare('PRAGMA foreign_key_check').all(), []);
   assert.equal(w.db.pragma('integrity_check', { simple: true }), 'ok');
@@ -153,6 +155,30 @@ test('S2a job:logs reads only the stored log of a readable job, redacted again; 
   fs.writeFileSync(abs, `${JSON.stringify({ ts: 1, stream: 'stdout', text: 'hello' })}\n${JSON.stringify({ ts: 2, stream: 'stdout', text: `key ${TOKEN}` })}\n`);
   const page = await x.ok('nexus:job:logs', j.id, { attempt: 1, fromOffset: 0, maxBytes: 262144 });
   assert.match(page.text, /hello/); assert.doesNotMatch(page.text, /sk-ant-api03/); assert.equal(page.eof, true);
+  // Fix round 1: a runner `nexus` frame quoting Docker's error text names host paths (the data home, its real path, userData,
+  // a `\\?\` long path, a drive path, a macOS home). On read every one is cut to its basename: the page names no host path.
+  const root = w.dataHome.root;
+  const real = fs.realpathSync.native(root);
+  const userData = path.dirname(root);
+  const hostText = `the container could not be created or started: Error response from daemon: mkdir ${path.join(root, 'work', j.id, '1', 'out')}: `
+    + `access denied; also ${path.join(real, 'objects', 'aa')} and ${path.join(userData, 'Local Storage', 'x.db')} and `
+    + `\\\\?\\C:\\Users\\pc\\AppData\\Roaming\\nexus-app\\nexus\\logs\\jobs\\x.log and D:\\docker\\volumes\\nexus-ws-1 and /Users/alice/Library/x and `
+    + `/run/desktop/mnt/host/c/Users/pc/AppData/nexus/work/${j.id}/1/in; key ${TOKEN}`;
+  fs.appendFileSync(abs, `${JSON.stringify({ ts: 3, stream: 'nexus', text: hostText })}\n`);
+  const scrubbed = await x.ok('nexus:job:logs', j.id, { attempt: 1, fromOffset: 0, maxBytes: 262144 });
+  noLeak(scrubbed, 'a log page with host paths');
+  const nexusFrame = JSON.parse(scrubbed.text.trim().split('\n').pop());
+  assert.equal(nexusFrame.stream, 'nexus');
+  assert.match(nexusFrame.text, /mkdir out: access denied; also aa and x\.db and x\.log and nexus-ws-1 and x and in; key \[redacted\]/);
+  for (const p of [root, real, userData, os.homedir()]) assert.ok(!scrubbed.text.toLowerCase().includes(p.toLowerCase()), p);
+  // The runner itself writes its `nexus` frames with host paths cut (main scrubs again on read).
+  const { LogWriter } = loadTs('src/runner/logs.ts');
+  const writerFile = path.join(root, 'logs', 'jobs', 'WRITER', '1.log');
+  const lw = new LogWriter(require('node:fs/promises'), root, writerFile, { now: () => 1 });
+  await lw.open(); lw.nexus(hostText); await lw.close();
+  const written = JSON.parse(fs.readFileSync(writerFile, 'utf8').trim());
+  noLeak(written.text, 'the runner\'s own nexus frame');
+  assert.match(written.text, /mkdir out: access denied/);
   await x.refused('nexus:job:logs', [j.id, { attempt: 2, fromOffset: 0, maxBytes: 10 }], 'not_found');
   // No schema takes a location: a path-like key is a bad request.
   for (const k of ['path', 'logPath', 'file', 'dir', 'root']) {
@@ -300,7 +326,8 @@ test('S5a unknown ids are not_found for the owner, malformed ids bad_request, an
   }
   for (const [ch, args] of idChannels(w.repoV)) {
     if (ch === 'nexus:actions:available') continue;          // the project itself is denied first (below)
-    await x.refused(ch, args, ch.startsWith('nexus:job') || ch === 'nexus:deployment:stop' || ch === 'nexus:approval:respond' ? 'denied' : 'denied');
+    // Every one of them: denied (an id channel never tells a stranger whether the id exists).
+    await x.refused(ch, args, 'denied');
   }
   await x.refused('nexus:actions:available', [{ projectId: 'p-ledger', workspaceId: 'sde' }], 'denied');
   restore();
@@ -333,7 +360,8 @@ test('S6a a secret in params or in inline content is refused before anything is 
   const w = execWorld();
   const x = ipcOver(w);
   const r1 = await x.refused('nexus:job:start', [start(w, { actionId: 'sde.diagnose', inputs: [], params: { target: 'job', targetId: TOKEN.replace(/[^A-Za-z0-9_-]/g, '') } })], 'invalid');
-  assert.ok(['secret_in_params', 'bad_params'].includes(r1.reason), r1.reason);
+  // The value fits the action's own schema (an id shape), so the secret check is what refuses it.
+  assert.equal(r1.reason, 'secret_in_params');
   const r2 = await x.refused('nexus:artifact:saveInline', [{ projectId: 'p-ledger', workspaceId: 'sde', kind: 'requirement', target: { name: 'Export' },
     content: { title: 'Export', body: `use ${TOKEN}`, criteria: [{ id: 'AC1', text: 'x' }] } }], 'invalid', { reason: 'secret_in_metadata' });
   for (const r of [r1, r2]) assert.doesNotMatch(JSON.stringify(r), /sk-ant/);
@@ -453,8 +481,11 @@ test('S8b the runner refuses an egress spec without the approval id (D17); prefl
   const runnerTests = read('test/nexus-core-runner.test.cjs');
   assert.match(runnerTests, /test\('D17 egress-approved without an approval id, or with one main did not consume for this attempt, is /);
   // A plan without the approval id does not even parse as a main -> runner start for egress (C22 builds none; D17 refuses one).
-  const preflightTests = fs.readdirSync(path.join(ROOT, 'test')).filter((f) => f.endsWith('.cjs')).map((f) => read(`test/${f}`)).join('\n');
-  assert.match(preflightTests, /PF2/);
+  // PF2 by its test title (fix round 1: never a bare /PF2/ anywhere): the contracts file names each refused case
+  // `PF2 <case> is refused`, and the observed bridge network is one of them.
+  const contracts = read('test/nexus-core-exec-contracts.test.cjs');
+  assert.ok(contracts.includes('test(`PF2 ${name} is refused`'), 'the PF2 test title');
+  assert.ok(contracts.includes("['bridge network', (i) => { i.HostConfig.NetworkMode = 'bridge'; }, /network/],"), 'PF2 bridge network is refused');
   const sandbox = read('test/nexus-exec-sandbox.test.cjs');
   for (const id of ['K7 network none: TCP to the host test server fails', 'K9 dev deployment: the app cannot reach the host; the forwarder binds 127.0.0.1 only',
     'K10 fault injection: --network bridge']) assert.ok(sandbox.includes(`test('${id}`), id);

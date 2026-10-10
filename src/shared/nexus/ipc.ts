@@ -230,10 +230,14 @@ export interface ValidationResultView {
 export type PreviewPart = 'content' | 'manifest' | 'discovery' | 'junit_summary';
 export interface PreviewView {
   part: PreviewPart; versionId: VersionId;
-  /** A page of text (redacted), or of rows (manifest files, discovered tests, JUnit cases: failures first). */
+  /**
+   * A page of text (redacted whole, then paged: `page` / `nextPage`; a cut never splits a character), or of rows
+   * (manifest files, discovered tests, the JUnit table: counts, then failed cases, then errored ones) paged by a row
+   * cursor: `fromRow` / `nextRow` (the first row not returned; null at the end).
+   */
   text: string | null;
   rows: { name: string; detail: string | null; bytes: number | null; outcome: string | null }[] | null;
-  page: number; nextPage: number | null; totalRows: number | null; totalBytes: number | null;
+  page: number | null; nextPage: number | null; fromRow: number | null; nextRow: number | null; totalRows: number | null; totalBytes: number | null;
 }
 export interface LogPageView { text: string; nextOffset: number; eof: boolean; truncatedMiddle: boolean }
 export interface DeploymentView {
@@ -291,7 +295,8 @@ export interface JobStartArgs {
 export interface JobsListFilter { projectId?: ProjectId; workspaceId?: WorkspaceId; states?: JobState[]; jobKind?: JobKind; limit?: number }
 export interface JobLogsQuery { attempt: number; fromOffset: number; maxBytes: number }
 export interface EventsQuery { sinceSeq: number; projectId?: ProjectId; limit?: number }
-export interface PreviewQuery { part: PreviewPart; page?: number; maxBytes: number }
+/** `page` for the text part (`content`), `fromRow` for the row parts; never both. */
+export interface PreviewQuery { part: PreviewPart; page?: number; fromRow?: number; maxBytes: number }
 export interface SaveInlineArgs {
   projectId: ProjectId; workspaceId: WorkspaceId; kind: 'requirement' | 'problem_statement'; target: SaveTargetArg;
   /** The structured content (at most 32 KiB); its schema is checked in main. */

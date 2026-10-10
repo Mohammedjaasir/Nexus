@@ -106,7 +106,7 @@ import { canRetry, isJobState, TERMINAL_JOB_STATES } from '../jobs/jobRules';
 import { JOB_KINDS, requireActiveParticipation, storedWorkspace, validateKey, type JobRow, type JobService } from '../jobs/jobService';
 import { attemptRow, HEARTBEAT_GAP_MS, LEASE_MS, heartbeatTx, insertAttemptTx, liveAttemptOf, transitionAttemptTx, type AttemptRow } from './attempts';
 import { appendJobEventTx, toJobEvent, type JobEvent, type JobEventRow } from './events';
-import { buildPlan, imageRef, lockfileSha256Of, sandboxRecord, underDataHome, type DiagnoseContext, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
+import { buildPlan, depsVolumeName, imageRef, lockfileSha256Of, sandboxRecord, underDataHome, type DiagnoseContext, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
 import { homeLabel } from '../../../shared/nexus/homeLabel';
 import type { RunnerPort } from './runnerPort';
 import { backoffMs, DEFAULT_CAPS, leaseGuard, SOLO_MEMORY_SHARE, usableImage, type LiveUse, type ProbeCache, type SchedulerCaps } from './scheduler';
@@ -236,6 +236,8 @@ export interface ValidationHooks {
 /** The data home as the core sees it. The blob store file methods (DataHome has them) serve restart recovery's hygiene pass. */
 export interface ExecDataHome extends Partial<BlobStoreFiles> {
   root: string; attemptWorkRel(jobId: string, n: number): string; attemptLogPath(jobId: string, n: number): string;
+  /** A stored object's bytes (at most `maxBytes`), read through its confined path: what an install's ingest re-reads. */
+  readObjectBytes?(sha256: string, maxBytes: number): Promise<Buffer | 'too_large' | null>;
 }
 
 export interface ExecutionDeps {
@@ -1394,7 +1396,9 @@ export class ExecutionService {
       // The image's own record of its tool versions (its `nexus.versions` label, checked by its build self-test; constraint 8).
       imageVersions: image?.versions ?? null,
       dockerVersion: this.probe?.probe.version ?? null, runnerBootId: this.bootId, nexusVersion: this.deps.appVersion ?? null,
-      lockfileSha256: lockfileSha256Of(inputs)
+      lockfileSha256: lockfileSha256Of(inputs),
+      // The dependency cache this attempt mounts (`nexus-deps-<profile>-<lock12>`; an install writes it), or null.
+      depsVolume: depsVolumeName(cap.profile, inputs)
     };
     const leased = immediateTx(this.db, () => {
       const cur = this.row(j.id);
@@ -2227,7 +2231,8 @@ export class ExecutionService {
       const own = (this.db.prepare(`SELECT v.status, v.validator_id FROM validations v WHERE v.job_id = @id AND v.blocking = 0
         AND NOT EXISTS (SELECT 1 FROM validations w WHERE w.job_id = v.job_id AND w.version_id = v.version_id AND w.validator_id = v.validator_id
           AND w.blocking = 0 AND (w.finished_at > v.finished_at OR (w.finished_at = v.finished_at AND w.rowid > v.rowid)))`).all({ id: j.id }) as
-        { status: string; validator_id: string }[]).filter((x) => getValidator(x.validator_id)?.blocking === true);
+        { status: string; validator_id: string }[]).filter((x) => getValidator(x.validator_id) !== null);
+      // (Any registered validator: an advisory one, sde.deps.lock_matches, is an install's own result.)
       const latest = [...blocking, ...own];
       const outs = this.db.prepare('SELECT status FROM artifact_versions WHERE produced_by_job_id = ?').all(j.id) as { status: string }[];
       const liveChildren = (this.db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE parent_job_id = ? AND state IN (${LIVE_JOB_STATES.map(() => '?').join(', ')})`)

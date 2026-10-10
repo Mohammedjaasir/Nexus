@@ -193,7 +193,9 @@ export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformO
     resolveCommit: opts?.resolveCommit ?? null, acceptFsRoot: opts?.acceptFsRoot ?? null, appVersion: opts?.appVersion ?? null }) : null;
   if (validation) artifactHooks.recordInlineRegisterTx = (versionId, kind, content) => validation.recordInlineRegisterTx(versionId, kind, content);
   const ingest: IngestPort | null = opts?.ingest !== undefined ? opts.ingest
-    : validation ? new IngestService(db, { artifacts, validation, blobs, now, resolveCommit: opts?.resolveCommit ?? null, faults: opts?.ingestFaults ?? null })
+    : validation ? new IngestService(db, { artifacts, validation, blobs, now, resolveCommit: opts?.resolveCommit ?? null, faults: opts?.ingestFaults ?? null,
+      // An install's lock.sha256 is read back from the blob store through the data home (fix round 1).
+      objects: typeof opts?.dataHome?.readObjectBytes === 'function' ? { readObjectBytes: (sha, max) => opts.dataHome!.readObjectBytes!(sha, max) } : null })
       : null;
   // Task 9: approvals and image builds, dev deployments, snapshot requests. Each is late-bound to the execution core.
   const approvals = executionAvailable ? new ApprovalService(db, { auth, now, log, imageContext: opts?.imageContexts ?? null }) : null;

@@ -37,7 +37,7 @@ export const VALIDATORS: readonly ValidatorDef[] = deepFreeze([
     'The question is missing or a field breaks the problem statement schema.'),
   v('suite.discovered', ['test_suite'], 'register', 'main', ['hash', 'number'],
     'No test was discovered, or the hash of the discovered list does not match.'),
-  v('sde.tests_pass', ['test_suite'], 'candidate', 'child-job', ['junit', 'exit', 'hash', 'number'],
+  v('sde.tests_pass', ['test_suite'], 'candidate', 'child-job', ['junit', 'exit', 'hash', 'number', 'case'],
     'No test ran, a test failed or errored, the counts disagree, a test ran that discovery did not list, '
     + 'the exit code disagrees with the results, or the JUnit report is missing or unreadable.',
     ['sde.test.node', 'sde.test.pytest']),
@@ -50,7 +50,13 @@ export const VALIDATORS: readonly ValidatorDef[] = deepFreeze([
   v('app.preview_health', ['application'], 'candidate', 'deployment', ['http', 'inspect'],
     'No 200 answer on the health path within 60 s, the container exited, or the port is bound anywhere but 127.0.0.1.'),
   v('diag.schema', ['diagnostic_report'], 'register', 'main', ['schema'],
-    'A field of the report has no inspect, probe or log source.')
+    'A field of the report has no inspect, probe or log source.'),
+  // B2a Task 13 fix round 1: the evidence of a dependency install (sde.deps.node / sde.deps.python). ADVISORY: it never
+  // gates the repository version it is recorded on; it is the install job's own result, bound to (job, attempt n).
+  { id: 'sde.deps.lock_matches', version: 1, kinds: ['repository'], stage: 'candidate', executes: 'main', blocking: false,
+    evidence: ['hash', 'exit'], subPhase: 'B2a',
+    failsWhen: 'The exit is not 0, lock.sha256 is missing or is not the only output, it does not hold 64 lowercase hex characters, '
+      + 'or it differs from the repository version\'s lockfile hash or from the lockfile hash of the approval this attempt consumed.' }
 ]);
 
 export const VALIDATOR_IDS: readonly ValidatorId[] = deepFreeze(VALIDATORS.map((x) => x.id));

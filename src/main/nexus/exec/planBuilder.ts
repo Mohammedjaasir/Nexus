@@ -301,10 +301,12 @@ export function lockfileSha256Of(inputs: readonly PlanInput[]): string | null {
   return null;
 }
 
-function depsVolume(profileId: string, inputs: readonly PlanInput[]): string | null {
+/** The dependency cache volume of a profile and the inputs' lockfile hash (`nexus-deps-<profile>-<lock12>`), or null. */
+export function depsVolumeName(profileId: string | null | undefined, inputs: readonly PlanInput[]): string | null {
   const lock = lockfileSha256Of(inputs);
-  return lock ? `nexus-deps-${profileId}-${lock.slice(0, 12)}` : null;
+  return lock && typeof profileId === 'string' && /^[a-z][a-z0-9-]{0,31}$/.test(profileId) ? `nexus-deps-${profileId}-${lock.slice(0, 12)}` : null;
 }
+const depsVolume = depsVolumeName;
 
 export function limitsFor(recipe: RecipeDef): ResourceLimits {
   const l = recipe.limits;

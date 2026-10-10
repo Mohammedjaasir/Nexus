@@ -13,14 +13,19 @@ import { DOMAINS } from '../../shared/nexus/domains/index';
 import { B2A_IMPL, checkRegistry, type RegistryImpl } from '../../shared/nexus/registryCheck';
 import { RECIPES } from '../../shared/nexus/recipes';
 import { plannedRecipeIds } from './exec/planBuilder';
-import { INGEST_RULES, NOT_INGESTED } from './exec/ingest';
+import { INGEST_RECORDED_VALIDATORS, INGEST_RULES, NOT_INGESTED } from './exec/ingest';
 import { PURE_VALIDATORS } from './validation/validationService';
-import * as testsPass from './validation/validators/testsPass';
-import * as blobIntegrity from './validation/validators/blobIntegrity';
-import * as previewHealth from './validation/validators/appPreviewHealth';
+import { RUNNER_VALIDATORS } from './validation/checkRunner';
+import { DEPLOYMENT_VALIDATORS } from './deployments/deploymentService';
 
-/** The validators main executes outside `runPure`: a child test job, a runner re-hash, a dev deployment's probe. */
-export const DISPATCHED_VALIDATORS: readonly string[] = Object.freeze([testsPass.ID, blobIntegrity.ID, previewHealth.ID]);
+/**
+ * The validators main executes outside `runPure`, derived from the dispatch tables themselves (fix round 1: never a
+ * hand-kept list): the results an ingest rule records (a child test job's `sde.tests_pass`), the runner's re-hashes
+ * (CheckRunner dispatches through RUNNER_VALIDATORS) and a dev deployment's health check (DEPLOYMENT_VALIDATORS).
+ */
+export const DISPATCHED_VALIDATORS: readonly string[] = Object.freeze([
+  ...Object.keys(INGEST_RECORDED_VALIDATORS), ...RUNNER_VALIDATORS, ...DEPLOYMENT_VALIDATORS
+]);
 
 /** What main has actually registered, by kind. */
 export function mainImplementation(): { recipes: string[]; validators: string[]; ingest: string[]; notIngested: string[] } {

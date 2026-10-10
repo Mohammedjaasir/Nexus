@@ -168,6 +168,14 @@ function execWorld(o = {}) {
       const buf = Buffer.from(String(content));
       return { relPath, sha256: crypto.createHash('sha256').update(buf).digest('hex'), bytes: buf.length, mediaType };
     },
+    /** B2a Task 13 fix round 1: a staged output whose bytes are ALSO in the data home's object store, as the runner leaves them. */
+    stored(relPath, content = relPath, mediaType = 'application/octet-stream') {
+      const f = w.file(relPath, content, mediaType);
+      const abs = path.join(dataHome.root, dataHome.objectRel(f.sha256));
+      require('node:fs').mkdirSync(path.dirname(abs), { recursive: true });
+      require('node:fs').writeFileSync(abs, Buffer.from(String(content)));
+      return f;
+    },
     /** Report an exit with full outputs (StagedOutput objects) and parser results. */
     exitWith(r, jobId, x = {}) {
       const a = w.liveAttempt(jobId) ?? x.attempt;

@@ -261,6 +261,65 @@ function capped(out: Record<string, unknown>): Record<string, unknown> {
   return bytes > MAX_DETAILS_BYTES ? { omitted: `[details too large: ${bytes} bytes]` } : out;
 }
 
+// ---------- host paths (B2a Task 13 fix round 1) ----------
+
+/** The last segment of a path whose separators are `/` or any run of backslashes (JSON-escaped text included). */
+function lastPathSegment(p: string): string {
+  const parts = p.split(/[\\/]+/).filter((x) => x.length > 0);
+  return parts.length > 0 ? parts[parts.length - 1] : '';
+}
+const NOT_PATH = String.raw`\s'"${'`'}<>|:`;
+/** One separator: `/` or a run of backslashes (a JSON-escaped backslash is two). */
+const SEP = String.raw`(?:\\+|/)`;
+/**
+ * The rest of a path after a separator: segments that a separator ends may hold single spaces between words
+ * (`John Smith\`, `Local Storage\`, `Application Support/`); the last segment ends at whitespace, a quote or a colon.
+ */
+const PATH_TAIL = String.raw`(?:[^\\/${NOT_PATH}]+(?: +[^\\/${NOT_PATH}]+)*${SEP})*[^${NOT_PATH}]*`;
+/** Long-path prefixes (`\\?\`, `\\.\`), single or JSON-escaped, then a drive or UNC path. */
+const LONG_PREFIX_PATH = new RegExp(String.raw`\\+[?.]\\+(?:[A-Za-z]:${SEP})?` + PATH_TAIL, 'g');
+/** A UNC path (`\\server\share\...`), single or JSON-escaped. */
+const UNC_PATH = new RegExp(String.raw`\\{2,}[^\\/\s'"]+${SEP}` + PATH_TAIL, 'g');
+/** A drive-absolute path (`C:\...`, `C:/...`). */
+const DRIVE_PATH = new RegExp(String.raw`\b[A-Za-z]:${SEP}` + PATH_TAIL, 'g');
+/**
+ * A host POSIX path: a user's home (`/Users/<name>`, `/home/<name>` but not the sandbox's own `/home/nexus`), Docker
+ * Desktop's host mounts (`/run/desktop/mnt/host/...`, `/host_mnt/...`, `/mnt/<drive>/...`) or macOS temp folders.
+ * Container paths (`/workspace`, `/out`, `/in`) are kept.
+ */
+const HOST_POSIX_PATH = new RegExp(String.raw`(^|[\s'"(=,;\[:])((?:/Users/|/home/(?!nexus(?:/|\b))|/run/desktop/|/host_mnt/|/mnt/[A-Za-z]/|/private/var/|/var/folders/)`
+  + PATH_TAIL + ')', 'g');
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => `\\${c}`);
+
+/**
+ * Text that may name host paths (a runner `nexus` log frame, a Docker error), with every host path cut to its basename:
+ * each of `roots` (the data home, its real path, userData) wherever it appears, with either separator, any case, behind a
+ * `\\?\` prefix or JSON-escaped; then any long-prefix, UNC or drive-absolute path, and host POSIX homes and mounts.
+ * Never throws; text without such a path is returned unchanged.
+ */
+export function scrubHostPaths(text: string, roots: readonly (string | null | undefined)[] = []): string {
+  if (typeof text !== 'string' || text.length === 0) return typeof text === 'string' ? text : '';
+  try {
+    let s = text;
+    const known = [...new Set(roots.filter((r): r is string => typeof r === 'string' && r.length >= 3))].sort((a, b) => b.length - a.length);
+    for (const root of known) {
+      const parts = root.split(/[\\/]+/).filter((x) => x.length > 0).map(escapeRe);
+      if (parts.length === 0) continue;
+      const lead = /^[\\/]/.test(root) && !/^[A-Za-z]:/.test(root) ? String.raw`[\\/]+` : '';
+      // The root literally (spaces included, either separator, any case), then the rest of the path, if any.
+      const re = new RegExp(String.raw`(?:\\+[?.]\\+)?` + lead + parts.join(String.raw`[\\/]+`) + `(?:${SEP}${PATH_TAIL})?`, 'gi');
+      s = s.replace(re, (m) => lastPathSegment(m));
+    }
+    s = s.replace(LONG_PREFIX_PATH, (m) => lastPathSegment(m));
+    s = s.replace(DRIVE_PATH, (m) => lastPathSegment(m.replace(/^[A-Za-z]:/, '')));
+    s = s.replace(UNC_PATH, (m) => lastPathSegment(m));
+    s = s.replace(HOST_POSIX_PATH, (_m, pre: string, p: string) => `${pre}${lastPathSegment(p)}`);
+    return s;
+  } catch {
+    return '[text omitted: it could not be checked for host paths]';
+  }
+}
+
 /** The only shape that may be stored in `activity.details_json`. Never throws. */
 export function redactDetails(value: unknown): Record<string, unknown> {
   try {

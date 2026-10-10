@@ -52,7 +52,7 @@ import type {
   SessionId, StorageRef, VersionId, VersionInput, VersionStatus, WorkspaceId
 } from '../../../shared/nexus/platform';
 import type { AuthService } from '../auth/authService';
-import { PrincipalResolver } from '../auth/principals';
+import { PrincipalResolver, requireStoredUser } from '../auth/principals';
 import { containsSecret, redactText } from '../activity/redact';
 import { appendActivityRow } from '../activity/writer';
 import { newId } from '../db/ids';
@@ -673,8 +673,10 @@ export class ArtifactService {
    * Needs schema v9 (the validations table): otherwise 'platform_unavailable'.
    */
   saveInline(p: Principal, i: SaveInlineInput): { artifact: Artifact; version: ArtifactVersion; created: boolean } {
+    // Only a stored, enabled user writes a requirement or a problem statement (fix round 1: an agent or the system is
+    // denied and audited, never answered a bare 'invalid'), before anything else is read.
+    requireStoredUser(this.principals, this.deps.auth, p, 'artifact.create', 'artifact', 'only a user saves an inline artifact');
     if (!isPlainObject(i)) throw new PlatformError('invalid', 'input must be an object');
-    if (p?.kind !== 'user') throw new PlatformError('invalid', 'an inline save is made by a user principal');
     if (!isStr(i.projectId) || !isStr(i.workspaceId)) throw new PlatformError('invalid', 'projectId and workspaceId are required');
     const kind = i.kind as string;
     const rule = INLINE_KINDS[kind as InlineKind];

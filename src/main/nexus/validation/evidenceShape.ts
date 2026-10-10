@@ -17,6 +17,8 @@ export const MAX_EVIDENCE_ITEMS = 500;
 const MAX_TEXT = 1024;
 const MAX_LABEL = 128;
 const MAX_SCHEMA_ERRORS = 200;
+/** A `case` item's name, class and file (each already redacted and capped by the ingest that lists them). */
+export const MAX_CASE_TEXT = 200;
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const COMMIT_RE = /^[0-9a-f]{40}$/;
@@ -117,6 +119,11 @@ function item(x: unknown): Evidence {
       }
       return { type: 'log', attemptId: x.attemptId as string, stream: x.stream as 'stdout' | 'stderr', offset: x.offset as number, length: x.length as number,
         sha256: x.sha256 as string };
+    case 'case':
+      keys(x, ['type', 'name', 'classname', 'file', 'outcome']);
+      if (!isText(x.name, MAX_CASE_TEXT) || !isText(x.classname, MAX_CASE_TEXT) || !(x.file === null || isText(x.file, MAX_CASE_TEXT))
+        || (x.outcome !== 'failed' && x.outcome !== 'errored')) no('a case item is malformed');
+      return { type: 'case', name: x.name as string, classname: x.classname as string, file: x.file as string | null, outcome: x.outcome as 'failed' | 'errored' };
     default:
       return no('an evidence item has an unknown type');
   }

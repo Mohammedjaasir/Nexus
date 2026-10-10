@@ -5,7 +5,8 @@
  * multi-user later adds rows to `principals`, not schema.
  */
 import type Database from 'better-sqlite3';
-import type { Principal, PrincipalId, PrincipalKind } from '../../../shared/nexus/platform';
+import type { PlatformAction, Principal, PrincipalId, PrincipalKind } from '../../../shared/nexus/platform';
+import type { AuthService } from './authService';
 import { PlatformError } from '../errors';
 
 export const LOCAL_USER_ID = 'user:local';
@@ -33,4 +34,17 @@ export class PrincipalResolver {
     if (!r) throw new PlatformError('platform_unavailable', `seeded principal missing: ${id}`);
     return { id: r.id, kind: r.kind, displayName: r.displayName };
   }
+}
+
+/**
+ * Only a stored, enabled USER may do this (the system and agents never consent, save a user's words or read the user
+ * surface): `denied` (`user_only`) and audited, before anything else is read. Used by approvals, image preparation,
+ * dev deployment stops, inline saves (#35) and the domain registry channel (#22).
+ */
+export function requireStoredUser(principals: PrincipalResolver, auth: AuthService, p: Principal, action: PlatformAction, entityType: string,
+  message: string): void {
+  const stored = p && typeof p.id === 'string' && p.id.length > 0 ? principals.get(p.id) : null;
+  if (p && stored && stored.kind === 'user' && p.kind === 'user' && stored.disabledAt === null) return;
+  const audited = auth.auditDenial(p, { action, reason: 'user_only', entityType });
+  throw new PlatformError('denied', message, { reason: 'user_only', audited });
 }

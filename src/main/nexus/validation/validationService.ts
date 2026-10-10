@@ -29,7 +29,7 @@
  *   that the scheduler leases like a tool job; its ingest records the result. Deployment validators are recorded by
  *   the deployment (Task 9).
  * - `revalidate` (user, 'version.revalidate'): drafts only; validate jobs for every blocking validator of the kind;
- *   old rows stay.
+ *   old rows stay. With an intent (IPC #33) the same intent sent again returns the same jobs (its answer is recorded).
  */
 import type Database from 'better-sqlite3';
 import type { Evidence, ValidationResult, ValidationStatus, ValidatorStage } from '../../../shared/nexus/evidence';
@@ -45,7 +45,8 @@ import type { BlobIndex } from '../blobs/blobIndex';
 import { newId } from '../db/ids';
 import { immediateTx } from '../db/tx';
 import { PlatformError } from '../errors';
-import type { JobService } from '../jobs/jobService';
+import { validateKey, type JobService } from '../jobs/jobService';
+import { appendActivityRow } from '../activity/writer';
 import { ProjectAccess } from '../project/projectAccess';
 import { appendJobEventTx } from '../exec/events';
 import { errored, type ValidatorOutcome } from './normalized';
@@ -58,6 +59,7 @@ import * as suite from './validators/suiteDiscovered';
 import * as build from './validators/buildChecks';
 import * as appManifest from './validators/appManifestSchema';
 import * as diag from './validators/diagSchema';
+import * as depsLock from './validators/depsLockMatches';
 
 export { VERIFY_TIMEOUT_MS, type ResolveCommit } from './checkRunner';
 
@@ -74,7 +76,9 @@ export const PURE_VALIDATORS: Readonly<Record<string, (facts: unknown) => Valida
   [diag.ID]: (f: unknown) => diag.run(f),
   [build.EXIT_ZERO]: (f: unknown) => build.exitZero(f as Parameters<typeof build.exitZero>[0]),
   [build.MANIFEST_PRESENT]: (f: unknown) => build.manifestPresent(f as Parameters<typeof build.manifestPresent>[0]),
-  [build.OUTPUT_HASHED]: (f: unknown) => build.outputHashed(f as Parameters<typeof build.outputHashed>[0])
+  [build.OUTPUT_HASHED]: (f: unknown) => build.outputHashed(f as Parameters<typeof build.outputHashed>[0]),
+  // B2a Task 13 fix round 1: a dependency install's evidence (advisory, on the repository version), run at its ingest.
+  [depsLock.ID]: (f: unknown) => depsLock.run(f as depsLock.DepsLockFacts)
 });
 export const MAX_EVIDENCE_CHARS = 65_536;
 export const MAX_SUMMARY_CHARS = 500;
@@ -228,7 +232,8 @@ export class ValidationService {
     const def = getValidator(validatorId);
     return this.recordResultTx(this.system(), {
       versionId, validatorId, validatorVersion: String(def?.version ?? 1), stage: def?.stage ?? 'candidate', status: o.status,
-      blocking: def?.blocking ?? false, advisory: false, summary: o.reason && o.status !== 'passed' ? `${o.summary} (${o.reason})` : o.summary,
+      // An advisory validator (sde.deps.lock_matches) records advisory rows on any version; the others as before.
+      blocking: def?.blocking ?? false, advisory: def?.blocking === false, summary: o.reason && o.status !== 'passed' ? `${o.summary} (${o.reason})` : o.summary,
       evidence: o.evidence, jobId: bind.jobId ?? null, attemptN: bind.attemptN ?? null, startedAt: bind.startedAt
     });
   }
@@ -411,20 +416,51 @@ export class ValidationService {
     return ids.filter((id) => id !== jobId);
   }
 
-  /** User: run every blocking check of a draft again (new rows; old rows stay). Returns the validate jobs. */
-  revalidate(p: Principal, versionId: string): { jobs: string[] } {
+  /**
+   * User: run every blocking check of a draft again (new rows; old rows stay). Returns the validate jobs.
+   * With an intent (a ULID the renderer minted once, B2a Task 13 fix round 1), the request is idempotent: its answer is
+   * recorded with it (one `version.revalidate` activity row, in the transaction that queues the checks), and the same
+   * intent sent again returns the same jobs and queues nothing, whatever happened since (the version left draft, the
+   * checks ended).
+   */
+  revalidate(p: Principal, versionId: string, intentId?: string): { jobs: string[] } {
     const v = typeof versionId === 'string' && versionId.length > 0 ? this.versionFacts(versionId) : null;
     if (!v) {
       this.deps.auth.require(p, 'version.revalidate', PLATFORM);
       throw new PlatformError('not_found', 'version not found');
     }
     this.access.require(p, v.project_id, 'version.revalidate', v.owner_workspace_id ? { workspaceId: v.owner_workspace_id } : undefined);
+    const intent = intentId === undefined ? null : validateKey(intentId);
+    if (intent !== null) {
+      const prior = this.revalidateAnswer(v.id, intent);
+      if (prior) return { jobs: prior };
+    }
     if (v.status !== 'draft') throw new PlatformError('illegal_transition', `checks are run again only on a draft, not a ${v.status} version`, { from: v.status });
     // The user asked for it; the jobs act on the user's behalf, the results are still recorded by the system.
     const defs = blockingValidatorsFor(v.kind);
-    const jobs = this.createValidateJobs(p, v.id, defs, { parentJobId: null, revalidate: true });
+    const now = this.deps.now();
+    const jobs = immediateTx(this.db, () => {
+      const prior = intent !== null ? this.revalidateAnswer(v.id, intent) : null;
+      if (prior) return prior;
+      const ids = this.createValidateJobs(p, v.id, defs, { parentJobId: null, revalidate: true });
+      if (intent !== null) {
+        appendActivityRow(this.db, { actorKind: p.kind, actorId: p.id, projectId: v.project_id, workspaceId: v.owner_workspace_id,
+          artifactId: v.artifact_id, versionId: v.id, entityType: 'artifact_version', entityId: v.id, action: 'version.revalidate', status: 'succeeded',
+          details: { intent, jobs: ids } }, now);
+      }
+      return ids;
+    });
     this.runPending(this.deps.now());
     return { jobs };
+  }
+
+  /** The jobs an earlier revalidation with this intent answered, or null when the intent is new. */
+  private revalidateAnswer(versionId: string, intent: string): string[] | null {
+    const r = this.db.prepare(`SELECT details_json FROM activity WHERE action = 'version.revalidate' AND status = 'succeeded' AND version_id = ?
+      AND json_extract(details_json, '$.intent') = ? ORDER BY seq DESC LIMIT 1`).get(versionId, intent) as { details_json: string } | undefined;
+    if (!r) return null;
+    const d = parse(r.details_json);
+    return isObj(d) && Array.isArray(d.jobs) ? d.jobs.filter((x): x is string => typeof x === 'string') : [];
   }
 
   // ---------- running validate jobs (CheckRunner) ----------

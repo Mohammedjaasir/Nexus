@@ -76,6 +76,36 @@ const isPlain = (x: unknown): x is Record<string, unknown> => {
   return proto === Object.prototype || proto === null;
 };
 
+/**
+ * Runs a read of a renderer value (fix round 1): anything other than a RequestError it throws (a Proxy's trap, an exotic
+ * object) is a bad request of `field`, never an `internal` answer.
+ */
+function guarded<T>(field: string, read: () => T): T {
+  try { return read(); } catch (e) {
+    if (e instanceof RequestError) throw e;
+    throw new RequestError(field, 'could not be read');
+  }
+}
+
+/**
+ * The elements of a plain array of at most `max` entries, each read from its own data descriptor (fix round 1: an
+ * element getter or setter is refused, never run; a hole is refused).
+ */
+function plainElements(x: unknown, f: string, min: number, max: number, why: string): unknown[] {
+  return guarded(f, () => {
+    if (!Array.isArray(x) || Object.getPrototypeOf(x) !== Array.prototype) throw new RequestError(f, why);
+    const len = Object.getOwnPropertyDescriptor(x, 'length')?.value;
+    if (typeof len !== 'number' || len < min || len > max) throw new RequestError(f, why);
+    const out: unknown[] = [];
+    for (let i = 0; i < len; i++) {
+      const d = Object.getOwnPropertyDescriptor(x, i);
+      if (!d || d.get !== undefined || d.set !== undefined || !('value' in d)) throw new RequestError(f, 'must hold plain values');
+      out.push(d.value);
+    }
+    return out;
+  });
+}
+
 function str(x: unknown, f: string): string {
   if (typeof x !== 'string') throw new RequestError(f, 'must be a string');
   return x;
@@ -132,8 +162,7 @@ export const V = {
   },
   /** 1..max unique platform ids. */
   idList(x: unknown, f: string, max: number): string[] {
-    if (!Array.isArray(x) || x.length < 1 || x.length > max) throw new RequestError(f, `must list 1 to ${max} ids`);
-    const out = x.map((v, i) => V.platformId(v, `${f}[${i}]`));
+    const out = plainElements(x, f, 1, max, `must list 1 to ${max} ids`).map((v, i) => V.platformId(v, `${f}[${i}]`));
     if (new Set(out).size !== out.length) throw new RequestError(f, 'must not repeat an id');
     return out;
   },
@@ -152,6 +181,10 @@ export const V = {
    * is refused. Returns a null-prototype copy holding only the declared keys.
    */
   object<K extends string>(x: unknown, keys: readonly K[], optional: readonly K[] = []): Record<K, unknown> {
+    return guarded('request', () => V.objectRead(x, keys, optional));
+  },
+  /** V.object's reads (run guarded: a Proxy's trap answers bad_request). */
+  objectRead<K extends string>(x: unknown, keys: readonly K[], optional: readonly K[]): Record<K, unknown> {
     if (!isPlain(x)) throw new RequestError('request', 'must be an object');
     const own = Reflect.ownKeys(x);
     for (const k of own) {
@@ -205,8 +238,8 @@ export const V = {
   jobKind(x: unknown): string { return V.enumOf(x, 'jobKind', JOB_KINDS_ACCEPTED); },
   /** 1..11 unique job states. */
   jobStates(x: unknown): string[] {
-    if (!Array.isArray(x) || x.length < 1 || x.length > JOB_STATES.length) throw new RequestError('states', `must list 1 to ${JOB_STATES.length} job states`);
-    const out = x.map((v, i) => V.enumOf(v, `states[${i}]`, JOB_STATES));
+    const out = plainElements(x, 'states', 1, JOB_STATES.length, `must list 1 to ${JOB_STATES.length} job states`)
+      .map((v, i) => V.enumOf(v, `states[${i}]`, JOB_STATES));
     if (new Set(out).size !== out.length) throw new RequestError('states', 'must not repeat a state');
     return out;
   },
@@ -217,8 +250,7 @@ export const V = {
   userAuthorableKind(x: unknown, f: string): string { return V.enumOf(x, f, INLINE_KINDS_ACCEPTED); },
   /** 0..64 job inputs, each exactly `{ versionId, slot }`, no pair twice. */
   jobInputs(x: unknown): { versionId: string; slot: string }[] {
-    if (!Array.isArray(x) || x.length > MAX_JOB_INPUTS) throw new RequestError('inputs', `must list 0 to ${MAX_JOB_INPUTS} inputs`);
-    const out = x.map((v, i) => {
+    const out = plainElements(x, 'inputs', 0, MAX_JOB_INPUTS, `must list 0 to ${MAX_JOB_INPUTS} inputs`).map((v, i) => {
       const o = V.object(v, ['versionId', 'slot'] as const);
       return { versionId: V.platformId(o.versionId, `inputs[${i}].versionId`), slot: V.slot(o.slot, `inputs[${i}].slot`) };
     });
@@ -231,6 +263,10 @@ export const V = {
    * (an unknown action's params must be empty: the service refuses the action itself).
    */
   actionParams(actionId: string, x: unknown): Record<string, string | number | boolean> {
+    return guarded('params', () => V.actionParamsRead(actionId, x));
+  },
+  /** V.actionParams' reads (run guarded: a Proxy's trap answers bad_request). */
+  actionParamsRead(actionId: string, x: unknown): Record<string, string | number | boolean> {
     const raw = x === undefined ? {} : x;
     if (!isPlain(raw)) throw new RequestError('params', 'must be an object');
     const keys = Reflect.ownKeys(raw);
@@ -266,6 +302,10 @@ export const V = {
   },
   /** A requirement's or problem statement's content: plain JSON (objects, arrays, scalars), at most 32 KiB, depth 8. */
   inlineContent(x: unknown): Record<string, unknown> {
+    return guarded('content', () => V.inlineContentRead(x));
+  },
+  /** V.inlineContent's reads (run guarded). */
+  inlineContentRead(x: unknown): Record<string, unknown> {
     if (!isPlain(x)) throw new RequestError('content', 'must be an object');
     let nodes = 0;
     const copy = (v: unknown, depth: number): unknown => {

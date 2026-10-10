@@ -26,7 +26,7 @@ import type { ApprovalView as ServiceApprovalView } from '../nexus/approvals/app
 import type { DeploymentView as ServiceDeploymentView } from '../nexus/deployments/deploymentService';
 import type { GcPage, LogPage, PreviewPage } from '../nexusExec/execWiring';
 import { SYSTEM_ID as SYSTEM_PRINCIPAL } from '../nexus/auth/principals';
-import { scrubMessage } from './envelope';
+import { EXECUTION_SUB_REASONS, scrubMessage } from './envelope';
 
 export function participationView(r: ProjectWorkspace): ParticipationView {
   return { id: r.id, projectId: r.projectId, workspaceId: r.workspaceId, status: r.status, isPrimary: r.isPrimary,
@@ -164,8 +164,9 @@ export function healthView(h: HealthSnapshot, platform: { handoffs: boolean; exe
   const free = h.disk.freeBytes;
   const diskGate: DiskGate = free === null ? 'unknown' : free < REQUIRED_FREE_BYTES ? 'below_required' : free < RECOMMENDED_FREE_BYTES ? 'below_recommended' : 'ok';
   return {
+    // The sub-reason through the same allow-list as the availability envelope (fix round 1): never echoed raw.
     db: { version: num(h.schemaVersion), platform: true, handoffs: platform.handoffs, execution: platform.execution,
-      ...(platform.subReason ? { subReason: platform.subReason } : {}) },
+      ...(platform.subReason ? { subReason: EXECUTION_SUB_REASONS.includes(platform.subReason) ? platform.subReason : 'not_enabled' } : {}) },
     registry: { valid: platform.registry.valid, problems: platform.registry.problems },
     runner: { state: label(h.runner.state) ?? 'unknown', attached: h.runner.attached, restarts: h.runner.faults },
     docker: { state: h.docker.state,
@@ -230,7 +231,8 @@ export function eventView(e: JobEvent): EventView {
 function evidenceView(ev: unknown): ValidationResultView['evidence'] {
   if (!Array.isArray(ev)) return [];
   const out: ValidationResultView['evidence'] = [];
-  for (const e of ev.slice(0, MAX_EVIDENCE_ITEMS)) {
+  // `case` items are the per-case table of a test result, paged by #34 (junit_summary); they are not listed here.
+  for (const e of ev.filter((x) => !(isObj(x) && x.type === 'case')).slice(0, MAX_EVIDENCE_ITEMS)) {
     if (!isObj(e) || typeof e.type !== 'string') continue;
     const t = label(e.type) ?? 'fact';
     const name = typeof e.name === 'string' ? e.name : typeof e.label === 'string' ? e.label : typeof e.field === 'string' ? e.field
@@ -241,8 +243,8 @@ function evidenceView(ev: unknown): ValidationResultView['evidence'] {
     else if (t === 'junit') value = `${num(e.passed) ?? 0}/${num(e.total) ?? 0} passed, ${num(e.failed) ?? 0} failed, ${num(e.errored) ?? 0} errored`;
     else if (t === 'exit') value = num(e.code);
     else if (t === 'http') value = num(e.status);
-    else if (typeof e.sha256 === 'string') value = `sha256:${e.sha256.slice(0, 12)}`;
-    else if (typeof e.commit === 'string') value = e.commit.slice(0, 12);
+    else if (typeof e.sha256 === 'string' && /^[0-9a-f]{64}$/.test(e.sha256)) value = `sha256:${e.sha256.slice(0, 12)}`;
+    else if (typeof e.commit === 'string' && /^[0-9a-f]{40}$/.test(e.commit)) value = e.commit.slice(0, 12);
     out.push({ type: t, name: name === null ? null : text(name, 120), value });
   }
   return out;
@@ -265,7 +267,7 @@ export function validationView(v: ValidatorSummary): ValidationResultView {
 export function previewView(p: PreviewPage): PreviewView {
   return { part: p.part, versionId: p.versionId, text: p.text,
     rows: p.rows ? p.rows.map((r) => ({ name: text(r.name, 512), detail: textOrNull(r.detail, 512), bytes: r.bytes, outcome: textOrNull(r.outcome, 64) })) : null,
-    page: p.page, nextPage: p.nextPage, totalRows: p.totalRows, totalBytes: p.totalBytes };
+    page: p.page, nextPage: p.nextPage, fromRow: p.fromRow, nextRow: p.nextRow, totalRows: p.totalRows, totalBytes: p.totalBytes };
 }
 
 export function logPageView(l: LogPage): LogPageView {

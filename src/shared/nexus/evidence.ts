@@ -6,9 +6,9 @@ export type ValidatorId = string;
 export type ValidatorStage = 'register' | 'candidate' | 'promote';
 export const VALIDATOR_STAGES: readonly ValidatorStage[] = ['register', 'candidate', 'promote'];
 
-export type EvidenceType = 'hash' | 'number' | 'exit' | 'junit' | 'schema' | 'file' | 'http' | 'git' | 'user' | 'inspect' | 'log';
+export type EvidenceType = 'hash' | 'number' | 'exit' | 'junit' | 'schema' | 'file' | 'http' | 'git' | 'user' | 'inspect' | 'log' | 'case';
 export const EVIDENCE_TYPES: readonly EvidenceType[] =
-  ['hash', 'number', 'exit', 'junit', 'schema', 'file', 'http', 'git', 'user', 'inspect', 'log'];
+  ['hash', 'number', 'exit', 'junit', 'schema', 'file', 'http', 'git', 'user', 'inspect', 'log', 'case'];
 
 export type Evidence =
   | { type: 'hash'; label: string; sha256: string }
@@ -22,7 +22,10 @@ export type Evidence =
   | { type: 'git'; commit: string; check: 'resolves' | 'ancestor' | 'merge_tree_clean' | 'paths_in_scope'; detail: string }
   | { type: 'user'; principalKind: 'user'; action: string; at: number }
   | { type: 'inspect'; field: string; value: string | number | boolean }  // from docker inspect
-  | { type: 'log'; attemptId: string; stream: 'stdout' | 'stderr'; offset: number; length: number; sha256: string };
+  | { type: 'log'; attemptId: string; stream: 'stdout' | 'stderr'; offset: number; length: number; sha256: string }
+  // One failed or errored test case of a JUnit report (B2a Task 13 fix round 1): its names redacted and capped at ingest,
+  // failures first, bounded; the per-case table the junit_summary preview pages.
+  | { type: 'case'; name: string; classname: string; file: string | null; outcome: 'failed' | 'errored' };
 
 /** `error` means the check could not run; it is never a pass. */
 export type ValidationStatus = 'passed' | 'failed' | 'error' | 'skipped';

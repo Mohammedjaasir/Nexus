@@ -161,7 +161,10 @@ test('I-E5 B2A_IMPL equals main\'s registered recipe, validator and ingest maps 
   assert.deepEqual(sorted(m.validators), sorted(B2A_IMPL.validators), 'validators main runs');
   assert.deepEqual(sorted([...m.ingest, ...m.notIngested]), sorted(B2A_IMPL.recipes), 'every recipe is ingested or named as never ingested');
   assert.deepEqual(m.ingest.filter((x) => m.notIngested.includes(x)), [], 'never both');
-  assert.deepEqual(sorted(m.notIngested), ['sde.deps.node', 'sde.deps.python', 'sde.preview.start']);
+  // Fix round 1 (the ruled defect): a dependency install has its own evidence rule; only the dev deployment is never ingested.
+  assert.deepEqual(sorted(m.notIngested), ['sde.preview.start']);
+  assert.ok(m.ingest.includes('sde.deps.node') && m.ingest.includes('sde.deps.python'));
+  assert.ok(m.validators.includes('sde.deps.lock_matches'));
   assert.deepEqual(implementationProblems(), []);
   assert.deepEqual(checkRegistry(DOMAINS, B2A_IMPL), []);
   // Drift either way is found.
@@ -170,6 +173,31 @@ test('I-E5 B2A_IMPL equals main\'s registered recipe, validator and ingest maps 
   assert.ok(implementationProblems({ ...B2A_IMPL, validators: [...B2A_IMPL.validators, 'sde.lint'] })
     .some((p) => /validator: sde\.lint is declared implemented but main has none/.test(p)));
   assert.ok(implementationProblems({ ...B2A_IMPL, recipes: [...B2A_IMPL.recipes, 'sde.deploy.prod'] }).some((p) => /recipe: sde\.deploy\.prod/.test(p)));
+});
+
+test('I-E5b the dispatched validators are derived from the dispatch tables the code dispatches through, never a hand-kept list', () => {
+  const { DISPATCHED_VALIDATORS } = loadTs('src/main/nexus/registryImpl.ts');
+  const { INGEST_RECORDED_VALIDATORS } = loadTs('src/main/nexus/exec/ingest.ts');
+  const { RUNNER_VALIDATORS } = loadTs('src/main/nexus/validation/checkRunner.ts');
+  const { DEPLOYMENT_VALIDATORS } = loadTs('src/main/nexus/deployments/deploymentService.ts');
+  const { VALIDATORS } = loadTs('src/shared/nexus/validators.ts');
+  assert.deepEqual([...DISPATCHED_VALIDATORS].sort(), [...Object.keys(INGEST_RECORDED_VALIDATORS), ...RUNNER_VALIDATORS, ...DEPLOYMENT_VALIDATORS].sort());
+  assert.deepEqual([...DISPATCHED_VALIDATORS].sort(), ['app.preview_health', 'blob.integrity', 'sde.tests_pass']);
+  // Each table names exactly the validators of its executor in the registry.
+  const by = (ex) => VALIDATORS.filter((v) => v.executes === ex).map((v) => v.id).sort();
+  assert.deepEqual([...RUNNER_VALIDATORS].sort(), by('runner'));
+  assert.deepEqual([...DEPLOYMENT_VALIDATORS].sort(), by('deployment'));
+  assert.deepEqual(Object.keys(INGEST_RECORDED_VALIDATORS).sort(), by('child-job'));
+  // registryImpl holds no validator id of its own; the dispatch code reads the tables it exports.
+  const impl = read('src/main/nexus/registryImpl.ts');
+  for (const v of VALIDATORS) assert.ok(!impl.includes(`'${v.id}'`), `registryImpl names ${v.id}`);
+  assert.match(impl, /\.\.\.Object\.keys\(INGEST_RECORDED_VALIDATORS\), \.\.\.RUNNER_VALIDATORS, \.\.\.DEPLOYMENT_VALIDATORS/);
+  assert.match(read('src/main/nexus/validation/checkRunner.ts'), /if \(def\.executes === 'runner' && RUNNER_VALIDATORS\.includes\(def\.id\)\) \{ this\.verifyStep/);
+  assert.match(read('src/main/nexus/deployments/deploymentService.ts'), /recordOutcomeTx\(d\.subject_version_id, DEPLOYMENT_VALIDATORS\[0\], outcome/);
+  assert.match(read('src/main/nexus/exec/ingest.ts'), /recordOutcomeTx\(suite\.id, TEST_RUN_RECORDS, recorded/);
+  // A drift in a dispatch table is a startup problem (a validator the registry declares that main no longer dispatches).
+  assert.ok(implementationProblems({ ...B2A_IMPL, validators: B2A_IMPL.validators.filter((v) => v !== 'blob.integrity') })
+    .some((p) => /main has blob\.integrity but the registry does not declare it/.test(p)));
 });
 
 // ---------- hostile arguments ----------
@@ -191,6 +219,41 @@ test('I-E6 hostile arguments to every execution channel never throw, never leak,
     assert.deepEqual([r.code, r.reason], ['invalid', 'bad_request'], `${ch}: ${JSON.stringify(r)}`);
     noLeak(r, ch);
   }
+  // Fix round 1: the hostile value reaches the validator itself (`(a)` for a one-argument channel, `(valid, a)` for a
+  // two-argument one), never just the arity check; plus exotic values: Proxies whose traps throw, element getters.
+  // (A Proxy's trap runs whenever the value is read at all; what matters is the answer. An element GETTER never runs.)
+  let getterRan = 0;
+  const trap = () => { throw new Error('a trap ran into C:\\Users\\x'); };
+  const proxyObj = new Proxy({}, { getPrototypeOf: trap, ownKeys: trap, getOwnPropertyDescriptor: trap, get: trap, has: trap });
+  const proxyArr = new Proxy([UNKNOWN], { getOwnPropertyDescriptor: trap, get: trap, ownKeys: trap });
+  const getterArr = [UNKNOWN]; Object.defineProperty(getterArr, 0, { enumerable: true, get() { getterRan++; return UNKNOWN; } });
+  const holeArr = []; holeArr.length = 2;
+  const exotic = [proxyObj, proxyArr, getterArr, holeArr];
+  const twoArg = { 'nexus:job:logs': UNKNOWN, 'nexus:job:retry': UNKNOWN, 'nexus:version:revalidate': UNKNOWN, 'nexus:version:preview': w.repoV,
+    'nexus:approval:respond': UNKNOWN, 'nexus:setup:prepareImage': 'sde-node' };
+  for (const ch of NEXUS_EXEC_CHANNELS) for (const a of [...hostile, ...exotic]) {
+    const r = Object.prototype.hasOwnProperty.call(twoArg, ch) ? await x.call(ch, twoArg[ch], a) : await x.call(ch, a);
+    assert.equal(r.ok, false, `${ch} accepted a hostile value: ${JSON.stringify(r).slice(0, 200)}`);
+    assert.deepEqual([r.code, r.reason], ['invalid', 'bad_request'], `${ch}: ${JSON.stringify(r)}`);
+    if (!['nexus:domains:list', 'nexus:platform:health'].includes(ch)) assert.notEqual(r.field, 'arguments', `${ch}: the validator saw the value`);
+    noLeak(r, ch);
+  }
+  // Exotic values nested where a validator reads them: still bad_request with the field named, never internal.
+  const startOf = (patch) => ({ projectId: 'p-ledger', workspaceId: 'sde', actionId: 'sde.tests.discover', inputs: [{ versionId: w.repoV, slot: 'repository' }],
+    params: {}, intentId: intent(), ...patch });
+  for (const [ch, args, field] of [
+    ['nexus:job:start', [proxyObj], 'request'], ['nexus:job:start', [startOf({ params: proxyObj })], 'params'],
+    ['nexus:job:start', [startOf({ inputs: proxyArr })], 'inputs'], ['nexus:job:start', [startOf({ inputs: getterArr })], 'inputs'],
+    ['nexus:job:start', [startOf({ inputs: holeArr })], 'inputs'], ['nexus:job:start', [startOf({ inputs: [proxyObj] })], 'request'],
+    ['nexus:jobs:list', [{ states: getterArr }], 'states'], ['nexus:jobs:list', [{ states: proxyArr }], 'states'], ['nexus:jobs:list', [proxyObj], 'request'],
+    ['nexus:artifact:saveInline', [{ projectId: 'p-ledger', workspaceId: 'sde', kind: 'requirement', target: { name: 'R' }, content: proxyObj }], 'content'],
+    ['nexus:version:linkSources', [w.repoV, getterArr], 'sourceVersionIds'], ['nexus:version:linkSources', [w.repoV, proxyArr], 'sourceVersionIds']
+  ]) {
+    const r = await x.call(ch, ...args);
+    assert.deepEqual([r.ok, r.code, r.reason, r.field], [false, 'invalid', 'bad_request', field], `${ch} ${field}: ${JSON.stringify(r)}`);
+    noLeak(r, ch);
+  }
+  assert.equal(getterRan, 0, 'an array element getter is refused, never run');
   assert.deepEqual(counts(), before, 'no hostile call wrote a row');
   assert.deepEqual(x.sources.calls, [], 'no B2a channel touches the B1 file or git ports');
   const start = (patch) => ({ projectId: 'p-ledger', workspaceId: 'sde', actionId: 'sde.tests.discover', inputs: [{ versionId: w.repoV, slot: 'repository' }],
@@ -239,6 +302,247 @@ test('I-E6 hostile arguments to every execution channel never throw, never leak,
   await bad('nexus:events:since', [{ sinceSeq: -1 }], 'sinceSeq');
   await bad('nexus:actions:available', [{ projectId: 'p-ledger', workspaceId: 'sde', versionId: 'v-1' }], 'versionId');
   assert.deepEqual(counts(), before, 'no named refusal wrote a row');
+  w.close();
+});
+
+// ---------- B2a Task 13 fix round 1 ----------
+
+const denials = (w) => w.db.prepare("SELECT COUNT(*) n FROM activity WHERE status = 'denied'").get().n;
+/** The system, an agent and a disabled user: none of them is a stored, enabled user. */
+function notUsers(w) {
+  w.db.prepare('INSERT INTO principals VALUES (?,?,?,NULL,?)').run('agent:x', 'agent', 'agent x', h.NOW);
+  const off = w.addUser('u-off', 'project', 'p-ledger', 'owner');
+  w.db.prepare('UPDATE principals SET disabled_at = ? WHERE id = ?').run(h.NOW, off.id);
+  return [w.sys, { id: 'agent:x', kind: 'agent', displayName: 'agent x' }, off];
+}
+
+test('I-E9 #22 answers only a stored, enabled user: the system, an agent and a disabled user are denied (user_only), one audit row each', async () => {
+  const w = execWorld(); const x = ipcOver(w);
+  assert.equal((await x.ok('nexus:domains:list')).length, DOMAINS.length);
+  for (const p of notUsers(w)) {
+    const restore = asLocalUser(w.nx, p);
+    const d0 = denials(w);
+    await x.refused('nexus:domains:list', [], 'denied', { reason: 'user_only' });
+    assert.equal(denials(w) - d0, 1, p.id);
+    restore();
+  }
+  w.close();
+});
+
+test('I-E11 #35 saveInline: the system, an agent and a disabled user are denied (user_only, audited), never a bare invalid; nothing is saved', async () => {
+  const w = execWorld(); const x = ipcOver(w);
+  const args = { projectId: 'p-ledger', workspaceId: 'sde', kind: 'requirement', target: { name: 'R' }, content: REQ };
+  const reqs = () => w.db.prepare("SELECT COUNT(*) n FROM artifacts WHERE kind = 'requirement'").get().n;
+  for (const p of notUsers(w)) {
+    const restore = asLocalUser(w.nx, p);
+    const d0 = denials(w);
+    await x.refused('nexus:artifact:saveInline', [args], 'denied', { reason: 'user_only' });
+    assert.equal(denials(w) - d0, 1, p.id);
+    restore();
+    assert.throws(() => w.nx.artifacts.saveInline(p, args), (e) => e.code === 'denied' && e.detail.reason === 'user_only', p.id);
+  }
+  assert.equal(reqs(), 0);
+  assert.equal((await x.ok('nexus:artifact:saveInline', args)).created, true);
+  w.close();
+});
+
+test('I-E10 #33 passes its intent through: the same intent re-sent returns the same checks and queues nothing, even after they ended', async () => {
+  const w = execWorld({ realIngest: true }); const x = ipcOver(w);
+  const b = await w.runBuild({ files: ['app.js'] });
+  const runner = w.attach();
+  runner.report({ op: 'fault', message: 'the docker daemon went away' });
+  await w.settle();
+  assert.equal(w.version(b.buildVersionId).status, 'draft');
+  const validateJobs = () => w.db.prepare("SELECT COUNT(*) n FROM jobs WHERE kind = 'validate'").get().n;
+  const i = intent();
+  const first = await x.ok('nexus:version:revalidate', b.buildVersionId, i);
+  assert.ok(first.jobs.length > 0);
+  const n1 = validateJobs();
+  const again = await x.ok('nexus:version:revalidate', b.buildVersionId, i);
+  assert.deepEqual(again.jobs.map((j) => j.id), first.jobs.map((j) => j.id)); assert.equal(validateJobs(), n1);
+  // The checks end and the version leaves draft: the same intent still answers the same jobs, nothing new is queued.
+  w.answerVerifies(runner, true); await w.settle();
+  assert.equal(w.version(b.buildVersionId).status, 'candidate');
+  const late = await x.ok('nexus:version:revalidate', b.buildVersionId, i);
+  assert.deepEqual(late.jobs.map((j) => j.id), first.jobs.map((j) => j.id)); assert.equal(validateJobs(), n1);
+  // A new intent is a new request (refused: the version is no longer a draft). The answer was recorded once, with its intent.
+  await x.refused('nexus:version:revalidate', [b.buildVersionId, intent()], 'illegal_transition');
+  const act = w.db.prepare("SELECT details_json FROM activity WHERE action = 'version.revalidate' AND status = 'succeeded'").all();
+  assert.equal(act.length, 1);
+  assert.deepEqual(JSON.parse(act[0].details_json), { intent: i, jobs: first.jobs.map((j) => j.id) });
+  w.close();
+});
+
+test('I-H5 #23 health never echoes a raw sub-reason: an unknown one reads not_enabled, a known one is kept', async () => {
+  const p = v8Platform();
+  let reason = 'C:\\Users\\x\\<b>held</b>';
+  const x = ipcOver({ nx: p.nx, dataHome: null, repoV: UNKNOWN }, { executionUnavailableReason: () => reason });
+  const v = await x.ok('nexus:platform:health');
+  assert.equal(v.db.subReason, 'not_enabled'); noLeak(v);
+  reason = 'auto_held';
+  assert.equal((await x.ok('nexus:platform:health')).db.subReason, 'auto_held');
+  // The view filters whatever its caller passes.
+  const { healthView } = loadTs('src/main/nexusIpc/dto.ts');
+  const view = healthView(p.nx.exec.health(), { handoffs: true, execution: false, registry: { valid: true, problems: 0 }, subReason: '/Users/x/raw' });
+  assert.equal(view.db.subReason, 'not_enabled');
+});
+
+test('I-D1 evidence values are digests only when they are digests: a non-hex sha256 or commit is never sliced into a view; case items are not listed by #32', () => {
+  const { validationView } = loadTs('src/main/nexusIpc/dto.ts');
+  const v = validationView({ validatorId: 'x.y', blocking: true, latestRun: null, history: 1, latestBlocking: { status: 'passed', summary: 's', finishedAt: 1,
+    evidence: [{ type: 'hash', label: 'a', sha256: 'C:\\Users\\leak\\secret-file' }, { type: 'git', commit: '/home/bob/private/repo' },
+      { type: 'hash', label: 'ok', sha256: 'a'.repeat(64) }, { type: 'git', commit: 'b'.repeat(40) },
+      { type: 'case', name: 'n', classname: 'c', file: null, outcome: 'failed' }] } });
+  assert.deepEqual(v.evidence.map((e) => e.value), [null, null, `sha256:${'a'.repeat(12)}`, 'b'.repeat(12)]);
+  noLeak(v);
+});
+
+test('I-A1 #24: the actions of a withdrawn participation say withdrawn, never permission', async () => {
+  const w = execWorld(); const x = ipcOver(w);
+  const pw = await x.ok('nexus:participation:attach', 'p-ledger', 'ml');
+  const before = await x.ok('nexus:actions:available', { projectId: 'p-ledger', workspaceId: 'ml' });
+  assert.equal(before.find((a) => a.actionId === 'ml.problem.write').reason, null);
+  await x.ok('nexus:participation:withdraw', pw.id);
+  const after = await x.ok('nexus:actions:available', { projectId: 'p-ledger', workspaceId: 'ml' });
+  assert.equal(after.find((a) => a.actionId === 'ml.problem.write').reason, 'withdrawn');
+  assert.ok(after.every((a) => a.reason !== 'permission' && a.available === false));
+  // A missing permission on an active participation still reads permission.
+  const viewer = w.addUser('u-viewer', 'project', 'p-ledger', 'viewer');
+  const restore = asLocalUser(w.nx, viewer);
+  assert.equal((await x.ok('nexus:actions:available', { projectId: 'p-ledger', workspaceId: 'sde' })).find((a) => a.actionId === 'sde.tests.discover').reason, 'permission');
+  restore();
+  w.close();
+});
+
+test('I-V1 #34 rows page by a row cursor: a byte cap that ends a page early never skips a row (450 rows at 2000 bytes: every row exactly once)', async () => {
+  const rows = Array.from({ length: 450 }, (_, i) => ({ name: `dist/assets/chunk-${String(i).padStart(3, '0')}.js`, detail: `sha256:${'a'.repeat(12)}`, bytes: i, outcome: null }));
+  const fakePlatform = { queries: { previewSource: () => ({ type: 'rows', rows }) } };
+  const port = execIpcPort(fakePlatform, { confineToDataHome: async () => null, objectPath: async () => null, deleteObjects: async () => ({ failed: [] }) });
+  const read = async (maxBytes) => {
+    const seen = []; let from = 0; let pages = 0;
+    for (;;) {
+      const p = await port.preview(null, 'v', { part: 'manifest', fromRow: from, maxBytes });
+      assert.equal(p.fromRow, from); assert.equal(p.totalRows, 450); assert.equal(p.text, null);
+      seen.push(...p.rows.map((r) => r.name)); pages++;
+      if (p.nextRow === null) break;
+      assert.equal(p.nextRow, from + p.rows.length, 'the cursor is the first row not returned'); from = p.nextRow;
+    }
+    return { seen, pages };
+  };
+  for (const maxBytes of [2000, 1, 150, 262144]) {
+    const { seen, pages } = await read(maxBytes);
+    assert.deepEqual(seen, rows.map((r) => r.name), `maxBytes ${maxBytes}: every row once, in order`);
+    if (maxBytes === 2000) assert.ok(pages > 3, 'the byte cap ended pages early');
+  }
+  // The same through #34 over a real 450-file build.
+  const w = execWorld({ realIngest: true }); const x = ipcOver(w);
+  const b = await w.runBuild({ files: Array.from({ length: 450 }, (_, i) => `f${String(i).padStart(3, '0')}.js`) });
+  const seen = []; let from = 0;
+  for (;;) {
+    const p = await x.ok('nexus:version:preview', b.buildVersionId, { part: 'manifest', fromRow: from, maxBytes: 2000 });
+    seen.push(...p.rows.map((r) => r.name));
+    if (p.nextRow === null) break;
+    from = p.nextRow;
+  }
+  assert.equal(seen.length, 450); assert.equal(new Set(seen).size, 450);
+  // page is for the text part, fromRow for the row parts: the wrong one is a bad request.
+  await x.refused('nexus:version:preview', [b.buildVersionId, { part: 'manifest', page: 1, maxBytes: 10 }], 'invalid', { reason: 'bad_request', field: 'page' });
+  await x.refused('nexus:version:preview', [w.repoV, { part: 'content', fromRow: 1, maxBytes: 10 }], 'invalid', { reason: 'bad_request', field: 'fromRow' });
+  w.close();
+});
+
+test('I-V2 #34 text: redacted WHOLE before it is paged (a secret across a cut never survives in either page) and every cut on a code point', async () => {
+  const { redactSecretText } = loadTs('src/main/nexus/activity/redact.ts');
+  const TOKEN = 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789';
+  const text = `añb€c😀d key ${TOKEN} end ${'ü'.repeat(40)} 日本語 -----BEGIN RSA PRIVATE KEY-----\n${'QUJD'.repeat(60)}\n-----END RSA PRIVATE KEY----- tail`;
+  const w = execWorld();
+  const stored = w.stored('notes.txt', text);
+  for (const src of [{ type: 'text', text }, { type: 'object', sha256: stored.sha256, bytes: stored.bytes, mediaType: 'text/plain' }]) {
+    const port = execIpcPort({ queries: { previewSource: () => src } }, w.dataHome);
+    for (const maxBytes of [1, 2, 3, 5, 7, 13, 64, 4096]) {
+      let all = ''; let page = 0;
+      for (;;) {
+        const p = await port.preview(null, 'v', { part: 'content', page, maxBytes });
+        assert.ok(!p.text.includes('\uFFFD'), `${src.type} ${maxBytes}: page ${page} splits a character`);
+        // Fixed page boundaries, each snapped back to a code point: a page holds at most maxBytes + 3 bytes (its start may
+        // move back into the character the previous boundary would have split).
+        assert.ok(Buffer.byteLength(p.text) <= maxBytes + 3, `${src.type} ${maxBytes}: page ${page} too long`);
+        for (const piece of ['abcdefgh', 'QUJDQUJD', 'sk-ant-api03-abc']) assert.ok(!p.text.includes(piece), `${src.type} ${maxBytes}: ${piece}`);
+        all += p.text;
+        if (p.nextPage === null) break;
+        assert.equal(p.nextPage, page + 1); page = p.nextPage;
+      }
+      assert.equal(all, redactSecretText(text), `${src.type} ${maxBytes}: the pages are the redacted text, whole`);
+    }
+  }
+  // An object over the preview bound is too_large (the whole is redacted per page, so it stays bounded).
+  const { PREVIEW_MAX_OBJECT_BYTES } = loadTs('src/main/nexus/exec/execQueries.ts');
+  assert.equal(PREVIEW_MAX_OBJECT_BYTES, 4 * 2 ** 20);
+  w.close();
+});
+
+test('I-L1 #28 log pages hold WHOLE frames: any fromOffset snaps to its frame start, a frame longer than maxBytes comes whole, no character is split, a stored token is never reassembled', async () => {
+  const { readLogPage } = loadTs('src/main/nexusExec/execWiring.ts');
+  const TOKEN = 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789';
+  const w = execWorld();
+  const frames = [{ ts: 1, stream: 'stdout', text: 'start' }, { ts: 2, stream: 'stdout', text: `wide ${'ü€😀'.repeat(30)}` },
+    // A frame as an older writer might have stored it: the token in clear text. Read-side redaction sees it whole.
+    { ts: 3, stream: 'stderr', text: `auth ${TOKEN} done` }, { ts: 4, stream: 'stdout', text: '日本語 end' }];
+  const raw = frames.map((f) => `${JSON.stringify(f)}\n`).join('');
+  const rel = 'logs/jobs/JOBUTF8/1.log';
+  fs.mkdirSync(path.dirname(path.join(w.dataHome.root, rel)), { recursive: true });
+  fs.writeFileSync(path.join(w.dataHome.root, rel), raw);
+  const size = Buffer.byteLength(raw);
+  const starts = []; let at = 0; for (const f of frames) { starts.push(at); at += Buffer.byteLength(`${JSON.stringify(f)}\n`); }
+  const check = (p, why) => {
+    assert.ok(!p.text.includes('\uFFFD'), `${why}: a split character`);
+    for (const piece of ['sk-ant', 'abcdefghij', 'qrstuvwxyz']) assert.ok(!p.text.includes(piece), `${why}: ${piece}`);
+    for (const line of p.text.split('\n').filter((l) => l.length > 0)) assert.doesNotThrow(() => JSON.parse(line), `${why}: a whole frame`);
+    assert.ok(p.text === '' || p.text.endsWith('\n'), `${why}: ends on a frame`);
+    assert.ok(starts.includes(p.nextOffset) || p.nextOffset === size, `${why}: nextOffset ${p.nextOffset} is a frame start`);
+  };
+  for (const maxBytes of [1, 7, 60, 262144]) {
+    // Every offset at one page size; every seventh at the others (the same frames, a quicker file).
+    for (let from = 0; from < size; from += maxBytes === 7 ? 1 : 7) {
+      const p = await readLogPage(w.dataHome, rel, { fromOffset: from, maxBytes });
+      check(p, `max ${maxBytes} from ${from}`);
+      const frameStart = starts.filter((s) => s <= from).pop();
+      const first = JSON.parse(p.text.split('\n')[0]);
+      assert.equal(first.ts, frames[starts.indexOf(frameStart)].ts, `from ${from}: the page starts at the frame holding it`);
+    }
+    // Sequential reads: every frame exactly once.
+    const got = []; let off = 0;
+    for (;;) {
+      const p = await readLogPage(w.dataHome, rel, { fromOffset: off, maxBytes });
+      got.push(...p.text.split('\n').filter((l) => l).map((l) => JSON.parse(l).ts));
+      if (p.eof) break;
+      off = p.nextOffset;
+    }
+    assert.deepEqual(got, [1, 2, 3, 4], `max ${maxBytes}`);
+  }
+  // A line longer than a page is not a frame the runner writes: refused as malformed, never cut.
+  const big = 'logs/jobs/JOBBIG/1.log';
+  fs.mkdirSync(path.dirname(path.join(w.dataHome.root, big)), { recursive: true });
+  fs.writeFileSync(path.join(w.dataHome.root, big), `${'x'.repeat(300 * 1024)}\n{"ts":1,"stream":"stdout","text":"after"}\n`);
+  assert.equal(await readLogPage(w.dataHome, big, { fromOffset: 0, maxBytes: 100 }), 'malformed');
+  assert.equal(await readLogPage(w.dataHome, big, { fromOffset: 290 * 1024, maxBytes: 100 }), 'malformed');
+  w.close();
+});
+
+test('I-G1 #41 apply reports the bytes it actually freed (deleted files of the removed rows; a failed delete frees none)', async () => {
+  const w = execWorld(); const x = ipcOver(w);
+  const bi = w.nx.blobs;
+  const a = w.stored('a', 'a'.repeat(10)); const b = w.stored('b', 'b'.repeat(25));
+  const c = w.file('c', 'c'.repeat(7));
+  // c's object path is a folder: its file delete fails.
+  fs.mkdirSync(path.join(w.dataHome.root, w.dataHome.objectRel(c.sha256)), { recursive: true });
+  await bi.withIngestLock((t) => bi.recordBlobsTx(t, [a, b, c].map((f) => ({ sha256: f.sha256, bytes: f.bytes, mediaType: 'text/plain' }))));
+  w.advance(25 * 60 * 60_000);
+  const dry = await x.ok('nexus:blobs:gc', { apply: false });
+  assert.deepEqual([dry.candidates, dry.bytes, dry.removed], [3, 42, 0]);
+  const applied = await x.ok('nexus:blobs:gc', { apply: true, expectedCandidatesHash: dry.candidatesHash });
+  assert.deepEqual([applied.candidates, applied.removed, applied.fileDeleteFailed, applied.bytes], [3, 2, 1, 35]);
+  assert.ok(!fs.existsSync(path.join(w.dataHome.root, w.dataHome.objectRel(a.sha256))));
   w.close();
 });
 

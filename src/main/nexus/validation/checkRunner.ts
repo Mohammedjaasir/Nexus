@@ -41,6 +41,11 @@ import * as integrity from './validators/blobIntegrity';
 import * as appManifest from './validators/appManifestSchema';
 import * as diag from './validators/diagSchema';
 
+/**
+ * The validators the runner executes for main (a re-hash of stored objects), each dispatched by `step` through this
+ * table (B2a Task 13 fix round 1: the registry check reads it; a validator missing here is never dispatched).
+ */
+export const RUNNER_VALIDATORS: readonly string[] = Object.freeze([integrity.ID]);
 /** How long `blob.integrity` waits for the runner's answers before the check is `error`. */
 export const VERIFY_TIMEOUT_MS = 60_000;
 /** The scheduler's safety pass over every queued and ended check, even when nothing flagged work. */
@@ -182,7 +187,7 @@ export class CheckRunner {
       this.completeTx(j.id, v.id, this.mainOutcome(def.id, v), now);
       return;
     }
-    if (def.executes === 'runner') { this.verifyStep(j, v.id, now); return; }
+    if (def.executes === 'runner' && RUNNER_VALIDATORS.includes(def.id)) { this.verifyStep(j, v.id, now); return; }
     // A recipe check without its recipe, or a deployment check: main cannot run it.
     this.failTx(j.id, 'not_runnable', 'this check is not run by main or the runner', now);
   }

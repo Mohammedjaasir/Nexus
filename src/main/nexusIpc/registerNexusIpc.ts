@@ -7,7 +7,8 @@
  *    the platform is still null): no platform -> platform_unavailable with the store's
  *    reason; a handoff channel while handoffs are off -> platform_unavailable, reason
  *    'handoffs_unavailable', with the v8 sub-reason.
- * 2. Validation through validate.ts (exact shapes, unknown keys refused).
+ * 2. Validation through validate.ts (exact shapes, unknown keys refused; a value whose read throws, such as a Proxy,
+ *    is a bad request, never `internal`).
  * 3. The principal: always the local user, resolved here from the store. Nothing
  *    identity-shaped is read from the arguments.
  * 4. One service call, mapped to a view (dto.ts). Authorization stays in the services;
@@ -37,6 +38,7 @@ import type { ExecIpcPort } from '../nexusExec/execWiring';
 import { MAX_LIST_LIMIT } from '../nexus/artifact/artifactService';
 import { UserSaves, type SaveResult, type SourcePorts } from '../nexus/commands/userSaves';
 import { PlatformError } from '../nexus/errors';
+import { requireStoredUser } from '../nexus/auth/principals';
 import { HANDOFF_STATUSES, MAX_SUBJECTS } from '../nexus/handoff/handoffRules';
 import { MAX_LINK_SOURCES } from '../nexus/lineage/lineageService';
 import { getUserAction } from '../../shared/nexus/actions';
@@ -124,6 +126,8 @@ export const EVENTS_MAX = 500;
 export const MAX_READ_PAGE = 262_144;
 const MAX_ATTEMPT_N = 1_000_000;
 const MAX_PREVIEW_PAGE = 100_000;
+/** The widest row cursor of a preview (the junit table holds 5 counts and at most a few hundred cases; a tree 5,000 files). */
+const MAX_PREVIEW_ROW = 1_000_000;
 const PLATFORM = { type: 'platform' } as const;
 /** The widest integer a limit may be before it is refused rather than clamped. */
 const LIMIT_CEILING = 100000;
@@ -214,7 +218,9 @@ export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): v
           const off = executionOff(nx);
           if (off !== null) return unavailable('execution_unavailable', off);
         }
-        const a = parse(args);
+        let a: A;
+        // A renderer value whose read throws anything but a RequestError (an exotic object) is a bad request (fix round 1).
+        try { a = parse(args); } catch (e) { throw e instanceof RequestError ? e : new RequestError('arguments', 'could not be read'); }
         const me = nx.principals.localUser();
         return await run(nx, me, a);
       } catch (e) {
@@ -420,7 +426,11 @@ export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): v
   if (!execution) return;
 
   // #22 the domain registry as the renderer shows it: lifecycle steps with REAL / PARTIAL / FUTURE, never a result.
-  reg('nexus:domains:list', (args) => { V.arity(args, 0); }, () => ok(DOMAINS.map(domainView)));
+  // A stored, enabled user only (fix round 1): an agent, the system or a disabled user is denied and audited.
+  reg('nexus:domains:list', (args) => { V.arity(args, 0); }, (nx, me) => {
+    requireStoredUser(nx.principals, nx.auth, me, 'workspace.read', 'workspace', 'only a user reads the domain registry');
+    return ok(DOMAINS.map(domainView));
+  });
 
   // #23 the execution setup from main's cache (never waits on Docker or the runner): the gate with its exact numbers.
   reg('nexus:platform:health', (args) => { V.arity(args, 0); }, (nx, me) => {
@@ -519,18 +529,23 @@ export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): v
     V.arity(args, 2);
     return { versionId: V.platformId(args[0], 'versionId'), intentId: V.intentId(args[1]) };
   }, (nx, me, q) => {
-    const r = validationOf(nx).revalidate(me, q.versionId);
+    // The intent goes through: a re-sent intent returns the same checks and queues nothing (fix round 1).
+    const r = validationOf(nx).revalidate(me, q.versionId, q.intentId);
     return ok({ jobs: r.jobs.map((id) => jobView(nx.exec.get(me, id))) });
   });
 
-  // #34 a page of what a version holds (text redacted again, rows capped), at most 256 KiB per page.
+  // #34 a page of what a version holds (text redacted again, rows capped), at most 256 KiB per page. The text part pages
+  // by `page`; the row parts by a row cursor, `fromRow` (fix round 1: a page the byte cap ends early never skips a row).
   reg('nexus:version:preview', (args) => {
     V.arity(args, 2);
     const versionId = V.platformId(args[0], 'versionId');
-    const o = V.object(args[1], ['part', 'page', 'maxBytes'] as const, ['page'] as const);
-    return { versionId, part: V.enumOf(o.part, 'part', PREVIEW_PARTS), page: o.page === undefined ? 0 : V.int(o.page, 'page', 0, MAX_PREVIEW_PAGE),
-      maxBytes: V.int(o.maxBytes, 'maxBytes', 1, MAX_READ_PAGE) };
-  }, async (nx, me, q) => ok(previewView(await portOf().preview(me, q.versionId, { part: q.part, page: q.page, maxBytes: q.maxBytes }))));
+    const o = V.object(args[1], ['part', 'page', 'fromRow', 'maxBytes'] as const, ['page', 'fromRow'] as const);
+    const part = V.enumOf(o.part, 'part', PREVIEW_PARTS);
+    if (part === 'content' && o.fromRow !== undefined) throw new RequestError('fromRow', 'pages the row parts only');
+    if (part !== 'content' && o.page !== undefined) throw new RequestError('page', 'pages the content part only');
+    return { versionId, part, page: o.page === undefined ? 0 : V.int(o.page, 'page', 0, MAX_PREVIEW_PAGE),
+      fromRow: o.fromRow === undefined ? 0 : V.int(o.fromRow, 'fromRow', 0, MAX_PREVIEW_ROW), maxBytes: V.int(o.maxBytes, 'maxBytes', 1, MAX_READ_PAGE) };
+  }, async (nx, me, q) => ok(previewView(await portOf().preview(me, q.versionId, { part: q.part, page: q.page, fromRow: q.fromRow, maxBytes: q.maxBytes }))));
 
   // #35 save a requirement or a problem statement the user wrote (a draft; its register checks recorded).
   reg('nexus:artifact:saveInline', (args) => {

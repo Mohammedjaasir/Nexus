@@ -6,7 +6,7 @@
  * closes, so the middle is dropped, never the start or the end. Writes are serialized and never block the loop.
  */
 import * as path from 'node:path';
-import { redactSecretText } from '../main/nexus/activity/redact';
+import { redactSecretText, scrubHostPaths } from '../main/nexus/activity/redact';
 import { ensureDirUnder } from './paths';
 import type { RunnerFs } from './types';
 
@@ -114,8 +114,12 @@ export class LogWriter {
     }
   }
 
-  /** A line written by the runner itself (redacted like any other). */
-  nexus(text: string): void { if (!this.closed) this.frame('nexus', text); }
+  /**
+   * A line written by the runner itself (redacted like any other). Its text often quotes Docker's own errors, which name
+   * host paths (the data home, `\\?\` long paths, Docker Desktop's host mounts): every host path is cut to its basename
+   * BEFORE the frame is written (B2a Task 13 fix round 1); main scrubs again on read.
+   */
+  nexus(text: string): void { if (!this.closed) this.frame('nexus', scrubHostPaths(String(text ?? ''), [this.root, path.dirname(this.root)])); }
 
   /** One logical line: redacted WHOLE first, then cut into frames (a secret never straddles a frame unredacted). */
   private frame(stream: Stream, line: string): void {

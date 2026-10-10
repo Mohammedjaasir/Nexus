@@ -49,7 +49,7 @@ import type { RecipeDef } from '../../../shared/nexus/recipes';
 import type { MainToRunner, RunnerToMain } from '../../../shared/nexus/runnerProtocol';
 import type { SandboxProfileId } from '../../../shared/nexus/execution';
 import type { AuthService } from '../auth/authService';
-import { PrincipalResolver } from '../auth/principals';
+import { PrincipalResolver, requireStoredUser } from '../auth/principals';
 import { appendActivityRow } from '../activity/writer';
 import { containsSecret } from '../activity/redact';
 import { canonicalJson } from '../db/canonical';
@@ -149,17 +149,9 @@ const sha256 = (s: string): string => createHash('sha256').update(s).digest('hex
 /** A `sha256:<hex>` digest as `{ sha256: <hex> }` (the activity redactor keeps a hex digest only under a `sha256` key). */
 const digestDetail = (d: string | null | undefined): { sha256: string } | null => (typeof d === 'string' && DIGEST_RE.test(d) ? { sha256: d.slice(7) } : null);
 
-/**
- * Only a stored, enabled USER answers an approval, asks for an image or stops a dev deployment (the system and agents
- * never consent): `denied` (`user_only`) and audited, before anything else is read.
- */
-export function requireStoredUser(principals: PrincipalResolver, auth: AuthService, p: Principal, action: PlatformAction, entityType: string,
-  message: string): void {
-  const stored = p && isStr(p.id) ? principals.get(p.id) : null;
-  if (p && stored && stored.kind === 'user' && p.kind === 'user' && stored.disabledAt === null) return;
-  const audited = auth.auditDenial(p, { action, reason: 'user_only', entityType });
-  throw new PlatformError('denied', message, { reason: 'user_only', audited });
-}
+// Only a stored, enabled USER answers an approval, asks for an image or stops a dev deployment: requireStoredUser lives
+// beside the principal resolver (src/main/nexus/auth/principals.ts) since fix round 1 of Task 13; re-exported here.
+export { requireStoredUser };
 
 /**
  * Whether a request holds anything secret-shaped. The typed digest fields must have their exact shape (else the
