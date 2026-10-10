@@ -29,6 +29,7 @@
  * - Quit (`stop`, bounded at 5 s): live dev deployments are stopped (`stopAllForQuit`), then the runner is told to shut
  *   down (it stops services and leaves tool containers running, so the next start adopts them).
  */
+import { createHash } from 'node:crypto';
 import { open, realpath } from 'node:fs/promises';
 import * as path from 'node:path';
 import type { NexusPlatform } from '../nexus/platform';
@@ -49,6 +50,13 @@ export const MAX_LOG_PAGE = 262_144;
 export const MAX_OBJECT_PAGE = 2 ** 20;
 /** A preview page: at most MAX_LOG_PAGE bytes of text, or this many rows (also bounded by the page's bytes). */
 export const PREVIEW_ROWS_PER_PAGE = 200;
+/**
+ * Fix round 2: a text preview's whole-content redaction is done ONCE per content, keyed by the sha256 of the raw bytes
+ * (content is immutable and content-addressed), and kept in a small LRU bounded by both counts, so paging through one
+ * text never redacts it again. Adversarial 4 MiB text cost seconds per page before.
+ */
+export const PREVIEW_CACHE_ENTRIES = 4;
+export const PREVIEW_CACHE_BYTES = 16 * 2 ** 20;
 const MAX_ROW_NAME = 512;
 
 export interface WiringTimers extends HostTimers {
@@ -272,7 +280,25 @@ const rowOf = (r: PreviewRow): PreviewRow => ({
  * The IPC port over a platform and its data home (main's handle uses it; tests build it over a test data home). Every
  * method authorizes through the platform first and never reads a location the renderer named.
  */
-export function execIpcPort(platform: NexusPlatform, home: HomeReads): ExecIpcPort {
+export function execIpcPort(platform: NexusPlatform, home: HomeReads, opts: { redact?: (s: string) => string } = {}): ExecIpcPort {
+  const redact = opts.redact ?? redactSecretText;
+  /** Redacted preview text by the sha256 of its raw bytes, least recently used first (PREVIEW_CACHE_*). */
+  const redacted = new Map<string, Buffer>();
+  let redactedBytes = 0;
+  const redactOnce = (raw: Buffer): Buffer => {
+    const key = createHash('sha256').update(raw).digest('hex');
+    const hit = redacted.get(key);
+    if (hit) { redacted.delete(key); redacted.set(key, hit); return hit; }
+    const out = Buffer.from(redact(raw.toString('utf8')), 'utf8');
+    if (out.length <= PREVIEW_CACHE_BYTES) {
+      redacted.set(key, out); redactedBytes += out.length;
+      for (const [k, v] of redacted) {
+        if (redacted.size <= PREVIEW_CACHE_ENTRIES && redactedBytes <= PREVIEW_CACHE_BYTES) break;
+        redacted.delete(k); redactedBytes -= v.length;
+      }
+    }
+    return out;
+  };
   return {
     async logs(p, jobId, q) {
       const queries = platform.queries ?? execOff(platform);
@@ -306,17 +332,18 @@ export function execIpcPort(platform: NexusPlatform, home: HomeReads): ExecIpcPo
       }
       const page = Number.isSafeInteger(q.page) && q.page! >= 0 ? q.page! : 0;
       // The WHOLE content is redacted first, then paged (fix round 1): a cut can never split a secret into two pages that
-      // each pass the redactor. Text is at most PREVIEW_MAX_OBJECT_BYTES, so this stays bounded.
-      let raw: string;
-      if (src.type === 'text') raw = src.text;
+      // each pass the redactor. Text is at most PREVIEW_MAX_OBJECT_BYTES, and it is redacted once per content (fix round 2:
+      // redactOnce), so later pages of the same text cost a hash, not a redaction.
+      let raw: Buffer;
+      if (src.type === 'text') raw = Buffer.from(src.text, 'utf8');
       else {
         const r = await readWholeObject(home, src.sha256, PREVIEW_MAX_OBJECT_BYTES);
         if (r === 'too_large') throw new PlatformError('too_large', 'the stored content is too large to preview', { versionId });
         if (!r) throw new PlatformError('storage_unavailable', 'the stored content could not be read', { versionId });
         if (r.includes(0)) throw new PlatformError('invalid', 'the stored content is not text', { reason: 'binary_content' });
-        raw = r.toString('utf8');
+        raw = r;
       }
-      const all = Buffer.from(redactSecretText(raw), 'utf8');
+      const all = redactOnce(raw);
       const total = all.length;
       // Fixed page boundaries, each snapped back to a code point (a character is never split between two pages).
       const s = snapToCodePoint(all, Math.min(page * max, total));

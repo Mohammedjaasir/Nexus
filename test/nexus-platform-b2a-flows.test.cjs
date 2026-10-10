@@ -17,19 +17,24 @@ const { execWorld, GIB } = require('./helpers/execWorld.cjs');
 const { ipcOver, noLeak, intent } = require('./helpers/ipcExec.cjs');
 const { allOrphans, ALL_ZERO, execOrphanRows, t13OrphanRows } = require('./helpers/orphans.cjs');
 const { verifyActivityChain } = loadTs('src/main/nexus/activity/writer.ts');
+const { EXPIRY_SWEEP_MS } = loadTs('src/main/nexus/approvals/approvalService.ts');
 
 const MIN = 60_000;
 const LOCK = '3f'.repeat(32);
 const terminal = (s) => ['completed', 'partial', 'failed', 'cancelled', 'timed_out', 'interrupted'].includes(s);
 
 /**
- * After every flow: no orphan of any kind (O1-O22), foreign keys, integrity, the activity chain. O21 counts against a
- * sweep (fix round 1): without the caller's `sweptAt`, the approval expiry sweep runs here at the world's own time.
+ * After every flow: no orphan of any kind (O1-O22), foreign keys, integrity, the activity chain. O21 counts against the
+ * scheduler's OWN last expiry sweep (fix round 2: `exec.lastExpirySweepAt`, read-only); this check never sweeps. A caller
+ * may give `sweptAt` instead.
  */
 function sound(w, name, sweptAt) {
-  if (sweptAt === undefined) {
-    sweptAt = typeof w.now === 'function' ? w.now() : w.clock.now;
-    w.nx.approvals?.expireDue(sweptAt);
+  if (sweptAt === undefined) sweptAt = w.exec.lastExpirySweepAt;
+  if (sweptAt === null) {
+    // This world's scheduler has never swept (its approvals port has no expiry sweep): O21 then holds only when no
+    // approval is pending at all, so every pending approval counts.
+    assert.equal(w.db.prepare("SELECT COUNT(*) n FROM approvals WHERE status = 'pending'").get().n, 0, `${name}: pending approvals, never swept`);
+    sweptAt = Number.MAX_SAFE_INTEGER;
   }
   assert.ok(Number.isSafeInteger(sweptAt), `${name}: a sweep time`);
   const o = allOrphans(w.db, { sweptAt });
@@ -38,7 +43,14 @@ function sound(w, name, sweptAt) {
   assert.equal(w.db.pragma('integrity_check', { simple: true }), 'ok', `${name}: integrity`);
   assert.equal(verifyActivityChain(w.db).ok, true, `${name}: activity chain`);
 }
-const reasons = (list) => Object.fromEntries(list.map((a) => [a.actionId, a.reason]));
+/** The scheduler's own pass once its expiry cadence is due (fix round 2): the time of the sweep IT ran, for sound(). */
+function schedulerSweep(w) {
+  w.advance(EXPIRY_SWEEP_MS);
+  w.exec.tick(w.now());
+  assert.equal(w.exec.lastExpirySweepAt, w.now(), 'the scheduler swept');
+  return w.exec.lastExpirySweepAt;
+}
+const reasons =(list) => Object.fromEntries(list.map((a) => [a.actionId, a.reason]));
 const startArgs = (actionId, o = {}) => ({ projectId: 'p-ledger', workspaceId: 'sde', actionId, inputs: o.inputs ?? [], params: o.params ?? {}, intentId: intent() });
 
 // ---------------------------------------------------------------- the fake recipe world (F1, F2, F-OBS)
@@ -290,8 +302,7 @@ test('F3 dependency install with approval once: waiting -> approved once -> the 
   assert.equal(w.version(w.repoV).status, 'candidate', 'the repository version is unchanged');
   // The attempt's environment records the dependency cache the install wrote.
   assert.equal(JSON.parse(w.attempts(s.job.id)[0].environment_json).depsVolume, `nexus-deps-sde-node-${LOCK.slice(0, 12)}`);
-  w.nx.approvals.expireDue(w.now());
-  sound(w, 'F3', w.now());
+  sound(w, 'F3', schedulerSweep(w));
   w.close();
 });
 
@@ -323,8 +334,7 @@ test('F3b an install whose exit 0 is not backed by its lock.sha256 is refused an
     for (const t of ['jobs', 'job_attempts', 'job_events', 'activity']) {
       assert.doesNotMatch(JSON.stringify(w.db.prepare(`SELECT * FROM ${t}`).all()), /sk-ant-api03-abcdef/, `${c.name}: ${t}`);
     }
-    w.nx.approvals.expireDue(w.now());
-    sound(w, `F3b ${c.name}`, w.now());
+    sound(w, `F3b ${c.name}`, schedulerSweep(w));
     w.close();
   }
 });
@@ -355,8 +365,7 @@ test('F3c a retried install (attempt 2) needs its own consumed approval: attempt
   assert.deepEqual(rows.map((x2) => [x2.job_id, x2.attempt_n, x2.status]), [[jobId, 2, 'passed']]);
   const a2 = w.db.prepare('SELECT consumed_by_attempt_n AS n FROM approvals WHERE id = ?').get(pending[0].id);
   assert.equal(a2.n, 2);
-  w.nx.approvals.expireDue(w.now());
-  sound(w, 'F3c', w.now());
+  sound(w, 'F3c', schedulerSweep(w));
   w.close();
 });
 
@@ -409,8 +418,7 @@ test('F3d the deps rule itself: attempt n without an approval consumed by n is r
   w.exitWith(r, jobId, { code: 0, outputs: [out] });
   await w.settle();
   assert.equal(w.jobState(jobId), 'completed');
-  w.nx.approvals.expireDue(w.now());
-  sound(w, 'F3d', w.now());
+  sound(w, 'F3d', schedulerSweep(w));
   w.close();
 });
 
@@ -425,8 +433,34 @@ test('F4 deny: the job fails denied, no plan is ever sent, the approval is denie
   assert.deepEqual([d.state, d.headline], ['failed', 'failed']);
   assert.equal(d.error.code, 'approval_denied');
   assert.equal(r.sentOf('attempt.start').length, 0);
-  w.nx.approvals.expireDue(w.now());
-  sound(w, 'F4', w.now());
+  sound(w, 'F4', schedulerSweep(w));
+  w.close();
+});
+
+test('F4b O21 is never tautological: a scheduler whose expiry sweep does nothing leaves O21 = 1 at its own sweep time; the check itself never sweeps', async () => {
+  const w = egressWorld(); w.attach(); const x = ipcOver(w);
+  const s = await x.ok('nexus:job:start', startArgs('sde.deps.install', { inputs: [{ versionId: w.repoV, slot: 'repository' }] }));
+  w.exec.tick(w.now());
+  const ap = (await x.ok('nexus:approvals:list', { status: 'pending' }))[0];
+  assert.equal(ap.jobId, s.job.id);
+  // The scheduler's sweep is broken: it runs on its cadence and records its time, but expires nothing.
+  const realSweep = w.nx.approvals.expireDue;
+  let calls = 0;
+  w.nx.approvals.expireDue = () => { calls++; return 0; };
+  w.advance(16 * MIN);
+  w.exec.tick(w.now());
+  assert.ok(calls >= 1, 'the scheduler ran its (broken) sweep');
+  assert.equal(w.exec.lastExpirySweepAt, w.now());
+  const pending = () => w.db.prepare("SELECT status FROM approvals WHERE id = ?").get(ap.id).status;
+  assert.equal(pending(), 'pending');
+  assert.equal(allOrphans(w.db, { sweptAt: w.exec.lastExpirySweepAt }).O21, 1, 'the unswept approval counts');
+  assert.throws(() => sound(w, 'F4b broken sweep'), /orphans/, 'sound() reports it');
+  assert.equal(pending(), 'pending', 'and sound() did not sweep it');
+  // A working sweep on the scheduler's next pass: the approval expires, the job fails, O21 = 0.
+  w.nx.approvals.expireDue = realSweep;
+  sound(w, 'F4b', schedulerSweep(w));
+  assert.equal(pending(), 'expired');
+  assert.equal(w.jobState(s.job.id), 'failed');
   w.close();
 });
 

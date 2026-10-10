@@ -452,6 +452,12 @@ export class ExecutionService {
     this.caps = { ...DEFAULT_CAPS, ...(deps.caps ?? {}) };
   }
 
+  /**
+   * When the scheduler last ran the approval expiry sweep (`approvals.expireDue`), or null when it never has. Read-only:
+   * a soundness check passes it as O21's `sweptAt` and never sweeps itself (B2a Task 13 fix round 2).
+   */
+  get lastExpirySweepAt(): number | null { return this.lastExpiryAt; }
+
   get available(): boolean { return this.deps.available; }
   /** Why execution is off (the store's reason, `not_enabled`, `registry_invalid`, ...), or null while it is on. */
   get unavailableReason(): string | null { return this.deps.available ? null : (this.deps.unavailableReason ?? 'not_enabled'); }

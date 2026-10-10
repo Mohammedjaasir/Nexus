@@ -14,7 +14,7 @@
  * under one of the known hash keys (`HASH_KEYS`) is kept as is. Under any other key
  * the same hex is redacted, and a non-digest value under a hash key is redacted as usual.
  */
-import { redactForLog } from '../../crashLog';
+import { keyValueAtRun, redactForLog, SCHEME_AT_RUN } from '../../crashLog';
 
 export const REDACTED = '[redacted]';
 export const MAX_STRING = 512; export const MAX_DEPTH = 4; export const MAX_ARRAY = 50; export const MAX_KEYS = 50;
@@ -35,8 +35,14 @@ const TOKEN_COUNT_KEYS: ReadonlySet<string> = new Set([
   'tokensUsed', 'inputTokens', 'outputTokens', 'totalTokens', 'maxTokens',
   'cacheReadTokens', 'cacheCreationTokens', 'tokenCount', 'tokenLimit'
 ]);
-const URL_USER = /\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@/gi;
-const SIGNATURE_PAIR = /\b((?:[a-z0-9]+[_-])*(?:sig|signature))(["']?)(\s*[:=]\s*)(?:(["'])(?:\\.|(?!\4)[^\\])*\4|[^\s"',}&]+)/gi;
+/**
+ * A URL user name (`scheme://user@`) and a `sig` / `signature` value, in their linear-time forms (fix round 2; see
+ * crashLog's SCHEME_AT_RUN): the old `\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@` and
+ * `\b((?:[a-z0-9]+[_-])*(?:sig|signature))(["']?)(\s*[:=]\s*)(value)`, exactly, with the skipped text written back.
+ */
+const URL_USER = new RegExp(SCHEME_AT_RUN + String.raw`[^\s/@]+@`, 'gi');
+const URL_USER_TO = '$1$2[redacted]@';
+const SIGNATURE_PAIR = keyValueAtRun('sig|signature');
 const DROP = Symbol('drop');
 type Out = unknown | typeof DROP;
 
@@ -50,8 +56,8 @@ interface Budget { left: number }
  */
 export function redactText(s: string): string {
   return redactForLog(s)
-    .replace(URL_USER, '$1[redacted]@')
-    .replace(SIGNATURE_PAIR, (_m, k, q, sep, vq) => `${k}${q}${sep}${vq ? `${vq}${REDACTED}${vq}` : REDACTED}`);
+    .replace(URL_USER, URL_USER_TO)
+    .replace(SIGNATURE_PAIR, (_m, skip, lead, k, q, sep, vq) => `${skip}${lead}${k}${q}${sep}${vq ? `${vq}${REDACTED}${vq}` : REDACTED}`);
 }
 
 function redactString(s: string): string {
@@ -93,6 +99,11 @@ export function redactSecretText(s: string): string {
  * (`yyyy...`, `xxxx...`) has no inner boundary, is linear, and is not affected: the B0b tests pin such
  * params and error messages as stored exactly. redactText and redactDetails are deliberately unchanged:
  * activity hashes depend on their exact output, and redactDetails already caps every string at MAX_STRING.
+ *
+ * Fix round 2: those four patterns now run in linear time (crashLog's SCHEME_AT_RUN and keyValueAtRun: each run is tried
+ * once, from its start), with exactly the old output, so text just under this bound no longer costs seconds either
+ * (4 MiB of 127-separator runs: 2 to 7 s before, under 100 ms after). The bound itself is unchanged: what
+ * containsSecret and redactSecretText answer depends on it.
  */
 export const LONG_TOKEN_SEPARATORS = 128;
 
@@ -237,7 +248,7 @@ function walkObject(obj: Record<string, unknown>, depth: number, b: Budget): Rec
   for (const key of keys.slice(0, MAX_KEYS)) {
     if (b.left <= 0) break;
     seen++;
-    const safeKey = key.length > MAX_STRING ? `[omitted key: ${key.length} chars]` : redactForLog(key).replace(URL_USER, '$1[redacted]@');
+    const safeKey = key.length > MAX_STRING ? `[omitted key: ${key.length} chars]` : redactForLog(key).replace(URL_USER, URL_USER_TO);
     // Token COUNTS are audit data, not credentials: keep them only as plain numbers.
     if (TOKEN_COUNT_KEYS.has(key) && typeof obj[key] === 'number' && Number.isFinite(obj[key])) {
       b.left -= safeKey.length + 3 + String(obj[key]).length; put(out, safeKey, obj[key] as number); continue;
@@ -269,25 +280,38 @@ function lastPathSegment(p: string): string {
   return parts.length > 0 ? parts[parts.length - 1] : '';
 }
 const NOT_PATH = String.raw`\s'"${'`'}<>|:`;
-/** One separator: `/` or a run of backslashes (a JSON-escaped backslash is two). */
-const SEP = String.raw`(?:\\+|/)`;
+/**
+ * The longest backslash run a host path shape needs: a JSON-escaped `\\` (a UNC or long-path prefix) is four. Fix round
+ * 2: every backslash run in these patterns is bounded by it, and scrubHostPaths first collapses each longer run to
+ * exactly this many, so no pattern rescans a long run from each of its positions. The unbounded `\\+` / `\\{2,}` made
+ * one 16 K-backslash frame cost about 0.3 s, and 64 K about 25 s, on the main thread.
+ */
+const MAX_BACKSLASH_RUN = 4;
+const LONG_BACKSLASH_RUN = new RegExp(String.raw`\\{${MAX_BACKSLASH_RUN + 1},}`, 'g');
+const COLLAPSED_RUN = '\\'.repeat(MAX_BACKSLASH_RUN);
+const BACKSLASHES = String.raw`\\{1,${MAX_BACKSLASH_RUN}}`;
+/** One separator: `/` or a run of one to four backslashes (a JSON-escaped backslash is two). */
+const SEP = `(?:${BACKSLASHES}|/)`;
 /**
  * The rest of a path after a separator: segments that a separator ends may hold single spaces between words
  * (`John Smith\`, `Local Storage\`, `Application Support/`); the last segment ends at whitespace, a quote or a colon.
  */
 const PATH_TAIL = String.raw`(?:[^\\/${NOT_PATH}]+(?: +[^\\/${NOT_PATH}]+)*${SEP})*[^${NOT_PATH}]*`;
-/** Long-path prefixes (`\\?\`, `\\.\`), single or JSON-escaped, then a drive or UNC path. */
-const LONG_PREFIX_PATH = new RegExp(String.raw`\\+[?.]\\+(?:[A-Za-z]:${SEP})?` + PATH_TAIL, 'g');
+/** A long-path prefix (`\\?\`, `\\.\`), single or JSON-escaped. */
+const LONG_PREFIX = `${BACKSLASHES}[?.]${BACKSLASHES}`;
+/** Long-path prefixes, then a drive or UNC path. */
+const LONG_PREFIX_PATH = new RegExp(LONG_PREFIX + String.raw`(?:[A-Za-z]:${SEP})?` + PATH_TAIL, 'g');
 /** A UNC path (`\\server\share\...`), single or JSON-escaped. */
-const UNC_PATH = new RegExp(String.raw`\\{2,}[^\\/\s'"]+${SEP}` + PATH_TAIL, 'g');
+const UNC_PATH = new RegExp(String.raw`\\{2,${MAX_BACKSLASH_RUN}}[^\\/\s'"]+${SEP}` + PATH_TAIL, 'g');
 /** A drive-absolute path (`C:\...`, `C:/...`). */
 const DRIVE_PATH = new RegExp(String.raw`\b[A-Za-z]:${SEP}` + PATH_TAIL, 'g');
 /**
  * A host POSIX path: a user's home (`/Users/<name>`, `/home/<name>` but not the sandbox's own `/home/nexus`), Docker
- * Desktop's host mounts (`/run/desktop/mnt/host/...`, `/host_mnt/...`, `/mnt/<drive>/...`) or macOS temp folders.
+ * Desktop's host mounts (`/run/desktop/mnt/host/...`, `/host_mnt/...`, `/mnt/<drive>/...`), macOS temp folders, or
+ * (fix round 2) Git Bash's form of a Windows home (`/c/Users/<name>`, `/d/home/<name>`).
  * Container paths (`/workspace`, `/out`, `/in`) are kept.
  */
-const HOST_POSIX_PATH = new RegExp(String.raw`(^|[\s'"(=,;\[:])((?:/Users/|/home/(?!nexus(?:/|\b))|/run/desktop/|/host_mnt/|/mnt/[A-Za-z]/|/private/var/|/var/folders/)`
+const HOST_POSIX_PATH = new RegExp(String.raw`(^|[\s'"(=,;\[:])((?:/Users/|/home/(?!nexus(?:/|\b))|/run/desktop/|/host_mnt/|/mnt/[A-Za-z]/|/[A-Za-z]/(?:[Uu]sers|[Hh]ome)/|/private/var/|/var/folders/)`
   + PATH_TAIL + ')', 'g');
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => `\\${c}`);
 
@@ -300,14 +324,16 @@ const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => 
 export function scrubHostPaths(text: string, roots: readonly (string | null | undefined)[] = []): string {
   if (typeof text !== 'string' || text.length === 0) return typeof text === 'string' ? text : '';
   try {
-    let s = text;
+    // Fix round 2: no backslash run longer than any path shape needs (linear time; see MAX_BACKSLASH_RUN).
+    let s = text.replace(LONG_BACKSLASH_RUN, COLLAPSED_RUN);
     const known = [...new Set(roots.filter((r): r is string => typeof r === 'string' && r.length >= 3))].sort((a, b) => b.length - a.length);
     for (const root of known) {
       const parts = root.split(/[\\/]+/).filter((x) => x.length > 0).map(escapeRe);
       if (parts.length === 0) continue;
-      const lead = /^[\\/]/.test(root) && !/^[A-Za-z]:/.test(root) ? String.raw`[\\/]+` : '';
+      // A bounded lead (fix round 2): `[\\/]+` rescanned a long run of slashes from each of its positions.
+      const lead = /^[\\/]/.test(root) && !/^[A-Za-z]:/.test(root) ? String.raw`[\\/]{1,${MAX_BACKSLASH_RUN}}` : '';
       // The root literally (spaces included, either separator, any case), then the rest of the path, if any.
-      const re = new RegExp(String.raw`(?:\\+[?.]\\+)?` + lead + parts.join(String.raw`[\\/]+`) + `(?:${SEP}${PATH_TAIL})?`, 'gi');
+      const re = new RegExp(`(?:${LONG_PREFIX})?` + lead + parts.join(String.raw`[\\/]+`) + `(?:${SEP}${PATH_TAIL})?`, 'gi');
       s = s.replace(re, (m) => lastPathSegment(m));
     }
     s = s.replace(LONG_PREFIX_PATH, (m) => lastPathSegment(m));

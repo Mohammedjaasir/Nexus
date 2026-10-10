@@ -26,6 +26,7 @@ const { parseRunnerMessage, RUNNER_OPS } = loadTs('src/shared/nexus/runnerProtoc
 const { parseJunit } = loadTs('src/runner/parsers/junit.ts');
 const appManifest = loadTs('src/main/nexus/validation/validators/appManifestSchema.ts');
 const { canonicalJson } = loadTs('src/main/nexus/db/canonical.ts');
+const { EXPIRY_SWEEP_MS } = loadTs('src/main/nexus/approvals/approvalService.ts');
 
 const ROOT = path.join(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -38,9 +39,17 @@ const start = (w, patch = {}) => ({ projectId: 'p-ledger', workspaceId: 'sde', a
 const denials = (w) => w.db.prepare("SELECT COUNT(*) n FROM activity WHERE status = 'denied'").get().n;
 const counts = (w) => ['jobs', 'job_attempts', 'approvals', 'deployments', 'artifacts', 'artifact_versions', 'validations', 'image_builds']
   .map((t) => w.db.prepare(`SELECT COUNT(*) n FROM ${t}`).get().n);
-/** O1-O22 = 0 and the store's own checks. O21 counts against a sweep (fix round 1): without `o.sweptAt` the sweep runs here. */
+/**
+ * O1-O22 = 0 and the store's own checks. O21 counts against the scheduler's OWN last expiry sweep (fix round 2:
+ * `exec.lastExpirySweepAt`, read-only); this check never sweeps. A scheduler that never swept (no expiry port) leaves no
+ * pending approval at all, so then every pending approval counts.
+ */
 function healthy(w, o = {}) {
-  if (o.sweptAt === undefined) { o = { ...o, sweptAt: w.now() }; w.nx.approvals?.expireDue(o.sweptAt); }
+  if (o.sweptAt === undefined) o = { ...o, sweptAt: w.exec.lastExpirySweepAt };
+  if (o.sweptAt === null) {
+    assert.equal(w.db.prepare("SELECT COUNT(*) n FROM approvals WHERE status = 'pending'").get().n, 0, 'pending approvals, never swept');
+    o = { ...o, sweptAt: Number.MAX_SAFE_INTEGER };
+  }
   assert.deepEqual(allOrphans(w.db, o), ALL_ZERO);
   assert.deepEqual(w.db.prepare('PRAGMA foreign_key_check').all(), []);
   assert.equal(w.db.pragma('integrity_check', { simple: true }), 'ok');
@@ -231,6 +240,118 @@ test('S2c version:preview reads only the version\'s own stored content after art
   assert.equal(denials(w) - d0, 1);
   restore();
   w.close();
+});
+
+/** The fastest of `n` runs, in ms (the first runs warm the regex compiler; a slow CI tick never decides alone). */
+const fastest = (f, n = 5) => {
+  let best = Infinity;
+  for (let i = 0; i < n; i++) { const t0 = process.hrtime.bigint(); f(); best = Math.min(best, Number(process.hrtime.bigint() - t0) / 1e6); }
+  return best;
+};
+const fastestAsync = async (f, n = 3) => {
+  let best = Infinity;
+  for (let i = 0; i < n; i++) { const t0 = process.hrtime.bigint(); await f(); best = Math.min(best, Number(process.hrtime.bigint() - t0) / 1e6); }
+  return best;
+};
+
+test('S2d host paths stay cut and the main thread stays responsive (fix round 2): every scrubbed shape is still cut, backslash runs are bounded, Git Bash homes are cut, 16 K backslashes under 20 ms, a whole adversarial #28 page under 100 ms', async () => {
+  const { scrubHostPaths, redactSecretText } = loadTs('src/main/nexus/activity/redact.ts');
+  const { readLogPage, MAX_LOG_PAGE } = loadTs('src/main/nexusExec/execWiring.ts');
+  const B = '\\';
+  const roots = ['C:\\Users\\pc\\AppData\\Roaming\\nexus-app\\nexus', 'C:\\Users\\pc\\AppData\\Roaming\\nexus-app'];
+  // Every shape fix round 1 cut is still cut (single and JSON-escaped, with the longest prefix runs they use), plus
+  // runs longer than any shape needs in front of a path, and Git Bash's form of a Windows home.
+  const cut = [
+    ['C:\\Users\\pc\\AppData\\Roaming\\nexus-app\\nexus\\work\\j\\out', 'out'],
+    ['C:\\Users\\pc\\AppData\\Roaming\\nexus-app\\Local Storage\\x.db', 'x.db'],
+    ['\\\\?\\C:\\Users\\pc\\x\\y.log', 'y.log'],
+    ['\\\\\\\\?\\\\C:\\\\Users\\\\pc\\\\y.log', 'y.log'],
+    ['\\\\.\\pipe\\docker_engine', 'docker_engine'],
+    ['\\\\server\\share\\dir\\f.txt', 'f.txt'],
+    ['\\\\\\\\server\\\\share\\\\f.txt', 'f.txt'],
+    ['D:\\docker\\volumes\\nexus-ws-1', 'nexus-ws-1'],
+    ['C:/Users/pc/x.db', 'x.db'],
+    ['/Users/alice/Library/x', 'x'],
+    ['/home/bob/.config/x', 'x'],
+    ['/run/desktop/mnt/host/c/Users/pc/in', 'in'],
+    ['/mnt/c/Users/pc/f', 'f'],
+    [`${B.repeat(9)}?\\C:\\Users\\pc\\a.txt`, 'a.txt'],
+    [`${B.repeat(7)}server\\share\\f`, 'f'],
+    [`c:${B.repeat(7)}users\\pc\\q`, 'q'],
+    ['/c/Users/alice/AppData/nexus/x.log', 'x.log'],
+    ['/d/home/bob/w/y', 'y'],
+    ['/C/Users/x/z', 'z']
+  ];
+  for (const [p, base] of cut) assert.equal(scrubHostPaths(`at ${p} end`, roots), `at ${base} end`, p);
+  // Container paths and anything that is not a home stay.
+  for (const p of ['/home/nexus/app', '/workspace/src/a.js', '/out/junit.xml', '/c/tmp/x', '/c/Users']) {
+    assert.equal(scrubHostPaths(`at ${p} end`, roots), `at ${p} end`, p);
+  }
+  // A run of five or more backslashes is collapsed to four (the longest a path shape uses).
+  assert.equal(scrubHostPaths(B.repeat(16383), roots), B.repeat(4));
+  assert.equal(scrubHostPaths(`a${B.repeat(5)}b`, roots), `a${B.repeat(4)}b`);
+  assert.equal(scrubHostPaths(`a${B.repeat(4)}b c${B}d`, roots), `a${B.repeat(4)}b c${B}d`, 'shorter runs are kept');
+  // Linear time. Measured here: 16,383 backslashes about 1 ms (0.36 s before), 64 K about 1 ms (25.7 s before).
+  const t16 = fastest(() => scrubHostPaths(B.repeat(16383), roots));
+  assert.ok(t16 < 20, `16 K backslashes took ${t16.toFixed(1)} ms`);
+  for (const [name, text] of [['64 K backslashes', B.repeat(65536)], ['256 KiB of slashes', '/'.repeat(262144)],
+    ['256 KiB of runs and spaces', `${B.repeat(16000)} `.repeat(16)], ['256 KiB of C:\\', `C:${B}`.repeat(87381)],
+    ['256 KiB of /Users/', ' /Users/'.repeat(32768)], ['256 KiB of \\\\a', `${B}${B}a`.repeat(87381)]]) {
+    const ms = fastest(() => scrubHostPaths(text, [...roots, '/Users/pc/nexus']), 3);
+    assert.ok(ms < 100, `${name} took ${ms.toFixed(1)} ms`);
+  }
+  // A whole #28 page of adversarial frames (each cleaned whole: host paths cut, then redacted). Measured here: about 7 ms;
+  // the same frames' strings took about 1 s before.
+  const w = execWorld();
+  const rel = 'logs/jobs/JOBADVERSARIAL/1.log';
+  const abs = path.join(w.dataHome.root, rel);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  const texts = [B.repeat(16000), `${'x-'.repeat(127)}${'y'.repeat(2000)} `.repeat(7), `${'k-'.repeat(126)}-secret=v `.repeat(60),
+    `${'x-'.repeat(127)}xy://a:bc@h `.repeat(60), `C:${B}a `.repeat(3000), ' /Users/'.repeat(2000), `${B}${B}?${B}${B}`.repeat(3000)];
+  const lines = []; let size = 0;
+  for (let i = 0; ; i++) {
+    const line = i % 9 === 8 ? `${B.repeat(15000)}\n` : `${JSON.stringify({ ts: i, stream: 'nexus', text: texts[i % texts.length] })}\n`;
+    if (size + Buffer.byteLength(line) > MAX_LOG_PAGE) break;
+    lines.push(line); size += Buffer.byteLength(line);
+  }
+  fs.writeFileSync(abs, lines.join(''));
+  assert.ok(size > 240 * 1024, `the page is ${size} bytes`);
+  let page;
+  const ms = await fastestAsync(async () => { page = await readLogPage(w.dataHome, rel, { fromOffset: 0, maxBytes: MAX_LOG_PAGE }); });
+  assert.ok(ms < 100, `the adversarial page took ${ms.toFixed(1)} ms`);
+  assert.equal(page.eof, true);
+  assert.equal(page.text.split('\n').filter((l) => l.length > 0).length, lines.length, 'every frame, whole');
+  assert.doesNotMatch(page.text, /secret=v|a:bc@/, 'and redacted');
+  // The redaction passes are linear too (fix round 2), with exactly the old output. Measured here, 4 MiB of each: about
+  // 80 ms (2 to 7 s before).
+  for (const [name, text] of [['x- runs', `${'x-'.repeat(127)} `.repeat(16448)], ['k-...=v-...', `${'k-'.repeat(127)}=${'v-'.repeat(127)} `.repeat(8224)],
+    ['key chains', `${'k-'.repeat(126)}-secret=v `.repeat(16000)], ['schemes', `${'x-'.repeat(127)}x://a:b c@ `.repeat(15768)]]) {
+    const t = fastest(() => redactSecretText(text), 2);
+    assert.ok(t < 1000, `${name}: ${t.toFixed(0)} ms`);
+  }
+  w.close();
+});
+
+test('S2e the linear redaction passes give exactly the old answers (fix round 2): URL credentials and user names, key = value, sig values', () => {
+  const { redactText } = loadTs('src/main/nexus/activity/redact.ts');
+  const { redactForLog } = loadTs('src/main/crashLog.ts');
+  // Each expected text is what the redactor before fix round 2 produced for the input (pinned from its output).
+  const cases = [
+    ['see https://alice@h.example/x and ftp://bob:pw@h/y', 'see https://[redacted]@h.example/x and ftp://[redacted]@h/y'],
+    ['x-y-z-https://u:p@h done', 'x-y-z-https://[redacted]@h done'],
+    ['a_http://u:p@h', 'a_http://u:p@h'],
+    ['x-http://user@host', 'x-http://[redacted]@host'],
+    ['client_secret="abc\\"def" next', 'client_secret="[redacted]" next'],
+    ["my-api-key: 'v1' and access_token=tok", "my-api-key: '[redacted]' and access_token=[redacted]"],
+    ['a--b-secret=1 x__my_secret=2 k-k-token=3', 'a--b-secret=[redacted] x__my_secret=2 k-k-token=[redacted]'],
+    ['xsecret=4 ab_cd-password : five', 'xsecret=4 ab_cd-password : [redacted]'],
+    ['url_sig=abc&x=1 "signature": "s" a--sig=9', 'url_sig=[redacted]&x=1 "signature": "[redacted]" a--sig=[redacted]'],
+    [`${'k-'.repeat(20)}-secret=v`, `${'k-'.repeat(20)}-secret=[redacted]`],
+    ['SECRET=Up TOKEN:x Sig=y', 'SECRET=[redacted] TOKEN:[redacted] Sig=[redacted]'],
+    ['refresh-token = "a b" end', 'refresh-token = "[redacted]" end']
+  ];
+  for (const [input, want] of cases) assert.equal(redactText(input), want, input);
+  assert.equal(redactForLog('x-y-https://u:p@h and k-k--password=hunter2'), 'x-y-https://[redacted]@h and k-k--password=[redacted]');
 });
 
 // =====================================================================================================================
@@ -434,8 +555,11 @@ test('S7a an egress job never approved never receives a plan; job A\'s approval 
   await x.refused('nexus:approval:respond', [apB.id, 'once'], 'illegal_transition');
   assert.equal(w.jobState(b.job.id), 'failed');
   assert.equal(r.sentOf('attempt.start').filter((m) => m.plan?.container?.network?.approvalId === apB.id).length, 0);
-  w.nx.approvals.expireDue(w.now());
-  assert.deepEqual(allOrphans(w.db, { sweptAt: w.now() }).O21, 0, 'no pending approval past expiry after a sweep');
+  // The scheduler's own sweep once its cadence is due (fix round 2: the check never sweeps itself).
+  w.advance(EXPIRY_SWEEP_MS);
+  w.exec.tick(w.now());
+  assert.equal(w.exec.lastExpirySweepAt, w.now(), 'the scheduler swept');
+  assert.deepEqual(allOrphans(w.db, { sweptAt: w.exec.lastExpirySweepAt }).O21, 0, 'no pending approval past expiry after a sweep');
   w.close();
 });
 
@@ -541,7 +665,7 @@ test('S9c argv injection text stays one element (D11, X12); a malformed job:star
 
 test('S-index every constraint-11 group has its cases here (by title prefix)', () => {
   const me = read('test/nexus-platform-exec-security.test.cjs');
-  for (const g of ['S1a', 'S1b', 'S1c', 'S1d', 'S1e', 'S2a', 'S2b', 'S2c', 'S3a', 'S3b', 'S4a', 'S5a', 'S5b', 'S6a', 'S6b', 'S7a', 'S7b', 'S8a', 'S8b', 'S9a', 'S9b', 'S9c']) {
+  for (const g of ['S1a', 'S1b', 'S1c', 'S1d', 'S1e', 'S2a', 'S2b', 'S2c', 'S2d', 'S2e', 'S3a', 'S3b', 'S4a', 'S5a', 'S5b', 'S6a', 'S6b', 'S7a', 'S7b', 'S8a', 'S8b', 'S9a', 'S9b', 'S9c']) {
     assert.equal((me.match(new RegExp(`^test\\('${g} `, 'gm')) || []).length, 1, g);
   }
   void os;

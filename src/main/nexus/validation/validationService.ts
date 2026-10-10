@@ -421,7 +421,8 @@ export class ValidationService {
    * With an intent (a ULID the renderer minted once, B2a Task 13 fix round 1), the request is idempotent: its answer is
    * recorded with it (one `version.revalidate` activity row, in the transaction that queues the checks), and the same
    * intent sent again returns the same jobs and queues nothing, whatever happened since (the version left draft, the
-   * checks ended).
+   * checks ended). An intent is one request for ONE version (fix round 2): it is looked up whatever the version, and
+   * re-sent for another version it is refused (`invalid` / `intent_mismatch`), never answered with the other's jobs.
    */
   revalidate(p: Principal, versionId: string, intentId?: string): { jobs: string[] } {
     const v = typeof versionId === 'string' && versionId.length > 0 ? this.versionFacts(versionId) : null;
@@ -454,11 +455,17 @@ export class ValidationService {
     return { jobs };
   }
 
-  /** The jobs an earlier revalidation with this intent answered, or null when the intent is new. */
+  /**
+   * The jobs an earlier revalidation with this intent answered, or null when the intent is new. The intent is looked up
+   * for every version (fix round 2): one used for another version is refused, `invalid` / `intent_mismatch`.
+   */
   private revalidateAnswer(versionId: string, intent: string): string[] | null {
-    const r = this.db.prepare(`SELECT details_json FROM activity WHERE action = 'version.revalidate' AND status = 'succeeded' AND version_id = ?
-      AND json_extract(details_json, '$.intent') = ? ORDER BY seq DESC LIMIT 1`).get(versionId, intent) as { details_json: string } | undefined;
+    const r = this.db.prepare(`SELECT version_id, details_json FROM activity WHERE action = 'version.revalidate' AND status = 'succeeded'
+      AND json_extract(details_json, '$.intent') = ? ORDER BY seq DESC LIMIT 1`).get(intent) as { version_id: string | null; details_json: string } | undefined;
     if (!r) return null;
+    if (r.version_id !== versionId) {
+      throw new PlatformError('invalid', 'this request was already made for another version', { reason: 'intent_mismatch' });
+    }
     const d = parse(r.details_json);
     return isObj(d) && Array.isArray(d.jobs) ? d.jobs.filter((x): x is string => typeof x === 'string') : [];
   }

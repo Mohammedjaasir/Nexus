@@ -373,6 +373,31 @@ test('I-E10 #33 passes its intent through: the same intent re-sent returns the s
   w.close();
 });
 
+test('I-E10b #33 an intent is one request for one version: re-sent for another version it is refused (intent_mismatch), never answered with the first version\'s jobs', async () => {
+  const w = execWorld({ realIngest: true }); const x = ipcOver(w);
+  const b = await w.runBuild({ files: ['app.js'] });
+  const runner = w.attach();
+  runner.report({ op: 'fault', message: 'the docker daemon went away' });
+  await w.settle();
+  assert.equal(w.version(b.buildVersionId).status, 'draft');
+  const validateJobs = () => w.db.prepare("SELECT COUNT(*) n FROM jobs WHERE kind = 'validate'").get().n;
+  const answers = () => w.db.prepare("SELECT COUNT(*) n FROM activity WHERE action = 'version.revalidate'").get().n;
+  const i = intent();
+  const first = await x.ok('nexus:version:revalidate', b.buildVersionId, i);
+  assert.ok(first.jobs.length > 0);
+  const [n1, a1] = [validateJobs(), answers()];
+  // The same intent for another version (the repository version; the lookup comes before the draft check).
+  const r = await x.refused('nexus:version:revalidate', [w.repoV, i], 'invalid', { reason: 'intent_mismatch' });
+  assert.doesNotMatch(JSON.stringify(r), new RegExp(first.jobs[0].id), 'the other version\'s jobs are never answered');
+  assert.deepEqual([validateJobs(), answers()], [n1, a1], 'nothing queued, nothing recorded');
+  // The service directly: the same refusal.
+  assert.throws(() => w.nx.validation.revalidate(w.me, w.repoV, i), (e) => e.code === 'invalid' && e.detail?.reason === 'intent_mismatch');
+  // The intent for its own version still answers its jobs.
+  const again = await x.ok('nexus:version:revalidate', b.buildVersionId, i);
+  assert.deepEqual(again.jobs.map((j) => j.id), first.jobs.map((j) => j.id));
+  w.close();
+});
+
 test('I-H5 #23 health never echoes a raw sub-reason: an unknown one reads not_enabled, a known one is kept', async () => {
   const p = v8Platform();
   let reason = 'C:\\Users\\x\\<b>held</b>';
@@ -478,6 +503,68 @@ test('I-V2 #34 text: redacted WHOLE before it is paged (a secret across a cut ne
   // An object over the preview bound is too_large (the whole is redacted per page, so it stays bounded).
   const { PREVIEW_MAX_OBJECT_BYTES } = loadTs('src/main/nexus/exec/execQueries.ts');
   assert.equal(PREVIEW_MAX_OBJECT_BYTES, 4 * 2 ** 20);
+  w.close();
+});
+
+test('I-V3 #34 text is redacted once per content (fix round 2): later pages and later requests for the same bytes never redact again; a small LRU bounded by entries and bytes', async () => {
+  const { redactSecretText } = loadTs('src/main/nexus/activity/redact.ts');
+  const { PREVIEW_CACHE_ENTRIES, PREVIEW_CACHE_BYTES } = loadTs('src/main/nexusExec/execWiring.ts');
+  assert.deepEqual([PREVIEW_CACHE_ENTRIES, PREVIEW_CACHE_BYTES], [4, 16 * 2 ** 20]);
+  const TOKEN = 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789';
+  const w = execWorld();
+  let src = null;
+  let redactions = 0;
+  const port = execIpcPort({ queries: { previewSource: () => src } }, w.dataHome, { redact: (s) => { redactions++; return redactSecretText(s); } });
+  const pages = async (maxBytes) => {
+    let all = ''; let page = 0;
+    for (;;) {
+      const p = await port.preview(null, 'v', { part: 'content', page, maxBytes });
+      all += p.text;
+      if (p.nextPage === null) return all;
+      page = p.nextPage;
+    }
+  };
+  const text = (i) => `content ${i} key ${TOKEN} ${'ü'.repeat(300)} end`;
+  // One content, paged at three sizes, as inline text and as the stored object with the same bytes: redacted once.
+  src = { type: 'text', text: text(0) };
+  for (const maxBytes of [7, 64, 4096]) assert.equal(await pages(maxBytes), redactSecretText(text(0)));
+  assert.equal(redactions, 1, 'the first page redacted it, no later page did');
+  const stored = w.stored('notes.txt', text(0));
+  src = { type: 'object', sha256: stored.sha256, bytes: stored.bytes, mediaType: 'text/plain' };
+  assert.equal(await pages(64), redactSecretText(text(0)));
+  assert.equal(redactions, 1, 'the same bytes are the same content');
+  // Contents 1-3 fill the cache (4 entries); content 0 is used again (most recent); content 4 evicts content 1, the least recent.
+  for (const i of [1, 2, 3]) { src = { type: 'text', text: text(i) }; await pages(4096); }
+  assert.equal(redactions, 4);
+  src = { type: 'text', text: text(0) }; await pages(4096);
+  assert.equal(redactions, 4, 'content 0 still cached');
+  src = { type: 'text', text: text(4) }; await pages(4096);
+  assert.equal(redactions, 5);
+  for (const i of [0, 2, 3, 4]) { src = { type: 'text', text: text(i) }; await pages(4096); }
+  assert.equal(redactions, 5, 'contents 0, 2, 3 and 4 are cached');
+  src = { type: 'text', text: text(1) }; await pages(4096);
+  assert.equal(redactions, 6, 'content 1 was evicted and is redacted again');
+  // The byte bound: redacted text can be longer than its content (`sig=a` -> `sig=[redacted]`). Three such contents of
+  // over 6 MiB each exceed 16 MiB, so the oldest is evicted although only three entries are held.
+  const big = (c) => `sig=${c} `.repeat(500_000);
+  assert.ok(Buffer.byteLength(redactSecretText(big('a'))) > 6 * 2 ** 20);
+  const view = async (c, page = 0) => { src = { type: 'text', text: big(c) }; return port.preview(null, 'v', { part: 'content', page, maxBytes: 10 }); };
+  for (const c of ['a', 'b', 'c']) await view(c);
+  assert.equal(redactions, 9);
+  await view('c', 5); await view('b', 7);
+  assert.equal(redactions, 9, 'the two most recent are cached');
+  assert.doesNotMatch((await view('a', 1)).text + (await view('a', 2)).text, /sig=a/);
+  assert.equal(redactions, 10, 'the oldest was evicted by the byte bound');
+  // A real adversarial 4 MiB text: the second page does not redact again (measured here: about 80 ms, then about 10 ms).
+  const real = execIpcPort({ queries: { previewSource: () => ({ type: 'text', text: `${'x-'.repeat(127)} `.repeat(16448) }) } }, w.dataHome);
+  const t0 = process.hrtime.bigint();
+  const p0 = await real.preview(null, 'v', { part: 'content', page: 0, maxBytes: 262144 });
+  const t1 = process.hrtime.bigint();
+  const p1 = await real.preview(null, 'v', { part: 'content', page: 1, maxBytes: 262144 });
+  const t2 = process.hrtime.bigint();
+  assert.equal(p0.nextPage, 1); assert.equal(p1.page, 1);
+  const [first, second] = [Number(t1 - t0) / 1e6, Number(t2 - t1) / 1e6];
+  assert.ok(second < 200, `the second page took ${second.toFixed(1)} ms (the first ${first.toFixed(1)} ms)`);
   w.close();
 });
 
