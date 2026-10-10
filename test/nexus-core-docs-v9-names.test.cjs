@@ -68,3 +68,61 @@ test('section 32.1 names every v9 table', () => {
   const tables = between('### 32.1 ', '### 32.2 ');
   for (const t of Object.keys(V9_EXPECTED.tables)) assert.ok(tables.includes(`\`${t}\``), `${t} missing from section 32.1`);
 });
+
+// ---------- B2a final review: Part III after Tasks 14 and 15, and the inlined peer-file text (carry 13, C2, C4) ----------
+
+test('section 45 holds the full peer-file text inline (carry 13): the scripts, every test:focused file, and the index.ts lines', () => {
+  const sec = between('## 45. ', '## 46. ');
+  assert.doesNotMatch(sec, /\.superpowers|task-\d+-report/, 'no pointer to the git-ignored reports');
+  assert.ok(sec.includes('"test:exec": "node tools/run-exec-tests.cjs",'));
+  assert.ok(sec.includes('"fast-xml-parser": "5.11.2",'));
+  const line = fenced(sec, 'text').trim().split(/\s+/);
+  for (const f of ['test/nexus-ui-exec-models.test.cjs', 'test/nexus-lifecycle-rail.test.cjs', 'test/nexus-honesty-audit.test.cjs',
+    'test/nexus-core-git-binary.test.cjs', 'test/nexus-core-docs-v9-names.test.cjs', 'test/nexus-core-runner.test.cjs', 'test/nexus-core-exec-entry.test.cjs']) {
+    assert.ok(line.includes(f), `${f} is in the test:focused line`);
+  }
+  assert.equal(new Set(line).size, line.length, 'no file twice');
+  for (const f of line) assert.ok(fs.existsSync(path.join(ROOT, f)), `${f} exists`);
+  const ts = [...sec.matchAll(/```ts\n([\s\S]*?)\n```/g)].map((m) => m[1]).join('\n');
+  for (const s of ["import { startExecution, type ExecutionHandle } from './nexusExec/execWiring';", 'executionUnavailableReason: () => executionUnavailableReason',
+    'exec: () => nexusExecution', 'isRepository: repositoryCheck', 'execution: persist.executionAvailable', "holdV9: process.env.NEXUS_DB_HOLD_V9 === '1',",
+    "enableV9: process.env.NEXUS_ENABLE_V9 === '1' ? true : undefined,", 'void Promise.race([h.stop().catch(() => undefined), bound]).finally(() => app.quit());']) {
+    assert.ok(ts.includes(s), `index.ts text: ${s}`);
+  }
+  assert.doesNotMatch(ts, /enableV9: false/);
+  assert.equal((ts.match(/startExecution\(/g) || []).length, 1);
+});
+
+test('Part III describes the renderer that exists (C4): no "no renderer" claim, and every renderer file it names exists', () => {
+  const part3 = DOC.slice(DOC.indexOf('\n# Part III: Schema v9 and B2a\n'));
+  assert.doesNotMatch(part3, /No renderer code calls|no renderer (UI|code)|renderer UI exists/i);
+  assert.ok(part3.includes('### 40.1 The renderer'));
+  const table = between('## 31. ', '## 32. ');
+  const rows = table.split('\n').filter((l) => l.startsWith('| `src/renderer/'));
+  assert.ok(rows.length >= 6, 'the renderer rows are in the code table');
+  for (const r of rows) {
+    const cell = r.split('|')[1];
+    const names = [...cell.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+    const base = path.dirname(names[0].replace(/\/$/, ''));
+    for (const n of names) {
+      const full = n.startsWith('src/') ? n : path.posix.join(n.includes('/') ? 'src/renderer/src/nexus' : base, n);
+      assert.ok(fs.existsSync(path.join(ROOT, full)), `${full} (named in section 31) exists`);
+    }
+  }
+});
+
+test('section 42 states the ruled disk gate (C2) in the renderer\'s own words', () => {
+  const X = loadTs('src/renderer/src/nexus/data/executionModel.ts');
+  const GIB = 2 ** 30;
+  const a = X.availabilityFrom({ unavailable: null }, { ok: true, data: {
+    db: { version: 9, platform: true, handoffs: true, execution: true }, registry: { valid: true, problems: 0 }, runner: { state: 'ready', attached: true, restarts: 0 },
+    docker: { state: 'running', cpus: 8, memoryBytes: 8 * GIB }, images: [],
+    disk: { dataHomeFreeBytes: 18 * GIB, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'below_required' },
+    problems: ['disk_low'], gpu: { detected: false, supported: false }, checkedAt: 1 } });
+  assert.equal(a.kind, 'ready');
+  const sec = between('## 42. ', '## 43. ');
+  assert.ok(sec.includes(`"${a.advisories[0]}"`), 'the advisory sentence is quoted exactly');
+  assert.match(sec, /Only "Prepare image" is unavailable/);
+  assert.match(sec, /heavy actions are not disabled for this reason/);
+  assert.doesNotMatch(sec, /blocks heavy execution below these limits/);
+});

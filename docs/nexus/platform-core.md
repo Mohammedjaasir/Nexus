@@ -899,17 +899,18 @@ To check a restore without launching the app: open the restored `harness.db` wit
 28. **`#41` runs blob GC only.**
     - `nexus:blobs:gc` lists and removes unreferenced blobs that are more than 24 h old.
     - Nothing yet reclaims the work folders (`work/<job>/<n>`), attempt logs, image build logs or `nexus-deps-*` volumes. They accumulate in the data home and in Docker.
-29. **A job waiting for git leaves abandoned attempt rows.**
-    - While git is missing, a waiting job is leased again after each backoff (2 s, doubling to 60 s), and each runner refusal (`git_missing`) leaves one `abandoned` attempt row.
-    - Over hours this is about 60 rows an hour per waiting job.
-    - The scheduler has no git probe yet, unlike Docker and images. Holding such jobs without leasing them is a final-batch carry.
+29. **A job waiting for git.**
+    - The first lease after git disappears still ends in one runner refusal (`git_missing`) and one `abandoned` attempt row; the job then waits (`waiting:git`).
+    - Since the final fix round (final batch item 3), the scheduler holds `waiting:git` jobs without leasing them until main itself finds a git binary again (`resolveGitBinary`, a file-system check only, at most once every 5 s, and at once after a `git_missing` refusal). Before, each backoff step leased the job again and left one more abandoned row, about 60 an hour per waiting job.
 30. **Docker resources from a deleted data home need manual cleanup.**
     - Recovery removes only resources whose `nexus.home` is this install's, and whose `nexus.attempt` names an ended attempt of this database ([section 35.5](#355-orphan-scoping)).
     - Containers, volumes and networks left by a data home that was later deleted (for example a scratch `--user-data-dir`) are never removed automatically. Recovery reports the ones whose attempt id this database does not know, and leaves them in place.
     - **To find them:** `docker ps -a --filter label=nexus.attempt`, `docker volume ls --filter label=nexus.attempt` and `docker network ls --filter label=nexus.attempt`. Compare their `nexus.home` label with the labels of the data homes you still use, and remove only the others.
 31. **The socat pin is unverified.**
     - `infra/images/nexus-fwd/Dockerfile` installs `socat=1.8.0.0-r0`. Resolving Alpine package versions needs APKINDEX, which was outside the approved metadata scope.
-    - If the pin is wrong, the first `nexus-fwd` build fails loudly. The fix is to edit the version, then run `node tools/nexus-lock-images.cjs --rehash` and `--check`.
+    - Since the final fix round (final review B7), the version alone is not trusted: the build takes `SOCAT_APK_SHA256`, refuses an empty or malformed value before fetching anything, fetches that version with `apk fetch`, checks it with `sha256sum -c`, and installs only that file. `lock.json` records `profiles.nexus-fwd.packages.socat = { version, apkSha256 }`, with `apkSha256: null` today.
+    - **Until the hash is set at verification, the `nexus-fwd` build refuses.** Set it with `node tools/nexus-lock-images.cjs --pin-apk socat=<sha256>` (no network; it writes both fields and rehashes). `--check` fails when they disagree, and warns while the hash is null.
+    - If the version pin is wrong, the build fails loudly. The fix is to edit the version, then run `--pin-apk` with the new file's hash and `--check`.
 32. **The real-Docker suites have not run.**
     - The disk is far below the 30 GiB gate: `test:exec` last reported 3.5 GiB free at the Docker data volume, and exited 3. No image has been built.
     - So none of the following is proven against Docker yet: K1 to K11 (sandbox), L1 to L16 (lifecycle and recovery), X1 to X12 (recipes), the Nexus entry inside the images, `npm ci` against the generated lockfile, pip with hashes, the forwarder, and `host.docker.internal` reaching a loopback listener.
@@ -918,9 +919,11 @@ To check a restore without launching the app: open the restored `harness.db` wit
     - The runner opens `/out` files and stored objects with `O_RDONLY|O_NOFOLLOW`, which is a no-op on Windows.
     - There, the guard is an lstat (a regular file with one link), followed by an identity re-check on the open handle: device, inode, size and link count.
     - How Windows sees a symlink made inside a container in a bind-mounted `/out` is a Verification item.
-34. **Legacy `src/main/hive.ts` still runs git by name.** It calls `spawnSync('git', …, { cwd: root })`, so a planted `git` in that folder could run. This predates B2a and is out of its scope. All B2a and B1 git calls go through the resolved absolute binary (`src/main/gitBinary.ts`).
+34. **textconv and external diff drivers are not neutralised in the legacy diffs** of `src/main/git.ts` (they need repository config; git ships no system default like `filter.lfs`). This is the behaviour from before B2a; only `status` and `archive` neutralise filter drivers.
+    **Legacy `src/main/hive.ts` still runs git by name.** It calls `spawnSync('git', …, { cwd: root })`, so a planted `git` in that folder could run. This predates B2a and is out of its scope. All B2a and B1 git calls go through the resolved absolute binary (`src/main/gitBinary.ts`).
 35. **A checkout is one commit, archived.**
-    - `git archive` leaves out submodules, LFS content and `export-ignore` paths.
+    - `git archive` leaves out submodules and `export-ignore` paths.
+    - **LFS files stage as their pointers** (final review B1): no filter driver runs, so a file tracked by Git LFS reaches the container as its small pointer text, never its content. A repository whose tests need LFS content cannot run them in B2a.
     - Uncommitted changes are never included. The UI note says "Tests run on commit <short>; uncommitted changes are not included."
 36. **Test attribution.**
     - node's JUnit reporter names no file, so node:test suites run one file at a time, and the runner attributes the cases.
@@ -941,7 +944,7 @@ To check a restore without launching the app: open the restored `harness.db` wit
     - Lines are redacted before they are framed. A token run of more than 4,096 characters with no separator, straddling a forced flush of an unterminated line, can still be split. No known credential shape is that long.
 42. **The entry's timeout and host sleep.**
     - Main leaves sleep-like gaps out of the wall clock, up to 1 × the wall clock.
-    - The Nexus entry's own `timeout` (`NEXUS_WALL_SECONDS`, the recipe's wall clock from the container start) does not know about those gaps. Whether it fires after a host sleep depends on the Docker VM's clock, and this is untested.
+    - The Nexus entry's own `timeout` (`NEXUS_WALL_SECONDS`, twice the recipe's wall clock since the final fix round, counted from the container start) does not know about those gaps. Whether it fires after a host sleep depends on the Docker VM's clock, and this is untested.
     - If it fires, the attempt fails. It never completes.
 43. **v9 changes two earlier statements.**
     - **The v9 triggers stay in the file.** A file migrated to v9 and later opened without `enableV9` keeps its three `jobs` backstop triggers. B0b-style completion of a `tool.run` job without an attempt is refused there.
@@ -953,6 +956,9 @@ To check a restore without launching the app: open the restored `harness.db` wit
     - A build fails `timeout` after 10 minutes without progress, or after 180 minutes in all.
     - Any runner-wide fault (a fault naming no attempt, the runner leaving `ready`, or a replaced runner) interrupts every running build. The user can request it again.
 46. **What an install proves.** A dependency install completes only when its single output `lock.sha256` equals both the repository version's lockfile hash and the hash in the approval it consumed (`sde.deps.lock_matches`, advisory, Task 13 review fixes). That proves which lockfile was installed. It does not prove where the packages came from (item 26).
+    - **A real install needs two Nexus-owned lockfile steps** (final batch item 1, ruled): the snapshot records the lockfile's hash at the commit, and the install writes the hash of the lockfile it installed from. Without the first, an install is refused at lease (`lockfile_missing`); without the second, it has no `lock.sha256` and fails `invalid_output`. See [section 39](#39-recipes-what-each-sde-step-runs).
+    - **Snapshots taken before this change carry no lockfile hash.** A new snapshot of the same commit deduplicates to the old version, so an install of such a repository needs a new commit first; until then it is refused `lockfile_missing`.
+    - Only `package-lock.json` and then `requirements.txt` are recorded (the first present at the commit), and a lockfile over 64 MiB is not hashed (`LOCKFILE_MAX_BYTES`): such a repository's installs are refused `lockfile_missing`.
 47. **The data home after a restore.** The data home is not part of the database backup, so a restore to v8 leaves its blobs, logs and work folders in place. The v8 schema does not read them. After a later re-migration, the first blob store hygiene pass sweeps unindexed objects older than 24 h. Work folders and logs stay (item 28).
 
 Further operational notes:
@@ -1074,7 +1080,7 @@ B1 did not start B0c, B2 or any execution work.
 | QA workflows and `covers` edges; handoff states and routes beyond B1 | B2c |
 | `data-scientist` workspace rows (M4); DA, DS, ML and DL workflows beyond the problem statements | B3 to B6 |
 | An egress host allow-list; GC of work folders, logs and dependency caches; moving the data home; GPU use | Later |
-| The execution UI (Runs from jobs, evidence, actions, approvals, deployments, setup) | B2a Tasks 14 and 15 |
+| The execution UI (Runs from jobs, evidence, actions, approvals, deployments, setup) | B2a Tasks 14 and 15 (done: [section 40.1](#401-the-renderer)) |
 | The B0b and B1 items not listed under "Delivered" above: `reviews`, `reviewRequired` gating, multi-user grants, the activity anchor, scheduled backups, the linear redactor rewrite | As listed above |
 
 ---
@@ -1711,7 +1717,7 @@ Channels #15 to #20 can also answer `platform_unavailable` with reason `handoffs
 - No view carries a principal id: there is no `createdBy`, `respondedBy`, `actorId` or `onBehalfOf`. `ActivityView` has the actor kind and an `onBehalfOfUser` flag.
 - Lists carry no storage and no content.
 - Version metadata is not sent. A git version exposes only its commit; the renderer reads commit subjects from the project's own git log.
-- Activity `details` are reduced to scalar, allow-listed keys. Strings are scrubbed and capped at 64 characters.
+- Activity `details` are reduced to scalar, allow-listed keys. Strings are scrubbed and capped at 64 characters. B2a (final review) adds `reason`, `decision`, `status`, `job` and `requested`, which the execution rows' sentences read: an approval's reason and answer, an image build's status, a recovery decision and a failed recovery's status, a dev deployment stop's effect on its job, and the count of leftover sandbox resources handed to the runner. Without them, Approve once and Deny read the same, and every recovery read alike.
 
 ### 24.2 Errors
 
@@ -1971,7 +1977,7 @@ Before the first answer, or after a `busy` or `internal` first read, the screens
 | Navigation and palette | "Go to": home, workspaces, projects, artifacts, handoffs, agents. "Planned" holds only Deployments. |
 | Completion | Still **Planned**, with no phase number (ruling C9): nothing real backs completion yet. |
 | Deployments | Still a **Planned** page. |
-| Runs | Unchanged: session-only, in the UI store. Nothing executes, so persisted runs would be fake (ruling C11). |
+| Runs | Unchanged in B1: session-only, in the UI store. Nothing executes, so persisted runs would be fake (ruling C11). **B2a changed this:** the Runs tool shows persisted jobs above the session requests ([section 40.1](#401-the-renderer)). |
 
 All copy is plain words. Status is always shown as text, never by colour alone. Colour means provenance. No screen shows a principal id, a participation id or raw version metadata. A screen shows real rows, or an honest empty or unavailable state.
 
@@ -2045,7 +2051,7 @@ Nothing else in those three domains runs. **None of the six domains is complete.
 - **v9 is opt-in.** `V9_ENABLED_BY_DEFAULT = false` in `src/main/db.ts`. It stays false until the user's verification go-ahead. Making it the default is a separate one-line commit ([section 33.1](#331-opt-in)).
 - **The app does not start the runner yet.** `src/main/index.ts` does not pass `execution` to `createNexusPlatform`, does not call `startExecution`, and does not register the 20 execution channels. The edits are written but wait for the peer session and the user ([section 45](#45-pending-wiring)).
 - **On a real database today:** the schema stays at v8, nothing executes, and the B1 screens work as before.
-- **No renderer code calls the new channels yet.** The execution UI is later work (B2a Tasks 14 and 15).
+- **The renderer calls the new channels** (Tasks 14 and 15, [section 40.1](#401-the-renderer)): Runs from persisted jobs, Folio evidence and kind viewers, the action bar, approvals, dev deployments, the execution setup sheet, and every domain's lifecycle rail. Until the pending `index.ts` edit lands, every execution channel rejects. The UI then reads "Running jobs is not available because it did not answer, so it is not connected in this build of the app.", the B1 screens work as before, and the rails use the registry bundled with the build.
 
 **What B2a is not.**
 - No agent runs. The AgentRuntime, the Claude CLI adapter, capability tokens, encrypted secrets and spending caps are B2b.
@@ -2085,8 +2091,16 @@ Nothing else in those three domains runs. **None of the six domains is complete.
 | `src/shared/nexus/*` | The pure contracts: `execution.ts`, `runnerProtocol.ts`, `preflightCheck.ts`, `resourceGate.ts`, `recipes.ts`, `validators.ts`, `evidence.ts`, `actions.ts`, `domainSpec.ts`, `domains/*`, `registryCheck.ts`, `homeLabel.ts`, `stepState.ts`, `secretShape.ts`, `repoSnapshot.ts`, `kinds.ts`, `capabilities.ts` and `runtime.ts`. |
 | `src/main/nexusIpc/*` | Channels #22 to #41, and `nexus:hint`. |
 | `src/preload/index.ts` | 20 more methods, plus `onNexusHint`. |
+| `src/renderer/src/nexus/data/useExecution.ts`, `data/executionModel.ts`, `data/nexusClient.ts`, `data/errorCopy.ts` | The execution reads (one shared health read, hint-driven list reloads, `useDomains`), availability and the setup sheet's rows (pure), the 20 client calls (a rejected or missing channel answers "execution unreachable", never a throw), and `execFailText`. |
+| `src/renderer/src/nexus/runs/jobRunModel.ts`, `runs/JobLogSheet.tsx`, `runs/ProjectRuns.tsx` | A job as a headline, a status word and a six-stage strip (pure); the paged, redacted run log; the project's Runs tool (persisted jobs above the session requests). |
+| `src/renderer/src/nexus/project/evidenceModel.ts`, `EvidenceSection.tsx`, `kindViewers.tsx` | Check results with their sourced facts, log ranges, and the per-kind viewers (test results, build manifest, application manifest, diagnostic report, requirement, problem statement, repository). |
+| `src/renderer/src/nexus/project/actionModel.ts`, `ActionBar.tsx`, `ApprovalsSection.tsx`, `DeploymentsSection.tsx`, `RequirementSheet.tsx`, `execContext.ts` | What a person may start, answer or stop (pure, registry-checked); approvals (Approve once, Deny); dev deployments (loopback URL, Stop, Diagnose); the requirement and problem-statement writing sheet; the context that lends the bench's sheets. |
+| `src/renderer/src/nexus/components/ExecutionSetupSheet.tsx`, `components/ExecutionNotice.tsx` | The execution setup sheet (Docker, memory, CPUs, disk, images, runner, git, GPU, each with a word and an action) and the one-line notice on the bench. |
+| `src/renderer/src/nexus/workspaces/lifecycleModel.ts`, `workspaces/LifecycleRail.tsx` | Each domain's lifecycle as a rail in its own words, with states from records only (`stepStateFrom`); shown on the workspace page and, compact, on each Spine group. |
+| `src/renderer/src/nexus/project/spineModel.ts`, `Spine.tsx`, `ProjectBench.tsx`, `PassportPanel.tsx`, `ArtifactPassport.tsx`, `styles/execution.css` | The Spine's checks words and rail records, the bench that mounts the notice, approvals and sheets, and the Passport that hosts the viewers, evidence, actions and deployments. |
 | `infra/images/*` | The three image contexts (`sde-node`, `sde-python`, `nexus-fwd`), `common/nexus-entry` and `lock.json`. |
 | `tools/run-exec-tests.cjs`, `tools/nexus-lock-images.cjs`, `tools/nexus-prepare-images.cjs` | The `test:exec` gate and runner; the image pin tool; the image builder for Verification. |
+| `test/nexus-ui-exec-models.test.cjs`, `test/nexus-lifecycle-rail.test.cjs`, `test/nexus-honesty-audit.test.cjs` | The renderer's models and source pins (plain node); the rails against the registry and main's own projection; the honesty audit (no FUTURE step offered, no unmet machine prerequisite, no number without a source, nothing called complete). |
 
 The process boundaries are pinned by tests:
 - `src/main/nexus` never imports Electron, and `utilityProcess` appears only in `runnerHost.ts` (`test/nexus-platform-composition.test.cjs`).
@@ -3017,12 +3031,14 @@ Engine recipes need only the runner. A project may have at most 20 jobs that are
 
 Each recipe has a wall clock: 15 minutes for installs, tests and builds; 5 minutes for discovery; 60 s for engine recipes; the 2-hour lifetime plus 10 minutes for a dev deployment. Main is the timeout authority. Its clock runs from the lease, minus the time the job spent in `awaiting_approval`.
 
+**Collecting is out of the wall clock** (final review A3). Once an attempt's exit is durable (phase `collecting`), the work has run, so the wall clock no longer applies: a blob GC that holds the store's lock never times out finished work. Collecting has its own deadline instead (`COLLECT_DEADLINE_MS`, 10 minutes from the durable exit), which ends the attempt `ingest_error`, a retryable failure.
+
 **Stalls (a tick gap over 10 s).** Leases move forward by the gap only, at most once per 60 s window, and the runner is probed. So an attempt keeps exactly the lease it had left before the stall. Heartbeats queued during the stall are written before the sweep.
 
 **Sleep-like gaps (5 minutes or more)** are left out of the wall clock. The total left out per attempt is capped at 1 × its wall clock. So a laptop sleep longer than the remaining budget ends the attempt `timed_out`, which is an honest outcome the user can retry. This was a controller ruling.
 
 **Two backstops sit inside the sandbox:**
-- the Nexus entry runs the recipe under `timeout -s TERM -k 10 <NEXUS_WALL_SECONDS>`, where `NEXUS_WALL_SECONDS` is the recipe's wall clock, set by main;
+- the Nexus entry runs the recipe under `timeout -s TERM -k 10 <NEXUS_WALL_SECONDS>`, where `NEXUS_WALL_SECONDS` is **twice** the recipe's wall clock, set by main (`ENTRY_WALL_FACTOR`, final batch item 2: the Task 7 R3 ruling puts the in-container backstop at no less than the limit plus the sleep cap, so it never ends work that main still counts as in time);
 - the runner's own timer fires at 2 × the wall clock from the container start. If it fires first, main records `timed_out`.
 
 ### 34.5 Failure classes and retry
@@ -3197,13 +3213,16 @@ Every container goes through three steps, in this order: **create, inspect (pref
 **Checkouts never write the user's repository.**
 - The code reaches a container as `git archive --format=tar <commit>`. The runner writes it into `work/<job>/<n>/in/src.tar`, hashing it as it goes, and the entry extracts it into `/workspace`.
 - B2a creates no worktree and no ref in the user's `.git`.
-- **What a checkout leaves out:** submodules, LFS content, `export-ignore` paths and uncommitted changes. The UI note is "Tests run on commit <short>; uncommitted changes are not included."
+- **What a checkout leaves out:** submodules, `export-ignore` paths and uncommitted changes. LFS-tracked files arrive as their pointer text (below). The UI note is "Tests run on commit <short>; uncommitted changes are not included."
+- `git archive` runs with `-c core.autocrlf=false -c core.eol=lf`, so the container receives the committed line endings, and a lockfile hashes in the container exactly as it hashes at the commit.
 
 **git on the host.**
 - git is resolved once to an absolute path (`src/main/gitBinary.ts`), from absolute PATH folders and the usual install folders.
 - It is launched with `-C <repo>` from a neutral folder, never by name.
 - A git binary inside the repository is refused.
 - Every runner call adds `-c core.fsmonitor=false -c core.hooksPath=<an empty folder>`, and main adds `-c core.fsmonitor=false`.
+- **No filter driver runs on the host** (final review B1). `git archive` smudges and `git status` cleans content through any configured `filter.<name>.*`, and Git for Windows ships `filter.lfs.*` in its system config, which would make git-lfs reach the network with the user's credentials. So before every `archive` or `status`, in the runner and in main alike, the driver names are read with `git config --name-only --get-regexp "^filter\."` (read-only), and each one is switched off with `-c filter.<n>.smudge= -c filter.<n>.clean= -c filter.<n>.process= -c filter.<n>.required=false`. If the names cannot be read, the call is refused. `GIT_LFS_SKIP_SMUDGE=1` is in every git call's environment. LFS-tracked files therefore stage as their pointers ([section 16](#16-known-limitations-and-operational-notes), item 35).
+- **The snapshot records the lockfile** (final batch item 1): the first of `package-lock.json` and `requirements.txt` present as a blob at the commit is streamed with `git cat-file blob` (raw bytes: no filter, no textconv) and hashed in the runner. Only `{ path, sha256 }` leaves the runner, and `repo.snapshot` stores it as the repository version's `metadata.lockfile.sha256`.
 - A missing git is reported as `setup:git_missing` (main) or the refusal `git_missing` (runner). The job then waits (`waiting:git`).
 
 **Outputs.**
@@ -3248,6 +3267,7 @@ Every container goes through three steps, in this order: **create, inspect (pref
 - A preview runs the application manifest's validated `run` argv: 1 to 32 plain strings, never a shell string.
 - It is reachable only on `127.0.0.1` through the forwarder.
 - It becomes `healthy` on the first `200` from its health path. It becomes `unhealthy` after 3 failed probes, and `healthy` again after 2 good ones. It fails `probe_failed` if it is still `starting` 60 s after its container started.
+- **Windows across a restart or a stall** (final review A2). When restart recovery re-owned the deployment's attempt (`adopt` or `finalize`), the 60 s start window and the stopping wait count from that decision, not from the container start. A stopped deployment that waits for its exit is not judged before the runner's re-report deadline. A window that overlapped main's downtime, or a scheduler stall of 5 minutes or more, was not observed: `app.preview_health` records `error` / `start_window_unobserved` (the check could not run), never `failed`, so nothing blocks the application draft and the user can start the deployment again.
 - It stops after a fixed 2 hours (`idle`).
 - At most 2 run at once.
 - A manifest that names env variables is refused: "secrets for dev deployments are not supported yet".
@@ -3277,7 +3297,7 @@ The definitions are in `src/shared/nexus/validators.ts`, and the implementations
 | `app.manifest_schema` | application | register | main | `nexus.app.json` breaks its schema. |
 | `app.preview_health` | application | candidate | the dev deployment | No `200` within 60 s, the container exited, or the port is bound anywhere but `127.0.0.1`. |
 | `diag.schema` | diagnostic_report | register | main | A field has no inspect, probe or log source, or nothing was observed at all (`nothing_observed`). |
-| `sde.deps.lock_matches` (advisory) | repository | candidate | main, at install ingest | The exit is not 0; `lock.sha256` is missing, not the only output, or not 64 hex characters; or it differs from the repository version's lockfile hash or from the hash of the approval this attempt consumed. |
+| `sde.deps.lock_matches` (advisory) | repository | candidate | main, at install ingest | The exit is not 0; `lock.sha256` is missing, not the only output, or not 64 hex characters; or it differs from the repository version's lockfile hash (`metadata.lockfile.sha256`, recorded by the snapshot) or from the hash of the approval this attempt consumed. `lock.sha256` is written by a Nexus-owned entry step, never by the repository's own tools. |
 
 The first twelve are blocking. `sde.deps.lock_matches` came with the Task 13 review fixes. It is advisory: it records an install's own evidence on the repository version and never gates that version.
 
@@ -3343,16 +3363,22 @@ The recipes are data in `src/shared/nexus/recipes.ts`. Main builds every argv fr
 | Step | Recipe | Executor | Output, then evidence |
 |---|---|---|---|
 | Requirement | none: `nexus:artifact:saveInline` | main | an inline `requirement` → `req.schema` |
-| Repository | `repo.snapshot` | engine: 4 fixed git argv in the runner | a `repository` version (`git` storage: commit, branch, dirty, tree) → `git.head_resolves` |
+| Repository | `repo.snapshot` | engine: 4 fixed git argv in the runner, plus the lockfile read (`cat-file`) | a `repository` version (`git` storage: commit, branch, dirty, tree; `metadata.lockfile.sha256`) → `git.head_resolves` |
 | Tests (discover) | `sde.test.discover` | container, `none` | a `test_suite` with the whole discovered list in its metadata → `suite.discovered` |
 | Tests (run) | `sde.test.node` or `sde.test.pytest`, as a child `validate` job | container, `none` | the JUnit result → `sde.tests_pass` |
 | Build | `sde.build.node` or `sde.build.python` | container, `none` | a `build` tree (`dist/**` or wheels) → the four build validators |
 | Application | `sde.app.assemble` | engine: `git cat-file -s`, then `git show <commit>:nexus.app.json` (at most 16 KiB) | an `application` → `app.manifest_schema`, then `app.preview_health` |
 | Dev deployment | `sde.preview.start` | service: the app plus the `nexus-fwd` forwarder | a deployment row; health → `app.preview_health` |
 | Logs and diagnostics | `sde.diagnose` | engine: label-checked `docker inspect`, plus hashed log ranges | a `diagnostic_report` → `diag.schema` |
-| (dependencies) | `sde.deps.node` or `sde.deps.python` | container, `egress-approved` | `lock.sha256` → `sde.deps.lock_matches` (advisory) |
+| (dependencies) | `sde.deps.node` or `sde.deps.python` | container, `egress-approved` | the install, then the Nexus step `nexus-lock-hash` → `lock.sha256` → `sde.deps.lock_matches` (advisory) |
 
 **node:test attribution.** node's JUnit reporter names no file. So the entry runs each discovered file on its own (`nexus-node-test`), and the runner merges the reports into `/out/junit.xml`, attributing each case from main's own `perFileJunit` mapping. A file whose report is missing gives no case, and the suite then fails `discovered_not_run`.
+
+**Dependencies: the two lockfile steps** (final batch item 1, ruled). A real install needs both:
+1. `repo.snapshot` records `metadata.lockfile.sha256` from the lockfile at the commit (`git cat-file blob`, hashed in the runner). An install of a repository version without it is refused at lease (`lockfile_missing`), before any approval is asked for.
+2. After `npm ci --ignore-scripts` or `pip install … --require-hashes`, the install's argv ends with a Nexus-owned entry step with a fixed argv and no job value: `nexus-lock-hash --file package-lock.json --out /out/lock.sha256` (or `requirements.txt`). It refuses a link anywhere on the lockfile's path and writes the sha256 as 64 lowercase hex characters and a newline.
+
+Main then judges `lock.sha256` against step 1's hash and the consumed approval's hash (`sde.deps.lock_matches`). The two hashes agree because the checkout keeps the committed line endings ([section 36](#36-the-sandbox)).
 
 **Builds.** A build is keyed by (commit, tree). The same tree from another commit is a new version with its own `built_from` edge, while its blobs still deduplicate as blobs.
 
@@ -3362,7 +3388,7 @@ The recipes are data in `src/shared/nexus/recipes.ts`. Main builds every argv fr
 
 ## 40. The IPC surface
 
-B2a adds 20 invoke channels (#22 to #41) and one push. **No renderer code calls them yet.**
+B2a adds 20 invoke channels (#22 to #41) and one push. The renderer calls them from Tasks 14 and 15 on ([section 40.1](#401-the-renderer)); until the pending `index.ts` edit lands, main does not register them, and the renderer reads that as "not connected".
 - **Registration.** `NEXUS_CHANNELS` stays B1's frozen 21. The new ones are `NEXUS_EXEC_CHANNELS` (20), and `NEXUS_ALL_CHANNELS` is all 41. `registerNexusIpc` registers the 20 only when main passes an execution dependency. Until the pending `index.ts` edit lands, main registers B1's 21 only, and the 20 preload methods would reject with "no handler" (Task 13 deviation, accepted by ruling).
 - **The wrapper.** Every channel goes through the one `handler()` wrapper. It checks the platform, then handoffs where needed, then execution (#24 to #41), then validates the request, resolves `user:local`, makes one service call, and returns the envelope.
 - **What a request may carry.** Ids come from the renderer. No channel accepts a folder, file, image, network, argv, command or env.
@@ -3370,7 +3396,7 @@ B2a adds 20 invoke channels (#22 to #41) and one push. **No renderer code calls 
 | # | Channel | Authorization | Service call |
 |---|---|---|---|
 | 22 | `nexus:domains:list` | the wrapper only; static registry | `DOMAINS.map(domainView)` |
-| 23 | `nexus:platform:health` | `platform.health` | `exec.health()` (cache only) |
+| 23 | `nexus:platform:health` | `platform.health` | `exec.health()` (cache only). The optional `{ probe: true }` (the setup sheet's "Check again", final review C3) also calls `exec.requestProbe()`, at most one probe per 5 s, never waited for; the answer is still the cache. |
 | 24 | `nexus:actions:available` | `project.read`; the version's `artifact.read`; per action `authorize` (no audit row for a list) | `queries.actionsFor` |
 | 25 | `nexus:job:start` | `job.create` in the stored participation; each input readable | `exec.start`, or `repo.requestSnapshot` for the snapshot action |
 | 26 | `nexus:jobs:list` | `job.read` | `exec.list` (limit clamped to 500) |
@@ -3402,6 +3428,28 @@ B2a adds 20 invoke channels (#22 to #41) and one push. **No renderer code calls 
 - `approval.respond` (owner);
 - `approval.create`, `deployment.transition` and `exec.ingest` (system only).
 
+**Attempt ids.** `JobDetailView.attemptHistory` carries each attempt's `id` (the attempt row's ULID) since the final review. A diagnostic report names the attempt of each log range by that id, so a log-range link opens exactly that attempt, also for a job with several.
+
+### 40.1 The renderer
+
+The execution UI keeps Spine and Folio (user constraint 14): no dashboard, cards or tiles. Every status is a word, and every number comes from a view (`HealthView`, an approval, a job, a check result); nothing is estimated in the renderer.
+
+| Where | What it shows |
+|---|---|
+| Bench notice (`ExecutionNotice`) | One `role="status"` line when jobs cannot run, or an advisory such as the disk below 30 GB, with "How to set up". Nothing when the platform itself is off: its own notice speaks. Before main's first probe nothing reads ready ("This computer has not been checked yet…"). |
+| Execution setup sheet | Rows for Docker, memory, CPUs, free disk, each sandbox image, the runner, git (only when main reports it missing) and the GPU, each with a status word, the exact numbers and what to do. "Prepare image" asks for an approval first. "Check again" asks main for a fresh probe (#23 `{ probe: true }`) and reads the cache again about 1.5 s later. "Checked at <time>" says when main last probed. |
+| Runs tool | Persisted jobs above the session requests: the title from the registry, a headline ("Tests ran; checks failed: no tests were executed"), a status word and a six-stage strip. Cancel only for live jobs; Retry only for failed, timed out, cancelled or interrupted ones; Logs. A job whose checks failed never reads completed or passed. |
+| Run log | The paged, redacted log of one attempt, read from main's byte offsets ("Load more"). A log range from a diagnostic report opens its own attempt at its own offset. |
+| Folio: evidence | The latest blocking result per validator, with its sourced facts (JUnit counts "Reported by the framework", 12-character hashes, exit codes, HTTP probes) and advisory run results. Revalidate only on a draft whose checks could not run. A kind with no checks reads "No checks for this kind". |
+| Folio: kind viewers | Test results (failures first) and the discovered list, a build's manifest, an application's manifest, a diagnostic report's sourced facts and log ranges (a report larger than one page says so and offers "Load more"), a requirement, a problem statement, a repository snapshot. |
+| Folio: actions | Main's #24 answer, checked again against the registry: an available action of a step in this release is a button; an unavailable one is a sentence that says why. A FUTURE step's action is never shown. |
+| Approvals | What is reached or downloaded, the hashes it is bound to and when it expires; only "Approve once" and "Deny", with an inline confirmation. |
+| Dev deployments | A status word, `http://127.0.0.1:<port>` only while healthy or not answering, the last health check, Stop, and Diagnose when main offers it. Diagnose lives on this row only; a run row does not offer it in this release. |
+| Lifecycle rails | Each domain's steps in its own words on the workspace page and, compact, on each Spine group. A state comes from records only (`stepStateFrom`). A FUTURE step reads "Not in this release: arrives with …". A step whose versions' checks were not read (past the Spine's 40-version read cap) claims no state. No domain is ever called complete. |
+| Activity | One sentence per row, from the allow-listed details. A job's `completed` state reads "Job ran; its checks give the result", because a run whose checks failed is still a completed job. A recovery decision this build does not know reads "Restart recovery recorded a decision". |
+
+`test/nexus-honesty-audit.test.cjs` holds the audit: for every domain and every availability state, even when main's answer claims every action is available, no button maps to a FUTURE step, an unmet machine prerequisite or a missing input; and no rail text, B2a activity sentence (mapped through the real `dto.activityView`) or job-run headline calls work complete.
+
 ---
 
 ## 41. The domain registry
@@ -3421,15 +3469,17 @@ The registry is DomainSpec v3, in `src/shared/nexus/domainSpec.ts` and `domains/
 
 ## 42. The resource gate and the test:exec gate
 
-**The resource gate** (`src/shared/nexus/resourceGate.ts`, pure) blocks heavy execution below these limits:
+**The resource gate** (`src/shared/nexus/resourceGate.ts`, pure) evaluates these limits:
 - 30 GiB free (32.2 GB);
 - Docker missing or stopped;
 - less than 4 GiB of Docker memory, or fewer than 2 CPUs;
 - a missing or mismatched image.
 
-From 30 to 40 GiB free it passes with a warning. Sizes are binary, and the UI prints both units.
+From 30 to 40 GiB free it passes with a warning. Sizes are binary.
 
-`nexus:platform:health` and the action availability carry the gate's problems as actionable `setup:*` reasons with fixed sentences, for example "Docker is not running. Start Docker Desktop and try again." `requestImage` is refused below the gate before any row is written.
+**What the 30 GiB limit holds (ruled, final review C2).** Below 30 GiB free, main refuses **image preparation** (`requestImage` answers `setup:disk_low` before any row is written), and `test:exec` does not run the **verification checks** (its preflight). Jobs still run: a job is leased only above its **lease floor** (`leaseFloorBytes`: 5 GiB, or twice the recipe's output cap when that is larger), below which it waits (`waiting:disk`) and #24 answers `setup:disk_low` for its action. Docker, memory, CPUs and images block jobs whatever the disk.
+
+**What the UI says.** `nexus:platform:health` and the action availability carry the problems as actionable `setup:*` reasons with fixed sentences, for example "Docker is not running. Start Docker Desktop and try again." Below 30 GiB the renderer shows an advisory, never a blocker: "Free disk is 18 GB; preparing images and the execution checks need 30 GB (40 GB recommended)." Only "Prepare image" is unavailable ("It can be prepared once the disk has 30 GB free."). The availability stays ready, and heavy actions are not disabled for this reason. Below the lease floor the availability is `setup`, because no job starts there. The UI prints binary GB, rounded down.
 
 **`test:exec`** is `node tools/run-exec-tests.cjs` today. The `npm run test:exec` script is part of the pending wiring.
 - **The preflight.** It runs five checks and prints every failing one with exact numbers and the action to take:
@@ -3448,7 +3498,7 @@ From 30 to 40 GiB free it passes with a warning. Sizes are binary, and the UI pr
 **The images** are pinned in `infra/images/lock.json`: base digests, lockfiles, `contextSha256`, `estimatedBytes` and `versions`.
 - `sde-node` is node 20.20.2 (bookworm-slim), with jest-junit and mocha-junit-reporter installed by `npm ci --ignore-scripts`. About 205 MiB.
 - `sde-python` is CPython 3.11 (slim-bookworm), with pytest, build, wheel and setuptools installed by `pip --require-hashes --no-deps --only-binary`. About 150 MiB.
-- `nexus-fwd` is alpine 3.20 with `socat=1.8.0.0-r0`. About 12 MiB. The socat pin is unverified.
+- `nexus-fwd` is alpine 3.20 with `socat=1.8.0.0-r0`. About 12 MiB. The socat pin is unverified, and its package hash is set at verification ([section 16](#16-known-limitations-and-operational-notes), item 31).
 
 `tools/nexus-lock-images.cjs` fetches metadata only, and `--check` verifies the lock offline. `tools/nexus-prepare-images.cjs --build` builds through the app's own image builder, and only above the gate.
 
@@ -3483,54 +3533,148 @@ Constraint 13 says that every job durably records the facts below. Each one is a
 
 ## 45. Pending wiring
 
-These edits are written but **not applied**. They touch files that the peer session owns: `src/main/index.ts`, `package.json` and `package-lock.json`. They wait for the peer session to commit its own changes to those files, and then for the user's approval. The exact text is in the task reports (`.superpowers/sdd/2026-10-08-nexus-b2a-plan/task-5-report.md`, `task-7-report.md`, `task-10-report.md`, `task-11-report.md`, `task-12-report.md` and `task-13-report.md`). The later report wins where two differ.
+These edits are written but **not applied**. They touch files that the peer session owns: `src/main/index.ts`, `package.json` and `package-lock.json`. They wait for the peer session to commit its own changes to those files, and then for the user's approval. The full text is below, so this section needs no other source. It is the consolidated text of Tasks 5, 11, 12, 13, 14 and 15 in its final form; where two tasks differed, the later one won.
 
-**`package.json` and `package-lock.json`:**
-1. The dependency `"fast-xml-parser": "5.11.2"`, written by `npm install --save-exact fast-xml-parser@5.11.2` (user-approved network item). It is installed `--no-save` today, and the runner bundles it.
-2. The script `"test:exec": "node tools/run-exec-tests.cjs"`.
-3. These plain-node B2a test files appended to `test:focused`:
-   - `test/nexus-core-exec-contracts.test.cjs`
-   - `test/nexus-core-vendor-neutral.test.cjs`
-   - `test/nexus-core-domain-registry.test.cjs`
-   - `test/nexus-domain-registry-clean.test.cjs`
-   - `test/nexus-core-runner.test.cjs`
-   - `test/nexus-core-junit.test.cjs`
-   - `test/nexus-runner-posture.test.cjs`
-   - `test/nexus-core-exec-preflight-runner.test.cjs`
-   - `test/nexus-core-image-lock.test.cjs`
-   - `test/nexus-core-exec-diagnose.test.cjs`
-   - `test/nexus-core-exec-entry.test.cjs`
+### 45.1 `package.json` and `package-lock.json`
 
-   Also `test/nexus-core-git-binary.test.cjs` and `test/nexus-core-docs-v9-names.test.cjs`, which no report lists yet. All of these run today under `node --test test/`.
+1. **The dependency**, in `dependencies` between `"electron-updater"` and `"lucide-react"`. It is written by `npm install --save-exact fast-xml-parser@5.11.2` (a user-approved network item), which also updates `package-lock.json`. Today it is installed `--no-save`, and the runner bundles it.
+```json
+    "fast-xml-parser": "5.11.2",
+```
+2. **The script**, in `scripts` after `"test:db"`:
+```json
+    "test:exec": "node tools/run-exec-tests.cjs",
+```
+3. **The plain-node B2a tests**, appended to the end of the file list inside the `scripts.test:focused` string (one line; a leading space separates it from the last existing file):
+```text
+ test/nexus-core-exec-contracts.test.cjs test/nexus-core-vendor-neutral.test.cjs test/nexus-core-domain-registry.test.cjs test/nexus-domain-registry-clean.test.cjs test/nexus-core-runner.test.cjs test/nexus-core-junit.test.cjs test/nexus-runner-posture.test.cjs test/nexus-core-exec-preflight-runner.test.cjs test/nexus-core-image-lock.test.cjs test/nexus-core-exec-diagnose.test.cjs test/nexus-core-exec-entry.test.cjs test/nexus-core-git-binary.test.cjs test/nexus-core-docs-v9-names.test.cjs test/nexus-core-final-fix.test.cjs test/nexus-ui-exec-models.test.cjs test/nexus-lifecycle-rail.test.cjs test/nexus-honesty-audit.test.cjs
+```
+   `nexus-core-final-fix` holds the final fix round's plain-node backend tests (FF1 to FF6). The last three are the renderer's tests (Tasks 14 and 15, and the final review). All seventeen run today under `node --test test/`. The final round's real-SQLite tests (`test/nexus-platform-exec-final.test.cjs`) need no line: `test:db` picks up every `nexus-platform-*` file.
 
-**`src/main/index.ts`:**
-1. **`persist.open({ … })`:** `holdV9: process.env.NEXUS_DB_HOLD_V9 === '1'` and `enableV9: process.env.NEXUS_ENABLE_V9 === '1' ? true : undefined`. It must never pass `false` (ruling F1).
-2. **Module state:** `executionUnavailableReason` (set from `persist.executionUnavailableReason` after `open`, and reset in the startup catch), `nexusExecution` (the `ExecutionHandle`) and `stopExecutionForQuit`.
-3. **`createNexusPlatform` options:**
-   - `execution: persist.executionAvailable`;
-   - `executionUnavailableReason`;
-   - `dataHome: resolveDataHome(app.getPath('userData'))`;
-   - `profiles` and `imageContexts` from `loadImageProfiles(imagesDirFor(…))`, logging `[nexus] sandbox profiles not loaded: …` on a problem;
-   - `acceptFsRoot`;
-   - `isRepository: repositoryCheck` (not `isRepo`);
-   - `resolveCommit`;
-   - `appVersion: app.getVersion()`.
-4. **Start:** after `nexusPlatform?.startup()`, call `startExecution({ platform, userData, log, hintTargets })` exactly once, when execution is available.
-5. **`registerNexusIpc`** gains `executionUnavailableReason: () => executionUnavailableReason` and `exec: () => executionHandle`, which registers channels #22 to #41.
-6. **Quit:** `before-quit` awaits the bounded `stop()` (at most 10 s) before `app.quit()`, so that dev deployments do not survive a fast quit.
-7. **Comments:** the comments around the `persist.open` call that describe v7 and v8 only are refreshed to cover v9, `NEXUS_DB_HOLD_V9` and the enable switch.
+### 45.2 `src/main/index.ts`
 
-**`test/nexus-platform-composition.test.cjs`** gains three pins once those lines exist. They cannot pass before then:
-- the exact `enableV9` form, plus a ban on `enableV9: false`;
-- `NEXUS_DB_HOLD_V9` honoured by main;
-- `startExecution(` exactly once, after `nexusPlatform?.startup();`, plus `executionUnavailableReason: () => executionUnavailableReason`.
+**Imports**, beside the other `./nexusExec` and `./git` imports (merge into an existing `./git` import if there is one):
+```ts
+import { startExecution, type ExecutionHandle } from './nexusExec/execWiring';
+import { resolveDataHome } from './nexusExec/dataHome';
+import { imagesDirFor, loadImageProfiles } from './nexusExec/profiles';
+import { repositoryCheck, resolveCommit } from './git';
+```
 
-**The default flip** comes later, as its own commit after the user's go-ahead:
+**Module state**, after `let handoffsUnavailableReason ...`:
+```ts
+/** Why execution (schema v9) is off, for the execution channels (#24-#41); null once it is on. */
+let executionUnavailableReason: string | null = 'not_enabled';
+/** Main's execution wiring (runner host, data home readers); null until startExecution resolves. */
+let nexusExecution: ExecutionHandle | null = null;
+```
+
+**`persist.open({ … })`**, next to `holdV7` and `holdV8`. It must never pass an explicit `false` for `enableV9` (ruling F1): that would override `V9_ENABLED_BY_DEFAULT`, and the planned default flip would silently do nothing.
+```ts
+      holdV9: process.env.NEXUS_DB_HOLD_V9 === '1',
+      enableV9: process.env.NEXUS_ENABLE_V9 === '1' ? true : undefined,
+```
+
+**The one `registerNexusIpc(ipcMain, {` call** becomes:
+```ts
+registerNexusIpc(ipcMain, {
+  platform: () => nexusPlatform,
+  unavailableReason: () => nexusUnavailableReason,
+  handoffsUnavailableReason: () => handoffsUnavailableReason,
+  sources: createSourcePorts({ acceptFsRoot, getProject: (id) => projectManager.getProject(id) }),
+  log: nexusMainLog,
+  executionUnavailableReason: () => executionUnavailableReason,
+  exec: () => nexusExecution
+});
+```
+
+**The platform composition** in the startup `try` block replaces the `createNexusPlatform(...)` call and the `nexusPlatform?.startup();` line. `createNexusPlatform` receives `execution`, `isRepository: repositoryCheck` (never `isRepo`: it reports a missing git as `'git_missing'`), the data home, the pinned profiles and image contexts, `resolveCommit` and the app version:
+```ts
+    // B2a Task 12 (A3): the pinned sandbox profiles and image contexts from infra/images/lock.json (packaged:
+    // <resources>/images); without them nothing is planned and image preparation is refused.
+    const imageProfiles = loadImageProfiles(imagesDirFor({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath() }));
+    if (imageProfiles.problem) nexusMainLog(`${new Date().toISOString()} [nexus] sandbox profiles not loaded: ${imageProfiles.problem}`);
+    nexusPlatform = persist.platformAvailable
+      ? createNexusPlatform(persist.platformDatabase()!, {
+        log: (line) => nexusMainLog(`${new Date().toISOString()} ${line}`),
+        handoffs: persist.handoffsAvailable,
+        execution: persist.executionAvailable,
+        executionUnavailableReason: persist.executionUnavailableReason,
+        dataHome: persist.executionAvailable ? resolveDataHome(app.getPath('userData')) : null,
+        profiles: imageProfiles.profiles,
+        imageContexts: imageProfiles.imageContexts,
+        acceptFsRoot,
+        isRepository: repositoryCheck,
+        resolveCommit,
+        appVersion: app.getVersion()
+      })
+      : null;
+    nexusPlatform?.startup();
+    executionUnavailableReason = persist.executionAvailable ? null : (persist.executionUnavailableReason ?? 'not_enabled');
+    // B2a Task 11: after `[nexus] platform ready`, once: the runner utilityProcess and the execution wiring.
+    if (nexusPlatform && persist.executionAvailable) {
+      void startExecution({ platform: nexusPlatform, userData: app.getPath('userData'),
+        log: (line) => nexusMainLog(`${new Date().toISOString()} ${line}`),
+        hintTargets: () => [...allWindows].map((win) => (win.isDestroyed() ? null : win.webContents)) })
+        .then((h) => { nexusExecution = h; })
+        .catch((e) => nexusMainLog(`${new Date().toISOString()} [nexus] execution did not start error=${e instanceof Error ? e.name : typeof e}`));
+    }
+```
+
+The startup `catch` needs no new line: `executionUnavailableReason` is set only after `nexusPlatform?.startup()` returns, so a failed startup leaves it at `'not_enabled'`.
+
+**Quit.** The existing `app.on('before-quit', ...)` becomes the handler below. The bounded stop is **awaited**, or dev deployments survive a fast quit (Task 11, round 1):
+```ts
+let quittingForExecution = false;
+app.on('before-quit', (e) => {
+  if (allowQuit || ptyManager.list().length === 0) {
+    const h = nexusExecution;
+    if (h && !quittingForExecution) {
+      quittingForExecution = true;
+      nexusExecution = null;
+      e.preventDefault();
+      const bound = new Promise<void>((resolve) => setTimeout(resolve, 10_000));
+      void Promise.race([h.stop().catch(() => undefined), bound]).finally(() => app.quit());
+    }
+    return;
+  }
+  e.preventDefault();
+  if (mainWindow) {
+    mainWindow.focus();
+    mainWindow.webContents.send('app:closeRequested', { ptyCount: ptyManager.list().length });
+  }
+});
+```
+`teardownAndQuit()` needs nothing more: it calls `app.quit()`, which enters the handler above with `allowQuit` set. `stopAllForQuit` runs synchronously first, while the store is still open, because `h.stop()` calls it before its first await.
+
+**Comments.** The comments around the `persist.open` call that describe v7 and v8 only are refreshed to cover v9, `NEXUS_DB_HOLD_V9` and the enable switch.
+
+### 45.3 `test/nexus-platform-composition.test.cjs`
+
+These pins are added once `index.ts` has the lines above. They cannot pass before then.
+```js
+test('index.ts starts execution exactly once, after the platform startup, and hands the IPC layer its execution deps', () => {
+  const idx = read('src/main/index.ts');
+  assert.equal((idx.match(/startExecution\(/g) || []).length, 1);
+  assert.ok(idx.indexOf('startExecution(') > idx.indexOf('nexusPlatform?.startup();'));
+  assert.match(idx, /executionUnavailableReason: \(\) => executionUnavailableReason/);
+  assert.match(idx, /exec: \(\) => nexusExecution/);
+  assert.match(idx, /isRepository: repositoryCheck/);
+  assert.match(idx, /execution: persist\.executionAvailable/);
+});
+```
+Two more pins go with the `persist.open` lines:
+- `NEXUS_DB_HOLD_V9` is honoured by main;
+- the exact form `/enableV9: process\.env\.NEXUS_ENABLE_V9 === '1' \? true : undefined/` inside the `persist.open({` call, plus a ban on `enableV9: false`.
+
+### 45.4 The default flip
+
+The default flip comes later, as its own commit after the user's go-ahead:
 - `V9_ENABLED_BY_DEFAULT = true`;
 - M0 in `test/nexus-db-v9-migration.test.cjs` flips with it;
 - `holdV9: true` is added where the v8-migration, phase-a, v8-schema, handoffs and activity tests assert v8 after an unheld open.
 
-Until all of this lands, the app runs exactly as B1 did.
+Until all of this lands, the app runs exactly as B1 did, and the execution UI reads "not connected".
 
 ---
 
@@ -3544,13 +3688,13 @@ The B2a limitations are items 25 to 47 of [section 16](#16-known-limitations-and
 | 26 | The egress network has no host allow-list |
 | 27 | The discovery ceiling is about 1,300 files |
 | 28 | `#41` runs blob GC only; work folders, logs and dependency caches are never reclaimed |
-| 29 | A job waiting for git leaves about 60 abandoned attempt rows per hour |
+| 29 | A job waiting for git leaves one abandoned attempt row, then waits without being leased until main finds git |
 | 30 | Docker resources from a deleted data home need manual cleanup |
 | 31 | The socat pin is unverified |
 | 32 | The real-Docker suites have not run (the disk is below the 30 GiB gate) |
 | 33 | Windows has no `O_NOFOLLOW`; an identity re-check stands in |
 | 34 | Legacy `src/main/hive.ts` still runs git by name |
-| 35 to 47 | What a checkout includes; node:test attribution; dev deployment limits; the fixed data home; no GPU; no disk quota; log caps; the entry's timeout and host sleep; the v9 triggers on a file with v9 off; older builds on v9; image build deadlines; what an install proves; the data home after a restore |
+| 35 to 47 | What a checkout includes (LFS files as pointers); node:test attribution; dev deployment limits; the fixed data home; no GPU; no disk quota; log caps; the entry's timeout and host sleep; the v9 triggers on a file with v9 off; older builds on v9; image build deadlines; what an install proves; the data home after a restore |
 
 ---
 
@@ -3572,13 +3716,14 @@ Each item records what the code does now, and the code wins. The "Ruling" lines 
 | Ingest timing | Ingest runs synchronously when nothing contends for the lock. It is async only for snapshots and GC waits. It always runs after the exit is durable. | Accepted. |
 | Builds | A build is keyed by (commit, tree), not by tree alone (Task 12 ruling). | In effect. |
 | Diagnostic report | Its edge to the application is `derived_from` (source `ingest`). The plan named `depends_on`. | In effect. |
-| Wall clock | The entry reads `NEXUS_WALL_SECONDS` (an allow-listed env set by main), instead of an argv prefix. Sleep-like gaps are excluded up to 1 × the wall clock. | Accepted (Task 12 and Task 7 rulings). |
+| Wall clock | The entry reads `NEXUS_WALL_SECONDS` (an allow-listed env set by main), instead of an argv prefix. It is twice the wall clock (final batch item 2, the Task 7 R3 ruling); main's wall clock stays the authority. Sleep-like gaps are excluded up to 1 × the wall clock. Collecting is out of the wall clock, with its own 10-minute deadline (final review A3). | Accepted (Task 12 and Task 7 rulings; final fix round). |
+| Disk gate | 30 GiB holds image preparation and the verification checks only; jobs run above the lease floor. The UI shows an advisory below 30 GiB ([section 42](#42-the-resource-gate-and-the-testexec-gate)). | Ruled (final review C2). |
 | L5 | An outside `docker kill` is recorded as `nonzero_exit`, with exit detail `exit 137 (SIGKILL), OOMKilled false`. There is no new outcome. | Accepted. |
 | Channels | `NEXUS_CHANNELS` stays 21. The 20 new channels are `NEXUS_EXEC_CHANNELS`, registered only with execution dependencies (Task 13 ruling). | In effect. |
 | #33 | It answers `{ jobs }`, one check job per blocking validator, not `{ job }`. | Accepted. |
 | #41 | Blob GC only. | Accepted; recorded as a limitation. |
 | O18 to O22 | The Task 13 brief's O10, O12, O13, O14 and O15 are numbered O18 to O22. O21 needs `sweptAt`. | Accepted. |
-| `test:focused` | Plain-node B2a tests are not registered yet (ruling: package.json is peer-held). | Pending ([section 45](#45-pending-wiring)). |
+| `test:focused` | Plain-node B2a tests, the renderer's three included, are not registered yet (ruling: package.json is peer-held). The exact line is in [section 45.1](#451-packagejson-and-package-lockjson). | Pending ([section 45](#45-pending-wiring)). |
 | DA, ML, DL | The problem steps are REAL, because inline problem statements are real (Task 2 ruling). The Data Scientist problem step is FUTURE (B4). | In effect. |
 | Agents | AgentRuntime, the Claude CLI adapter, secrets and spending caps are B2b (ruling). | Not in B2a. |
 
@@ -3594,8 +3739,5 @@ Each item records what the code does now, and the code wins. The "Ruling" lines 
 | DA (B3), DS (B4), ML (B5) and DL (B6) workflows beyond the problem statements; `nexus_tools` Python; GPU use | B3 to B6 |
 | An egress proxy with a host allow-list | Later (plan "Later"); reported to the user as a constraint 5 limitation |
 | GC of work folders, logs and dependency caches; the data home relocation | Later |
-| The scheduler holding `waiting:git` jobs without leasing until git is found | Final batch carry |
-| Hardening carries: `diag.schema` refusing any non-inspected status under an inspect source; `stat({ bigint: true })` in `readPlainFile` and the object store; the runner re-checking a service argv for the step separator | Final batch carry |
 | Verification items: Linux `cp -P` keeping links in `dist` (collection refuses them); the forwarder's supervising shell under real signals; the socat pin; how Windows sees container-made symlinks in `/out`; the real inspect capture for P7 | Verification |
-| The renderer: Runs from jobs, Folio evidence, actions, approvals, deployments, setup, and registry-driven domain language | B2a Tasks 14 and 15 |
 | Temp-folder teardown in pre-B2a tests that leak `nx-*` folders | Final batch, after asking the user |
