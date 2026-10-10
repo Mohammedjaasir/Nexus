@@ -19,6 +19,13 @@
  * - Start window (`tick`): a deployment still `starting` 60 s after its container started fails `probe_failed`
  *   (`app.preview_health` failed: the application draft fails); one whose container never started within 60 s of the
  *   lease fails `start_timeout` (the check could not run: `error`). The job fails with the same outcome.
+ * - Windows across a restart or a stall (final review A2): when restart recovery re-owned the attempt (its `recovery`
+ *   event, `adopt` or `finalize`, after the window began), the start window and the stopping wait count from that
+ *   decision, and the health check judges probes from it: what happened while main was closed was never observed. A start
+ *   window that overlapped main's downtime, or a scheduler stall of SLEEP_GAP_MS or more, ends `errored`
+ *   (`start_window_unobserved`: the check could not run), never `failed`; the deployment row keeps `start_timeout` and
+ *   the job fails `start_window_unobserved` (nothing blocks the draft; the user starts it again). A stopped deployment
+ *   whose attempt waits for its re-reported exit (`awaitingExit`) is not failed `exit_not_reported` before that wait ends.
  * - Lifetime: idle traffic is not measurable in B2a, so a dev deployment has a fixed 2 h lifetime (stated in the UI);
  *   then it is stopped (`idle`).
  * - Stop (`stop`, a stored USER with `deployment.stop`; the system or an agent is `denied`, audited): `stopped`
@@ -103,7 +110,16 @@ export interface DeploymentExecPort {
   endServiceJobTx(jobId: string, end: { state: 'failed' | 'cancelled'; outcome: string; error: { code: string; message: string } }, now: number): void;
   /** Inside the caller's transaction: the job's phase (`stopping` while the runner stops the containers). */
   setJobPhaseTx(jobId: string, phase: string | null, now: number): void;
+  /** Whether restart recovery adopted this attempt for finalization and its re-reported exit is still awaited. */
+  awaitingExitOf?(attemptId: string): boolean;
+  /** The boot id this process leases with (null before a runner is attached). */
+  currentBootId?(): string | null;
 }
+
+/** A gap this long between deployment passes is a stall of main (sleep, a blocked loop): a window it covers was not observed. */
+export const DEPLOYMENT_STALL_MS = 5 * 60_000;
+/** How long a re-owned attempt waits for its re-reported exit (one lease, attempts.ts LEASE_MS). */
+export const REREPORT_WAIT_MS = 60_000;
 
 export interface DeploymentDeps { auth: AuthService; now: () => number; log?: (line: string) => void; validation: ValidationService }
 
@@ -159,6 +175,9 @@ export class DeploymentService {
   private readonly access: ProjectAccess;
   private readonly log: (line: string) => void;
   private execPort: DeploymentExecPort | null = null;
+  /** The last deployment pass, and recent stalls of main between passes (in memory: a restart is recovery's re-own). */
+  private lastTickAt: number | null = null;
+  private readonly stalls: { from: number; to: number }[] = [];
 
   constructor(private readonly db: Database.Database, private readonly deps: DeploymentDeps) {
     this.principals = new PrincipalResolver(db);
@@ -194,6 +213,22 @@ export class DeploymentService {
     if (n === null) return false;
     return !!this.db.prepare(`SELECT 1 FROM validations WHERE job_id = ? AND attempt_n = ? AND validator_id = ? AND status = 'passed' LIMIT 1`)
       .get(jobId, n, preview.ID);
+  }
+
+  /**
+   * When restart recovery last re-owned the job's attempt n (`adopt` or `finalize`: its `recovery` event), or null. A window
+   * that began before it was not observed while main was closed (final review A2).
+   */
+  reownedAt(jobId: string, n: number | null): number | null {
+    if (n === null) return null;
+    const r = this.db.prepare(`SELECT MAX(ts) AS ts FROM job_events WHERE job_id = ? AND attempt_n = ? AND type = 'recovery'
+      AND json_extract(data_json, '$.decision') IN ('adopt','finalize')`).get(jobId, n) as { ts: number | null } | undefined;
+    return typeof r?.ts === 'number' ? r.ts : null;
+  }
+
+  /** Whether a stall of main (a pass gap of DEPLOYMENT_STALL_MS or more) overlaps [from, to]. */
+  private stalledDuring(from: number, to: number): boolean {
+    return this.stalls.some((st) => st.to > from && st.from < to);
   }
 
   // ---------- start ----------
@@ -314,7 +349,10 @@ export class DeploymentService {
     const sbPath = isObj(sb) && isObj(sb.health) && typeof sb.health.path === 'string' ? sb.health.path : null;
     const subject = this.db.prepare('SELECT storage_ref_json FROM artifact_versions WHERE id = ?').get(d.subject_version_id) as { storage_ref_json: string } | undefined;
     const path = sbPath ?? readAppManifest(subject?.storage_ref_json ?? null)?.healthPath ?? '/';
-    const startedAt = a.started_at ?? d.started_at;
+    // Re-owned by restart recovery after the container started: the window counts from the re-own (final review A2).
+    const started0 = a.started_at ?? d.started_at;
+    const reowned = this.reownedAt(d.job_id, a.n);
+    const startedAt = reowned !== null && reowned > started0 ? reowned : started0;
     const facts = { path, startedAt, container, bindAddress: d.bind_address,
       probes: probesOf(d.health_json).map((p) => ({ at: p.at, status: p.status, ms: p.ms })) };
     const outcome = given ?? preview.run(facts);
@@ -425,13 +463,15 @@ export class DeploymentService {
   /** Start windows, the fixed lifetime and the bounded wait for an exit after a stop (see the module header). Never throws. */
   tick(now: number): void {
     let rows: (DeploymentRow & { attempt_id: string | null; attempt_n: number | null; attempt_state: string | null; attempt_started_at: number | null;
-      attempt_sandbox: string | null })[];
-    let stopping: { deployment_id: string; job_id: string; stopped_at: number; attempt_id: string | null }[];
+      attempt_sandbox: string | null; attempt_owner: string | null })[];
+    let stopping: { deployment_id: string; job_id: string; stopped_at: number; attempt_id: string | null; attempt_owner: string | null }[];
     try {
       rows = this.db.prepare(`SELECT d.*, a.id AS attempt_id, a.n AS attempt_n, a.state AS attempt_state, a.started_at AS attempt_started_at,
-          a.sandbox_json AS attempt_sandbox FROM deployments d LEFT JOIN job_attempts a ON a.job_id = d.job_id AND a.state IN ('starting','running')
+          a.sandbox_json AS attempt_sandbox, a.lease_owner AS attempt_owner FROM deployments d
+          LEFT JOIN job_attempts a ON a.job_id = d.job_id AND a.state IN ('starting','running')
         WHERE d.status IN ${LIVE_SQL} ORDER BY d.started_at, d.id`).all() as typeof rows;
-      stopping = this.db.prepare(`SELECT d.id AS deployment_id, d.job_id, d.stopped_at, a.id AS attempt_id FROM jobs j JOIN deployments d ON d.job_id = j.id
+      stopping = this.db.prepare(`SELECT d.id AS deployment_id, d.job_id, d.stopped_at, a.id AS attempt_id, a.lease_owner AS attempt_owner
+          FROM jobs j JOIN deployments d ON d.job_id = j.id
           LEFT JOIN job_attempts a ON a.job_id = j.id AND a.state IN ('starting','running')
         WHERE j.state = 'running' AND j.phase = 'stopping' AND d.status IN ('stopped','failed') AND d.stopped_at <= ?`)
         .all(now - STOPPING_LIMIT_MS) as typeof stopping;
@@ -439,19 +479,44 @@ export class DeploymentService {
       this.log(`[nexus] deployments: pass stopped: ${(e as Error)?.name ?? 'error'}`);
       return;
     }
+    // A long gap since the last pass is a stall of main: windows it covers were not observed.
+    if (this.lastTickAt !== null && now - this.lastTickAt >= DEPLOYMENT_STALL_MS) {
+      this.stalls.push({ from: this.lastTickAt, to: now });
+      if (this.stalls.length > 100) this.stalls.splice(0, this.stalls.length - 100);
+    }
+    this.lastTickAt = now;
+    // An attempt another boot still owns waits for restart recovery's phase B (adopt or finalize): its windows are not
+    // judged by a process that never observed them (final review A2; the reconcile bound ends it if no phase B comes).
+    const port = this.execPort;
+    const boot: string | null | undefined = port && typeof port.currentBootId === 'function' ? port.currentBootId() : undefined;
+    const foreign = (owner: string | null): boolean => boot !== undefined && owner !== null && owner !== boot;
     for (const r of rows) {
       try {
+        if (foreign(r.attempt_owner)) continue;
         if (now - r.started_at >= PREVIEW_LIFETIME_MS) { this.endLifetime(r.id, now); continue; }
         if (r.status !== 'starting') continue;
         const running = r.attempt_state === 'running' && r.attempt_started_at !== null;
-        const since = running ? r.attempt_started_at! : r.started_at;
-        if (now - since > START_WINDOW_MS) this.failStart(r.id, running ? 'probe_failed' : 'start_timeout', now);
+        const base = running ? r.attempt_started_at! : r.started_at;
+        // Re-owned by restart recovery after the window began: the window counts from the re-own (final review A2).
+        const reowned = this.reownedAt(r.job_id, r.attempt_n);
+        const since = reowned !== null && reowned > base ? reowned : base;
+        if (now - since > START_WINDOW_MS) {
+          const unobserved = since !== base || this.stalledDuring(base, now);
+          this.failStart(r.id, running ? 'probe_failed' : 'start_timeout', now, unobserved);
+        }
       } catch (e) {
         this.log(`[nexus] deployments: ${r.id.slice(0, 8)} not moved: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
       }
     }
     for (const s of stopping) {
       try {
+        if (foreign(s.attempt_owner)) continue;
+        // Re-owned after the stop (a restart): the wait counts from the re-own; an attempt adopted for finalization waits
+        // for its re-reported exit until that deadline (final review A2).
+        const n = (this.db.prepare('SELECT attempts FROM jobs WHERE id = ?').get(s.job_id) as { attempts: number } | undefined)?.attempts ?? null;
+        const reowned = this.reownedAt(s.job_id, n);
+        if (reowned !== null && reowned > s.stopped_at && now - reowned < Math.max(STOPPING_LIMIT_MS, REREPORT_WAIT_MS)) continue;
+        if (s.attempt_id && this.execPort?.awaitingExitOf?.(s.attempt_id) === true && (reowned === null || now - reowned < REREPORT_WAIT_MS)) continue;
         // The runner never reported the exit after the stop: the job ends now and its slot is freed.
         immediateTx(this.db, () => this.exec().endServiceJobTx(s.job_id, { state: 'failed', outcome: 'exit_not_reported',
           error: { code: 'exit_not_reported', message: 'the runner did not report the exit of the stopped dev deployment' } }, now));
@@ -462,19 +527,27 @@ export class DeploymentService {
     }
   }
 
-  /** No 200 within the start window: `probe_failed` (judged: the draft fails) or `start_timeout` (the check could not run). */
-  private failStart(deploymentId: string, reason: 'probe_failed' | 'start_timeout', now: number): void {
+  /**
+   * No 200 within the start window: `probe_failed` (judged: the draft fails) or `start_timeout` (the check could not run).
+   * A window main did not observe (`unobserved`: it overlapped main's downtime or a stall) is never a failure of the app:
+   * `errored('start_window_unobserved')`, the row keeps `start_timeout`, the job fails `start_window_unobserved`.
+   */
+  private failStart(deploymentId: string, reason: 'probe_failed' | 'start_timeout', now: number, unobserved = false): void {
     let cancel: string | null = null;
     immediateTx(this.db, () => {
       const d = this.row(deploymentId);
       if (!d || d.status !== 'starting') return;
       const a = this.liveAttempt(d.job_id);
-      const check = a ? this.judgeTx(d, a, 'running', now, reason === 'start_timeout'
-        ? errored('start_timeout', 'Checks could not run: the dev deployment did not start within 60 s.') : undefined).check : null;
-      this.moveTx(d, 'failed', now, { reason, check });
+      const given = unobserved
+        ? errored('start_window_unobserved', 'Checks could not run: Nexus was closed or stalled during the start window, so the start was not observed.')
+        : reason === 'start_timeout' ? errored('start_timeout', 'Checks could not run: the dev deployment did not start within 60 s.') : undefined;
+      const check = a ? this.judgeTx(d, a, 'running', now, given).check : null;
+      this.moveTx(d, 'failed', now, { reason: unobserved ? 'start_timeout' : reason, check });
       if (a) cancel = a.id;
-      const message = reason === 'probe_failed' ? 'the app did not answer 200 on its health path within 60 s' : 'the dev deployment did not start within 60 s';
-      this.exec().endServiceJobTx(d.job_id, { state: 'failed', outcome: reason, error: { code: reason, message } }, now);
+      const code = unobserved ? 'start_window_unobserved' : reason;
+      const message = unobserved ? 'the start window of the dev deployment was not observed (Nexus was closed or stalled); start it again'
+        : reason === 'probe_failed' ? 'the app did not answer 200 on its health path within 60 s' : 'the dev deployment did not start within 60 s';
+      this.exec().endServiceJobTx(d.job_id, { state: 'failed', outcome: code, error: { code, message } }, now);
     });
     if (cancel) this.sendCancel(cancel, 'timeout');
   }

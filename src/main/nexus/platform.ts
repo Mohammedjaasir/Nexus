@@ -133,6 +133,8 @@ export interface NexusPlatformOptions {
   ingestFaults?: { afterRows?: (recipeId: string) => void } | null;
   /** The Nexus app version recorded in each attempt's environment. */
   appVersion?: string | null;
+  /** Main's own look for git (default: resolveGitBinary over the file system); a job waiting for git leases once it answers. */
+  findGit?: (() => Promise<string | null>) | null;
   /** This process's boot id (a ULID); default: a new one. */
   bootId?: string;
   /** Tests only: the registry check's problems (default: registryImpl's startup check). */
@@ -208,7 +210,7 @@ export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformO
     approvals: opts?.approvals !== undefined ? opts.approvals : approvals, images: approvals, deployments,
     // With main's repository check wired in, a snapshot starts only through RepoService (which runs it first).
     snapshotsNeedRepositoryCheck: !!opts?.isRepository,
-    ingest, validation, appVersion: opts?.appVersion ?? null
+    ingest, validation, appVersion: opts?.appVersion ?? null, findGit: opts?.findGit ?? null
   });
   validation?.setSender((msg) => exec.sendToRunner(msg));
   const queries = executionAvailable ? new ExecQueries(db, { auth, artifacts, exec }) : null;

@@ -433,8 +433,17 @@ export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): v
   });
 
   // #23 the execution setup from main's cache (never waits on Docker or the runner): the gate with its exact numbers.
-  reg('nexus:platform:health', (args) => { V.arity(args, 0); }, (nx, me) => {
+  // `{ probe: true }` (the setup sheet's "Check again", B2a final review C3) also asks the runner for a fresh probe, at
+  // most once per 5 s (ExecutionService.requestProbe); the answer is still the cache, the fresh probe lands later.
+  reg('nexus:platform:health', (args) => {
+    V.arity(args, 1);
+    if (args[0] === undefined) return { probe: false };
+    const o = V.object(args[0], ['probe'] as const);
+    if (o.probe !== true) throw new RequestError('probe', 'must be true');
+    return { probe: true };
+  }, (nx, me, q) => {
     nx.auth.require(me, 'platform.health', PLATFORM, { entityType: 'platform' });
+    if (q.probe) nx.exec.requestProbe();
     const off = executionOff(nx);
     return ok(healthView(nx.exec.health(), { handoffs: nx.handoffsAvailable, execution: off === null, registry: nx.registry, subReason: off }));
   });

@@ -333,8 +333,9 @@ export class BlobIndex {
       if (removedShas.length > 0) {
         try {
           const r = await deleteObjects(removedShas);
-          const list = Array.isArray(r?.failed) ? r.failed : null;
-          failed = list === null ? [...removedShas] : removedShas.filter((s) => list.includes(s));
+          // A Set (final batch item 10): `includes` per removed object was quadratic in a large GC.
+          const list = Array.isArray(r?.failed) ? new Set<unknown>(r.failed) : null;
+          failed = list === null ? [...removedShas] : removedShas.filter((s) => list.has(s));
         } catch {
           failed = [...removedShas];
         }

@@ -76,7 +76,10 @@ export function run(report: unknown): ValidatorOutcome {
       } else {
         const p = sourceProblem(src);
         if (p) errors.push({ path: `/fields/${i}/source`, message: p });
-        else if (src.type === 'inspect' && isObj(x) && (x.value === 'unavailable' || x.value === 'not_owned')) {
+        // Final batch item 7: ANY status but `inspected` (missing, not_owned, unavailable) under an inspect source, and any
+        // `.status` field there that is not `inspected`, is a container that was not inspected passed off as inspect evidence.
+        else if (src.type === 'inspect' && isObj(x) && ((typeof x.value === 'string' && UNOBSERVED_WHY.includes(x.value))
+          || (typeof x.name === 'string' && /(^|\.)status$/.test(x.name) && x.value !== 'inspected'))) {
           errors.push({ path: `/fields/${i}/source`, message: 'a container that was not inspected is never sourced as inspect evidence' });
         } else if (OBSERVED.includes(src.type)) observed++;
       }

@@ -68,7 +68,7 @@ function execWorld(o = {}) {
   const nx = createNexusPlatform(db, { now: () => clock.t, log: (l) => logs.push(l), execution: o.execution ?? true,
     dataHome, profiles: o.fwd ? [...PROFILES, FWD_PROFILE] : PROFILES, acceptFsRoot, approvals, ingest: o.realIngest ? undefined : (o.ingest ?? null),
     resolveCommit: o.resolveCommit ?? null, ingestFaults: o.ingestFaults ?? null, executionUnavailableReason: o.unavailableReason, appVersion: o.appVersion ?? null,
-    imageContexts: o.imageContexts ?? null, isRepository: o.isRepository ?? null });
+    imageContexts: o.imageContexts ?? null, isRepository: o.isRepository ?? null, findGit: o.findGit ?? null });
   const me = nx.principals.localUser(); const sys = nx.principals.system();
   const bootId = newId(clock.t);
   const probe = {

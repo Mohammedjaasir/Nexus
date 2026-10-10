@@ -304,14 +304,17 @@ const LONG_PREFIX_PATH = new RegExp(LONG_PREFIX + String.raw`(?:[A-Za-z]:${SEP})
 /** A UNC path (`\\server\share\...`), single or JSON-escaped. */
 const UNC_PATH = new RegExp(String.raw`\\{2,${MAX_BACKSLASH_RUN}}[^\\/\s'"]+${SEP}` + PATH_TAIL, 'g');
 /** A drive-absolute path (`C:\...`, `C:/...`). */
-const DRIVE_PATH = new RegExp(String.raw`\b[A-Za-z]:${SEP}` + PATH_TAIL, 'g');
+// Never a one-letter URL scheme (`x://...`, final batch item 5): that is a URL, and its user information is redacted
+// before any path is cut (scrubHostPaths), so a path cut can never leave its credentials behind.
+const DRIVE_PATH = new RegExp(String.raw`\b[A-Za-z]:(?!\/\/)${SEP}` + PATH_TAIL, 'g');
 /**
  * A host POSIX path: a user's home (`/Users/<name>`, `/home/<name>` but not the sandbox's own `/home/nexus`), Docker
  * Desktop's host mounts (`/run/desktop/mnt/host/...`, `/host_mnt/...`, `/mnt/<drive>/...`), macOS temp folders, or
  * (fix round 2) Git Bash's form of a Windows home (`/c/Users/<name>`, `/d/home/<name>`).
  * Container paths (`/workspace`, `/out`, `/in`) are kept.
  */
-const HOST_POSIX_PATH = new RegExp(String.raw`(^|[\s'"(=,;\[:])((?:/Users/|/home/(?!nexus(?:/|\b))|/run/desktop/|/host_mnt/|/mnt/[A-Za-z]/|/[A-Za-z]/(?:[Uu]sers|[Hh]ome)/|/private/var/|/var/folders/)`
+// Also behind extra leading slashes (`//Users/<name>`, final batch item 6).
+const HOST_POSIX_PATH = new RegExp(String.raw`(^|[\s'"(=,;\[:])(\/{0,3}(?:/Users/|/home/(?!nexus(?:/|\b))|/run/desktop/|/host_mnt/|/mnt/[A-Za-z]/|/[A-Za-z]/(?:[Uu]sers|[Hh]ome)/|/private/var/|/var/folders/)`
   + PATH_TAIL + ')', 'g');
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => `\\${c}`);
 
@@ -325,7 +328,8 @@ export function scrubHostPaths(text: string, roots: readonly (string | null | un
   if (typeof text !== 'string' || text.length === 0) return typeof text === 'string' ? text : '';
   try {
     // Fix round 2: no backslash run longer than any path shape needs (linear time; see MAX_BACKSLASH_RUN).
-    let s = text.replace(LONG_BACKSLASH_RUN, COLLAPSED_RUN);
+    // Final batch item 5: URL user information first (`x://u:p@h` was cut as a drive path and its credentials survived).
+    let s = text.replace(LONG_BACKSLASH_RUN, COLLAPSED_RUN).replace(URL_USER, URL_USER_TO);
     const known = [...new Set(roots.filter((r): r is string => typeof r === 'string' && r.length >= 3))].sort((a, b) => b.length - a.length);
     for (const root of known) {
       const parts = root.split(/[\\/]+/).filter((x) => x.length > 0).map(escapeRe);

@@ -21,8 +21,10 @@
  * - Engine recipes (`repo.snapshot`, `sde.app.assemble`) get an `EnginePlan` whose repository
  *   folder is the one main accepted from the `projects` row (`acceptFsRoot`), never a param. `sde.diagnose` (B2a Task 12)
  *   gets one naming the subject's containers and attempt log ranges, all read by main from its own rows (no folder).
- * - The Nexus entry (infra/images/common/nexus-entry) receives the container's wall clock in `NEXUS_WALL_SECONDS` (main's
- *   number) and bounds the whole run with its own `timeout`; node:test runs one file at a time (`nexus-node-test`) with a
+ * - The Nexus entry (infra/images/common/nexus-entry) receives its backstop in `NEXUS_WALL_SECONDS` (main's number: TWICE
+ *   the container's wall clock, final batch item 2, the Task 7 R3 ruling: the in-container timeout is at least limit + cap,
+ *   so it never ends work main still counts as in time; main's wall clock stays the authority) and bounds the whole run
+ *   with its own `timeout`; node:test runs one file at a time (`nexus-node-test`) with a
  *   `perFileJunit` mapping the runner merges and attributes (A5).
  * - The service recipe (`sde.preview.start`, B2a Task 9) gets a `ServicePlan`: the app container runs the
  *   application manifest's validated `run` argv (an array, never a shell string) on the internal network
@@ -52,10 +54,15 @@ export const ALLOWED_ENV_NAMES: readonly string[] = Object.freeze([
   // B2a Task 12: the container's wall clock in whole seconds, for the Nexus entry's own `timeout` (main's number, never the job's).
   'NEXUS_WALL_SECONDS'
 ]);
-/** The entry's own wall clock (whole seconds, at least 1) for a plan wall clock in milliseconds. */
+/**
+ * The in-container backstop is this many times the wall clock (final batch item 2): main's timeout (limit plus the
+ * excluded stalls, capped at 1x) always fires first; the entry's own `timeout` only ends a container main lost.
+ */
+export const ENTRY_WALL_FACTOR = 2;
+/** The entry's own backstop (whole seconds, at least 1) for a plan wall clock in milliseconds: ENTRY_WALL_FACTOR x the wall clock. */
 export function wallSeconds(ms: number): string {
   if (!Number.isSafeInteger(ms) || ms <= 0) return refuse('bad_input', 'a container needs a wall clock');
-  return String(Math.max(1, Math.ceil(ms / 1000)));
+  return String(Math.max(1, Math.ceil((ms * ENTRY_WALL_FACTOR) / 1000)));
 }
 export const PIDS_LIMIT = 512;
 export const TMPFS_MB = 512;
@@ -70,6 +77,10 @@ export const ARGV_TEMPLATES: Readonly<Record<string, readonly string[]>> = Objec
   'npm.ci-ignore-scripts': ['npm', 'ci', '--ignore-scripts', '--no-audit', '--no-fund'],
   'pip.install-binary-hashes': ['python', '-m', 'pip', 'install', '--only-binary=:all:', '--require-hashes', '--no-deps',
     '-r', '/workspace/requirements.txt', '--target', '/deps'],
+  // An install's evidence (final batch item 1): the Nexus entry hashes the lockfile it installed from into /out/lock.sha256
+  // (fixed argv, no job value); main judges it against the snapshot's `metadata.lockfile.sha256` (sde.deps.lock_matches).
+  'entry.lock-hash-npm': ['nexus-lock-hash', '--file', 'package-lock.json', '--out', '/out/lock.sha256'],
+  'entry.lock-hash-pip': ['nexus-lock-hash', '--file', 'requirements.txt', '--out', '/out/lock.sha256'],
   'node-test.glob': ['nexus-glob', '--out', '/out/ids.txt', '**/*.test.js', '**/*.test.mjs', '**/*.test.cjs',
     'test/**/*.js', 'test/**/*.mjs', 'test/**/*.cjs'],
   'jest.list-tests': ['nexus-capture', '--out', '/out/ids.txt', '--', './node_modules/.bin/jest', '--listTests', '--json'],
@@ -102,6 +113,11 @@ export const MAX_RUN_ARGS = 32;
 export const MAX_RUN_ARG_CHARS = 512;
 const HEALTH_PATH_RE = /^\/[A-Za-z0-9/_.-]{0,200}$/;
 const STAGED_PATH_RE = /^(?![./-])[A-Za-z0-9_@+=,.\- /]{1,1024}$/;
+/** sandbox_json keeps each argv item to this many characters and at most RECORD_ARGV_ITEMS items (final review A1). */
+export const RECORD_ARG_CHARS = 200;
+export const RECORD_ARGV_ITEMS = 200;
+/** Above this a record keeps only `argvCount` and `argvSha256` of each argv (attempts.ts refuses beyond 32 768). */
+export const RECORD_MAX_CHARS = 30_000;
 
 /** What a dev deployment's plan needs beyond a tool plan (main reads it from the application version and the probe). */
 export interface ServiceContext {
@@ -518,26 +534,49 @@ export function sandboxRecord(plan: AttemptPlan): Record<string, unknown> {
   }
   if (plan.kind === 'service') {
     const rec = (c: ContainerSpec): Record<string, unknown> => ({
-      name: c.name, profile: c.profile, image: c.image, entrypoint: c.entrypoint, argv: c.argv.slice(0, MAX_RUN_ARGS).map((x) => x.slice(0, 200)),
+      name: c.name, profile: c.profile, image: c.image, entrypoint: c.entrypoint, argv: c.argv.slice(0, MAX_RUN_ARGS).map((x) => x.slice(0, RECORD_ARG_CHARS)),
       argvCount: c.argv.length, argvSha256: createHash('sha256').update(JSON.stringify(c.argv)).digest('hex'), envNames: Object.keys(c.env).sort(),
       mounts: c.mounts.map((m) => ({ kind: m.kind, containerPath: m.containerPath, readOnly: m.readOnly })), network: c.network, limits: c.limits,
       ...(c.service ? { service: c.service } : {}), ...(c.publish ? { publish: { hostIp: c.publish.hostIp, containerPort: c.publish.containerPort } } : {})
     });
-    return {
+    return boundedRecord({
       executor: 'service', deploymentId: plan.deploymentId, image: plan.app.image, network: plan.app.network, app: rec(plan.app),
       forwarder: rec(plan.forwarder), networks: plan.networks, health: plan.health, idleTtlMs: plan.idleTtlMs, user: '10001:10001',
       readOnlyRootfs: true, capDrop: ['ALL'], noNewPrivileges: true, stagedFiles: plan.staging.blobs.length
-    };
+    });
   }
   if (plan.kind !== 'tool') return { executor: 'unknown' };
   const c = plan.container;
-  const argv = c.argv.slice(0, 200);
+  // Each item capped as the service branch does (final review A1: 200 long test paths no longer overflow the column).
+  const argv = c.argv.slice(0, RECORD_ARGV_ITEMS).map((x) => x.slice(0, RECORD_ARG_CHARS));
   const argvSha256 = createHash('sha256').update(JSON.stringify(c.argv)).digest('hex');
-  return {
+  return boundedRecord({
     executor: 'tool', name: c.name, profile: c.profile, image: c.image, entrypoint: c.entrypoint, argv, argvCount: c.argv.length, argvSha256,
     envNames: Object.keys(c.env).sort(), mounts: c.mounts.map((m) => ({ kind: m.kind, containerPath: m.containerPath, readOnly: m.readOnly })),
     network: c.network, limits: c.limits, user: '10001:10001', readOnlyRootfs: c.readOnlyRootfs, capDrop: c.capDrop,
     noNewPrivileges: c.noNewPrivileges, tmpfs: { '/tmp': `${c.limits.tmpfsMb}m`, '/home/nexus': '256m' },
     sizeGuard: { outputMaxBytes: c.limits.outputMaxBytes, pollMs: 5000 }
-  };
+  });
+}
+
+/** Drops every `argv` list (keeping `argvCount` and `argvSha256`) at any depth: what fits a record of any plan. */
+function withoutArgvLists(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(withoutArgvLists);
+  if (typeof v !== 'object' || v === null) return v;
+  const out: Record<string, unknown> = {};
+  for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+    if (k === 'argv' && Array.isArray(x)) { out.argvOmitted = true; continue; }
+    out[k] = withoutArgvLists(x);
+  }
+  return out;
+}
+
+/**
+ * A sandbox record that always fits `job_attempts.sandbox_json` (final review A1): above RECORD_MAX_CHARS the argv lists
+ * give way to their count and sha256 (`argvOmitted: true`), which still name exactly what ran. Callers that add facts to
+ * a record (the provisioned report, a resumed plan) pass the whole record through this again.
+ */
+export function boundedRecord(rec: Record<string, unknown>): Record<string, unknown> {
+  if (JSON.stringify(rec).length <= RECORD_MAX_CHARS) return rec;
+  return withoutArgvLists(rec) as Record<string, unknown>;
 }

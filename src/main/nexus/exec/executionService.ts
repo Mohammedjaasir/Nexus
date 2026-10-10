@@ -50,8 +50,18 @@
  *   the job, all in one transaction; `attempt.cancel` is sent after commit. A later exit of a
  *   cancelled attempt is dropped (cancel wins).
  * - Timeout: the wall clock of the current attempt, counted from its lease and excluding time
- *   the job spent in `awaiting_approval`. Retry: an idempotent recipe whose attempt failed for
- *   an infrastructure reason goes `retry_scheduled` (backoff 10 s, 60 s, 300 s), then `queued`.
+ *   the job spent in `awaiting_approval`. An attempt whose exit is durable and whose outputs are being collected is out
+ *   of its wall clock (it already ran); collecting has its own deadline (COLLECT_DEADLINE_MS, then `ingest_error`,
+ *   retryable), so a blob GC that holds the store never times out finished work (final review A3). Retry: an idempotent
+ *   recipe whose attempt failed for an infrastructure reason goes `retry_scheduled` (backoff 10 s, 60 s, 300 s), then
+ *   `queued`.
+ * - A lease transaction that throws a deterministic PlatformError('invalid') (a record that cannot be stored, ...) is
+ *   not retried every tick: the job's attempt fails `bad_plan` in a second transaction (final review A1).
+ * - Jobs waiting for git (`waiting:git`, the runner found none) are not leased again while main itself finds no git
+ *   binary (`resolveGitBinary`, file system only, at most every GIT_RECHECK_MS): no abandoned attempt per backoff step
+ *   (final batch item 3).
+ * - `requestProbe()` asks the runner for a fresh probe now, at most once per PROBE_REQUEST_MIN_MS (the setup sheet's
+ *   "Check again", #23 with `{ probe: true }`); it never waits for the answer.
  * - Heartbeats extend the lease and set `heartbeat_at` only (no activity, no event). The message
  *   handler keeps the latest one per attempt in memory; the next tick (every second) writes them
  *   all in one transaction before it sweeps leases. A 45 s gap writes one `attempt.heartbeat_gap` event.
@@ -104,9 +114,16 @@ import { PlatformError } from '../errors';
 import { ProjectAccess } from '../project/projectAccess';
 import { canRetry, isJobState, TERMINAL_JOB_STATES } from '../jobs/jobRules';
 import { JOB_KINDS, requireActiveParticipation, storedWorkspace, validateKey, type JobRow, type JobService } from '../jobs/jobService';
-import { attemptRow, HEARTBEAT_GAP_MS, LEASE_MS, heartbeatTx, insertAttemptTx, liveAttemptOf, transitionAttemptTx, type AttemptRow } from './attempts';
+import {
+  attemptRow, HEARTBEAT_GAP_MS, LEASE_MS, heartbeatTx, insertAttemptTx, liveAttemptOf, MAX_ENVIRONMENT_JSON_CHARS, transitionAttemptTx, type AttemptRow
+} from './attempts';
 import { appendJobEventTx, toJobEvent, type JobEvent, type JobEventRow } from './events';
-import { buildPlan, depsVolumeName, imageRef, lockfileSha256Of, sandboxRecord, underDataHome, type DiagnoseContext, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
+import {
+  boundedRecord, buildPlan, depsVolumeName, imageRef, lockfileSha256Of, RECORD_MAX_CHARS, sandboxRecord, underDataHome, type DiagnoseContext,
+  type PlanApproval, type PlanInput, type ServiceContext
+} from './planBuilder';
+import { stat } from 'node:fs/promises';
+import { resolveGitBinary } from '../../gitBinary';
 import { homeLabel } from '../../../shared/nexus/homeLabel';
 import type { RunnerPort } from './runnerPort';
 import { backoffMs, DEFAULT_CAPS, leaseGuard, SOLO_MEMORY_SHARE, usableImage, type LiveUse, type ProbeCache, type SchedulerCaps } from './scheduler';
@@ -152,6 +169,11 @@ export interface HealthSnapshot {
   docker: { state: 'unknown' | 'missing' | 'stopped' | 'running'; version?: string; cpus?: number; memoryBytes?: number; os?: string; wsl2?: boolean };
   images: { profile: SandboxProfileId; present: boolean; matches: boolean; sizeBytes?: number; imageId?: string }[];
   disk: { freeBytes: number | null; leaseFloorBytes: number };
+  /**
+   * The resource gate (ruled, final review C2): its 30 GiB `disk_low` gates image preparation and the verification checks
+   * (test:exec) only. Jobs lease while free space is above `disk.leaseFloorBytes`; below 30 GiB `disk_low` is an advisory
+   * for them, and `setupAvailability` answers `setup:disk_low` only below the lease floor (or for image preparation).
+   */
   gate: GateResult | null;
   checkedAt: number | null;
   /** B2a Task 13: the database file's schema version (PRAGMA user_version), and the GPU line of the last probe. */
@@ -264,6 +286,11 @@ export interface ExecutionDeps {
   hooks?: { afterLeaseTransition?: (jobId: string) => void };
   /** The Nexus app version, recorded in every attempt's environment. */
   appVersion?: string | null;
+  /**
+   * Main's own look for a git binary (default: `resolveGitBinary` over the file system; no process is started). A job
+   * the runner sent back `waiting:git` is leased again only once this finds one (final batch item 3).
+   */
+  findGit?: (() => Promise<string | null>) | null;
 }
 
 interface ExecJobRow extends JobRow {
@@ -311,6 +338,12 @@ const REFUSAL_WAIT: Record<string, string> = {
 
 /** An exit reporting more outputs than this is ingested on a later turn (the exit handler stays short). */
 export const ASYNC_INGEST_OUTPUTS = 256;
+/** Collecting (the exit is durable, the outputs are being ingested) ends `ingest_error` after this long (final review A3). */
+export const COLLECT_DEADLINE_MS = 10 * 60_000;
+/** A job waiting for git is not leased again until main finds git; main looks at most this often (final batch item 3). */
+export const GIT_RECHECK_MS = 5_000;
+/** `requestProbe()` sends at most one probe per this long (#23 `{ probe: true }`, the setup sheet's "Check again"). */
+export const PROBE_REQUEST_MIN_MS = 5_000;
 /** A dev deployment's job: the fixed 2 h lifetime is ended by the deployment; the job's wall clock is a backstop after it. */
 export const SERVICE_WALL_MARGIN_MS = 10 * 60_000;
 /** How often the scheduler runs the dev deployments' pass (start windows, lifetime). */
@@ -323,6 +356,14 @@ const isStr = (v: unknown): v is string => typeof v === 'string' && v.length > 0
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v) && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
 const parseJson = (text: string | null): unknown => { if (text === null) return null; try { return JSON.parse(text) as unknown; } catch { return null; } };
+/** A record over `max` characters even without its argv lists: the record keeps its executor and argv facts only. */
+const withoutKey = (r: Record<string, unknown>, max: number): Record<string, unknown> => {
+  const b = boundedRecord(r);
+  if (JSON.stringify(b).length <= max) return b;
+  const keep: Record<string, unknown> = {};
+  for (const k of ['executor', 'name', 'profile', 'image', 'argvCount', 'argvSha256', 'network', 'limits', 'containerId', 'preflight']) if (k in b) keep[k] = b[k];
+  return keep;
+};
 const invalid = (reason: string, message: string): never => { throw new PlatformError('invalid', message, { reason }); };
 
 /**
@@ -417,6 +458,14 @@ export class ExecutionService {
   private sendFailures = 0;
   /** Attempts whose exit is durable and whose outputs are being ingested (a replayed exit is dropped meanwhile). */
   private readonly collecting = new Set<string>();
+  /** When each collecting attempt's exit became durable (COLLECT_DEADLINE_MS counts from it). */
+  private readonly collectingSince = new Map<string, { at: number; exited: AttemptExited }>();
+  /** Whether main's last look found a git binary (null: not looked yet), when it looked, and a look in flight. */
+  private gitPresent: boolean | null = null;
+  private gitCheckedAt: number | null = null;
+  private gitChecking = false;
+  /** When `requestProbe()` last sent a probe. */
+  private probeRequestedAt: number | null = null;
   /**
    * Attempts restart recovery adopted for finalization: their container exited while the app was closed, and the runner
    * reports the exit again after re-hashing `/out`. Their wall clock is over (they exited); their lease still runs.
@@ -614,9 +663,13 @@ export class ExecutionService {
     const preflightOf = (): Record<string, unknown> | null => m.preflight
       ? { ok: problems.length === 0, problems: problems.slice(0, 50), observed: m.preflight.observed } : null;
     const recordOf = (): Record<string, unknown> => {
-      const r: Record<string, unknown> = { ...sandbox, containerId: m.containerId ?? null, imageDigest: m.imageDigest ?? null,
-        ...(m.hostPort !== undefined ? { hostPort: m.hostPort } : {}), preflight: preflightOf() };
-      return JSON.stringify(r).length > 30_000 ? { ...sandbox, containerId: m.containerId ?? null, preflight: { ok: problems.length === 0, problems: problems.slice(0, 20) } } : r;
+      const r = boundedRecord({ ...sandbox, containerId: m.containerId ?? null, imageDigest: m.imageDigest ?? null,
+        ...(m.hostPort !== undefined ? { hostPort: m.hostPort } : {}), preflight: preflightOf() });
+      // Still too large (a huge observed preflight): the plan's record without its argv lists, and the problems only.
+      return JSON.stringify(r).length > RECORD_MAX_CHARS
+        ? boundedRecord(withoutKey({ ...sandbox, containerId: m.containerId ?? null,
+          preflight: { ok: problems.length === 0, problems: problems.slice(0, 20).map((p) => p.slice(0, 300)) } }, RECORD_MAX_CHARS))
+        : r;
     };
     let release = false;
     immediateTx(this.db, () => {
@@ -669,6 +722,8 @@ export class ExecutionService {
       this.setPhaseTx(j.id, REFUSAL_WAIT[m.reason] ?? 'queued', now);
       this.requeueBackoffTx(j.id, now);
     });
+    // No git on the runner's side: main looks for itself now; while it finds none the job is not leased (item 3).
+    if (m.reason === 'git_missing') this.gitFound(now, true);
   }
 
   private onEvent(m: Extract<RunnerToMain, { op: 'attempt.event' }>): void {
@@ -857,6 +912,7 @@ export class ExecutionService {
   /** Prepare (maybe async), then commit under the ingest lock: synchronously when no GC holds it, else after it. */
   private runIngest(attemptId: string, exited: AttemptExited): void {
     this.collecting.add(attemptId);
+    if (!this.collectingSince.has(attemptId)) this.collectingSince.set(attemptId, { at: this.deps.now(), exited });
     const ingest = this.deps.ingest!;
     const commit = (facts: unknown): void | Promise<void> => {
       const blobs = this.deps.blobs;
@@ -934,6 +990,7 @@ export class ExecutionService {
       return;
     }
     this.collecting.delete(attemptId);
+    this.collectingSince.delete(attemptId);
     this.send({ op: 'attempt.release', attemptId });
     if (!ran || !this.deps.validation) return;
     // The checks the ingest queued run now; after a large ingest, on the next turn (each slice stays bounded).
@@ -953,6 +1010,7 @@ export class ExecutionService {
    */
   private ingestFailed(attemptId: string, exited: AttemptExited, e: unknown): void {
     this.collecting.delete(attemptId);
+    this.collectingSince.delete(attemptId);
     const now = this.deps.now();
     const refused = deterministicIngestRefusal(e);
     const why = e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error';
@@ -1223,7 +1281,15 @@ export class ExecutionService {
     for (const id of [...this.lastSeq.keys()]) if (!liveIds.has(id)) this.lastSeq.delete(id);
     for (const id of [...this.gapFlagged]) if (!liveIds.has(id)) this.gapFlagged.delete(id);
     for (const id of [...this.awaitingExit]) if (!liveIds.has(id)) this.awaitingExit.delete(id);
+    for (const [id] of [...this.collectingSince]) if (!liveIds.has(id) && !this.collecting.has(id)) this.collectingSince.delete(id);
     for (const r of live) {
+      // Collecting: the work already ran (its exit is durable), so no wall clock and no lease expiry; only the collecting
+      // deadline, which ends it `ingest_error` (retryable) when the ingest never finishes (final review A3).
+      if (this.collecting.has(r.attempt_id)) {
+        const c = this.collectingSince.get(r.attempt_id);
+        if (c !== undefined && now - c.at > COLLECT_DEADLINE_MS) this.collectDeadline(r.attempt_id, c.exited);
+        continue;
+      }
       const limits = parseJson(r.limits_json) as { wallClockMs?: number } | null;
       const wall = typeof limits?.wallClockMs === 'number' ? limits.wallClockMs : null;
       // An attempt adopted for finalization already exited: no wall clock, only its lease (the re-reported exit).
@@ -1233,7 +1299,6 @@ export class ExecutionService {
       }
       // A lease that ran out without a heartbeat: the runner is gone for this attempt (an approval wait holds no lease).
       if (stalled) continue;               // the first tick after a stall: no lease expiry and no gap event
-      if (this.collecting.has(r.attempt_id)) continue;   // exited: its outputs are being ingested
       if (r.lease_expires_at < now && r.job_state !== 'awaiting_approval' && r.phase !== 'approval') { this.runnerLost(r.attempt_id, now); continue; }
       if (r.attempt_state === 'running') {
         const last = r.heartbeat_at ?? r.started_at ?? r.created_at;
@@ -1244,6 +1309,18 @@ export class ExecutionService {
         }
       }
     }
+  }
+
+  /**
+   * The collecting deadline passed (final review A3): the ingest that never finished (a blob GC that never released the
+   * store, a hung prepare) ends the attempt `ingest_error`, retryable infrastructure; a late commit then finds the attempt
+   * ended and ingests nothing.
+   */
+  private collectDeadline(attemptId: string, exited: AttemptExited): void {
+    const a = attemptRow(this.db, attemptId);
+    if (!a || a.state !== 'running') { this.collecting.delete(attemptId); this.collectingSince.delete(attemptId); return; }
+    this.log('[nexus] exec: collecting outputs ran past its deadline; the attempt failed ingest_error');
+    this.ingestFailed(attemptId, exited, new PlatformError('unavailable', 'collecting ran past its deadline', { reason: 'collect_deadline' }));
   }
 
   private runnerLost(attemptId: string, now: number): void {
@@ -1296,6 +1373,8 @@ export class ExecutionService {
       const cap = this.capabilityOf(j);
       if (!recipe || !cap) continue;
       if (j.next_attempt_at !== null && j.next_attempt_at > now) continue;   // requeue backoff (phase keeps its reason)
+      // The runner found no git: the job waits (no attempt) until main itself finds one (final batch item 3).
+      if (j.phase === 'waiting:git' && !this.gitFound(now)) continue;
       const limits = parseJson(j.limits_json) as Partial<ResourceLimits> | null;
       const memoryMb = typeof limits?.memoryMb === 'number' ? limits.memoryMb : 0;
       const wait = leaseGuard({ recipe, profile: cap.profile, memoryMb }, ready, this.probe, use, this.caps);
@@ -1313,6 +1392,38 @@ export class ExecutionService {
         this.log(`[nexus] exec: lease not taken: ${e instanceof PlatformError ? e.code : (e as Error)?.name ?? 'error'}`);
       }
     }
+  }
+
+  /**
+   * Whether a job waiting for git may be leased: false only while main's last look answered "no git". A look (file
+   * system only, async) starts at most every GIT_RECHECK_MS (at once with `force`: the runner just refused for git);
+   * until its first answer the job may lease as before, so a git installed meanwhile is used at once.
+   */
+  private gitFound(now: number, force = false): boolean {
+    if (!this.gitChecking && (force || this.gitCheckedAt === null || now - this.gitCheckedAt >= GIT_RECHECK_MS || now < this.gitCheckedAt)) {
+      this.gitChecking = true; this.gitCheckedAt = now;
+      const find = this.deps.findGit ?? (() => resolveGitBinary({ stat }));
+      void Promise.resolve().then(find).then((bin) => { this.gitPresent = typeof bin === 'string' && bin.length > 0; }, () => { this.gitPresent = false; })
+        .finally(() => { this.gitChecking = false; });
+    }
+    return this.gitPresent !== false;
+  }
+
+  /** @internal Tests: resolves when main's look for git (if one is in flight) has answered. */
+  async gitLookSettled(): Promise<void> { for (let i = 0; i < 50 && this.gitChecking; i++) await new Promise((r) => setImmediate(r)); }
+
+  /**
+   * The setup sheet's "Check again" (#23 with `{ probe: true }`): asks the runner for a fresh probe now, without waiting
+   * for it (the cache answers until the result arrives). At most one per PROBE_REQUEST_MIN_MS; `requested: false` when
+   * it was not sent (too soon, no ready runner, execution off).
+   */
+  requestProbe(): { requested: boolean } {
+    if (!this.deps.available || !this.portReady()) return { requested: false };
+    const now = this.deps.now();
+    if (this.probeRequestedAt !== null && now >= this.probeRequestedAt && now - this.probeRequestedAt < PROBE_REQUEST_MIN_MS) return { requested: false };
+    if (!this.send({ op: 'probe' })) return { requested: false };
+    this.probeRequestedAt = now; this.probeSentAt = now;
+    return { requested: true };
   }
 
   /**
@@ -1406,7 +1517,39 @@ export class ExecutionService {
       // The dependency cache this attempt mounts (`nexus-deps-<profile>-<lock12>`; an install writes it), or null.
       depsVolume: depsVolumeName(cap.profile, inputs)
     };
-    const leased = immediateTx(this.db, () => {
+    let leased: boolean;
+    try {
+      leased = this.leaseTx(j, recipe, cap, now, { attemptId, n, logRel, plan, environment, egress, inputs, image, service },
+        () => planError, (e) => { planError = e; });
+    } catch (e) {
+      // A deterministic refusal inside the lease transaction (a record the store refuses, ...) would roll back on every
+      // tick and leave the job queued forever: the attempt fails `bad_plan` in a transaction of its own (final review A1).
+      if (!(e instanceof PlatformError) || e.code !== 'invalid') throw e;
+      const error = { code: 'bad_plan', message: `the plan could not be recorded: ${e.message}`.slice(0, 300) };
+      plan = null; planError = error;
+      const env = JSON.stringify(environment).length <= MAX_ENVIRONMENT_JSON_CHARS ? environment : undefined;
+      leased = this.leaseTx(j, recipe, cap, now, { attemptId, n, logRel, plan: null, environment: env, egress: false, inputs, image, service: null },
+        () => error, () => {});
+      this.log(`[nexus] exec: the lease of a job was refused (${String(e.detail?.field ?? e.detail?.reason ?? 'invalid')}); its attempt failed bad_plan`);
+    }
+    if (leased && plan && !planError) {
+      if (this.send({ op: 'attempt.start', attemptId, plan })) this.sendFailures = 0;
+      else { this.sendFailures++; this.unsent(attemptId, now); }
+    }
+    return leased;
+  }
+
+  /** The lease transaction itself (see `lease`). `getError` / `setError` share the plan error with the caller. */
+  private leaseTx(j: ExecJobRow, recipe: RecipeDef, cap: Capability, now: number,
+    t: { attemptId: string; n: number; logRel: string; plan: ReturnType<typeof buildPlan> | null; environment: unknown; egress: boolean;
+      inputs: PlanInput[]; image: ReturnType<typeof usableImage>; service: ServiceContext | null },
+    getError: () => { code: string; message: string } | null, setError: (e: { code: string; message: string }) => void): boolean {
+    const { attemptId, n, logRel, plan, environment, egress, inputs, image, service } = t;
+    const refused = (e: unknown): { code: string; message: string } => {
+      if (!(e instanceof PlatformError)) throw e;
+      return { code: String(e.detail?.reason ?? 'bad_plan'), message: e.message };
+    };
+    return immediateTx(this.db, () => {
       const cur = this.row(j.id);
       if (!cur || cur.state !== 'queued') return false;
       this.moveJobTx(j.id, 'leased', now, undefined, 'queued');
@@ -1415,10 +1558,10 @@ export class ExecutionService {
         sandbox: plan ? sandboxRecord(plan) : undefined, environment });
       this.setPhaseTx(j.id, 'provisioning', now);
       this.db.prepare('UPDATE jobs SET next_attempt_at = NULL WHERE id = ? AND next_attempt_at IS NOT NULL').run(j.id);
-      if (egress) {
+      if (egress && !getError()) {
         const approvals = this.deps.approvals;
         if (!approvals) {
-          planError = { code: 'approvals_unavailable', message: 'network approvals are not available in this build' };
+          setError({ code: 'approvals_unavailable', message: 'network approvals are not available in this build' });
         } else {
           // The pending approval, then leased -> running (phase approval) -> awaiting_approval, all in this transaction.
           // A request the approval path refuses (no lockfile hash, ...) fails the job now: nothing is asked, nothing runs.
@@ -1427,7 +1570,7 @@ export class ExecutionService {
             approvalId = immediateTx(this.db, () => approvals.requestEgressTx({ id: j.id, projectId: j.project_id, onBehalfOf: j.on_behalf_of },
               { id: attemptId, n }, recipe, now));
           } catch (e) {
-            planError = e instanceof PlatformError ? refused(e) : { code: 'approval_refused', message: 'the approval request could not be recorded' };
+            setError(e instanceof PlatformError ? refused(e) : { code: 'approval_refused', message: 'the approval request could not be recorded' });
           }
           if (approvalId !== null) {
             this.moveJobTx(j.id, 'running', now, undefined, 'leased');
@@ -1439,26 +1582,22 @@ export class ExecutionService {
           }
         }
       }
-      if (service && plan && !planError) {
+      if (service && plan && !getError()) {
         try {
           const facts = { buildVersionId: inputs.find((i) => i.slot === 'build')?.versionId ?? null, profile: cap.profile,
-            appImageId: image?.imageId ?? null, forwarderImageId: service!.forwarderImageId };
-          immediateTx(this.db, () => this.deps.deployments!.startTx(this.row(j.id)!, { n }, service!.deploymentId, cap.subjectVersionId!, now, facts));
+            appImageId: image?.imageId ?? null, forwarderImageId: service.forwarderImageId };
+          immediateTx(this.db, () => this.deps.deployments!.startTx(this.row(j.id)!, { n }, service.deploymentId, cap.subjectVersionId!, now, facts));
         } catch (e) {
-          planError = e instanceof PlatformError ? refused(e) : { code: 'deployment_refused', message: 'the dev deployment could not be recorded' };
+          setError(e instanceof PlatformError ? refused(e) : { code: 'deployment_refused', message: 'the dev deployment could not be recorded' });
         }
       }
+      const planError = getError();
       if (planError) {
         transitionAttemptTx(this.db, attemptRow(this.db, attemptId)!, 'failed', now, j.project_id, { outcome: 'bad_plan', error: planError });
         this.moveJobTx(j.id, 'failed', now, { outcome: 'infra_error', error: planError });
       }
       return true;
     });
-    if (leased && plan && !planError) {
-      if (this.send({ op: 'attempt.start', attemptId, plan })) this.sendFailures = 0;
-      else { this.sendFailures++; this.unsent(attemptId, now); }
-    }
-    return leased;
   }
 
   /** `attempt.start` did not reach the runner: nothing ran, so the attempt is abandoned and the job waits again (as on a refusal). */
@@ -1592,6 +1731,12 @@ export class ExecutionService {
     this.moveJobTx(jobId, to, now, { outcome: end.outcome, error: end.error });
     this.setPhaseTx(jobId, null, now);
   }
+
+  /** @internal DeploymentService: whether restart recovery adopted this attempt for finalization and still awaits its exit. */
+  awaitingExitOf(attemptId: string): boolean { return this.awaitingExit.has(attemptId); }
+
+  /** @internal DeploymentService: the boot id this process leases with (null before a runner is attached). */
+  currentBootId(): string | null { return this.bootId; }
 
   /** @internal DeploymentService only, INSIDE its transaction: a job's phase (e.g. `stopping`). */
   setJobPhaseTx(jobId: string, phase: string | null, now: number): void {
