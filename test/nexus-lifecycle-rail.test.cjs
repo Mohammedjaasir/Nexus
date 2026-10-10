@@ -275,3 +275,40 @@ test('S4 Data Scientist: #/w/data-scientist opens its domain page (never a works
   assert.match(list, /Its planned lifecycle only; nothing runs\./);
   assert.match(src('workspaces/LifecycleRail.tsx'), /\{s\.when && <b className="nx-lrail__when">\{s\.when\}\. <\/b>\}/);
 });
+
+test('S8b the Application step: draft, not checked ("Ready to check — start a preview"), checking, healthy, failed, from records only', () => {
+  const { stepStateFrom } = loadTs('src/shared/nexus/stepState.ts');
+  const step = DOMAINS.find((d) => d.id === 'sde').lifecycle.find((s) => s.id === 'application');
+  const app = (status, validators) => ({ kind: 'application', status, validators });
+  const appStep = (versions, o = {}) => stepOf('sde', 'application', rec({ versions: [{ kind: 'build', status: 'candidate', validators: {} }, ...versions], ...o }));
+  const MANIFEST = { 'app.manifest_schema': 'passed' };
+  // Not checked: the manifest passed, app.preview_health runs only on a dev deployment, none is live and no job runs.
+  const waiting = appStep([app('draft', MANIFEST)], { liveDeployments: 0 });
+  assert.deepEqual([waiting.state, waiting.word], ['awaiting_check', 'Ready to check — start a preview']);
+  assert.equal(stepStateFrom(step, { versions: [{ status: 'draft', validators: MANIFEST }], liveJobs: 0, inputsAvailable: true, liveDeployments: 0 }), 'awaiting_check');
+  // Checking: a dev deployment is live, or the job starting one is (it belongs to the dev deployment step's actions).
+  assert.equal(appStep([app('draft', MANIFEST)], { liveDeployments: 1 }).state, 'in_progress');
+  const starting = appStep([app('draft', MANIFEST)], { liveDeployments: 0, liveActions: ['sde.preview.start'] });
+  assert.deepEqual([starting.state, starting.word], ['in_progress', 'In progress']);
+  assert.equal(appStep([app('draft', MANIFEST)], { liveDeployments: 0, liveActions: ['sde.app.assemble'] }).state, 'in_progress', 'its own job is live');
+  // Draft whose manifest has no result yet: being validated by main (not waiting on the user).
+  assert.equal(appStep([app('draft', {})], { liveDeployments: 0 }).state, 'in_progress');
+  // Deployments unread: no claim that it waits on the user (the previous reading stands).
+  assert.equal(appStep([app('draft', MANIFEST)]).state, 'in_progress');
+  // Healthy: the health check passed on a candidate.
+  assert.equal(appStep([app('candidate', { ...MANIFEST, 'app.preview_health': 'passed' })], { liveDeployments: 0 }).state, 'done');
+  // Failed: the health check failed, or could not run.
+  assert.equal(appStep([app('draft', { ...MANIFEST, 'app.preview_health': 'failed' })], { liveDeployments: 0 }).state, 'failed');
+  assert.equal(appStep([app('draft', { ...MANIFEST, 'app.preview_health': 'error' })], { liveDeployments: 0 }).state, 'failed');
+  // A check main or the runner runs (a build re-hash) never waits on the user: still in progress.
+  const build = DOMAINS.find((d) => d.id === 'sde').lifecycle.find((s) => s.id === 'build');
+  assert.equal(stepStateFrom(build, { versions: [{ status: 'draft', validators: { 'build.exit_zero': 'passed' } }], liveJobs: 0, inputsAvailable: true, liveDeployments: 0 }), 'in_progress');
+  // The summary says it, and never counts it as moving.
+  const r = L.railFor(view('sde'), rec({ versions: [{ kind: 'build', status: 'candidate', validators: {} }, app('draft', MANIFEST)], liveDeployments: 0 }));
+  assert.match(L.railSummary(r), /1 ready to check/);
+  assert.doesNotMatch(L.railSummary(r), /in progress/);
+  // The bench passes the live dev deployments it read (the rail's records stay those of railRecordsFor).
+  const bench = src('project/ProjectBench.tsx');
+  assert.match(bench, /const liveDeployments = \(deployments\.data \?\? \[\]\)\.filter\(\(d\) => d\.status === 'starting' \|\| d\.status === 'healthy' \|\| d\.status === 'unhealthy'\)\.length;/);
+  assert.match(bench, /m\.set\(g\.workspaceId, railFor\(view, records \? \{ \.\.\.records, liveDeployments \} : null\)\);/);
+});

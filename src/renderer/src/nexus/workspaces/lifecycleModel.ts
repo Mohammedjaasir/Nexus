@@ -40,7 +40,9 @@ export const futureLine = (sub: SubPhase): string => `Not in this release: arriv
 export const NOT_SUPPORTED = 'Not yet a supported workflow';
 
 const STATE_WORD: Record<StepState, string> = {
-  unavailable: 'Not in this release', blocked: 'Needs an earlier step', ready: 'Ready to start', in_progress: 'In progress', done: 'Done', failed: 'Needs attention'
+  unavailable: 'Not in this release', blocked: 'Needs an earlier step', ready: 'Ready to start', in_progress: 'In progress',
+  // Only a check that runs on a dev deployment waits for the user (stepState): its word says which action.
+  awaiting_check: 'Ready to check — start a preview', done: 'Done', failed: 'Needs attention'
 };
 const STATUS_WORD: Record<StepStatus, string> = { REAL: 'In this release', PARTIAL: 'In this release, with limits', FUTURE: 'Not in this release' };
 
@@ -53,6 +55,11 @@ export interface RailRecords {
   liveActions: readonly string[];
   participation: boolean;
   deploymentHealthy: boolean;
+  /**
+   * Dev deployments live now (starting, healthy or not answering yet). Undefined when they were not read: a draft
+   * waiting on a deployment-run check then reads in progress, never "Ready to check".
+   */
+  liveDeployments?: number;
 }
 
 export interface RailStep {
@@ -91,6 +98,9 @@ export function railFor(view: DomainSpecView, records: RailRecords | null = null
   const supported = view.tier === 'first-class' && view.lifecycle.length > 0;
   const availability = !supported ? NOT_SUPPORTED
     : !isAtOrBefore(view.availableFromSubPhase, view.currentSubPhase) ? `Available from ${view.availableFromSubPhase}; it cannot be added to a project yet` : null;
+  // The actions that start a dev deployment: the via of the step done by a healthy deployment record.
+  const deploymentActions = view.lifecycle.filter((s) => spec?.lifecycle.find((x) => x.id === s.id && 'record' in x.doneWhen && x.doneWhen.record === 'deployment_healthy'))
+    .flatMap((s) => s.actions);
   const steps: RailStep[] = view.lifecycle.map((s, i) => {
     const future = s.status === 'FUTURE' || !isAtOrBefore(s.subPhase, view.currentSubPhase);
     const full = spec?.lifecycle.find((x) => x.id === s.id) ?? null;
@@ -105,6 +115,9 @@ export function railFor(view: DomainSpecView, records: RailRecords | null = null
         versions: 'kind' in done ? records.versions.filter((v) => v.kind === done.kind).map((v) => ({ status: v.status, validators: v.validators })) : [],
         liveJobs: records.liveActions.filter((a) => s.actions.includes(a)).length,
         inputsAvailable: s.consumes.every((k) => records.versions.some((v) => v.kind === k && (v.status === 'candidate' || v.status === 'active'))),
+        // A preview job still starting counts as live too (it belongs to the dev deployment step's actions).
+        liveDeployments: records.liveDeployments === undefined ? undefined
+          : records.liveDeployments + records.liveActions.filter((a) => deploymentActions.includes(a)).length,
         recordPresent: 'record' in done ? (done.record === 'participation' ? records.participation : done.record === 'deployment_healthy' ? records.deploymentHealthy : false) : undefined
       }, view.currentSubPhase);
     }
@@ -151,6 +164,8 @@ export function railSummary(r: RailView): string {
   const parts = [`${done} of ${inRelease.length} steps in this release done`];
   if (attention > 0) parts.push(`${attention} need${attention === 1 ? 's' : ''} attention`);
   if (moving > 0) parts.push(`${moving} in progress`);
+  const checkable = inRelease.filter((s) => s.state === 'awaiting_check').length;
+  if (checkable > 0) parts.push(`${checkable} ready to check`);
   if (later > 0) parts.push(`${later} not in this release`);
   return parts.join('; ');
 }

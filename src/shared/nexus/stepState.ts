@@ -5,9 +5,14 @@
 
 import type { LifecycleStep } from './domainSpec';
 import { isAtOrBefore, type SubPhase, CURRENT_SUB_PHASE } from './domainSpec';
+import { getValidator } from './validators';
 
-export type StepState = 'unavailable' | 'blocked' | 'ready' | 'in_progress' | 'done' | 'failed';
-export const STEP_STATES: readonly StepState[] = ['unavailable', 'blocked', 'ready', 'in_progress', 'done', 'failed'];
+/**
+ * `awaiting_check`: a draft whose only outstanding checks run on something the user starts (a dev deployment for
+ * `app.preview_health`), with nothing live: nothing is working on the step, it waits for that action.
+ */
+export type StepState = 'unavailable' | 'blocked' | 'ready' | 'in_progress' | 'awaiting_check' | 'done' | 'failed';
+export const STEP_STATES: readonly StepState[] = ['unavailable', 'blocked', 'ready', 'in_progress', 'awaiting_check', 'done', 'failed'];
 
 export interface StepRecords {
   /** Versions of the step's produced kind, each with the latest status per validator. */
@@ -18,7 +23,15 @@ export interface StepRecords {
   inputsAvailable: boolean;
   /** For a record-based step (participation, a healthy deployment): whether the record exists. */
   recordPresent?: boolean;
+  /**
+   * Dev deployments (and the jobs starting them) live now for the step's versions: a deployment-run check can be
+   * running. Undefined when the caller did not read them: a draft then reads in progress, as before.
+   */
+  liveDeployments?: number;
 }
+
+/** True when a validator runs only on something the user starts (a dev deployment), never by itself. */
+const runsOnUserAction = (id: string): boolean => getValidator(id)?.executes === 'deployment';
 
 export function stepStateFrom(step: LifecycleStep, r: StepRecords, at: SubPhase = CURRENT_SUB_PHASE): StepState {
   if (step.status === 'FUTURE' || !isAtOrBefore(step.subPhase, at)) return 'unavailable';
@@ -31,8 +44,17 @@ export function stepStateFrom(step: LifecycleStep, r: StepRecords, at: SubPhase 
   // Nothing is working on the step and a draft's checks could not run (`error`): it needs attention (Revalidate),
   // so it reads failed, never in progress forever.
   if (r.versions.some((v) => v.status === 'draft' && Object.values(v.validators).includes('error'))) return 'failed';
-  // A draft whose checks have not failed is still being validated.
-  if (r.versions.some((v) => v.status === 'draft' && !Object.values(v.validators).includes('failed'))) return 'in_progress';
+  // A draft whose checks have not failed is still being validated, unless every check it still lacks runs only on
+  // something the user starts (a dev deployment) and nothing of that kind is live: then it waits for that action.
+  const drafts = r.versions.filter((v) => v.status === 'draft' && !Object.values(v.validators).includes('failed'));
+  if (drafts.length > 0) {
+    const waitsOnUser = (v: StepRecords['versions'][number]): boolean => {
+      const pending = done.validators.filter((id) => v.validators[id] !== 'passed');
+      return pending.length > 0 && pending.every(runsOnUserAction);
+    };
+    if (r.liveDeployments === 0 && drafts.every(waitsOnUser)) return 'awaiting_check';
+    return 'in_progress';
+  }
   if (r.versions.some((v) => v.status === 'failed' || done.validators.some((id) => v.validators[id] === 'failed'))) return 'failed';
   return r.inputsAvailable ? 'ready' : 'blocked';
 }

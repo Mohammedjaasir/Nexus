@@ -98,6 +98,8 @@ function useGroupRails(projectId: string, groups: SpineGroup[], artifacts: Artif
     const m = new Map<string, RailView>();
     const liveActions = liveActionsOf(jobs.data ?? []);
     const healthy = (deployments.data ?? []).some((d) => d.status === 'healthy');
+    // Live dev deployments: a check that runs on one (app.preview_health) can be running only while one is.
+    const liveDeployments = (deployments.data ?? []).filter((d) => d.status === 'starting' || d.status === 'healthy' || d.status === 'unhealthy').length;
     for (const g of groups) {
       if (g.muted) continue;
       const view = domains.find((d) => d.id === g.workspaceId);
@@ -105,7 +107,7 @@ function useGroupRails(projectId: string, groups: SpineGroup[], artifacts: Artif
       // Jobs or deployments unread (execution off): no state is claimed, only the steps and their status in this release.
       const records = jobs.data && deployments.data
         ? railRecordsFor({ workspaceId: g.workspaceId, artifacts, checks, liveActions, deploymentHealthy: healthy, participating: true }) : null;
-      m.set(g.workspaceId, railFor(view, records));
+      m.set(g.workspaceId, railFor(view, records ? { ...records, liveDeployments } : null));
     }
     return m;
   }, [groups, domains, checks, jobs.data, deployments.data, artifacts]);
