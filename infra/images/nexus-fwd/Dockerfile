@@ -8,7 +8,7 @@
 # recorded hash it refuses loudly.
 FROM docker.io/library/alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
 ARG NEXUS_VERSIONS="alpine=3.20 socat=1.8.0.0-r0"
-ARG SOCAT_APK_SHA256=""
+ARG SOCAT_APK_SHA256="0ac9e1294b7ce603832ba8384fefd2c917de5f0fdd9fbb75edb42b49eebe1d48"
 LABEL nexus.versions="$NEXUS_VERSIONS"
 RUN case "$SOCAT_APK_SHA256" in \
       ''|*[!0-9a-f]*) echo "nexus-fwd: the socat .apk sha256 is not pinned (infra/images/lock.json packages.socat.apkSha256 via --pin-apk); refusing an unverified package" >&2; exit 1 ;; esac \

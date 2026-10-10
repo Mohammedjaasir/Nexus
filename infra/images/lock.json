@@ -89,7 +89,7 @@
         "/opt/nexus/fwd-entry"
       ],
       "lockfiles": {},
-      "contextSha256": "c845067fc4c09907ad69fc268e0c5bcd78596beceec57b1d13b8effd30398aab",
+      "contextSha256": "bfed8e4f3a4e2fa5381da636e322c122e356876477b827169fe02658f9d9fbf3",
       "estimatedBytes": 12988115,
       "versions": {
         "alpine": "3.20",
@@ -98,7 +98,7 @@
       "packages": {
         "socat": {
           "version": "1.8.0.0-r0",
-          "apkSha256": null
+          "apkSha256": "0ac9e1294b7ce603832ba8384fefd2c917de5f0fdd9fbb75edb42b49eebe1d48"
         }
       }
     }
