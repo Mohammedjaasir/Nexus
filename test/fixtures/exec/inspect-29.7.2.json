@@ -1,0 +1,378 @@
+{
+  "dockerVersion": "29.7.2",
+  "synthetic": false,
+  "note": "Captured at B2a verification from a REAL preflight on Docker 29.7.2 (linux, API 1.55): main's plan builder built an sde.test.node plan for the pinned sde-node image (with an input recording a lockfile hash, so the read-only dependency cache volume is mounted); the Docker driver created the volumes and the container (never started), and DockerDriver.preflight's own `docker inspect --type container <id>` output is recorded here unchanged, with the spec it was compared against. preflight.ok=true.",
+  "spec": {
+    "name": "nexus-01m4kmakkz7q6qekgps38c3yt5",
+    "labels": {
+      "nexus.job": "01M4KMAKKYP56V6QR6CMJN91EP",
+      "nexus.attempt": "01M4KMAKKZ7Q6QEKGPS38C3YT5",
+      "nexus.boot": "01M4KMAKM06VAZJYXR7F39X281",
+      "nexus.project": "p-capture",
+      "nexus.home": "eb4239200f0232da",
+      "nexus.kind": "tool"
+    },
+    "profile": "sde-node",
+    "image": {
+      "ref": "sha256:7ae67b3ba6141ffcd00936f4eb9f0de07040ee7562e7f29040ab5b290a0a45ad",
+      "id": "sha256:7ae67b3ba6141ffcd00936f4eb9f0de07040ee7562e7f29040ab5b290a0a45ad"
+    },
+    "entrypoint": [
+      "/opt/nexus/nexus-entry"
+    ],
+    "argv": [
+      "nexus-node-test",
+      "--out-dir",
+      "/out/junit",
+      "--"
+    ],
+    "imageEnv": [
+      "NODE_VERSION",
+      "PATH",
+      "YARN_VERSION"
+    ],
+    "env": {
+      "HOME": "/home/nexus",
+      "CI": "true",
+      "npm_config_cache": "/home/nexus/.npm",
+      "NODE_ENV": "test",
+      "NEXUS_WALL_SECONDS": "1800"
+    },
+    "mounts": [
+      {
+        "kind": "input",
+        "hostPath": "C:\\Users\\pc\\AppData\\Local\\Temp\\nx-capture-I3rWO3\\nexus\\work\\01M4KMAKKYP56V6QR6CMJN91EP\\1\\in",
+        "containerPath": "/in",
+        "readOnly": true
+      },
+      {
+        "kind": "out",
+        "hostPath": "C:\\Users\\pc\\AppData\\Local\\Temp\\nx-capture-I3rWO3\\nexus\\work\\01M4KMAKKYP56V6QR6CMJN91EP\\1\\out",
+        "containerPath": "/out",
+        "readOnly": false
+      },
+      {
+        "kind": "workspace",
+        "hostPath": "nexus-ws-01M4KMAKKZ7Q6QEKGPS38C3YT5",
+        "containerPath": "/workspace",
+        "readOnly": false
+      },
+      {
+        "kind": "deps",
+        "hostPath": "nexus-deps-sde-node-dddddddddddd",
+        "containerPath": "/workspace/node_modules",
+        "readOnly": true
+      }
+    ],
+    "network": {
+      "mode": "none"
+    },
+    "limits": {
+      "cpus": 2,
+      "memoryMb": 2048,
+      "pids": 512,
+      "wallClockMs": 900000,
+      "outputMaxBytes": 67108864,
+      "tmpfsMb": 512
+    },
+    "readOnlyRootfs": true,
+    "capDrop": [
+      "ALL"
+    ],
+    "noNewPrivileges": true
+  },
+  "inspect": [
+    {
+      "Id": "5ce276d84fb76949d4037b426387b17565c2187005b09bb9b93e87c44f05f0ab",
+      "Created": "2026-10-10T19:23:36.400437122Z",
+      "Path": "/opt/nexus/nexus-entry",
+      "Args": [
+        "nexus-node-test",
+        "--out-dir",
+        "/out/junit",
+        "--"
+      ],
+      "State": {
+        "Status": "created",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "0001-01-01T00:00:00Z",
+        "FinishedAt": "0001-01-01T00:00:00Z"
+      },
+      "Image": "sha256:7ae67b3ba6141ffcd00936f4eb9f0de07040ee7562e7f29040ab5b290a0a45ad",
+      "ResolvConfPath": "",
+      "HostnamePath": "",
+      "HostsPath": "",
+      "LogPath": "",
+      "Name": "/nexus-01m4kmakkz7q6qekgps38c3yt5",
+      "RestartCount": 0,
+      "Driver": "overlayfs",
+      "Platform": "linux",
+      "MountLabel": "",
+      "ProcessLabel": "",
+      "AppArmorProfile": "",
+      "ExecIDs": null,
+      "HostConfig": {
+        "Binds": null,
+        "ContainerIDFile": "",
+        "LogConfig": {
+          "Type": "json-file",
+          "Config": {
+            "max-file": "2",
+            "max-size": "32m"
+          }
+        },
+        "NetworkMode": "none",
+        "PortBindings": {},
+        "RestartPolicy": {
+          "Name": "no",
+          "MaximumRetryCount": 0
+        },
+        "AutoRemove": false,
+        "VolumeDriver": "",
+        "VolumesFrom": null,
+        "ConsoleSize": [
+          0,
+          0
+        ],
+        "CapAdd": null,
+        "CapDrop": [
+          "ALL"
+        ],
+        "CgroupnsMode": "private",
+        "Dns": null,
+        "DnsOptions": [],
+        "DnsSearch": [],
+        "ExtraHosts": null,
+        "GroupAdd": null,
+        "IpcMode": "private",
+        "Cgroup": "",
+        "Links": null,
+        "OomScoreAdj": 0,
+        "PidMode": "",
+        "Privileged": false,
+        "PublishAllPorts": false,
+        "ReadonlyRootfs": true,
+        "SecurityOpt": [
+          "no-new-privileges"
+        ],
+        "Tmpfs": {
+          "/home/nexus": "rw,nosuid,size=256m,uid=10001",
+          "/tmp": "rw,noexec,nosuid,size=512m,uid=10001"
+        },
+        "UTSMode": "",
+        "UsernsMode": "",
+        "ShmSize": 67108864,
+        "Runtime": "runc",
+        "Isolation": "",
+        "CpuShares": 0,
+        "Memory": 2147483648,
+        "NanoCpus": 2000000000,
+        "CgroupParent": "",
+        "BlkioWeight": 0,
+        "BlkioWeightDevice": [],
+        "BlkioDeviceReadBps": [],
+        "BlkioDeviceWriteBps": [],
+        "BlkioDeviceReadIOps": [],
+        "BlkioDeviceWriteIOps": [],
+        "CpuPeriod": 0,
+        "CpuQuota": 0,
+        "CpuRealtimePeriod": 0,
+        "CpuRealtimeRuntime": 0,
+        "CpusetCpus": "",
+        "CpusetMems": "",
+        "Devices": [],
+        "DeviceCgroupRules": null,
+        "DeviceRequests": null,
+        "MemoryReservation": 0,
+        "MemorySwap": 2147483648,
+        "MemorySwappiness": null,
+        "OomKillDisable": false,
+        "PidsLimit": 512,
+        "Ulimits": [],
+        "CpuCount": 0,
+        "CpuPercent": 0,
+        "IOMaximumIOps": 0,
+        "IOMaximumBandwidth": 0,
+        "Mounts": [
+          {
+            "Type": "bind",
+            "Source": "C:\\Users\\pc\\AppData\\Local\\Temp\\nx-capture-I3rWO3\\nexus\\work\\01M4KMAKKYP56V6QR6CMJN91EP\\1\\in",
+            "Target": "/in",
+            "ReadOnly": true
+          },
+          {
+            "Type": "bind",
+            "Source": "C:\\Users\\pc\\AppData\\Local\\Temp\\nx-capture-I3rWO3\\nexus\\work\\01M4KMAKKYP56V6QR6CMJN91EP\\1\\out",
+            "Target": "/out"
+          },
+          {
+            "Type": "volume",
+            "Source": "nexus-ws-01M4KMAKKZ7Q6QEKGPS38C3YT5",
+            "Target": "/workspace"
+          },
+          {
+            "Type": "volume",
+            "Source": "nexus-deps-sde-node-dddddddddddd",
+            "Target": "/workspace/node_modules",
+            "ReadOnly": true
+          }
+        ],
+        "MaskedPaths": [
+          "/proc/acpi",
+          "/proc/asound",
+          "/proc/interrupts",
+          "/proc/kcore",
+          "/proc/keys",
+          "/proc/latency_stats",
+          "/proc/sched_debug",
+          "/proc/scsi",
+          "/proc/timer_list",
+          "/proc/timer_stats",
+          "/sys/devices/virtual/powercap",
+          "/sys/firmware"
+        ],
+        "ReadonlyPaths": [
+          "/proc/bus",
+          "/proc/fs",
+          "/proc/irq",
+          "/proc/sys",
+          "/proc/sysrq-trigger"
+        ]
+      },
+      "Storage": {
+        "RootFS": {
+          "Snapshot": {
+            "Name": "overlayfs"
+          }
+        }
+      },
+      "Mounts": [
+        {
+          "Type": "bind",
+          "Source": "C:\\Users\\pc\\AppData\\Local\\Temp\\nx-capture-I3rWO3\\nexus\\work\\01M4KMAKKYP56V6QR6CMJN91EP\\1\\in",
+          "Destination": "/in",
+          "Mode": "",
+          "RW": false,
+          "Propagation": "rprivate"
+        },
+        {
+          "Type": "bind",
+          "Source": "C:\\Users\\pc\\AppData\\Local\\Temp\\nx-capture-I3rWO3\\nexus\\work\\01M4KMAKKYP56V6QR6CMJN91EP\\1\\out",
+          "Destination": "/out",
+          "Mode": "",
+          "RW": true,
+          "Propagation": "rprivate"
+        },
+        {
+          "Type": "volume",
+          "Name": "nexus-ws-01M4KMAKKZ7Q6QEKGPS38C3YT5",
+          "Source": "/var/lib/docker/volumes/nexus-ws-01M4KMAKKZ7Q6QEKGPS38C3YT5/_data",
+          "Destination": "/workspace",
+          "Driver": "local",
+          "Mode": "z",
+          "RW": true,
+          "Propagation": ""
+        },
+        {
+          "Type": "volume",
+          "Name": "nexus-deps-sde-node-dddddddddddd",
+          "Source": "/var/lib/docker/volumes/nexus-deps-sde-node-dddddddddddd/_data",
+          "Destination": "/workspace/node_modules",
+          "Driver": "local",
+          "Mode": "z",
+          "RW": false,
+          "Propagation": ""
+        }
+      ],
+      "Config": {
+        "Hostname": "5ce276d84fb7",
+        "Domainname": "",
+        "User": "10001:10001",
+        "AttachStdin": false,
+        "AttachStdout": true,
+        "AttachStderr": true,
+        "Tty": false,
+        "OpenStdin": false,
+        "StdinOnce": false,
+        "Env": [
+          "CI=true",
+          "HOME=/home/nexus",
+          "NEXUS_WALL_SECONDS=1800",
+          "NODE_ENV=test",
+          "npm_config_cache=/home/nexus/.npm",
+          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "NODE_VERSION=20.20.2",
+          "YARN_VERSION=1.22.22"
+        ],
+        "Cmd": [
+          "nexus-node-test",
+          "--out-dir",
+          "/out/junit",
+          "--"
+        ],
+        "Healthcheck": {
+          "Test": [
+            "NONE"
+          ]
+        },
+        "Image": "sha256:7ae67b3ba6141ffcd00936f4eb9f0de07040ee7562e7f29040ab5b290a0a45ad",
+        "Volumes": null,
+        "WorkingDir": "/workspace",
+        "Entrypoint": [
+          "/opt/nexus/nexus-entry"
+        ],
+        "Labels": {
+          "nexus.attempt": "01M4KMAKKZ7Q6QEKGPS38C3YT5",
+          "nexus.boot": "01M4KMAKM06VAZJYXR7F39X281",
+          "nexus.context-sha256": "63351b34704356f75a07c149f1d783214e763fc3387d0bcc62a297962ac513aa",
+          "nexus.home": "eb4239200f0232da",
+          "nexus.job": "01M4KMAKKYP56V6QR6CMJN91EP",
+          "nexus.kind": "tool",
+          "nexus.profile": "sde-node",
+          "nexus.project": "p-capture",
+          "nexus.versions": "node=20.20.2 jest-junit=17.0.0 mocha-junit-reporter=2.2.1"
+        }
+      },
+      "NetworkSettings": {
+        "SandboxID": "",
+        "SandboxKey": "",
+        "Ports": {},
+        "Networks": {
+          "none": {
+            "IPAMConfig": null,
+            "Links": null,
+            "Aliases": null,
+            "DriverOpts": null,
+            "GwPriority": 0,
+            "NetworkID": "",
+            "EndpointID": "",
+            "Gateway": "",
+            "IPAddress": "",
+            "MacAddress": "",
+            "IPPrefixLen": 0,
+            "IPv6Gateway": "",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "DNSNames": null
+          }
+        }
+      },
+      "ImageManifestDescriptor": {
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "digest": "sha256:6a9511e84e49fed051a355400c39d95a498ec916497779fb7254d5399fe62da8",
+        "size": 2190,
+        "platform": {
+          "architecture": "amd64",
+          "os": "linux"
+        }
+      }
+    }
+  ]
+}
