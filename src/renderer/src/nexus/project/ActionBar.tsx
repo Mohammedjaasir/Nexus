@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { ArtifactSummaryView } from '@shared/nexus/ipc';
 import { getUserAction } from '@shared/nexus/actions';
 import { nexusClient } from '../data/nexusClient';
-import { errorCopy } from '../data/errorCopy';
+import { execFailText } from '../data/errorCopy';
 import { useActions, useHealth, withIntent } from '../data/useExecution';
 import { useParticipationIndex } from '../data/useParticipations';
 import { viewOf } from '../workspaces/participation';
@@ -52,7 +52,7 @@ export function ActionBar({ projectId, workspaceId, version, artifacts, title }:
     setBusy(null);
     setNote(r.ok
       ? { text: r.data.created ? `${def.label}: started. Follow it in Runs.` : `${def.label}: already started. Follow it in Runs.`, alert: false }
-      : { text: errorCopy(r.code, r.reason, r.subReason).text, alert: true });
+      : { text: execFailText(r), alert: true });
   };
 
   return (

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { nexusClient } from '../data/nexusClient';
-import { errorCopy } from '../data/errorCopy';
+import { execFailText } from '../data/errorCopy';
 import { useActions, useDeployments, useExecStore, withIntent } from '../data/useExecution';
 import { Button } from '../ui/Button';
 import { deploymentRow } from './actionModel';
@@ -23,7 +23,7 @@ export function DeploymentsSection({ projectId, workspaceId, versionIds }: { pro
     const r = await send();
     useExecStore.getState().bump(['deployments', 'jobs']);
     setBusy(null);
-    setNote(r.ok ? { text: done, alert: false } : { text: errorCopy(r.code ?? 'internal', r.reason, r.subReason).text, alert: true });
+    setNote(r.ok ? { text: done, alert: false } : { text: execFailText({ code: r.code ?? 'internal', reason: r.reason, subReason: r.subReason }), alert: true });
   };
   return (
     <section aria-label="Dev deployments">

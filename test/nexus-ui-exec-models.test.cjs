@@ -305,7 +305,9 @@ test('a rejected or unregistered execution call answers "execution unreachable",
 test('the setup sentences are main\'s, word for word', () => {
   const { SETUP_MESSAGES } = loadTs('src/main/nexusIpc/envelope.ts');
   assert.deepEqual({ ...E.SETUP_TEXT }, { ...SETUP_MESSAGES });
-  assert.equal(E.errorCopy('unavailable', 'setup:docker_stopped').text, SETUP_MESSAGES.docker_stopped);
+  assert.equal(E.execFailText({ code: 'unavailable', reason: 'setup:docker_stopped' }), SETUP_MESSAGES.docker_stopped);
+  // errorCopy itself keeps the generic sentence for `unavailable` (AR2 in nexus-platform-exec-approvals pins it).
+  assert.equal(E.errorCopy('unavailable', 'setup:disk_low').text, 'That cannot run on this computer right now. Check the setup notes for what it needs.');
   assert.equal(E.errorCopy('invalid', 'queue_full').text, E.EXEC_REASON_TEXT.queue_full);
 });
 

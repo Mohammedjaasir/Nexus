@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ImageProfileArg } from '@shared/nexus/ipc';
 import { nexusClient } from '../data/nexusClient';
-import { errorCopy } from '../data/errorCopy';
+import { execFailText } from '../data/errorCopy';
 import { checkedLine, noticeFor, setupSheet } from '../data/executionModel';
 import { useApprovals, useHealth, withIntent } from '../data/useExecution';
 import { ApprovalList } from '../project/ApprovalsSection';
@@ -42,7 +42,7 @@ function SetupBody({ onClose }: { onClose: () => void }) {
     const r = await withIntent(`prepare:${profile}`, (id) => nexusClient.setupPrepareImage(profile as ImageProfileArg, id));
     setBusy(null);
     approvals.reload();
-    setNote(r.ok ? { text: 'Approve the request below to prepare the image.', alert: false } : { text: errorCopy(r.code, r.reason, r.subReason).text, alert: true });
+    setNote(r.ok ? { text: 'Approve the request below to prepare the image.', alert: false } : { text: execFailText(r), alert: true });
   };
 
   return (

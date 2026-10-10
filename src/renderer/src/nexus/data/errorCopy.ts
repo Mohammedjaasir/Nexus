@@ -162,7 +162,6 @@ export function errorCopy(code: string, reason?: string | null, subReason?: stri
     if (reason === 'handoffs_unavailable') return { text: handoffsNotice(subReason), retry: false, kind: 'handoffs_unavailable' };
     if (reason === 'execution_unavailable') return { text: executionNotice(subReason), retry: false, kind: 'execution_unavailable' };
   }
-  if (code === 'unavailable') return { text: setupText(reason), retry: false, kind: 'refused' };
   if (code === 'platform_unavailable') {
     return { text: unavailableNotice(reason), retry: false, kind: 'unavailable' };
   }
@@ -170,4 +169,10 @@ export function errorCopy(code: string, reason?: string | null, subReason?: stri
   const byReason = reason ? REASON_TEXT[reason] ?? EXEC_REASON_TEXT[reason] : undefined;
   const byCode = Object.prototype.hasOwnProperty.call(CODE_TEXT, code) ? CODE_TEXT[code as NexusErrorCode] : undefined;
   return { text: byReason ?? byCode ?? 'The request was refused.', retry: false, kind: 'refused' };
+}
+
+/** The sentence for a failed execution request: a setup:* refusal names its setup step; anything else is errorCopy's. */
+export function execFailText(r: { code: string; reason?: string | null; subReason?: string | null }): string {
+  if (r.code === 'unavailable' && typeof r.reason === 'string' && r.reason.startsWith('setup:')) return setupText(r.reason);
+  return errorCopy(r.code, r.reason, r.subReason).text;
 }
