@@ -11,7 +11,9 @@
 //   xunit2 report of pytest-app written in pytest's format (no host Python is ever run), and the build outputs the
 //   fixtures' build scripts write. Dev deployment health answers come from the fixture's routes.
 // Time is a fake clock: main's `now` and the runner's timers; `until` advances it a second at a time and runs the
-// scheduler's tick, while real I/O (git, files) is awaited between steps.
+// scheduler's tick, while real I/O (git, files) is awaited between steps: the runner's host git and file system calls
+// are counted (`trackRealIo`), and the clock never advances while one is still in flight (B2a stabilization: on a loaded
+// machine a snapshot's real git calls outlasted 60 fake seconds, so its 60 s wall clock ran out under them).
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
@@ -61,6 +63,24 @@ class FakeClock {
     }
     this.now = end;
   }
+}
+
+/**
+ * The runner's real I/O, counted (test only): every promise a method of `obj` returns is in flight until it settles.
+ * `io.n` is the number in flight; the fake clock waits for it (see `until`). Values and getters pass through unchanged.
+ */
+function trackRealIo(obj, io) {
+  const tracked = (r) => {
+    if (!r || typeof r.then !== 'function') return r;
+    io.n++;
+    return Promise.resolve(r).finally(() => { io.n--; });
+  };
+  return new Proxy(obj, {
+    get(t, k) {
+      const v = Reflect.get(t, k, t);
+      return typeof v === 'function' ? (...args) => tracked(v.apply(t, args)) : v;
+    }
+  });
 }
 
 /** main's RunnerPort and the runner's transport, joined: each message is cloned and delivered on a later turn. */
@@ -299,19 +319,32 @@ async function fakeWorld() {
     onStart: (c, d) => { const code = play(w, c, d); if (code !== null) d.exitContainer(c.id, { code, finishedAt: clock.now }); } });
   const b = bridge();
   let nextPort = 49200;
-  const core = new RunnerCore(b.transport, { driver, now: () => clock.now, fs: fsp, timers: clock, log: (l) => w.runnerLogs.push(l),
+  const io = { n: 0 };
+  const core = new RunnerCore(b.transport, { driver, now: () => clock.now, fs: trackRealIo(fsp, io), timers: clock, log: (l) => w.runnerLogs.push(l),
     freeBytes: async () => 100 * GIB, sleep: async () => {}, docker: null, imagesDir: path.join(ROOT, 'infra', 'images'),
     probeHttp: async (_port, q) => ({ status: w.health(q), ms: 3 }), pickPort: () => nextPort++ });
   Object.assign(w, { driver, core, bridge: b });
+  // The runner makes its GitRunner at each hello: whichever it makes is counted too.
+  let gitRunner = core.git ?? null;
+  Object.defineProperty(core, 'git', { configurable: true, enumerable: true, get: () => gitRunner,
+    set: (v) => { gitRunner = v ? trackRealIo(v, io) : v; } });
+  if (gitRunner) gitRunner = trackRealIo(gitRunner, io);
   nx.exec.attachRunner(b.port, newId(clock.now));
   WORLDS.push(w);
+  // Settles main, and waits (on the real clock, at most IO_WAIT_MS per step) for the runner's real I/O in flight and
+  // whatever its answers start, so fake time only passes while nothing real is still running.
+  const IO_WAIT_MS = 120_000;
   const flush = async () => {
-    for (let i = 0; i < 4; i++) {
-      await new Promise((r) => setImmediate(r));
-      await nx.exec.settled();
-      if (nx.validation) await nx.validation.settled();
-    }
-    await new Promise((r) => setTimeout(r, 2));
+    const end = Date.now() + IO_WAIT_MS;
+    do {
+      while (io.n > 0 && Date.now() < end) await new Promise((r) => setTimeout(r, 2));
+      for (let i = 0; i < 4; i++) {
+        await new Promise((r) => setImmediate(r));
+        await nx.exec.settled();
+        if (nx.validation) await nx.validation.settled();
+      }
+      await new Promise((r) => setTimeout(r, 2));
+    } while (io.n > 0 && Date.now() < end);
   };
   w.until = async (pred, what, ms = 10 * 60_000) => {
     const steps = Math.ceil(ms / 1000) + 30;

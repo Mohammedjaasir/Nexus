@@ -199,6 +199,25 @@ if (h.realSqliteOrSkip()) {
     }
   });
 
+  // B2a stabilization: on a loaded machine X10's snapshot ended `timed_out` (its 60 s wall clock) because the fake clock
+  // kept advancing a second per step while the runner's REAL git calls had not answered. The fake world now waits for the
+  // runner's real I/O before fake time passes. Here every runner git call takes 1.5 s of real time (a slow machine):
+  // without the wait the snapshot ran 62 fake seconds in about 1 real second and timed out.
+  test('XH the fake clock waits for the runner\'s real git: a snapshot whose every git call takes 1.5 s still completes, in a few fake seconds', async () => {
+    const x = await fakeWorld();
+    try {
+      await x.useFixture('pytest-app');
+      x.core.git = new Proxy(x.core.git, { get(t, k) {
+        const v = Reflect.get(t, k, t);
+        return typeof v === 'function' ? async (...a) => { await new Promise((r) => setTimeout(r, 1500)); return v.apply(t, a); } : v;
+      } });
+      const c0 = x.clock.now;
+      const r = await x.snapshot();
+      assert.ok(r.versionId);
+      assert.ok(x.clock.now - c0 < 30_000, `the snapshot took ${(x.clock.now - c0) / 1000} fake seconds`);
+    } finally { await x.close(); }
+  });
+
   test('XL the fake world left no labelled container, volume or network behind, and every recorded report it used is in the repository', async () => {
     const x = await world();
     assert.deepEqual(x.driver.all().filter((r) => r.labels && r.labels['nexus.attempt'] && r.labels['nexus.kind'] !== 'deps'), []);
