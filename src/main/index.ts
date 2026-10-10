@@ -4196,6 +4196,17 @@ ipcMain.handle('history:search', (_evt, query: unknown, limit: unknown) =>
 /** Tear the harness down and quit. Shared by the hard "kill all & quit" path
  *  and the closing-time conclusion (after the god confirmed the floor saved). */
 function teardownAndQuit(): void {
+  // B2a: stop execution (dev deployments, the runner) while the store is still open, bounded at
+  // 10 s, then come back for the rest of the teardown. persist.close() below would otherwise run
+  // first and the before-quit handler's stop would find the store closed.
+  const h = nexusExecution;
+  if (h && !quittingForExecution) {
+    quittingForExecution = true;
+    nexusExecution = null;
+    const bound = new Promise<void>((resolve) => setTimeout(resolve, 10_000));
+    void Promise.race([h.stop().catch(() => undefined), bound]).finally(() => teardownAndQuit());
+    return;
+  }
   allowQuit = true;
   // Each teardown step is best-effort: a throw here (e.g. a dying child or a
   // half-torn-down socket) must never abort the quit or pop a crash dialog.

@@ -195,6 +195,14 @@ test('index.ts starts execution exactly once, after the platform startup, and ha
   assert.match(idx, /isRepository: repositoryCheck/);
   assert.match(idx, /execution: persist\.executionAvailable/);
 });
+test('teardownAndQuit stops execution (bounded) before it closes the store', () => {
+  const idx = read('src/main/index.ts');
+  const fn = idx.slice(idx.indexOf('function teardownAndQuit('), idx.indexOf("ipcMain.handle('app:confirmClose'"));
+  assert.ok(fn.indexOf('h.stop()') !== -1, 'teardownAndQuit stops execution');
+  assert.ok(fn.indexOf('try { persist.close(); }') !== -1);
+  assert.ok(fn.indexOf('h.stop()') < fn.indexOf('try { persist.close(); }'), 'execution stops before persist.close()');
+  assert.match(fn, /setTimeout\(resolve, 10_000\)/);
+});
 test('NEXUS_DB_HOLD_V9 is honoured by main', () => {
   const idx = read('src/main/index.ts');
   const call = idx.slice(idx.indexOf('persist.open({'), idx.indexOf('});', idx.indexOf('persist.open({')));
