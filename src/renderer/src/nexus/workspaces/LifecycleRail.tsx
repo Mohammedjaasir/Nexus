@@ -32,7 +32,7 @@ export function LifecycleRail({ rail, compact = false }: { rail: RailView; compa
             <span className="nx-lrail__n nx-id" aria-hidden="true">{s.n}</span>
             <span className="nx-lrail__label">{s.label}</span>
             <span className="nx-lrail__word">{s.word}</span>
-            {s.note && <span className="nx-lrail__scope">{s.note}</span>}
+            {(s.note || s.when) && <span className="nx-lrail__scope">{s.when && <b className="nx-lrail__when">{s.when}. </b>}{s.note}</span>}
           </li>
         ))}
       </ol>

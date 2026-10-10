@@ -21,9 +21,17 @@ import { PlatformNotice } from '../components/PlatformNotice';
 import { useDomains } from '../data/useExecution';
 import { railFor } from '../workspaces/lifecycleModel';
 import { LifecycleRail } from '../workspaces/LifecycleRail';
+import type { DomainPageId } from '../router/routes';
+import { DomainPage } from './DomainPage';
 
-export function WorkspacePage({ id }: { id: WorkspaceId }) {
-  const ws = getWorkspace(id)!; // route parsing guarantees a known id
+/** `#/w/<id>`: a workspace, or a registry domain with no workspace yet (its domain page: the rail, nothing else). */
+export function WorkspacePage({ id }: { id: WorkspaceId | DomainPageId }) {
+  const ws = getWorkspace(id);
+  return ws ? <WorkspaceView id={ws.id} /> : <DomainPage id={id} />;
+}
+
+function WorkspaceView({ id }: { id: WorkspaceId }) {
+  const ws = getWorkspace(id)!; // WorkspacePage checked it
   const projects = useStore((s) => s.projects);
   const { status, error, refresh } = useProjectsLoader();
   const actions = useShellActions();

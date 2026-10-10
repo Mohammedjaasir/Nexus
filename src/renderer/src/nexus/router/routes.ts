@@ -1,5 +1,10 @@
 import { getWorkspace } from '../workspaces/registry';
 import type { WorkspaceId } from '../workspaces/types';
+import { getDomain } from '@shared/nexus/domains';
+import { isDomainOnly } from '../workspaces/lifecycleModel';
+
+/** A registry domain with no workspace (Data Scientist in B2a): `#/w/<id>` opens its honest domain page. */
+export type DomainPageId = string;
 
 export const PROJECT_TOOLS = ['bench', 'changes', 'completion', 'runs'] as const;
 export type ProjectTool = (typeof PROJECT_TOOLS)[number];
@@ -9,7 +14,7 @@ export type Route =
   | { name: 'welcome' }
   | { name: 'browse' }
   | { name: 'workspaces' }
-  | { name: 'workspace'; id: WorkspaceId }
+  | { name: 'workspace'; id: WorkspaceId | DomainPageId }
   | { name: 'projects' }
   | { name: 'project'; id: string; tool: ProjectTool }
   | { name: 'artifacts'; id?: string }
@@ -51,7 +56,10 @@ export function parseHash(hash: string): Route {
     if ((WITH_ID as readonly string[]).includes(parts[0]) && parts.length === 2) {
       return isPlatformId(id) ? ({ name: parts[0], id } as Route) : notFound;
     }
-    if (parts[0] === 'w' && parts.length === 2) return getWorkspace(id) ? { name: 'workspace', id: id as WorkspaceId } : notFound;
+    if (parts[0] === 'w' && parts.length === 2) {
+      // A workspace, or a registry domain that has no workspace yet (its page draws the rail; nothing is written).
+      return getWorkspace(id) ? { name: 'workspace', id: id as WorkspaceId } : isDomainOnly(id) ? { name: 'workspace', id } : notFound;
+    }
     if (parts[0] === 'p') {
       // The old plan tool's links ('#/p/<id>/plan') open Completion.
       const tool = (parts[2] === 'plan' ? 'completion' : parts[2] ?? 'bench') as ProjectTool;
@@ -81,7 +89,10 @@ const TITLES: Record<string, string> = {
 const TOOL_TITLES: Record<ProjectTool, string> = { bench: 'Project', changes: 'Changes', completion: 'Completion', runs: 'Runs' };
 
 export function routeTitle(r: Route): string {
-  if (r.name === 'workspace') return `${getWorkspace(r.id)?.label ?? r.id} workspace`;
+  if (r.name === 'workspace') {
+    const ws = getWorkspace(r.id);
+    return ws ? `${ws.label} workspace` : getDomain(r.id)?.label ?? r.id;
+  }
   if (r.name === 'project') return TOOL_TITLES[r.tool];
   if (r.name === 'artifacts' && r.id !== undefined) return 'Artifact';
   if (r.name === 'handoffs' && r.id !== undefined) return 'Handoff';

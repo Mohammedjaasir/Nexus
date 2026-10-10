@@ -1,0 +1,36 @@
+// A registry domain that has no workspace yet (Data Scientist in B2a; its workspace row arrives with B4): an honest
+// page that draws the domain's lifecycle rail from the registry. It offers no action, no way to create a project and no
+// project list, and it writes nothing: no workspace row is created for it.
+import { useDomains } from '../data/useExecution';
+import { navigate } from '../router/useRoute';
+import { Button } from '../ui/Button';
+import { EmptyState } from '../ui/EmptyState';
+import { domainOnlyLead, railFor } from '../workspaces/lifecycleModel';
+import { LifecycleRail } from '../workspaces/LifecycleRail';
+
+export function DomainPage({ id }: { id: string }) {
+  const view = useDomains().list.find((d) => d.id === id) ?? null;
+  if (!view) {
+    return (
+      <div className="nx-page">
+        <EmptyState level={1} icon="close" title="Not found" body="That domain is not in this build's registry."
+          actions={<Button variant="primary" onClick={() => navigate({ name: 'workspaces' })}>Go to Workspaces</Button>} />
+      </div>
+    );
+  }
+  return (
+    <div className="nx-page">
+      <header className="nx-pagehead">
+        <div className="nx-pagehead__text">
+          <h1 tabIndex={-1}>{view.label}</h1>
+          <p className="nx-lead">{domainOnlyLead(view)}</p>
+        </div>
+        <div className="nx-pagehead__actions">
+          <Button onClick={() => navigate({ name: 'workspaces' })}>Back to Workspaces</Button>
+        </div>
+      </header>
+      <p className="nx-muted">What it is planned for: {view.description}</p>
+      <LifecycleRail rail={railFor(view)} />
+    </div>
+  );
+}

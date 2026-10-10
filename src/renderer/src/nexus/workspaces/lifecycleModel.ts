@@ -8,6 +8,7 @@ import type { DomainSpecView, JobView } from '@shared/nexus/ipc';
 import type { DomainSpec, StepStatus, SubPhase } from '@shared/nexus/domainSpec';
 import { CURRENT_SUB_PHASE, isAtOrBefore, isExecutableEndToEnd } from '@shared/nexus/domainSpec';
 import { DOMAINS, getDomain } from '@shared/nexus/domains';
+import { getWorkspace } from './registry';
 import { stepStateFrom, type StepState } from '@shared/nexus/stepState';
 
 /** The same projection main sends over #22 (nexusIpc/dto.ts domainView), for when that channel has not answered. */
@@ -64,6 +65,8 @@ export interface RailStep {
   word: string;
   /** For a FUTURE step "Not in this release: arrives with ..."; otherwise the registry's scope note. */
   note: string | null;
+  /** Set only in a domain a project cannot take part in yet (DS before B4): "Available from <its sub-phase>". */
+  when: string | null;
 }
 
 export interface RailView {
@@ -108,7 +111,8 @@ export function railFor(view: DomainSpecView, records: RailRecords | null = null
     return {
       n: i + 1, id: s.id, label: s.label, status: s.status, subPhase: s.subPhase, future, state,
       word: future ? STATUS_WORD.FUTURE : state ? STATE_WORD[state] : STATUS_WORD[s.status],
-      note: future ? futureLine(s.subPhase) : s.scopeNote
+      note: future ? futureLine(s.subPhase) : s.scopeNote,
+      when: supported && availability !== null ? `Available from ${s.subPhase}` : null
     };
   });
   const modules = view.modules.map((m) => {
@@ -116,6 +120,24 @@ export function railFor(view: DomainSpecView, records: RailRecords | null = null
     return { id: m.id, label: m.label, delivered, note: delivered ? null : `arrives in ${m.subPhase}` };
   });
   return { domainId: view.id, label: view.label, statusNote: view.statusNote, availability, supported, steps, modules };
+}
+
+/**
+ * Registry domains that have no workspace (Data Scientist in B2a: its workspace row arrives with B4). They get an
+ * honest domain page (`#/w/<id>`) that draws their rail from the registry, never a workspace row in the database.
+ */
+export function domainOnlyIds(): string[] {
+  return DOMAINS.filter((d) => d.tier === 'first-class' && !getWorkspace(d.id)).map((d) => d.id);
+}
+export const isDomainOnly = (id: string): boolean => domainOnlyIds().includes(id);
+
+/** What a domain-only page says above its rail, from the registry: when a project can take part, and that nothing runs. */
+export function domainOnlyLead(view: DomainSpecView): string {
+  const runs = view.lifecycle.filter((s) => s.delivered).length;
+  const when = isAtOrBefore(view.availableFromSubPhase, view.currentSubPhase)
+    ? 'A project can take part in it.' : `Available from ${view.availableFromSubPhase}: a project cannot take part in it yet.`;
+  return runs === 0 ? `${when} None of its steps runs in this release, and it offers no actions.`
+    : `${when} ${runs} of its ${view.lifecycle.length} steps run in this release.`;
 }
 
 /** The compact line under a Spine group: counts of the rail's own steps (no other number). */

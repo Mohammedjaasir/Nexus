@@ -8,6 +8,8 @@ import { buildWorkspaceIndex } from './workspaceIndex';
 import { useParticipationIndex } from '../data/useParticipations';
 import { PlatformNotice } from '../components/PlatformNotice';
 import type { WorkspaceId } from '../workspaces/types';
+import { useDomains } from '../data/useExecution';
+import { isDomainOnly, railFor } from '../workspaces/lifecycleModel';
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
 
@@ -25,6 +27,8 @@ export function WorkspacesPage() {
   const setLast = useNexusUi((s) => s.setLastWorkspace);
   const actions = useShellActions();
   const idx = buildWorkspaceIndex(projects, useParticipationIndex());
+  // Registry domains with no workspace yet (Data Scientist until B4): listed apart, worded so they never read as available.
+  const later = useDomains().list.filter((d) => isDomainOnly(d.id));
 
   const open = (id: WorkspaceId) => {
     setLast(id);
@@ -78,6 +82,20 @@ export function WorkspacesPage() {
           </li>
         ))}
       </ul>
+      {later.length > 0 && (
+        <section className="nx-wsx__later" aria-labelledby="nx-wsx-later">
+          <h2 id="nx-wsx-later" className="nx-wsx__later-title">Not available yet</h2>
+          <ul className="nx-wsx__later-list">
+            {later.map((d) => (
+              <li key={d.id}>
+                <button type="button" className="nx-wsx__link" onClick={() => navigate({ name: 'workspace', id: d.id })}
+                  aria-label={`${d.label}: ${railFor(d).availability ?? 'not available yet'}. See its planned lifecycle`}>{d.label}</button>
+                {' '}<span className="nx-muted">{railFor(d).availability ?? 'Not available yet'}. Its planned lifecycle only; nothing runs.</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

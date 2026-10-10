@@ -188,3 +188,90 @@ test('C6b (final review) a version past the Spine read cap claims no state, neve
   assert.match(L.railSummary(r), /^2 of 9 steps in this release done/, 'requirement and project; the unread step is not counted as moving');
   assert.doesNotMatch(L.railSummary(r), /in progress/);
 });
+
+// ---------- B2a stabilization (workstream B): the rail from real records, the Data Scientist page ----------
+
+const SM = loadTs('src/renderer/src/nexus/project/spineModel.ts');
+/** An artifact summary as nexus:artifacts:byProject answers it (ArtifactSummaryView). */
+const summary = (id, kind, status, owner) => ({
+  artifact: { id, kind, status: 'active', name: id, createdAt: 1, ownerScope: owner ? 'participation' : 'project',
+    ownerParticipationId: owner ? `pp-${owner}` : null, ownerWorkspaceId: owner ?? null },
+  versionCount: 1, current: status === 'active' ? { id: `v-${id}`, versionNo: 1 } : null, latest: { id: `v-${id}`, versionNo: 1, status } });
+const railOf = (artifacts, checks, extra = {}) => rail('sde', SM.railRecordsFor({ workspaceId: 'sde', artifacts, checks: new Map(Object.entries(checks)),
+  liveActions: [], deploymentHealthy: false, participating: true, ...extra }));
+const st = (r, id) => r.steps.find((s) => s.id === id).state;
+const REPO_OK = { 'git.head_resolves': 'passed' };
+const BUILD_OK = { 'build.exit_zero': 'passed', 'build.manifest_present': 'passed', 'build.output_hashed': 'passed', 'blob.integrity': 'passed' };
+
+test('S7 a project-owned repository snapshot (ownerWorkspaceId null) is a record of the SDE rail: Repository done, Code ready', () => {
+  assert.equal(SM.projectOwned({ ownerWorkspaceId: null, ownerParticipationId: null }), true);
+  assert.equal(SM.projectOwned({ ownerWorkspaceId: 'sde', ownerParticipationId: 'pp' }), false);
+  const repo = summary('repo', 'repository', 'active', null);
+  const r = railOf([repo], { 'v-repo': REPO_OK });
+  assert.equal(st(r, 'repository'), 'done', 'the click-through read "Ready to start" here');
+  // Code is REAL in B2a (the registry: a git_commit saved through user.save_commit); it waits for that save, never for an earlier step.
+  const code = DOMAINS.find((d) => d.id === 'sde').lifecycle.find((s) => s.id === 'code');
+  assert.deepEqual([code.status, code.subPhase], ['REAL', 'B2a']);
+  assert.equal(st(r, 'code'), 'ready', 'the click-through read "Needs an earlier step" here');
+  assert.equal(st(railOf([repo, summary('c1', 'git_commit', 'candidate', 'sde')], { 'v-repo': REPO_OK }), 'code'), 'done');
+  // The Repository step is done only on an ACTIVE version whose git check passed.
+  assert.equal(st(railOf([summary('repo', 'repository', 'candidate', null)], { 'v-repo': REPO_OK }), 'repository'), 'ready');
+  assert.equal(st(railOf([repo], { 'v-repo': { 'git.head_resolves': 'failed' } }), 'repository'), 'failed');
+  // Another workspace's artifact is still not this group's record.
+  assert.equal(st(railOf([summary('repo', 'repository', 'active', 'ml')], { 'v-repo': REPO_OK }), 'repository'), 'ready');
+});
+
+test('S7 Tests: discovery alone never marks the step done; a candidate suite needs sde.tests_pass passed (the tests ran)', () => {
+  const repo = summary('repo', 'repository', 'active', null);
+  const suite = (status) => summary('suite', 'test_suite', status, 'sde');
+  // Discovery recorded its list (suite.discovered) and nothing ran the tests yet: a draft, being checked.
+  assert.equal(st(railOf([repo, suite('draft')], { 'v-repo': REPO_OK, 'v-suite': { 'suite.discovered': 'passed' } }), 'tests'), 'in_progress');
+  // Even a non-draft version without a passed sde.tests_pass is never done.
+  assert.notEqual(st(railOf([repo, suite('candidate')], { 'v-repo': REPO_OK, 'v-suite': { 'suite.discovered': 'passed' } }), 'tests'), 'done');
+  assert.equal(st(railOf([repo, suite('candidate')], { 'v-repo': REPO_OK, 'v-suite': { 'suite.discovered': 'passed', 'sde.tests_pass': 'failed' } }), 'tests'), 'failed');
+  assert.equal(st(railOf([repo, suite('candidate')], { 'v-repo': REPO_OK, 'v-suite': PASSED }), 'tests'), 'done');
+  // Build: done only when a build version passed every one of its checks.
+  const build = (status) => summary('b', 'build', status, 'sde');
+  assert.equal(st(railOf([repo, build('candidate')], { 'v-repo': REPO_OK, 'v-b': BUILD_OK }), 'build'), 'done');
+  assert.notEqual(st(railOf([repo, build('candidate')], { 'v-repo': REPO_OK, 'v-b': { ...BUILD_OK, 'blob.integrity': 'failed' } }), 'build'), 'done');
+  assert.equal(st(railOf([repo, build('draft')], { 'v-repo': REPO_OK, 'v-b': { 'build.exit_zero': 'passed' } }), 'build'), 'in_progress');
+  // With the repository counted, the click-through's records read in order.
+  const all = railOf([repo, suite('candidate'), build('candidate')], { 'v-repo': REPO_OK, 'v-suite': PASSED, 'v-b': BUILD_OK });
+  assert.deepEqual(['repository', 'code', 'tests', 'build'].map((id) => st(all, id)), ['done', 'ready', 'done', 'done']);
+});
+
+test('S4 Data Scientist: #/w/data-scientist opens its domain page (never a workspace), every step "Available from B4", no action', () => {
+  const RT = loadTs('src/renderer/src/nexus/router/routes.ts');
+  assert.deepEqual(RT.parseHash('#/w/data-scientist'), { name: 'workspace', id: 'data-scientist' });
+  assert.equal(RT.routeTitle({ name: 'workspace', id: 'data-scientist' }), 'Data Scientist');
+  assert.equal(RT.parseHash('#/w/robotics').name, 'not-found', 'only registry domains');
+  assert.equal(RT.formatRoute({ name: 'workspace', id: 'data-scientist' }), '#/w/data-scientist');
+  assert.deepEqual(L.domainOnlyIds(), ['data-scientist']);
+  // Not a workspace: no row in the platform catalog, none in the renderer's workspace list.
+  const { PLATFORM_WORKSPACE_IDS } = loadTs('src/shared/nexus/workspaceCatalog.ts');
+  assert.ok(!PLATFORM_WORKSPACE_IDS.includes('data-scientist'));
+  const { WORKSPACES } = loadTs('src/renderer/src/nexus/workspaces/registry.ts');
+  assert.ok(!WORKSPACES.some((w) => w.id === 'data-scientist'));
+  // The registry is unchanged: no DS step is REAL, and it has no action.
+  const ds = DOMAINS.find((d) => d.id === 'data-scientist');
+  assert.ok(ds.lifecycle.every((s) => s.status === 'FUTURE'));
+  assert.deepEqual(ds.actions, []);
+  const r = rail('data-scientist');
+  assert.equal(r.steps.length, 12);
+  assert.ok(r.steps.every((s) => s.when === 'Available from B4' && s.word === 'Not in this release' && s.state === null));
+  assert.ok(rail('sde').steps.every((s) => s.when === null), 'a domain a project can take part in carries no "Available from"');
+  assert.equal(L.domainOnlyLead(view('data-scientist')),
+    'Available from B4: a project cannot take part in it yet. None of its steps runs in this release, and it offers no actions.');
+  // The page: the rail, a way back, and nothing else (no action bar, no New project, no write).
+  const page = src('pages/DomainPage.tsx');
+  assert.match(page, /<LifecycleRail rail=\{railFor\(view\)\} \/>/);
+  assert.doesNotMatch(page, /ActionBar|New project|openNewProject|nexusClient|participationAttach|jobStart/);
+  const ws = src('pages/WorkspacePage.tsx');
+  assert.match(ws, /return ws \? <WorkspaceView id=\{ws\.id\} \/> : <DomainPage id=\{id\} \/>;/);
+  // The entry point where domains are listed, worded so it cannot read as available.
+  const list = src('pages/WorkspacesPage.tsx');
+  assert.match(list, /const later = useDomains\(\)\.list\.filter\(\(d\) => isDomainOnly\(d\.id\)\);/);
+  assert.match(list, />Not available yet<\/h2>/);
+  assert.match(list, /Its planned lifecycle only; nothing runs\./);
+  assert.match(src('workspaces/LifecycleRail.tsx'), /\{s\.when && <b className="nx-lrail__when">\{s\.when\}\. <\/b>\}/);
+});

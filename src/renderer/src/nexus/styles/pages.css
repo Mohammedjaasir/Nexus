@@ -115,3 +115,7 @@ button.nx-wstab { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .nx-wsx__row::before, .nx-wsx__chev, .nx-wsx__open { transition: none; }
 }
+/* B2a stabilization: registry domains with no workspace yet (Data Scientist until B4), listed apart as not available. */
+.nx-wsx__later { margin-top: var(--nx-s6); display: grid; gap: var(--nx-s2); }
+.nx-wsx__later-title { margin: 0; font: 600 12px/1.2 var(--nx-font); color: var(--nx-text-3); }
+.nx-wsx__later-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--nx-s1); font-size: 13px; }
