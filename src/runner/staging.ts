@@ -22,7 +22,7 @@ export const INPUT_MAX_BYTES = 2 * 2 ** 30;
 
 export type StageResult =
   | { ok: true; source: { sha256: string; bytes: number } | null; blobs: number }
-  | { ok: false; reason: 'input_changed' | 'bad_plan'; detail: string };
+  | { ok: false; reason: 'input_changed' | 'bad_plan' | 'git_missing'; detail: string };
 
 /** A staged relative path: plain segments only. */
 export function stagedPathOk(rel: string): boolean {
@@ -52,7 +52,8 @@ export async function stageInputs(fs: RunnerFs, paths: HomePaths, git: GitRunner
     try {
       source = await git.archiveTo(fs, src.repoPath, src.commit, tar, { signal, maxBytes: SOURCE_MAX_BYTES });
     } catch (e) {
-      if (e instanceof GitError) return { ok: false, reason: 'bad_plan', detail: e.message };
+      // No git installed: a setup refusal (the job waits for git, never fails); any other git failure refuses the plan.
+      if (e instanceof GitError) return { ok: false, reason: e.kind === 'git_missing' ? 'git_missing' : 'bad_plan', detail: e.message };
       throw e;                                              // ENOSPC, EACCES, ...: the caller classifies it
     }
   }

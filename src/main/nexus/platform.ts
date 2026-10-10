@@ -110,8 +110,11 @@ export interface NexusPlatformOptions {
   approvals?: EgressApprovalPort | null;
   /** The build context of each profile image (B2a Task 12, from infra/images); without it image preparation is refused. */
   imageContexts?: ((profileId: string) => ImageContext | null) | null;
-  /** main's own async git repository check (src/main/git.ts isRepo); without it snapshot requests are unavailable. */
-  isRepository?: ((root: string) => Promise<boolean>) | null;
+  /**
+   * main's own async git repository check (src/main/git.ts repositoryCheck: true, false, or 'git_missing' when no git is
+   * installed); without it snapshot requests are unavailable.
+   */
+  isRepository?: ((root: string) => Promise<boolean | 'git_missing'>) | null;
   /** The ingest of runner outputs: omitted, the platform's own (Task 8); null, none (exits then fail ingest_unavailable). */
   ingest?: IngestPort | null;
   /** main's own async commit resolution in the project folder (src/main/git.ts resolveCommit), for git.head_resolves. */

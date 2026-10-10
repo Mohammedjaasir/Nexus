@@ -114,7 +114,8 @@ async function world(o = {}) {
   const logs = [];
   const core = new RunnerCore(port2, {
     driver, now: () => clock.now, fs: o.fs ?? fsp, timers: clock, log: (l) => logs.push(l), freeBytes: o.freeBytes ?? (async () => 100 * GIB),
-    sleep: o.sleep ?? (async () => {}), limits: o.limits, pickPort: o.pickPort, docker: o.docker ?? null, imagesDir: o.imagesDir, probeHttp: o.probeHttp
+    sleep: o.sleep ?? (async () => {}), limits: o.limits, pickPort: o.pickPort, docker: o.docker ?? null, imagesDir: o.imagesDir, probeHttp: o.probeHttp,
+    resolveGit: o.resolveGit
   });
   const label = homeLabel(home);
   const w = {
@@ -1257,7 +1258,136 @@ test('FR17 /out walks read folders one entry at a time and stop past the bound (
   fs.rmSync(path.join(w.home, 'work', 'fr17'), { recursive: true, force: true });
 });
 
-// ---------- D18, D19: over the whole suite (these run last) ----------
+// ---------- Fix round 2 (review of 0b56e6ba) ----------
+
+/** An in-memory RunnerFs for LogWriter alone (the sweep below writes 2,800 logs; real files would take minutes on Windows). */
+function memLogFs() {
+  const store = { text: '' };
+  return { store, fs: {
+    lstat: async () => ({ isSymbolicLink: () => false, isDirectory: () => true }),
+    mkdir: async () => {},
+    open: async () => { store.text = ''; return { stat: async () => ({ size: 0 }), write: async (s) => { store.text += s; }, close: async () => {} }; }
+  } };
+}
+
+test('D10 (sweep, review round 2) an unterminated minified-JSON line past 16 KiB: a ghp_ or sk-ant token (and a password, URL credential or bearer phrase) at every one of 700 offsets around the forced cut is stored redacted, never split', async () => {
+  const { LogWriter, forcedCut, isTokenChar, MAX_TOKEN_RUN, OVERLAP_CHARS } = loadTs('src/runner/logs.ts');
+  const GHP = 'ghp_' + 'Z9y8X7w6V5'.repeat(3) + 'abcdef';
+  const KEY = 'sk-ant-api03-' + 'A1b2C3d4E5'.repeat(9) + 'xyzAA';
+  // The reviewer's sweep (r2-logsweep.cjs) for the two tokens, plus phrase-shaped secrets the redactor only sees whole.
+  const cases = [
+    ['ghp_', (s) => `"a":"${'w'.repeat(s)}","token":"${GHP}","b":"${'q'.repeat(1000 - s)}"`, /Z9y8X7w6V5|abcdef/],
+    ['sk-ant', (s) => `"a":"${'w'.repeat(s)}","token":"${KEY}","b":"${'q'.repeat(1000 - s)}"`, /A1b2C3d4E5/],
+    ['"password":"..."', (s) => `"a":"${'w'.repeat(s)}","password":"hunter2-Secret-Value","b":"${'q'.repeat(1000 - s)}"`, /hunter2|Secret-Value/],
+    ['URL credentials', (s) => `"a":"${'w'.repeat(s)}","u":"https://alice:s3cr3tPassw0rd@db.example.com/x","b":"${'q'.repeat(1000 - s)}"`, /s3cr3tPassw0rd|alice/],
+    ['Bearer <value>', (s) => `"a":"${'w'.repeat(s)}","h":"Bearer abcDEF123.ghiJKL456-mno","b":"${'q'.repeat(1000 - s)}"`, /abcDEF123|ghiJKL456/]
+  ];
+  for (const [name, second, leak] of cases) {
+    const leaks = [];
+    for (let shift = 0; shift < 700; shift++) {
+      const m = memLogFs();
+      const lw = new LogWriter(m.fs, '/mem', '/mem/logs/a.log', { now: () => 1 });
+      await lw.open();
+      lw.write('stdout', '{"k":"' + 'v'.repeat(16000 - 6) + '",');
+      lw.write('stdout', second(shift));
+      await lw.close();
+      const frames = m.store.text.trimEnd().split('\n').map((l) => JSON.parse(l).text);
+      assert.ok(frames.length >= 2 && frames.every((t) => t.length <= 16384), `${name} @${shift}: bounded frames`);
+      if (leak.test(m.store.text)) leaks.push(shift);
+    }
+    assert.deepEqual(leaks, [], `${name}: no offset leaks`);
+  }
+  // The cut lands on a separator (never inside a token run), keeps OVERLAP_CHARS back, and falls back to the limit only
+  // after more than MAX_TOKEN_RUN token characters.
+  const p = '{"k":"' + 'v'.repeat(16000) + '","token":"' + GHP + '","b":"' + 'q'.repeat(600) + '"';
+  const c = forcedCut(p);
+  assert.ok(c <= p.length - OVERLAP_CHARS && !isTokenChar(p.charCodeAt(c)), 'a separator');
+  assert.ok(p.slice(0, c).includes(GHP), 'the token stays whole on one side');
+  const run = 'y'.repeat(20000);
+  assert.equal(forcedCut(run), run.length - OVERLAP_CHARS, 'one long run: the limit');
+  const farSep = 'a '.repeat(10) + 'z'.repeat(MAX_TOKEN_RUN + 600);
+  assert.equal(forcedCut(farSep), farSep.length - OVERLAP_CHARS, 'a separator farther than MAX_TOKEN_RUN back is not used');
+  for (const ch of '":,;& \t{}[]') assert.equal(isTokenChar(ch.charCodeAt(0)), false, ch);
+  for (const ch of 'aZ09._~+/=-') assert.equal(isTokenChar(ch.charCodeAt(0)), true, ch);
+});
+
+/** A DockerDriver whose `docker wait` is scripted (DW5: always cut short; DW6: prints 0 while inspect says running). */
+function scriptedWait(kind) {
+  const base = { signal: null, stdoutBytes: 0, truncated: false, timedOut: false, aborted: false, error: null };
+  const running = JSON.stringify([{ Id: 'a'.repeat(64), RestartCount: 0, State: { Status: 'running', ExitCode: 0, OOMKilled: false, FinishedAt: '0001-01-01T00:00:00Z' } }]);
+  const cli = { calls: [], binary: async () => 'C:/x/docker.exe', run: async (argv) => {
+    cli.calls.push(argv[0]);
+    if (argv[0] === 'wait') return kind === 'DW5' ? { ...base, code: 1, stdout: '', stderr: 'error during connect: EOF' } : { ...base, code: 0, stdout: '0\n', stderr: '' };
+    return { ...base, code: 0, stdout: running, stderr: '' };
+  } };
+  return { cli, driver: new DockerDriver(cli, { now: () => 42 }) };
+}
+
+test('FR-R2-4 a wait cut short WAIT_RETRIES times on a container still running (DW5, DW6) is a docker_error fault, never missing; nothing is removed before release', async () => {
+  const { WAIT_RETRIES } = loadTs('src/runner/sandbox/dockerDriver.ts');
+  for (const kind of ['DW5', 'DW6']) {
+    // The driver alone: never an exit code (DW6 printed 0, but the container runs), WAIT_RETRIES waits, then thrown.
+    const s = scriptedWait(kind);
+    await assert.rejects(s.driver.wait('a'.repeat(64), new AbortController().signal), /could not be read/, kind);
+    assert.equal(s.cli.calls.filter((c) => c === 'wait').length, WAIT_RETRIES, kind);
+    // The runner: the fake container keeps running, `wait` is the real driver's over the scripted CLI.
+    const w = await world();
+    const live = scriptedWait(kind);
+    w.driver.wait = (id, signal) => { w.driver.rec('wait', id); return live.driver.wait(id, signal); };
+    const plan = toolPlan(w);
+    const p = await start(w, plan);
+    outFile(plan, 'partial.txt', 'kept');
+    const f = await w.wait('fault', plan.attemptId, `${kind}: the docker_error fault`);
+    assert.equal(f.failureClass, 'docker_error', kind);
+    assert.match(f.message, /could not be read/);
+    assert.equal(w.driver.containers.get(p.containerId).state, 'running', 'Docker still reports it running');
+    await w.advance(HEARTBEAT_MS);
+    assert.ok(!w.of('attempt.heartbeat', plan.attemptId).some((m) => m.container === 'missing'), `${kind}: never missing`);
+    assert.equal(w.of('attempt.exited', plan.attemptId).length, 0, 'no invented exit');
+    assert.equal(w.driver.callsOf('remove').length + w.driver.callsOf('removeVolume').length, 0, 'nothing removed before release');
+    assert.ok(w.core.held().includes(plan.attemptId));
+    assert.ok(fs.existsSync(path.join(plan.workDir, 'out', 'partial.txt')));
+    // Main fails the attempt docker_error and releases it: the container and the workspace volume go then.
+    w.send({ op: 'attempt.release', attemptId: plan.attemptId });
+    await until(() => w.driver.callsOf('removeVolume').length === 1 && !w.driver.containers.has(p.containerId), `${kind}: removed at release`);
+    assert.ok(fs.existsSync(path.join(plan.workDir, 'out', 'partial.txt')), 'the work folder stays even then');
+  }
+});
+
+test('FR-R2-2 no git installed: a tool plan with a source and a git engine are refused git_missing before anything is made (the job waits, never fails)', async () => {
+  const w = await world({ resolveGit: async () => null });
+  const r = repo(w, { 'a.txt': 'a', 'nexus.app.json': '{}' });
+  const n0 = SPAWNED.length;
+  const plan = toolPlan(w, { repoPath: r.dir, inputs: [{ versionId: 'V1', slot: 'suite', contentHash: 'x', storage: { kind: 'git', commit: r.commit },
+    metadata: { framework: 'node-test', files: ['test/a.test.js'] } }] });
+  w.send({ op: 'attempt.start', attemptId: plan.attemptId, plan });
+  const ref = await w.wait('attempt.refused', plan.attemptId);
+  assert.equal(ref.reason, 'git_missing'); assert.match(ref.detail, /git is not installed/);
+  assert.equal(w.of('fault', plan.attemptId).length, 0, 'not a fault: a setup refusal');
+  assert.equal(w.of('attempt.provisioned', plan.attemptId).length, 0);
+  assert.equal(w.driver.callsOf('create').length + w.driver.callsOf('createVolume').length, 0, 'nothing made');
+  for (const recipe of ['repo.snapshot', 'sde.app.assemble']) {
+    const jobId = newId(NOW); const attemptId = newId(NOW);
+    const inputs = recipe === 'repo.snapshot' ? [] : [{ versionId: 'B', slot: 'build', contentHash: 'x', storage: { kind: 'tree' }, metadata: { commit: r.commit } }];
+    const eng = buildPlan({ job: { id: jobId, projectId: 'p-ledger' }, attempt: { id: attemptId, n: 1 }, bootId: BOOT, recipe: getRecipe(recipe),
+      dataHomeRoot: w.home, workRel: `work/${jobId}/1`, logRel: `logs/jobs/${jobId}/1.log`, inputs, repoPath: r.dir });
+    w.send({ op: 'attempt.start', attemptId, plan: eng });
+    const e = await w.wait('attempt.refused', attemptId, `${recipe} refused`);
+    assert.equal(e.reason, 'git_missing', recipe);
+    assert.equal(w.of('attempt.provisioned', attemptId).length + w.of('attempt.exited', attemptId).length, 0, `${recipe}: nothing reported as run`);
+  }
+  assert.equal(SPAWNED.length, n0, 'nothing spawned');
+  // The resolver is asked again on the next attempt: a git installed meanwhile is found without a restart.
+  const { GitRunner, GitError } = loadTs('src/runner/git.ts');
+  const { resolveGitBinary } = loadTs('src/main/gitBinary.ts');
+  const real = await resolveGitBinary(fsp);
+  assert.ok(real, 'this machine has git');
+  let calls = 0;
+  const later = new GitRunner({ cwd: w.home, resolve: async () => (++calls === 1 ? null : real) });
+  await assert.rejects(later.snapshot(r.dir), (e) => e instanceof GitError && e.kind === 'git_missing');
+  assert.equal((await later.snapshot(r.dir)).commit, r.commit, 'found on the next call');
+  assert.equal(calls, 2, 'a miss is not kept; a found binary is');
+});
 
 test('D18 the runner spawned only docker and git, never through a shell', () => {
   assert.ok(SPAWNED.some((s) => isGitBinary(s.cmd)), 'the spy saw the runner\'s git');

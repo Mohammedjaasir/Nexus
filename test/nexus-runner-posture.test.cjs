@@ -132,6 +132,32 @@ test('git is launched only by its resolved absolute path, with -C and a safe con
     ['-C', 'C:\\repo', '-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=C:\\home\\.nexus-no-git-hooks']);
 });
 
+// ---------- Fix round 2 ----------
+
+test('the git spawn rule also covers src/main/git.ts, src/main/gitBinary.ts and src/main/nexus/**: one spawn site, by the resolved path; no sync spawn, no shell (legacy src/main/hive.ts is out of scope)', () => {
+  const files = [path.join(ROOT, 'src/main/git.ts'), path.join(ROOT, 'src/main/gitBinary.ts'), ...ts('src/main/nexus')];
+  assert.ok(files.length > 20 && files.every((f) => fs.existsSync(f)));
+  const sites = [];
+  for (const f of files) {
+    const s = code(f);
+    for (const m of s.matchAll(/\b(spawn|execFile|fork)\s*\(\s*([^,)]+)/g)) sites.push(`${rel(f)} ${m[1]}(${m[2].trim()}`);
+    assert.doesNotMatch(s, /\b(execSync|spawnSync|execFileSync)\s*\(/, rel(f));
+    assert.doesNotMatch(s, /shell\s*:\s*true/, rel(f));
+    assert.doesNotMatch(s, /\bspawn\(\s*['"`]git(\.exe)?['"`]/, rel(f));
+    if (rel(f) !== 'src/main/git.ts') assert.doesNotMatch(s, /node:child_process|['"]child_process['"]/, `${rel(f)} launches nothing`);
+  }
+  assert.deepEqual(sites, ['src/main/git.ts spawn(bin']);
+  // Both callers resolve git with no working-folder rule (an app started from C:\ or the home folder still finds it).
+  const main = code(path.join(ROOT, 'src/main/git.ts'));
+  const runnerGit = code(path.join(ROOT, 'src/runner/git.ts'));
+  for (const [name, s] of [['src/main/git.ts', main], ['src/runner/git.ts', runnerGit]]) {
+    assert.doesNotMatch(s, /notInside|process\.cwd\(\)/, `${name}: the launch folder is no rule`);
+    assert.match(s, /gitResolver\(/, `${name}: the shared keeping rule`);
+  }
+  assert.match(main, /gitResolver\(\(\) => resolveGitBinary\(\{ stat \}\)\)/);
+  assert.match(runnerGit, /gitResolver\(o\.resolve \?\? \(\(\) => resolveGitBinary\(fsp\)\)\)/);
+});
+
 test('the workspace guard runs /usr/bin/du by its full path', () => {
   const { DU_ARGV } = loadTs('src/runner/sandbox/sizeGuard.ts');
   assert.deepEqual([...DU_ARGV], ['/usr/bin/du', '-s', '-x', '-k', '/workspace']);

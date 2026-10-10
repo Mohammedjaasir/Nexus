@@ -14,7 +14,51 @@ export const LOG_CAP_BYTES = 50 * 2 ** 20;
 export const MAX_LINE_CHARS = 16_384;
 /** What an over-long unterminated line keeps back when it is flushed early (longer than any credential shape). */
 export const OVERLAP_CHARS = 512;
+/** A forced flush cuts inside a run of token characters only when the run before the cut point is longer than this. */
+export const MAX_TOKEN_RUN = 4096;
+/** Cut points a forced flush checks against the redactor (each over a window of 2 x CUT_WINDOW characters). */
+const CUT_TRIES = 32;
+const CUT_WINDOW = 1024;
 export const TRUNCATED_TEXT = '[output truncated: the middle of the output was dropped]';
+
+/**
+ * A character of a key or token: letters, digits and `. _ ~ + / = -` (provider keys, JWTs, base64 and base64url;
+ * `=` counts because it is base64 padding). Everything else separates (whitespace, `" : , ; & { } [ ]`, ...).
+ */
+export function isTokenChar(c: number): boolean {
+  return (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122)
+    || c === 46 || c === 95 || c === 126 || c === 43 || c === 47 || c === 61 || c === 45;
+}
+
+/** Whether cutting `p` at `i` leaves the redaction of the text around the cut unchanged (no phrase straddles it). */
+function cutKeepsRedaction(p: string, i: number): boolean {
+  const a = Math.max(0, i - CUT_WINDOW);
+  const b = Math.min(p.length, i + CUT_WINDOW);
+  return redactSecretText(p.slice(a, i)) + redactSecretText(p.slice(i, b)) === redactSecretText(p.slice(a, b));
+}
+
+/**
+ * Where an unterminated line longer than MAX_LINE_CHARS is cut when it is flushed early. The last OVERLAP_CHARS stay
+ * buffered (a token still being written stays whole), and the cut lands ON a separator (a character outside the token
+ * alphabet, see isTokenChar), so no key or token of up to MAX_TOKEN_RUN characters is ever split, in minified JSON
+ * (`"`, `:`, `,`) as in text. Of the latest CUT_TRIES separators within MAX_TOKEN_RUN before the limit, the latest one
+ * whose cut keeps the redaction of the surrounding text unchanged is taken (a `"password":"<value>"`, `Bearer <value>`
+ * or URL credential phrase is not split either), else the latest separator. Only when the MAX_TOKEN_RUN characters
+ * before the limit are all token characters is the line cut at the limit itself.
+ */
+export function forcedCut(p: string): number {
+  const limit = p.length - OVERLAP_CHARS;
+  const floor = Math.max(1, limit - MAX_TOKEN_RUN);
+  let latest = -1;
+  let tries = 0;
+  for (let i = limit; i >= floor && tries < CUT_TRIES; i--) {
+    if (isTokenChar(p.charCodeAt(i))) continue;
+    if (latest < 0) latest = i;
+    tries++;
+    if (cutKeepsRedaction(p, i)) return i;
+  }
+  return latest > 0 ? latest : limit;
+}
 
 type Stream = 'stdout' | 'stderr' | 'nexus';
 type FileHandle = Awaited<ReturnType<RunnerFs['open']>>;
@@ -52,9 +96,9 @@ export class LogWriter {
 
   /**
    * A chunk of container output: split into lines; a partial line waits for its end (or close). An unterminated line
-   * that grows past MAX_LINE_CHARS is flushed only up to its last separator (else all but the last OVERLAP_CHARS), so
-   * the token being written stays whole in the buffer and is redacted once it is complete: a key is never split
-   * before redaction.
+   * that grows past MAX_LINE_CHARS is flushed early, cut by `forcedCut`: at least the last OVERLAP_CHARS stay buffered
+   * and the cut lands on a separator, so the token being written stays whole in the buffer and is redacted once it is
+   * complete: a key is never split before redaction.
    */
   write(stream: 'stdout' | 'stderr', chunk: string): void {
     if (this.closed) return;
@@ -63,12 +107,8 @@ export class LogWriter {
     this.partial[stream] = lines.pop() ?? '';
     for (const l of lines) this.frame(stream, l.endsWith('\r') ? l.slice(0, -1) : l);
     while (this.partial[stream].length > MAX_LINE_CHARS) {
-      // Keep at least the last OVERLAP_CHARS back (a phrase like `Authorization: Bearer <value>` stays together), and cut
-      // at the last separator before that point when there is one.
       const p = this.partial[stream];
-      const limit = p.length - OVERLAP_CHARS;
-      const sep = Math.max(p.lastIndexOf(' ', limit), p.lastIndexOf('\t', limit));
-      const cut = sep > 0 ? sep : limit;
+      const cut = forcedCut(p);
       this.frame(stream, p.slice(0, cut));
       this.partial[stream] = p.slice(cut);
     }

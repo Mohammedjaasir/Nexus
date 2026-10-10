@@ -337,6 +337,19 @@ test('C14 a heartbeat extends the lease and sets heartbeat_at only; a 45 s gap w
   w.close();
 });
 
+test('C16b (Task 11 review round 2) attempt.refused git_missing: the attempt is abandoned and the job waits for git (waiting:git), never failed; it leases again after the backoff', () => {
+  const w = execWorld(); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const { job } = w.exec.start(w.me, w.req('sde.build.run')); w.exec.tick(w.now());
+  const a = w.liveAttempt(job.id);
+  runner.report({ op: 'attempt.refused', attemptId: a.id, reason: 'git_missing', detail: 'git is not installed' });
+  assert.equal(w.attempt(a.id).state, 'abandoned'); assert.equal(w.attempt(a.id).outcome, 'git_missing');
+  assert.equal(w.jobState(job.id), 'queued'); assert.equal(w.job(job.id).phase, 'waiting:git');
+  assert.equal(w.exec.list(w.me, { projectId: 'p-ledger' }).jobs.find((j) => j.id === job.id).headline, 'waiting:git');
+  w.advance(2_000); w.exec.tick(w.now());
+  assert.equal(w.liveAttempt(job.id).n, 2, 'tried again: a git installed meanwhile is used');
+  w.close();
+});
+
 test('C15 the per-project queue cap: the 21st waiting job is invalid queue_full', () => {
   const w = execWorld();
   for (let i = 0; i < 20; i++) w.exec.start(w.me, w.req('sde.build.run'));

@@ -9,7 +9,8 @@
  *   once leave one live job.
  * - The project folder must be one main accepts (`acceptFsRoot`, else `invalid: project_folder_unavailable`) and a
  *   git repository (`isRepository`, main's own async git check; else `invalid: not_a_repository`). No job is created
- *   for a refused folder. Without a repository check in this build the request is `unavailable` (`setup:git_missing`).
+ *   for a refused folder. Without a repository check in this build, or when the check reports that no git binary is
+ *   installed (`'git_missing'`), the request is `unavailable` (`setup:git_missing`), never `not_a_repository`.
  * - A snapshot records `dirty` (ingest); `checkoutNote` (shared) turns it into "uncommitted changes are not included".
  *
  * The application manifest contract (`nexus.app.json`, read by the `sde.app.assemble` engine with
@@ -88,8 +89,11 @@ export interface RepoExecPort {
 export interface RepoDeps {
   auth: AuthService; now: () => number; log?: (line: string) => void;
   acceptFsRoot?: ((root: string) => string | null) | null;
-  /** main's own async check that a folder is a git repository (src/main/git.ts `isRepo`); null: snapshots unavailable. */
-  isRepository?: ((root: string) => Promise<boolean>) | null;
+  /**
+   * main's own async check that a folder is a git repository (src/main/git.ts `repositoryCheck`): true, false, or
+   * 'git_missing' when no git binary is installed; null: snapshots unavailable.
+   */
+  isRepository?: ((root: string) => Promise<boolean | 'git_missing'>) | null;
 }
 
 export interface SnapshotView extends RepoSnapshotFacts { versionId: string; status: string; note: string }
@@ -132,9 +136,10 @@ export class RepoService {
     if (!root) throw new PlatformError('invalid', 'the project folder is not available', { reason: 'project_folder_unavailable' });
     const check = this.deps.isRepository;
     if (!check) throw new PlatformError('unavailable', 'repository checks are not available in this build', { reason: 'setup:git_missing' });
-    let isRepo = false;
-    try { isRepo = (await check(root)) === true; } catch { isRepo = false; }
-    if (!isRepo) throw new PlatformError('invalid', 'the project folder is not a git repository', { reason: 'not_a_repository' });
+    let found: boolean | 'git_missing' = false;
+    try { found = await check(root); } catch { found = false; }
+    if (found === 'git_missing') throw new PlatformError('unavailable', 'git is not installed', { reason: 'setup:git_missing' });
+    if (found !== true) throw new PlatformError('invalid', 'the project folder is not a git repository', { reason: 'not_a_repository' });
     // Another request may have started one while git answered: it is the answer (one live snapshot job per project).
     const again = this.liveSnapshotJob(pw.project_id);
     if (again) return { job: exec.get(p, again), created: false };

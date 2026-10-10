@@ -377,3 +377,22 @@ test('W7 (5) a container that vanished: main fails the attempt container_vanishe
   assert.deepEqual(r.sentOf('attempt.release').map((m) => m.attemptId), [a.id]);
   w.close();
 });
+
+test('W8 (Task 11 review round 2) a running container whose exit Docker cannot report: the runner\'s docker_error fault fails the attempt docker_error (retryable, never container_vanished) AND releases it', () => {
+  const w = execWorld();
+  const r = w.attach();
+  const job = w.exec.start(w.me, w.req('sde.tests.discover')).job;
+  w.exec.tick(w.now());
+  const a = w.provision(r, job.id);
+  assert.equal(w.attempt(a.id).state, 'running');
+  // Another class for a running attempt is not attributed (only a create/start failure names one).
+  r.report({ op: 'fault', attemptId: a.id, failureClass: 'disk_full', message: 'no space left on device' });
+  assert.equal(w.attempt(a.id).state, 'running');
+  r.report({ op: 'fault', attemptId: a.id, failureClass: 'docker_error', message: 'docker wait failed: the exit could not be read' });
+  const at = w.attempt(a.id);
+  assert.equal(at.state, 'failed'); assert.equal(at.outcome, 'docker_error');
+  assert.match(at.error_json, /exit could not be read/);
+  assert.equal(w.jobState(job.id), 'retry_scheduled', 'an infrastructure failure: retried');
+  assert.deepEqual(r.sentOf('attempt.release').map((m) => m.attemptId), [a.id]);
+  w.close();
+});

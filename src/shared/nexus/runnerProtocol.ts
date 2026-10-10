@@ -43,9 +43,11 @@ export type RefusalReason =
   | 'docker_missing' | 'docker_stopped' | 'image_missing' | 'image_mismatch' | 'disk_low'
   | 'network_not_approved' | 'bad_plan' | 'busy' | 'unknown_attempt'
   /** An input copied from the blob store did not re-hash to its sha256 (or was missing): nothing was created. */
-  | 'input_changed';
+  | 'input_changed'
+  /** The plan needs git (a checkout to stage, or a git engine) and no git binary is installed: a setup refusal (the job waits). */
+  | 'git_missing';
 export const REFUSAL_REASONS: readonly RefusalReason[] = ['docker_missing', 'docker_stopped', 'image_missing', 'image_mismatch',
-  'disk_low', 'network_not_approved', 'bad_plan', 'busy', 'unknown_attempt', 'input_changed'];
+  'disk_low', 'network_not_approved', 'bad_plan', 'busy', 'unknown_attempt', 'input_changed', 'git_missing'];
 
 /**
  * Why the runner ended a container itself: `timeout` (its own wall-clock backstop) or `cancelled` (main's
@@ -99,7 +101,10 @@ export type RunnerToMain =
   | { op: 'gc.result'; scanId: string; objects: { sha256: string; bytes: number }[];
       workDirs: { jobId: string; attemptN: number; mtime: number }[]; truncated: boolean }
   | { op: 'fault'; message: string;
-      /** A failure of one attempt before it started (e.g. `docker create`): both fields together, never one alone. */
+      /**
+       * A failure of one attempt before it started (e.g. `docker create`), or `docker_error` for a running attempt whose
+       * container is still there but whose exit Docker cannot report: both fields together, never one alone.
+       */
       attemptId?: string; failureClass?: AttemptFailureClass };
 
 export type RunnerOp = RunnerToMain['op'];

@@ -2,27 +2,29 @@ import { spawn } from 'node:child_process';
 import { readFile, stat } from 'node:fs/promises';
 import * as path from 'node:path';
 import { safeJoin } from './fs';
-import { insideFolder, isGitBinary, resolveGitBinary, SAFE_GIT_CONFIG } from './gitBinary';
+import { gitResolver, insideFolder, isGitBinary, resolveGitBinary, SAFE_GIT_CONFIG } from './gitBinary';
 
 /**
- * The git binary, resolved once to an absolute path (src/main/gitBinary.ts): never `spawn('git', ..., { cwd: repo })`,
- * which on Windows runs a `git.exe` planted in the repository. Never one inside main's own working folder.
+ * The git binary, resolved to an absolute path (src/main/gitBinary.ts): never `spawn('git', ..., { cwd: repo })`, which
+ * on Windows runs a `git.exe` planted in the repository. Main's own working folder is no rule (an app started from `C:\`
+ * or the home folder still finds git); a found binary is kept, a miss is asked again on the next call.
  */
-let gitBin: Promise<string | null> | null = null;
-function gitBinary(): Promise<string | null> {
-  return (gitBin ??= resolveGitBinary({ stat }, { notInside: [process.cwd()] }));
+const git = gitResolver(() => resolveGitBinary({ stat }));
+export function gitBinary(): Promise<string | null> {
+  return git.get();
 }
 
 /**
- * Run git on the repository at `cwd` with `args`. Returns stdout text or an error. The resolved binary runs with its own
- * folder as the working folder and `-C <cwd>`, so nothing in `cwd` is ever launched; a binary inside `cwd` is refused.
+ * Run git on the repository at `cwd` with `args`. Returns stdout text or an error (`gitMissing` when no git binary is
+ * installed). The resolved binary runs with its own folder as the working folder and `-C <cwd>`, so nothing in `cwd` is
+ * ever launched; a binary inside `cwd` is refused.
  */
 async function runGit(cwd: string, args: string[], timeoutMs = 8000): Promise<{
   ok: true; stdout: string;
-} | { ok: false; error: string }> {
+} | { ok: false; error: string; gitMissing?: true }> {
   if (typeof cwd !== 'string' || !cwd || cwd.includes('\0') || !path.isAbsolute(cwd)) return { ok: false, error: 'the folder is not an absolute path' };
   const bin = await gitBinary();
-  if (!bin || !isGitBinary(bin)) return { ok: false, error: 'git is not installed' };
+  if (!bin || !isGitBinary(bin)) return { ok: false, error: 'git is not installed', gitMissing: true };
   if (insideFolder(bin, cwd)) return { ok: false, error: 'git resolves inside the repository; refused' };
   return new Promise((resolve) => {
     const proc = spawn(bin, ['-C', cwd, ...SAFE_GIT_CONFIG, ...args], { cwd: path.dirname(bin), windowsHide: true, shell: false });
@@ -33,8 +35,10 @@ async function runGit(cwd: string, args: string[], timeoutMs = 8000): Promise<{
     }, timeoutMs);
     proc.stdout.on('data', d => { stdout += d.toString(); });
     proc.stderr.on('data', d => { stderr += d.toString(); });
-    proc.on('error', e => {
+    proc.on('error', (e: NodeJS.ErrnoException) => {
       clearTimeout(timer);
+      // The binary is gone (uninstalled while the app runs): git is missing, and it is resolved again next time.
+      if (e.code === 'ENOENT') { git.forget(); resolve({ ok: false, error: 'git is not installed', gitMissing: true }); return; }
       resolve({ ok: false, error: e.message });
     });
     proc.on('close', code => {
@@ -158,8 +162,18 @@ export async function getAheadBehind(cwd: string): Promise<GitAheadBehind | { er
 
 /** Best-effort detect: is `cwd` actually a git repo? */
 export async function isRepo(cwd: string): Promise<boolean> {
+  return (await repositoryCheck(cwd)) === true;
+}
+
+/**
+ * Nexus's repository check (RepoService's `isRepository`): true for a folder inside a git work tree, false for one that
+ * is not, and 'git_missing' when no git binary is installed, so a snapshot request answers `unavailable:
+ * setup:git_missing` instead of `not_a_repository`.
+ */
+export async function repositoryCheck(cwd: string): Promise<boolean | 'git_missing'> {
   const res = await runGit(cwd, ['rev-parse', '--is-inside-work-tree']);
-  return res.ok && res.stdout.trim() === 'true';
+  if (!res.ok) return res.gitMissing === true ? 'git_missing' : false;
+  return res.stdout.trim() === 'true';
 }
 
 const MAX_DIFF_BYTES = 2 * 1024 * 1024; // 2 MB — keep the diff view responsive

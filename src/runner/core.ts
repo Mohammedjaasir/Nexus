@@ -15,9 +15,11 @@
  * every 15 s, until release. A heartbeat of an attempt being finalized after a restart says `exited`, never `missing`.
  *
  * Failures: a refusal before anything ran is `attempt.refused` (docker_missing, docker_stopped, disk_low,
- * network_not_approved, image_missing, input_changed, bad_plan); a Docker failure of one attempt before it started is a
- * `fault` with BOTH `attemptId` and `failureClass` (disk_full, docker_resources, docker_error); a fault about the runner
- * itself has neither. Main sends no release after a refusal or a fault, so the runner removes what it made then.
+ * network_not_approved, image_missing, input_changed, git_missing, bad_plan); a Docker failure of one attempt before it
+ * started is a `fault` with BOTH `attemptId` and `failureClass` (disk_full, docker_resources, docker_error); a fault
+ * about the runner itself has neither. Main sends no release after a refusal or a fault before start, so the runner
+ * removes what it made then. A running container whose exit Docker cannot report is a `docker_error` fault too, but
+ * main releases that attempt (nothing is removed before its release, as for a vanished container).
  * Free text (Docker's errors, git's errors, log lines) is redacted before it leaves; a parser result holding a
  * secret-shaped value is withheld (main would refuse it anyway); no secret leaves the runner in a message.
  */
@@ -83,7 +85,7 @@ export interface RunnerDeps {
   pickPort?: (taken: ReadonlySet<number>) => number;
   /** Called after a `shutdown` message was handled (the entry exits the process). */
   onShutdown?: () => void;
-  /** The git resolver (tests inject one); default: src/main/gitBinary.ts, resolved once, never inside the working folder. */
+  /** The git resolver (tests inject one); default: src/main/gitBinary.ts (a found binary is kept, a miss asked again). */
   resolveGit?: () => Promise<string | null>;
 }
 
@@ -117,6 +119,8 @@ interface AttemptState {
   stopIssued: boolean;
   /** Picked up after a restart: its volumes and networks are found by label at cleanup. */
   adopted: boolean;
+  /** The container is still there but Docker cannot report its exit: reported as a `docker_error` fault, never `missing`. */
+  exitUnreadable: boolean;
   hostPort?: number;
 }
 
@@ -288,7 +292,8 @@ export class RunnerCore {
   private newState(id: string, jobId: string, n: number, kind: Kind, plan: AttemptPlan | null, workDir: string, logPath: string): AttemptState {
     const a: AttemptState = { id, jobId, n, kind, plan, workDir, logPath, seq: 0, log: null, abort: new AbortController(), logAbort: new AbortController(),
       logDone: null, heartbeat: null, timers: [], containers: [], main: null, volumes: [], networks: [], containerState: null, outBytes: 0,
-      cancel: null, timedOut: false, guard: null, released: false, settled: false, finalizing: false, cleaned: false, stopIssued: false, adopted: false };
+      cancel: null, timedOut: false, guard: null, released: false, settled: false, finalizing: false, cleaned: false, stopIssued: false, adopted: false,
+      exitUnreadable: false };
     // Progress events are numbered from this process's clock, so a runner restarted mid-session (adopting the attempt)
     // continues above what the previous process sent (main drops a seq that is not after the last one).
     a.seq = Math.max(0, Math.floor(this.now())) * 1000;
@@ -346,8 +351,8 @@ export class RunnerCore {
     if (a.adopted && a.released) await releaseByLabels({ driver: this.driver, home: this.home, log: this.log }, a.id);
   }
 
-  /** The container disappeared while the attempt ran (waitExit said so). */
-  private vanished(a: AttemptState): boolean { return a.containerState === 'missing'; }
+  /** The attempt's exit cannot be known (waitExit said so): its container disappeared, or Docker cannot report its exit. */
+  private vanished(a: AttemptState): boolean { return a.containerState === 'missing' || a.exitUnreadable; }
 
   private checkStop(a: AttemptState): void { if (a.released || a.cancel || this.stopped) throw new Stop(); }
 
@@ -570,7 +575,13 @@ export class RunnerCore {
     }, true);
   }
 
-  /** Waits for the container's exit; null when the attempt was released meanwhile. Marks a vanished container `missing`. */
+  /**
+   * Waits for the container's exit; null when the attempt was released meanwhile or its exit cannot be known. When the
+   * wait fails, the container is inspected: exited -> its recorded exit; NOT FOUND -> `missing` (heartbeat; main fails
+   * the attempt container_vanished); still there (the wait cut short WAIT_RETRIES times) or Docker not answering -> a
+   * Docker error, never `missing`: a `fault` with failureClass `docker_error` (main fails the attempt docker_error and
+   * releases it). Either way nothing is removed before attempt.release.
+   */
   private async waitExit(a: AttemptState, cid: string): Promise<ExitInfo | null> {
     try {
       return await this.driver.wait(cid, a.abort.signal);
@@ -579,10 +590,16 @@ export class RunnerCore {
       let st: Awaited<ReturnType<RunnerDriver['inspect']>> | null = null;
       try { st = await this.driver.inspect(cid); } catch { st = null; }
       if (st?.state === 'exited' && st.exit) return st.exit;
-      // The container is gone (removed from outside, or Docker stopped): main hears `missing` and fails the attempt.
-      a.containerState = 'missing';
-      a.log?.nexus(`the container disappeared: ${msgOf(e)}`);
-      this.heartbeatOnce(a);
+      if (st?.state === 'missing') {
+        // The container is gone (removed from outside): main hears `missing` and fails the attempt.
+        a.containerState = 'missing';
+        a.log?.nexus(`the container disappeared: ${msgOf(e)}`);
+        this.heartbeatOnce(a);
+        return null;
+      }
+      a.exitUnreadable = true;
+      a.log?.nexus(`the container's exit could not be read: ${msgOf(e)}`);
+      this.post({ op: 'fault', message: msgOf(e), attemptId: a.id, failureClass: 'docker_error' });
       return null;
     }
   }
@@ -824,6 +841,11 @@ export class RunnerCore {
 
   private async runEngine(a: AttemptState, plan: EnginePlan): Promise<void> {
     await this.openLog(a);
+    // The git engines need git: none installed is a setup refusal before anything ran (the job waits, never fails).
+    const t0 = plan.task;
+    if ((t0.engine === 'repo.snapshot' || t0.engine === 'sde.app.assemble') && !(await this.git!.available())) {
+      return this.refuse(a, 'git_missing', 'git is not installed');
+    }
     this.post({ op: 'attempt.provisioned', attemptId: a.id });
     this.event(a, 'running');
     if (Number.isSafeInteger(plan.wallClockMs) && plan.wallClockMs > 0) {

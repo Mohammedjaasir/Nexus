@@ -3,11 +3,15 @@
  * a repository's root must never run). On Windows, `spawn('git', ..., { cwd })` searches the child's working folder
  * before PATH, so `git` is resolved ONCE to an absolute path instead: each ABSOLUTE PATH folder is checked with `fs`
  * (a relative entry such as `.` is skipped), then the Git for Windows install folders (or the usual POSIX ones). Only
- * the real executable name counts (`git.exe` on Windows, `git` elsewhere; never `.cmd` or `.bat`). A candidate inside
- * the process's working folder is never accepted, and every call refuses a binary inside the repository it runs on
- * (`insideFolder`). Callers then spawn the absolute path with a neutral working folder and pass the repository as
- * `-C <repo>`, plus `-c core.fsmonitor=false` (a repository's config cannot start a monitor process). Node only, async
- * (no synchronous call: main's posture).
+ * the real executable name counts (`git.exe` on Windows, `git` elsewhere; never `.cmd` or `.bat`). Every call refuses a
+ * binary inside the repository it runs on (`insideFolder`). Callers then spawn the absolute path with a neutral working
+ * folder and pass the repository as `-C <repo>`, plus `-c core.fsmonitor=false` (a repository's config cannot start a
+ * monitor process). Node only, async (no synchronous call: main's posture).
+ *
+ * The process's own working folder is NOT a forbidden place (review round 2): an app launched from `C:\`,
+ * `C:\Program Files` or the home folder (Win+R, a terminal) must still find a Program Files, scoop or per-user git.
+ * Nothing is ever launched from the working folder anyway: relative PATH entries are skipped and the binary is spawned
+ * by its absolute path.
  */
 import * as path from 'node:path';
 
@@ -43,7 +47,10 @@ export function isGitBinary(bin: string, platform: string = process.platform): b
   return platform === 'win32' ? base.toLowerCase() === 'git.exe' : base === 'git';
 }
 
-/** Finds git: absolute PATH folders first, then the install folders; never one inside `notInside` (the working folder). */
+/**
+ * Finds git: absolute PATH folders first, then the install folders; never one inside a `notInside` folder (an optional
+ * rule for callers that need it; main and the runner pass none, see `gitResolver`).
+ */
 export async function resolveGitBinary(fs: StatFs, o: { env?: NodeJS.ProcessEnv; platform?: string; notInside?: readonly string[] } = {}):
   Promise<string | null> {
   const env = o.env ?? process.env;
@@ -58,6 +65,26 @@ export async function resolveGitBinary(fs: StatFs, o: { env?: NodeJS.ProcessEnv;
     try { if ((await fs.stat(c)).isFile()) return c; } catch { /* not there */ }
   }
   return null;
+}
+
+/**
+ * How main (src/main/git.ts) and the runner (GitRunner) keep the binary `find` returns (both call `resolveGitBinary`
+ * with no working-folder rule). A found binary is kept; a miss is not (a git installed while the app runs is found on
+ * the next call, so a job waiting for git proceeds without a restart); `forget()` drops a binary that stopped launching
+ * (ENOENT: uninstalled meanwhile). A `find` that throws counts as a miss.
+ */
+export function gitResolver(find: () => Promise<string | null>): { get(): Promise<string | null>; forget(): void } {
+  let found: Promise<string | null> | null = null;
+  return {
+    get(): Promise<string | null> {
+      if (found) return found;
+      const p = Promise.resolve().then(find).then((bin) => (typeof bin === 'string' ? bin : null), () => null);
+      found = p;
+      void p.then((bin) => { if (bin === null && found === p) found = null; });
+      return p;
+    },
+    forget(): void { found = null; }
+  };
 }
 
 /** The git config every Nexus git call carries (a repository's own config cannot start a process for it). */

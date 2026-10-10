@@ -722,6 +722,19 @@ test('R1 a snapshot of a folder that is not a git repository is invalid: not_a_r
   healthy(w); w.close(); w2.close(); w3.close();
 });
 
+test('R1b (Task 11 review round 2) no git installed: the repository check says git_missing and the snapshot request is unavailable setup:git_missing (never not_a_repository); no job is created', async () => {
+  const seen = [];
+  const w = execWorld({ isRepository: async (root) => { seen.push(root); return 'git_missing'; } });
+  w.attach();
+  const before = count(w, 'jobs');
+  await assert.rejects(w.nx.repo.requestSnapshot(w.me, { projectId: 'p-ledger', workspaceId: 'sde', intentId: 'snap-g' }), code('unavailable', 'setup:git_missing'));
+  assert.equal(count(w, 'jobs'), before); assert.deepEqual(seen, ['C:/work/ledger-api']);
+  // The platform kept working: a repository check that answers true starts the job as before.
+  const w2 = execWorld({ isRepository: async () => true }); w2.attach();
+  assert.equal((await w2.nx.repo.requestSnapshot(w2.me, { projectId: 'p-ledger', workspaceId: 'sde', intentId: 'snap-ok' })).created, true);
+  healthy(w); w.close(); w2.close();
+});
+
 test('R2 two snapshot requests at once leave one live job: the second returns it (created: false)', async () => {
   const w = execWorld({ isRepository: () => new Promise((res) => setImmediate(() => res(true))) });
   w.attach();

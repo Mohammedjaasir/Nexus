@@ -254,7 +254,8 @@ export class DockerDriver implements RunnerDriver {
   /**
    * The container's exit. `docker wait` must succeed AND print an integer; whatever it printed, the container is then
    * inspected: exited or dead -> its recorded exit; running, created or restarting -> wait again (at most WAIT_RETRIES
-   * times); not found -> throw (the attempt is then reported missing). An unknown exit is never reported as code 0.
+   * times, then throw: the runner reports a `docker_error` fault, never `missing`); not found -> throw (the attempt is
+   * then reported missing). An unknown exit is never reported as code 0.
    */
   async wait(containerId: string, signal: AbortSignal): Promise<ExitInfo> {
     for (let i = 0; i < WAIT_RETRIES; i++) {

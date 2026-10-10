@@ -120,7 +120,7 @@ export interface JobFilter { projectId?: string; workspaceId?: string; states?: 
 
 export type Headline =
   | 'queued' | 'waiting:runner' | 'waiting:docker' | 'waiting:image' | 'waiting:disk' | 'waiting:slots' | 'waiting:memory'
-  | 'waiting:retry' | 'provisioning' | 'running' | 'waiting_for_approval' | 'collecting' | 'validating'
+  | 'waiting:git' | 'waiting:retry' | 'provisioning' | 'running' | 'waiting_for_approval' | 'collecting' | 'validating'
   | 'checks_passed' | 'checks_failed' | 'checks_could_not_run' | 'failed' | 'cancelled' | 'timed_out' | 'interrupted';
 
 export interface ExecJob extends Job {
@@ -283,7 +283,9 @@ const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const REFUSE_TO_FAIL = new Set(['bad_plan', 'network_not_approved', 'unknown_attempt', 'input_changed']);
 const REFUSAL_WAIT: Record<string, string> = {
   docker_missing: 'waiting:docker', docker_stopped: 'waiting:docker', image_missing: 'waiting:image', image_mismatch: 'waiting:image',
-  disk_low: 'waiting:disk', busy: 'waiting:slots'
+  disk_low: 'waiting:disk', busy: 'waiting:slots',
+  // No git installed (the plan stages a checkout or runs a git engine): the job waits for git, never fails.
+  git_missing: 'waiting:git'
 };
 
 /** An exit reporting more outputs than this is ingested on a later turn (the exit handler stays short). */
@@ -353,7 +355,7 @@ export function headlineFrom(f: { state: JobState; phase: string | null; liveAtt
   checks?: { failed: number; error: number; passed: number; pending: number }; waitingRunner?: boolean }): Headline {
   if (f.waitingRunner === true && (f.state === 'leased' || (f.state === 'running' && f.phase !== 'approval'))) return 'waiting:runner';
   switch (f.state) {
-    case 'queued': return f.phase && /^waiting:(runner|docker|image|disk|slots|memory)$/.test(f.phase) ? f.phase as Headline : 'queued';
+    case 'queued': return f.phase && /^waiting:(runner|docker|image|disk|slots|memory|git)$/.test(f.phase) ? f.phase as Headline : 'queued';
     case 'retry_scheduled': return 'waiting:retry';
     case 'leased': return 'provisioning';
     case 'awaiting_approval': return 'waiting_for_approval';
@@ -962,9 +964,12 @@ export class ExecutionService {
 
   private onFault(m: Extract<RunnerToMain, { op: 'fault' }>): void {
     const a = m.attemptId !== undefined ? attemptRow(this.db, m.attemptId) : null;
-    if (!a || !m.failureClass || a.lease_owner !== this.bootId || a.state !== 'starting') {
+    // Attributed: a Docker failure of a starting attempt (create, start), or `docker_error` for a running one whose
+    // container is still there but whose exit Docker cannot report (the runner keeps its resources until released).
+    const running = !!a && a.state === 'running' && m.failureClass === 'docker_error';
+    if (!a || !m.failureClass || a.lease_owner !== this.bootId || (a.state !== 'starting' && !running)) {
       this.faults++;
-      this.log('[nexus] exec: runner fault (not attributed to a starting attempt of this boot)');
+      this.log('[nexus] exec: runner fault (not attributed to an attempt of this boot)');
       // A runner-wide fault (it names no attempt): re-hashes in flight cannot be trusted to answer, so those checks
       // could not run. A fault about one attempt says nothing about the runner's other work.
       if (m.attemptId === undefined) this.runnerWideFault();
@@ -973,11 +978,13 @@ export class ExecutionService {
     const cls = m.failureClass;
     const j = this.row(a.job_id)!;
     const now = this.deps.now();
-    const error = { code: cls, message: `the container could not be created: ${m.message}` };
+    const error = { code: cls, message: running ? `the container's exit could not be read: ${m.message}` : `the container could not be created: ${m.message}` };
     immediateTx(this.db, () => {
       transitionAttemptTx(this.db, attemptRow(this.db, a.id)!, 'failed', now, j.project_id, { outcome: cls, error });
       this.failJobTx(j.id, 'infra_error', error, now);
     });
+    // A running attempt's container, workspace volume, networks and /out stay with the runner until it is released.
+    if (running) this.send({ op: 'attempt.release', attemptId: a.id });
   }
 
   /** Whether a validation or an ingested version is bound to (job, attempt n). */

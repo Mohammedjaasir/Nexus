@@ -116,7 +116,7 @@ const LIVE = new Set<string>(LIVE_DEPLOYMENT_STATUSES);
 const LIVE_SQL = `('${LIVE_DEPLOYMENT_STATUSES.join("','")}')`;
 /** The runner's refusals of a start (runnerProtocol REFUSAL_REASONS) and the core's own "not sent". */
 const REFUSED_CODES = new Set(['docker_missing', 'docker_stopped', 'image_missing', 'image_mismatch', 'disk_low', 'network_not_approved',
-  'bad_plan', 'busy', 'unknown_attempt', 'input_changed']);
+  'bad_plan', 'busy', 'unknown_attempt', 'input_changed', 'git_missing']);
 const isStr = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const parse = (t: string | null): unknown => { if (t === null) return null; try { return JSON.parse(t) as unknown; } catch { return null; } };
