@@ -72,3 +72,24 @@
   .nx-xs__text, .nx-xs__action, .nx-xs__btn { grid-column: 1; }
   .nx-xq__facts > div { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* The lifecycle rail (workspaces/LifecycleRail.tsx): on the workspace page in full, under each Spine group compact.
+   A step's state is its word; steps not in this release are hatched like drafts (the hatch lives in project.css with the draft node's) and are never controls. */
+.nx-lrail { display: grid; gap: var(--nx-s2); }
+.nx-lrail__note { margin: 0; color: var(--nx-text-2); font-size: 13px; }
+.nx-lrail__steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--nx-s2); }
+.nx-lrail__step { display: grid; gap: 2px; padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-surface); font-size: 12.5px; }
+.nx-lrail__step[data-future="true"] { border-style: dashed; color: var(--nx-text-2); }
+.nx-lrail__step[data-state="done"] { border-color: var(--nx-ink); }
+.nx-lrail__label { font-weight: 650; color: var(--nx-ink); }
+.nx-lrail__word { color: var(--nx-text-2); font-weight: 600; }
+.nx-lrail__scope { color: var(--nx-text-3); }
+.nx-lrail__modules { margin: 0; color: var(--nx-text-2); font-size: 12.5px; }
+.nx-lrail__sub { font-weight: 600; color: var(--nx-text-3); }
+.nx-lrail--compact { gap: 3px; }
+.nx-lrail__bar { list-style: none; margin: 0; padding: 0; display: flex; gap: 2px; }
+.nx-lrail__bar li { flex: 1 1 0; min-width: 6px; height: 5px; border-radius: 1px; border: 1px solid var(--nx-line-strong); background: var(--nx-surface); }
+.nx-lrail__bar li[data-future="true"] { border-style: dashed; border-color: var(--nx-line); }
+.nx-lrail__bar li[data-state="done"] { background: var(--nx-ink); border-color: var(--nx-ink); }
+.nx-lrail__bar li[data-state="in_progress"] { background: var(--nx-line-strong); }
+.nx-lrail__line { margin: 0; font-size: 11px; color: var(--nx-text-3); white-space: nowrap; }

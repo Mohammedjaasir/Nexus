@@ -6,11 +6,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { create } from 'zustand';
 import type {
-  ActionAvailabilityView, ApprovalView, DeploymentView, HealthView, JobDetailView, JobView, NexusResult, ValidationResultView
+  ActionAvailabilityView, ApprovalView, DeploymentView, DomainSpecView, HealthView, JobDetailView, JobView, NexusResult, ValidationResultView
 } from '@shared/nexus/ipc';
 import { nexusClient, newIntentId } from './nexusClient';
 import { usePlatform } from './platformStore';
 import { affectedLists, availabilityFrom, type ExecAvailability, type ExecList } from './executionModel';
+import { bundledDomainViews } from '../workspaces/lifecycleModel';
 
 export const HINT_COALESCE_MS = 300;
 const EVENTS_PAGE = 500;
@@ -139,6 +140,24 @@ export function useHealth(): { health: HealthView | null; availability: ExecAvai
   }, [tick, attempt, setHealth]);
   const refresh = useCallback(() => setAttempt((n) => n + 1), []);
   return { health: health && health.ok ? health.data : null, availability: availabilityFrom({ unavailable }, health), refresh };
+}
+
+let domainsCache: { list: DomainSpecView[]; source: 'main' | 'bundled' } | null = null;
+
+/** The domain registry (#22). Until main answers, the registry bundled with this build (the very data main reads). */
+export function useDomains(): { list: DomainSpecView[]; source: 'main' | 'bundled' } {
+  const [state, setState] = useState(() => domainsCache ?? { list: bundledDomainViews(), source: 'bundled' as const });
+  useEffect(() => {
+    if (domainsCache?.source === 'main') return;
+    let alive = true;
+    void nexusClient.domainsList().then((r) => {
+      if (!r.ok || !Array.isArray(r.data)) return;
+      domainsCache = { list: r.data, source: 'main' };
+      if (alive) setState(domainsCache);
+    });
+    return () => { alive = false; };
+  }, []);
+  return state;
 }
 
 export function useJobs(projectId: string): Read<JobView[]> {

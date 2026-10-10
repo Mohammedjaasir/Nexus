@@ -3,8 +3,10 @@ import type { SpineGroup, SpineLine } from './spineModel';
 import { nodeLabel, tabStopId } from './spineModel';
 import { SPINE_TRUNCATED_TEXT, kindLabel, statusLabel } from './artifactModel';
 import { provenanceStyle } from '../ui/ProvenanceMark';
+import { LifecycleRail } from '../workspaces/LifecycleRail';
+import type { RailView } from '../workspaces/lifecycleModel';
 
-export function Spine({ groups, selectedId, onSelect, line, onRetryLine, truncated = false, focusRequest, onFocused, checks }: {
+export function Spine({ groups, selectedId, onSelect, line, onRetryLine, truncated = false, focusRequest, onFocused, checks, rails }: {
   groups: SpineGroup[]; selectedId: string; onSelect: (id: string, el?: HTMLElement) => void;
   /** What the line under the nodes says about artifacts (see spineLine). */
   line: SpineLine;
@@ -16,6 +18,8 @@ export function Spine({ groups, selectedId, onSelect, line, onRetryLine, truncat
   onFocused?: () => void;
   /** Node id -> the checks word of its shown version ("Checks passed", "Checking…"), for kinds that are checked. */
   checks?: ReadonlyMap<string, string>;
+  /** Workspace id -> its domain's lifecycle rail, drawn compact under the group label. */
+  rails?: ReadonlyMap<string, RailView>;
 }) {
   const flat = groups.flatMap((g) => g.nodes.map((n) => n.id));
   const active = tabStopId(flat, selectedId);
@@ -39,6 +43,7 @@ export function Spine({ groups, selectedId, onSelect, line, onRetryLine, truncat
       {groups.map((g) => (
         <div key={g.workspaceId} className={`${g.hueSlot === null ? 'nx-spine__group nx-prov nx-prov--none' : 'nx-spine__group nx-prov'}${g.muted ? ' nx-spx-muted' : ''}`} style={provenanceStyle(g.hueSlot)}>
           <p className="nx-spine__label">{g.label}{g.muted && <span className="nx-spx-state">{g.muted}</span>}</p>
+          {!g.muted && rails?.get(g.workspaceId) && <LifecycleRail rail={rails.get(g.workspaceId)!} compact />}
           <ol className="nx-spine__nodes">
             {g.nodes.map((n) => {
               i += 1; const idx = i;

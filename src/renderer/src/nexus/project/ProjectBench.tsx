@@ -27,7 +27,8 @@ import { Passport } from './PassportPanel';
 import { SaveArtifactSheet } from './SaveArtifactSheet';
 import type { SaveSource } from './saveSheetModel';
 import { nexusClient } from '../data/nexusClient';
-import { useHealth } from '../data/useExecution';
+import { useDeployments, useDomains, useExecStore, useHealth, useJobs } from '../data/useExecution';
+import { liveActionsOf, railFor, type RailView } from '../workspaces/lifecycleModel';
 import { ExecutionNotice } from '../components/ExecutionNotice';
 import { ExecutionSetupSheet } from '../components/ExecutionSetupSheet';
 import { JobLogSheet } from '../runs/JobLogSheet';
@@ -35,8 +36,57 @@ import { ApprovalsSection } from './ApprovalsSection';
 import { RequirementSheet } from './RequirementSheet';
 import { ExecutionUiContext, type ExecutionUi } from './execContext';
 import type { LogRange } from './evidenceModel';
-import { checkedVersionIds, spineChecks } from './spineModel';
+import { checkedVersionIds, railRecordsFor, spineChecks, type SpineGroup, type ValidatorStatuses } from './spineModel';
 import type { ArtifactSummary } from './spineModel';
+
+/** The latest blocking result per validator of each checked shown version (#32); null while checks cannot be read. */
+function useRailChecks(artifacts: ArtifactSummary[]): Map<string, ValidatorStatuses> | null {
+  const rev = usePlatform((s) => s.rev);
+  const tick = useExecStore((s) => s.ticks.validations);
+  const wanted = useMemo(() => checkedVersionIds(artifacts), [artifacts]);
+  const key = wanted.map((w) => w.versionId).join(',');
+  const [checks, setChecks] = useState<Map<string, ValidatorStatuses> | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void Promise.all(wanted.map((w) => nexusClient.versionValidations(w.versionId))).then((rs) => {
+      if (!alive) return;
+      if (rs.some((r) => !r.ok)) { setChecks(null); return; }
+      const m = new Map<string, ValidatorStatuses>();
+      rs.forEach((r, i) => {
+        if (!r.ok) return;
+        const statuses: Record<string, 'passed' | 'failed' | 'error' | 'skipped'> = {};
+        for (const x of r.data) if (x.blocking && x.status) statuses[x.validatorId] = x.status;
+        m.set(wanted[i].versionId, statuses);
+      });
+      setChecks(m);
+    });
+    return () => { alive = false; };
+  }, [key, rev, tick]);
+  return checks;
+}
+
+/** Each active group's lifecycle rail, from records only (versions and their checks, live jobs, dev deployments). */
+function useGroupRails(projectId: string, groups: SpineGroup[], artifacts: ArtifactSummary[]): Map<string, RailView> {
+  const domains = useDomains().list;
+  const checks = useRailChecks(artifacts);
+  const jobs = useJobs(projectId);
+  const deployments = useDeployments(projectId);
+  return useMemo(() => {
+    const m = new Map<string, RailView>();
+    const liveActions = liveActionsOf(jobs.data ?? []);
+    const healthy = (deployments.data ?? []).some((d) => d.status === 'healthy');
+    for (const g of groups) {
+      if (g.muted) continue;
+      const view = domains.find((d) => d.id === g.workspaceId);
+      if (!view) continue;
+      // Jobs or deployments unread (execution off): no state is claimed, only the steps and their status in this release.
+      const records = jobs.data && deployments.data
+        ? railRecordsFor({ workspaceId: g.workspaceId, artifacts, checks, liveActions, deploymentHealthy: healthy, participating: true }) : null;
+      m.set(g.workspaceId, railFor(view, records));
+    }
+    return m;
+  }, [groups, domains, checks, jobs.data, deployments.data, artifacts]);
+}
 
 /** The checks word of each checked artifact node (nexus:version:get of its shown version), read again on rev. */
 function useSpineChecks(artifacts: ArtifactSummary[]): Map<string, string> {
@@ -205,6 +255,7 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   // B2a execution: the setup sheet, the writing sheet and the log reader live at the bench; the Folio opens them.
   const { availability } = useHealth();
   const checks = useSpineChecks(artifacts);
+  const rails = useGroupRails(project.id, groups, artifacts);
   const [setupOpen, setSetupOpen] = useState(false);
   const [write, setWrite] = useState<{ workspaceId: string; kind: 'requirement' | 'problem_statement' } | null>(null);
   const [log, setLog] = useState<{ jobId: string; range?: LogRange | null } | null>(null);
@@ -221,7 +272,7 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
     <div className="nx-workbench">
       {mobile && <MobileRuns projectId={project.id} />}
       <Spine groups={groups} selectedId={tool === 'completion' || tool === 'runs' ? '' : node.id} onSelect={onSelect}
-        line={line} onRetryLine={reloadArtifacts} truncated={artifactsTruncated} focusRequest={focusRequest} onFocused={focused} checks={checks} />
+        line={line} onRetryLine={reloadArtifacts} truncated={artifactsTruncated} focusRequest={focusRequest} onFocused={focused} checks={checks} rails={rails} />
       <div className="nx-xstrip">
         <ExecutionNotice availability={availability} onSetup={execUi.openSetup} />
         <ApprovalsSection projectId={project.id} />

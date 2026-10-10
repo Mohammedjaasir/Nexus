@@ -18,6 +18,9 @@ import { EmptyState } from '../ui/EmptyState';
 import { ProjectRow } from '../components/ProjectRow';
 import { LoadError, RowsSkeleton } from '../components/LoadStates';
 import { PlatformNotice } from '../components/PlatformNotice';
+import { useDomains } from '../data/useExecution';
+import { railFor } from '../workspaces/lifecycleModel';
+import { LifecycleRail } from '../workspaces/LifecycleRail';
 
 export function WorkspacePage({ id }: { id: WorkspaceId }) {
   const ws = getWorkspace(id)!; // route parsing guarantees a known id
@@ -40,6 +43,9 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
   const unmappable = ws.domainIds.length === 0;
   const tabs = workspaceTabs(ws);
   const planned = tabs.filter((t) => !t.available);
+  // The domain's lifecycle and modules in its own words (the registry); the old planned list only without one.
+  const domain = useDomains().list.find((d) => d.id === id) ?? null;
+  const rail = domain ? railFor(domain) : null;
   return (
     <div className="nx-page">
       <header className="nx-pagehead">
@@ -57,7 +63,7 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
         <div role="tablist" aria-label={`${ws.label} workspace`} className="nx-wstabs__list">
           <button type="button" role="tab" id="ws-tab-projects" aria-selected="true" aria-controls="ws-panel-projects" className="nx-wstab nx-focusable">Projects</button>
         </div>
-        {planned.length > 0 && (
+        {!rail && planned.length > 0 && (
           <>
             <p id="ws-planned-note" className="nx-visually-hidden">These open once this workspace has artifacts.</p>
             <div className="nx-wstabs__planned">
@@ -70,6 +76,7 @@ export function WorkspacePage({ id }: { id: WorkspaceId }) {
           </>
         )}
       </div>
+      {rail && <LifecycleRail rail={rail} />}
       <section role="tabpanel" id="ws-panel-projects" aria-labelledby="ws-tab-projects">
         {status === 'error' && projects.length === 0 ? <LoadError error={error} onRetry={refresh} />
           : status === 'loading' && projects.length === 0 ? <RowsSkeleton count={3} />

@@ -4,6 +4,7 @@ import { UNASSIGNED_LABEL } from '../workspaces/mapping';
 import { viewOf, type ParticipationIndex, type ParticipationRow } from '../workspaces/participation';
 import { kindIsChecked, kindLabel, shownVersionOf, statusLabel } from './artifactModel';
 import { checksWord } from './evidenceModel';
+import type { RailRecords } from '../workspaces/lifecycleModel';
 
 export type ChangeKind = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked';
 export type GitState =
@@ -147,4 +148,27 @@ export function spineChecks(reads: readonly { nodeId: string; validationState: '
   const m = new Map<string, string>();
   for (const r of reads) { const w = checksWord(r.validationState, r.status); if (w) m.set(r.nodeId, w); }
   return m;
+}
+
+// ---------- B2a Task 15: the records behind each group's lifecycle rail ----------
+
+export type ValidatorStatuses = Readonly<Record<string, 'passed' | 'failed' | 'error' | 'skipped'>>;
+
+/**
+ * The records of one participation group: the shown versions of the artifacts it owns, each with the latest blocking
+ * result per validator (read with #32), the live jobs' actions and whether a dev deployment answers. Null while the
+ * checks could not be read: the rail then claims no state at all.
+ */
+export function railRecordsFor(i: {
+  workspaceId: string; artifacts: readonly ArtifactSummary[]; checks: ReadonlyMap<string, ValidatorStatuses> | null;
+  liveActions: readonly string[]; deploymentHealthy: boolean; participating: boolean;
+}): RailRecords | null {
+  if (!i.checks) return null;
+  const versions: RailRecords['versions'] = [];
+  for (const s of i.artifacts) {
+    if (s.artifact.status !== 'active' || s.artifact.ownerWorkspaceId !== i.workspaceId) continue;
+    const v = shownVersionOf(s);
+    if (v) versions.push({ kind: s.artifact.kind, status: v.status, validators: i.checks.get(v.id) ?? {} });
+  }
+  return { versions, liveActions: i.liveActions, participation: i.participating, deploymentHealthy: i.deploymentHealthy };
 }
