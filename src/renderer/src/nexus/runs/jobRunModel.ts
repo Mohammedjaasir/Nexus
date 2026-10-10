@@ -76,6 +76,12 @@ const RAN: Record<Flavour, string> = {
   assemble: 'The application was assembled', preview: 'The dev deployment started', diagnose: 'The diagnosis ran', check: 'The check ran', other: 'The run ended'
 };
 
+/** Plain words for error codes whose main-side message is a bare label (B2a final fix round). */
+export const CODE_WORDS: Readonly<Record<string, string>> = Object.freeze({
+  unreadable_output_entry: 'An output could not be read',
+  start_window_unobserved: 'The app was closed or stalled while it started; start it again'
+});
+
 /** A reason from a record (a check summary, an error message): lower-cased first letter, no trailing full stop. */
 function clause(reason: string | null | undefined): string {
   const t = (reason ?? '').trim().replace(/\.+$/, '');
@@ -133,7 +139,7 @@ const RESULT_WORD: Record<Exclude<JobResult, null>, string> = {
 export function jobRun(j: JobView, o: { reason?: string | null } = {}): JobRunView {
   const h = j.headline;
   const f = flavourOf(j);
-  const reason = o.reason ?? j.error?.message ?? null;
+  const reason = o.reason ?? (j.error ? CODE_WORDS[j.error.code] ?? j.error.message : null);
   const { stages, result } = stagesFor(h, j.startedAt !== null);
   let headline: string;
   if (WAITING[h]) headline = WAITING[h]!;

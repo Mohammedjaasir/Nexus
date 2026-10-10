@@ -6,7 +6,7 @@ import type {
   HandoffSummaryView, LineageQuery, LineageView, LinkSourcesView, NexusResult, ParticipationView, SaveCommitArgs, SaveResultView,
   SaveTextFileArgs, SendHandoffArgs, SendHandoffView, VersionDetail, VersionView,
   ActionAvailabilityView, ActionsQuery, ApprovalDecisionArg, ApprovalsListFilter, ApprovalView, BlobGcArgs, BlobGcView, DeploymentsListFilter,
-  DeploymentView, DomainSpecView, EventsPageView, EventsQuery, HealthView, ImageProfileArg, InlineSaveView, JobDetailView, JobLogsQuery,
+  DeploymentView, DomainSpecView, EventsPageView, EventsQuery, HealthQuery, HealthView, ImageProfileArg, InlineSaveView, JobDetailView, JobLogsQuery,
   JobsListFilter, JobStartArgs, JobStartView, JobView, LogPageView, NexusHint, PreviewQuery, PreviewView, SaveInlineArgs, ValidationResultView
 } from '../shared/nexus/ipc';
 
@@ -1668,8 +1668,8 @@ const api = {
   // a network, an image or an identity.
   nexusDomainsList: (): Promise<NexusResult<DomainSpecView[]>> =>
     ipcRenderer.invoke('nexus:domains:list'),
-  nexusPlatformHealth: (): Promise<NexusResult<HealthView>> =>
-    ipcRenderer.invoke('nexus:platform:health'),
+  nexusPlatformHealth: (query?: HealthQuery): Promise<NexusResult<HealthView>> =>
+    ipcRenderer.invoke('nexus:platform:health', ...(query ? [{ probe: true }] : [])),
   nexusActionsAvailable: (query: ActionsQuery): Promise<NexusResult<ActionAvailabilityView[]>> =>
     ipcRenderer.invoke('nexus:actions:available', query),
   nexusJobStart: (args: JobStartArgs): Promise<NexusResult<JobStartView>> =>

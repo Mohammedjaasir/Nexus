@@ -21,7 +21,7 @@ export function ExecutionSetupSheet({ open, onClose }: { open: boolean; onClose:
 }
 
 function SetupBody({ onClose }: { onClose: () => void }) {
-  const { health, availability, refresh } = useHealth();
+  const { health, availability, checkAgain } = useHealth();
   useHealthPoll(true);
   const approvals = useApprovals(null);
   const prepares = useMemo(() => (approvals.data ?? []).filter((a) => a.reason === 'image.prepare'), [approvals.data]);
@@ -82,7 +82,8 @@ function SetupBody({ onClose }: { onClose: () => void }) {
       )}
       {note && <p className={note.alert ? 'nx-passport__note' : 'nx-muted'} role={note.alert ? 'alert' : 'status'}>{note.text}</p>}
       <div className="nx-xs__actions">
-        <Button variant="primary" icon="refresh" onClick={refresh}>Check again</Button>
+        {/* #23 { probe: true }: main probes this computer again now; "Checked at" moves once the fresh probe is read. */}
+        <Button variant="primary" icon="refresh" onClick={checkAgain}>Check again</Button>
         <Button onClick={onClose}>Close</Button>
       </div>
     </div>

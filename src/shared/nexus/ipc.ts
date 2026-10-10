@@ -150,6 +150,9 @@ export interface DomainSpecView {
   executableEndToEnd: boolean;
 }
 export type DiskGate = 'ok' | 'below_recommended' | 'below_required' | 'unknown';
+/** #23's optional argument: `{ probe: true }` also asks main for a fresh probe of this computer (the setup sheet's
+ *  "Check again"; rate-limited in main, never waited for: the answer is still main's cache). */
+export interface HealthQuery { probe: true }
 /** The execution setup as main last observed it (cached; reading it never waits on Docker or the runner). */
 export interface HealthView {
   db: { version: number | null; platform: boolean; handoffs: boolean; execution: boolean; subReason?: string };

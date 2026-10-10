@@ -637,3 +637,33 @@ test('C7 PLACED_ACTIONS says where each lives; the diagnostic report pages and s
   assert.match(diag, /if \(c\.more\) \{[\s\S]*partialReportNote\(c\.readBytes, c\.totalBytes\)[\s\S]*<Button variant="quiet" onClick=\{c\.more\}>Load more<\/Button>/);
   assert.ok(diag.indexOf('if (c.more)') < diag.indexOf('reportFacts(c.json)'), 'never "no fact" from part of a report');
 });
+
+test('C3 "Check again" asks main for a fresh probe (#23 { probe: true }) and keeps the "Checked at" line', async () => {
+  const sheet = src('components/ExecutionSetupSheet.tsx');
+  assert.match(sheet, /<Button variant="primary" icon="refresh" onClick=\{checkAgain\}>Check again<\/Button>/);
+  assert.match(sheet, /\{health && <p className="nx-muted">\{checkedLine\(health\.checkedAt\)\}<\/p>\}/);
+  const hook = src('data/useExecution.ts');
+  assert.match(hook, /function checkAgain\(\): void \{\n  void nexusClient\.platformHealthProbe\(\)\.then\(\(r\) => \{\n    useExecStore\.getState\(\)\.setHealth\(r\);\n    setTimeout\(\(\) => loadHealth\(true\), CHECK_AGAIN_REREAD_MS\);/);
+  const preload = fs.readFileSync(path.join(ROOT, 'src', 'preload', 'index.ts'), 'utf8');
+  assert.match(preload, /nexusPlatformHealth: \(query\?: HealthQuery\): Promise<NexusResult<HealthView>> =>\n    ipcRenderer\.invoke\('nexus:platform:health', \.\.\.\(query \? \[\{ probe: true \}\] : \[\]\)\),/,
+    'the preload sends only the fixed flag, never what the renderer passed');
+  // The client sends exactly { probe: true }; a plain read sends no argument.
+  const calls = [];
+  const prev = global.window;
+  global.window = { cth: { nexusPlatformHealth: async (...a) => { calls.push(a); return { ok: true, data: null }; } } };
+  try {
+    await C.nexusClient.platformHealthProbe();
+    await C.nexusClient.platformHealth();
+  } finally { global.window = prev; }
+  assert.deepEqual(calls, [[{ probe: true }], []]);
+  assert.equal(X.checkedLine(NOW, () => '14:05'), 'Checked at 14:05.');
+});
+
+test('final fix: the new labels read as words (unreadable_output_entry, start_window_unobserved); Check again re-reads after 1.5 s', () => {
+  assert.equal(R.jobRun(job({ headline: 'failed', state: 'failed', startedAt: NOW, error: { code: 'unreadable_output_entry', message: 'unreadable_output_entry' } })).headline,
+    'Failed: an output could not be read');
+  assert.equal(R.jobRun(job({ headline: 'failed', state: 'failed', startedAt: NOW, error: { code: 'start_window_unobserved', message: 'start_window_unobserved' } })).headline,
+    'Failed: the app was closed or stalled while it started; start it again');
+  assert.equal(R.jobRun(job({ headline: 'failed', state: 'failed', error: { code: 'x', message: 'Out of memory.' } })).headline, 'Failed: out of memory');
+  assert.match(src('data/useExecution.ts'), /export const CHECK_AGAIN_REREAD_MS = 1_500;/);
+});

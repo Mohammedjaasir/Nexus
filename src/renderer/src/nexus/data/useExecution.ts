@@ -148,16 +148,30 @@ function loadHealth(force: boolean): void {
   });
 }
 
+/** How long after "Check again" the cache is read again: main probes in the background and answers from its cache. */
+export const CHECK_AGAIN_REREAD_MS = 1_500;
+
+/**
+ * "Check again": #23 with `{ probe: true }` asks main for a fresh probe of this computer (at most one per 5 s there)
+ * and answers from the cache at once; the fresh facts are read again shortly after (and by the sheet's poll).
+ */
+function checkAgain(): void {
+  void nexusClient.platformHealthProbe().then((r) => {
+    useExecStore.getState().setHealth(r);
+    setTimeout(() => loadHealth(true), CHECK_AGAIN_REREAD_MS);
+  });
+}
+
 /** Health (#23) and where execution stands. One read is shared by every mounted hook; it is read again on
- *  image, preflight and recovery events, and on `refresh`. */
-export function useHealth(): { health: HealthView | null; availability: ExecAvailability; refresh: () => void } {
+ *  image, preflight and recovery events, and on `refresh`. `checkAgain` also asks main for a fresh probe. */
+export function useHealth(): { health: HealthView | null; availability: ExecAvailability; refresh: () => void; checkAgain: () => void } {
   useHints();
   const health = useExecStore((s) => s.health);
   const tick = useExecStore((s) => s.ticks.health);
   const unavailable = usePlatform((s) => s.unavailable);
   useEffect(() => { loadHealth(false); }, [tick]);
   const refresh = useCallback(() => loadHealth(true), []);
-  return { health: health && health.ok ? health.data : null, availability: availabilityFrom({ unavailable }, health), refresh };
+  return { health: health && health.ok ? health.data : null, availability: availabilityFrom({ unavailable }, health), refresh, checkAgain };
 }
 
 /** While the setup sheet is open, this computer is read again gently (main answers from its cache). */

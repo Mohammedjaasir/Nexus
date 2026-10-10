@@ -100,6 +100,8 @@ export const nexusClient = {
   // ---------- B2a execution (#22-#41) ----------
   domainsList: (): Promise<NexusResult<DomainSpecView[]>> => execCall(() => window.cth.nexusDomainsList()),
   platformHealth: (): Promise<NexusResult<HealthView>> => execCall(() => window.cth.nexusPlatformHealth()),
+  /** #23 with `{ probe: true }`: also asks main to probe this computer again now (rate-limited there; not waited for). */
+  platformHealthProbe: (): Promise<NexusResult<HealthView>> => execCall(() => window.cth.nexusPlatformHealth({ probe: true })),
   actionsAvailable: (q: ActionsQuery): Promise<NexusResult<ActionAvailabilityView[]>> => execCall(() => window.cth.nexusActionsAvailable(q)),
   jobStart: (args: JobStartArgs): Promise<NexusResult<JobStartView>> => execCall(() => window.cth.nexusJobStart(args)),
   jobsList: (filter?: JobsListFilter): Promise<NexusResult<JobView[]>> => execCall(() => window.cth.nexusJobsList(filter)),
