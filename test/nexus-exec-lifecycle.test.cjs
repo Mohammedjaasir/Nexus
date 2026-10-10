@@ -105,9 +105,12 @@ if (realDockerOrSkip()) {
 
   test('L4 after success, failure, cancel and timeout: no container, volume or network with the attempt label', LONG, async () => {
     const x = await world();
+    // Verification: `buildable` points the project at a NEW fixture repository (useFixture), so the second one is made only
+    // after the first job has ended; made earlier, the queued first job's commit is no longer in the project's folder and
+    // the runner rightly refuses it (bad_plan: "the commit is not in this repository").
     const ok = startBuild(x, await buildable(x, 1, { tag: 'L4 ok' }));
-    const bad = startBuild(x, await buildable(x, 1, { fail: true, tag: 'L4 bad' }));
     assert.equal((await jobEnds(x, ok.id, 5 * MIN)).state, 'completed');
+    const bad = startBuild(x, await buildable(x, 1, { fail: true, tag: 'L4 bad' }));
     assert.equal((await jobEnds(x, bad.id, 5 * MIN)).state, 'failed');
     for (const j of [ok, bad]) attemptIds.push(x.attemptsOf(j.id).pop().id);
     for (const id of attemptIds) await x.until(() => gone(x, id), `attempt ${id} cleaned up`, 60_000);

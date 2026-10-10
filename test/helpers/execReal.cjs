@@ -250,11 +250,11 @@ async function runnerHarness(o = {}) {
     async exited(plan, ms = 180_000) { await until(() => t.of('attempt.exited', plan.attemptId).length > 0 || t.of('fault', plan.attemptId).length > 0
       || t.of('attempt.refused', plan.attemptId).length > 0, `the exit of ${plan.attemptId}`, ms); return t.of('attempt.exited', plan.attemptId)[0] ?? null; },
     async provisioned(plan, ms = 120_000) { await until(() => t.of('attempt.provisioned', plan.attemptId).length > 0, 'provisioned', ms); return t.of('attempt.provisioned', plan.attemptId)[0]; },
-    /** The attempt log's output lines (stdout and stderr frames). */
+    /** The attempt log's output lines (stdout and stderr frames; each frame is one line, its newline stripped by the log). */
     output(plan) {
       try {
         return fs.readFileSync(plan.logPath, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } })
-          .filter((f) => f && (f.stream === 'stdout' || f.stream === 'stderr')).map((f) => f.text).join('');
+          .filter((f) => f && (f.stream === 'stdout' || f.stream === 'stderr')).map((f) => `${f.text}\n`).join('');
       } catch { return ''; }
     },
     release(plan) { port1.postMessage({ op: 'attempt.release', attemptId: plan.attemptId }); },
