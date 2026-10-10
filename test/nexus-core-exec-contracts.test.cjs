@@ -89,10 +89,15 @@ for (const [name, mutate, expect] of [
   assert.equal(report.ok, false); assert.ok(report.problems.some((p) => expect.test(p)), report.problems.join('; '));
 });
 
-test('PF4 networks: egress maps to the per-job bridge, service to its internal network; the forwarder may publish only on 127.0.0.1', () => {
+test('PF4 networks: an approved install maps to the job\'s INTERNAL egress network only (B2a stabilization), service to its internal network; the forwarder may publish only on 127.0.0.1', () => {
   const egress = { ...spec, network: { mode: 'egress-approved', approvalId: 'X', purpose: 'deps' } };
-  const i = good(); i.HostConfig.NetworkMode = 'nexus-egress-J'; i.NetworkSettings.Networks = { 'nexus-egress-J': {} };
+  const i = good(); i.HostConfig.NetworkMode = 'nexus-egress-in-J'; i.NetworkSettings.Networks = { 'nexus-egress-in-J': {} };
   assert.deepEqual(comparePreflight(egress, i).problems, []);
+  // The old per-job bridge (a route out) is refused, and so is the outbound bridge beside the internal network.
+  const old = good(); old.HostConfig.NetworkMode = 'nexus-egress-J'; old.NetworkSettings.Networks = { 'nexus-egress-J': {} };
+  assert.ok(comparePreflight(egress, old).problems.some((p) => /expected nexus-egress-in-J/.test(p)));
+  const both = good(); both.HostConfig.NetworkMode = 'nexus-egress-in-J'; both.NetworkSettings.Networks = { 'nexus-egress-in-J': {}, 'nexus-egress-out-J': {} };
+  assert.ok(comparePreflight(egress, both).problems.some((p) => /nexus-egress-out-J is attached/.test(p)));
   const fwd = { ...spec, publish: { hostIp: '127.0.0.1', hostPort: 41234, containerPort: 8080 } };
   const f = good(); f.HostConfig.PortBindings = { '8080/tcp': [{ HostIp: '127.0.0.1', HostPort: '41234' }] };
   assert.deepEqual(comparePreflight(fwd, f).problems, []);

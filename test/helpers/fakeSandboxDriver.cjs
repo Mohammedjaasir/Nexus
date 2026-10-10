@@ -4,7 +4,7 @@
 // running the real comparator over it (so a test can break one field), and lets a test drive containers: exit them,
 // write their output, or inject Docker's error text into create/start (fault injection).
 const loadTs = require('../load-ts.cjs');
-const { comparePreflight, expectedNetworkName, expectedEndpoints, dockerDesktopHostPath } = loadTs('src/shared/nexus/preflightCheck.ts');
+const { comparePreflight, expectedNetworkName, expectedEndpoints, expectedAliases, dockerDesktopHostPath } = loadTs('src/shared/nexus/preflightCheck.ts');
 const { DockerError, containerFacts } = loadTs('src/runner/sandbox/dockerDriver.ts');
 
 const GIB = 2 ** 30;
@@ -14,7 +14,11 @@ const hex64 = () => { seq++; return (seq.toString(16).padStart(8, '0') + 'ab'.re
 /** The `docker inspect` record a correctly created container of `spec` has (Docker Desktop 29.7.2 shapes). */
 function inspectFor(spec, id, name) {
   const nets = {};
-  for (const n of expectedEndpoints(spec)) nets[n] = { IPAMConfig: null, Links: null, Aliases: null, NetworkID: '', EndpointID: '', Gateway: '', IPAddress: '' };
+  // Aliases as Docker reports them on a created container: the egress proxy's on its internal network, else none (null).
+  for (const n of expectedEndpoints(spec)) {
+    const al = expectedAliases(spec, n);
+    nets[n] = { IPAMConfig: null, Links: null, Aliases: al && al.length ? [...al] : null, NetworkID: '', EndpointID: '', Gateway: '', IPAddress: '' };
+  }
   const bindings = spec.publish ? { [`${spec.publish.containerPort}/tcp`]: [{ HostIp: spec.publish.hostIp, HostPort: String(spec.publish.hostPort) }] } : {};
   return [{
     Id: id, Name: `/${name}`, Image: spec.image.id, RestartCount: 0,
@@ -100,6 +104,8 @@ class FakeSandboxDriver {
     if (f) throw new DockerError('start', f);
     if (!c) throw new DockerError('start', 'No such container: x');
     c.state = 'running';
+    // B2a stabilization: the Nexus egress proxy says it listens (unless a test plays a proxy that never does).
+    if (c.labels['nexus.kind'] === 'egress-proxy' && this.o.proxyReady !== false) c.logs.push(['stdout', 'nexus-egress-ready {"port":3128}\n']);
     // B2a Task 12: a test may play the container's program (write /out, print, exit) once it runs.
     if (typeof this.o.onStart === 'function') setImmediate(() => { if (c.state === 'running') this.o.onStart(c, this); });
   }

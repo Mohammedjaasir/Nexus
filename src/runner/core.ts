@@ -12,6 +12,12 @@
  * junitMerge.ts; then `/out` hashed into the object store, then the parsers) -> `attempt.exited` -> wait for `attempt.release`
  * -> cleanup (containers, the workspace volume and the attempt's networks; never the work folder, the log or a deps cache).
  *
+ * An approved dependency install (B2a stabilization, user constraint 5) runs with the job's Nexus egress proxy
+ * (egress.ts): the plan's topology is re-checked first (`network_not_approved`); the job's internal network (no route out)
+ * and outbound bridge are created; the install and the proxy are both created and preflighted before either starts; the
+ * proxy starts first and must say it listens within PROXY_READY_MS; each proxy decision becomes an `attempt.event`
+ * (`egress`) and an attempt-log line; the proxy is stopped when the install exits, before collect reports.
+ *
  * Engine attempts (no container): `repo.snapshot` and `sde.app.assemble` (async git), and `sde.diagnose` (B2a Task 12:
  * `docker inspect` of this install's containers only, hashed attempt log ranges: diagnose.ts).
  *
@@ -34,7 +40,7 @@ import {
   type SandboxProbe, type ServicePlan, type StagedOutput, type ToolPlan
 } from '../shared/nexus/execution';
 import {
-  parseRunnerMessage, ULID_RE, type AttemptFailureClass, type AttemptPhase, type CancelReason, type ExitReason, type RefusalReason, type RunnerToMain
+  EGRESS_EVENT_MAX, parseRunnerMessage, ULID_RE, type AttemptFailureClass, type AttemptPhase, type CancelReason, type ExitReason, type RefusalReason, type RunnerToMain
 } from '../shared/nexus/runnerProtocol';
 import { expectedNetworkName } from '../shared/nexus/preflightCheck';
 import { leaseFloorBytes } from '../shared/nexus/resourceGate';
@@ -56,6 +62,7 @@ import { DEPS_VOLUME_RE, DockerError, SpecError } from './sandbox/dockerDriver';
 import type { DockerRunner } from './sandbox/dockerCli';
 import { DU_ARGV, GUARD_POLL_MS, guardDecision, parseDuKib, WORKSPACE_MAX_BYTES, type GuardTrip } from './sandbox/sizeGuard';
 import { forwarderWithPort, mergePreflight, pickPort, serviceNetworkProblem } from './service';
+import { classifyProxyLine, egressTopologyProblem, LineSplitter, mergeProxyPreflight, PROXY_LOG_LINES_MAX, PROXY_READY_MS } from './egress';
 import { stageInputs } from './staging';
 import { REAL_TIMERS, type RunnerDriver, type RunnerFs, type RunnerTimers, type RunnerTransport } from './types';
 
@@ -128,6 +135,8 @@ interface AttemptState {
   /** The container is still there but Docker cannot report its exit: reported as a `docker_error` fault, never `missing`. */
   exitUnreadable: boolean;
   hostPort?: number;
+  /** An approved install's egress proxy container, its log stream, and how many decisions were reported. */
+  proxy?: { id: string; logDone: Promise<void> | null; ready: boolean; onReady: (() => void) | null; events: number; lines: number; capped: boolean };
 }
 
 /** What `exit.json` beside `/out` records at collect time (the exit is never re-derived from Docker after that). */
@@ -474,7 +483,7 @@ export class RunnerCore {
     if (plan.staging.depsVolume && !DEPS_VOLUME_RE.test(plan.staging.depsVolume.name)) return 'the deps volume is not a dependency cache volume';
     const rl = plan.resourceLabels;
     if (!rl || rl['nexus.home'] !== this.home || rl['nexus.attempt'] !== attemptId || rl['nexus.job'] !== plan.jobId) return 'the resource labels are not this attempt\'s';
-    const specs = plan.kind === 'tool' ? [plan.container] : [plan.app, plan.forwarder];
+    const specs = plan.kind === 'tool' ? [plan.container, ...(plan.egressProxy?.container ? [plan.egressProxy.container] : [])] : [plan.app, plan.forwarder];
     for (const s of specs) {
       const l = s.labels;
       if (l['nexus.attempt'] !== attemptId || l['nexus.home'] !== this.home || l['nexus.job'] !== plan.jobId) return 'a container\'s labels are not this attempt\'s';
@@ -508,15 +517,15 @@ export class RunnerCore {
 
   private networkProblem(plan: ToolPlan): string | null {
     const n = plan.container.network;
-    if (n.mode === 'none') return null;
+    if (n.mode === 'none') return plan.egressProxy === undefined ? null : 'a plan without egress carries an egress proxy';
     if (n.mode === 'egress-approved') {
       const ap = plan.approval;
       if (typeof n.approvalId !== 'string' || n.approvalId.length === 0) return 'egress without an approval id';
       if (!ap || ap.id !== n.approvalId) return 'the approval id is not the one main consumed for this attempt';
       if (ap.jobId !== plan.jobId || ap.attemptN !== plan.attemptN) return 'the approval was consumed by another job or attempt';
-      return null;
+      return egressTopologyProblem(plan);
     }
-    return 'a tool container runs with no network or its approved egress bridge only';
+    return 'a tool container runs with no network or its approved egress network only';
   }
 
   private async createWithRetry(a: AttemptState, spec: ContainerSpec, alias?: string): Promise<string | null> {
@@ -644,22 +653,37 @@ export class RunnerCore {
     try {
       for (const m of spec.mounts) if (m.kind === 'workspace') { await this.driver.createVolume(m.hostPath, { ...plan.resourceLabels }); a.volumes.push(m.hostPath); }
       if (plan.staging.depsVolume) await this.driver.createVolume(plan.staging.depsVolume.name, { ...plan.resourceLabels, 'nexus.kind': 'deps' });
-      if (spec.network.mode === 'egress-approved') {
-        const name = expectedNetworkName(spec);
-        await this.driver.createNetwork(name, { ...plan.resourceLabels }, { internal: false });
-        a.networks.push(name);
+      // An approved install: the job's INTERNAL network (the install and the proxy; no route out) and its outbound
+      // bridge (the proxy only). Never a bridge for the install itself.
+      const px = plan.egressProxy;
+      if (spec.network.mode === 'egress-approved' && px) {
+        if (expectedNetworkName(spec) !== px.networks.internal) throw new SpecError('the install is not on its internal egress network');
+        await this.driver.createNetwork(px.networks.internal, { ...plan.resourceLabels }, { internal: true });
+        a.networks.push(px.networks.internal);
+        await this.driver.createNetwork(px.networks.outbound, { ...plan.resourceLabels }, { internal: false });
+        a.networks.push(px.networks.outbound);
       }
     } catch (e) { return this.dockerFailure(a, e); }
     this.checkStop(a);
     const cid = await this.createWithRetry(a, spec);
     if (!cid) return;
     a.containers.push(cid); a.main = cid;
+    let proxyId: string | null = null;
+    if (plan.egressProxy) {
+      proxyId = await this.createWithRetry(a, plan.egressProxy.container);
+      if (!proxyId) return;
+      a.containers.push(proxyId);
+    }
     this.checkStop(a);
     this.event(a, 'preflight');
-    const report = await this.driver.preflight(cid, spec);
+    const own = await this.driver.preflight(cid, spec);
+    // Both containers pass preflight before either starts (the proxy's networks, alias, command and settings are pinned too).
+    const report = plan.egressProxy && proxyId ? mergeProxyPreflight(own, await this.driver.preflight(proxyId, plan.egressProxy.container)) : own;
     if (!report.ok) {
       // Never started: removed now (it holds no evidence); main fails the attempt `limits_not_applied` and releases the rest.
-      try { await this.driver.remove(cid); a.containers = []; } catch (e) { this.log(`[runner] the refused container was not removed: ${msgOf(e)}`); }
+      for (const c of [...a.containers]) {
+        try { await this.driver.remove(c); a.containers = a.containers.filter((x) => x !== c); } catch (e) { this.log(`[runner] the refused container was not removed: ${msgOf(e)}`); }
+      }
       a.log?.nexus(`preflight refused the container: ${report.problems.length} problem(s)`);
       this.post({ op: 'attempt.provisioned', attemptId: a.id, containerId: cid, imageDigest: spec.image.id, preflight: report });
       a.settled = true;
@@ -667,27 +691,94 @@ export class RunnerCore {
     }
     this.checkStop(a);
     this.event(a, 'starting');
+    if (proxyId) {
+      // The proxy first: the install starts only once the proxy listens (its first line says so).
+      try { await this.driver.start(proxyId); } catch (e) { return this.dockerFailure(a, e); }
+      const ready = await this.followProxy(a, proxyId);
+      if (!ready) {
+        await this.stopAndKill(proxyId, 2_000);
+        return this.fault(a, 'docker_error', `the egress proxy did not start within ${PROXY_READY_MS / 1000} s`);
+      }
+      a.log?.nexus(`the egress proxy listens: only ${plan.egressProxy!.container.env.NEXUS_EGRESS_ALLOW} can be reached`);
+      this.checkStop(a);
+    }
     try { await this.driver.start(cid); } catch (e) { return this.dockerFailure(a, e); }
     a.containerState = 'running';
     const startedAt = this.now();
     // Everything that watches the running container is armed before main hears that it runs.
     this.followLogs(a, cid);
-    this.armWall(a, spec.limits.wallClockMs, () => [cid]);
+    this.armWall(a, spec.limits.wallClockMs, () => [cid, ...(proxyId ? [proxyId] : [])]);
     this.armGuard(a, plan, cid);
     this.post({ op: 'attempt.provisioned', attemptId: a.id, containerId: cid, imageDigest: spec.image.id, preflight: report });
     this.event(a, 'running');
     // A cancel that arrived while `docker start` ran: it is applied now.
-    if (a.cancel && !a.stopIssued) { a.stopIssued = true; void this.stopAndKill(cid, a.cancel.graceMs); }
-    await this.writeRecord(a, 'plan.json', { plan, startedAt, containerIds: [cid] } satisfies PlanRecord);
+    if (a.cancel && !a.stopIssued) { a.stopIssued = true; void Promise.all(a.containers.map((c) => this.stopAndKill(c, a.cancel!.graceMs))); }
+    await this.writeRecord(a, 'plan.json', { plan, startedAt, containerIds: [cid, ...(proxyId ? [proxyId] : [])] } satisfies PlanRecord);
     const exit = await this.waitExit(a, cid);
     if (!exit) { if (!a.released && this.vanished(a)) a.settled = true; return; }
     await this.collect(a, plan, exit);
+  }
+
+  /**
+   * Follows the egress proxy's output: its ready line resolves the returned promise (true; false after PROXY_READY_MS),
+   * each decision becomes an `attempt.event` (`egress`, at most EGRESS_EVENT_MAX) and an attempt-log line; other output
+   * (at most PROXY_LOG_LINES_MAX lines) goes to the attempt log, redacted.
+   */
+  private followProxy(a: AttemptState, proxyId: string, sinceMs?: number, alreadyReady = false): Promise<boolean> {
+    const p = { id: proxyId, logDone: null as Promise<void> | null, ready: alreadyReady, onReady: null as (() => void) | null, events: 0, lines: 0, capped: false };
+    a.proxy = p;
+    const out = new LineSplitter(); const err = new LineSplitter();
+    const handle = (line: string): void => {
+      const l = classifyProxyLine(line);
+      if (l.kind === 'blank') return;
+      if (l.kind === 'ready') { p.ready = true; p.onReady?.(); return; }
+      if (l.kind === 'other') {
+        if (p.lines++ < PROXY_LOG_LINES_MAX) a.log?.nexus(`egress proxy: ${redactSecretText(l.text)}`);
+        return;
+      }
+      const d = l.decision;
+      // A host the client named may carry anything: a secret-shaped one is never repeated.
+      const host = redactSecretText(d.host) === d.host ? d.host : 'redacted';
+      a.log?.nexus(`egress ${d.decision} ${host}:${d.port}${d.decision === 'refused' ? ` (${d.reason})` : ''}`);
+      if (a.released || a.cleaned) return;
+      if (p.events < EGRESS_EVENT_MAX) {
+        p.events++;
+        this.post({ op: 'attempt.event', attemptId: a.id, seq: ++a.seq, event: { t: 'egress', decision: d.decision, host, port: d.port, reason: d.reason, at: this.now() } });
+      } else if (!p.capped) {
+        p.capped = true;
+        a.log?.nexus(`more than ${EGRESS_EVENT_MAX} egress decisions: the rest are in this log only`);
+      }
+    };
+    p.logDone = this.driver.streamLogs(proxyId, (s, t) => { for (const l of (s === 'stdout' ? out : err).push(t)) handle(l); }, a.logAbort.signal, sinceMs)
+      .catch(() => undefined).then(() => { for (const l of [...out.flush(), ...err.flush()]) handle(l); });
+    if (p.ready) return Promise.resolve(true);
+    return new Promise<boolean>((resolve) => {
+      let h: unknown = null;
+      const done = (v: boolean): void => { if (h !== null) { this.timers.clearTimeout(h); h = null; } p.onReady = null; resolve(v); };
+      p.onReady = () => done(true);
+      h = this.timers.setTimeout(() => done(p.ready), PROXY_READY_MS);
+      void p.logDone?.then(() => { if (!p.ready) done(false); });
+    });
+  }
+
+  /** Stops an attempt's egress proxy (if any) and waits a little for its last decisions. */
+  private async stopProxy(a: AttemptState): Promise<void> {
+    const p = a.proxy;
+    if (!p) return;
+    await this.stopAndKill(p.id, 2_000);
+    if (p.logDone) {
+      let h: unknown = null;
+      await Promise.race([p.logDone, new Promise<void>((r) => { h = this.timers.setTimeout(r, LOG_DRAIN_MS); })]);
+      if (h !== null) this.timers.clearTimeout(h);
+    }
   }
 
   /** Exit -> exit.json -> /out hashed -> parsers -> `attempt.exited`. */
   private async collect(a: AttemptState, plan: ToolPlan | null, exit: ExitInfo): Promise<void> {
     a.containerState = 'exited';
     for (const t of a.timers.splice(0)) (t.interval ? this.timers.clearInterval(t.h) : this.timers.clearTimeout(t.h));
+    // The install is done: its egress proxy is stopped now, and its last decisions are read before the exit is reported.
+    await this.stopProxy(a);
     await this.drainLogs(a);
     if (a.released) return;
     this.event(a, 'collecting');
@@ -1005,7 +1096,7 @@ export class RunnerCore {
     a.main = (await owned(containerId)) ? containerId : null;
     if (!a.main && typeof containerId === 'string' && containerId) this.log('[runner] attempt.adopt names a container that cannot be confirmed as belonging to the attempt; it is never touched');
     if (a.main) a.containers.push(a.main);
-    if (kind === 'service' && Array.isArray(rec?.containerIds)) {
+    if (Array.isArray(rec?.containerIds)) {
       for (const c of rec!.containerIds) if (!a.containers.includes(c) && await owned(c)) a.containers.push(c);
     }
     const exitRec = await this.readExit(workDir);
@@ -1045,7 +1136,10 @@ export class RunnerCore {
           const cid = a.main;
           a.logDone = null;
           this.followLogs(a, cid, since);
-          this.armWall(a, plan.container.limits.wallClockMs, () => [cid], elapsed);
+          // An approved install's proxy, found by the record and its labels: its decisions are followed again.
+          const proxyId = plan.egressProxy ? a.containers.find((c) => c !== cid) ?? null : null;
+          if (proxyId) void this.followProxy(a, proxyId, since, true);
+          this.armWall(a, plan.container.limits.wallClockMs, () => [cid, ...(proxyId ? [proxyId] : [])], elapsed);
           this.armGuard(a, plan, cid);
           const exit = await this.waitExit(a, cid);
           if (!exit) { if (!a.released && this.vanished(a)) a.settled = true; return; }

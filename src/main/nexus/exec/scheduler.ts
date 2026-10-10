@@ -70,6 +70,8 @@ export function leaseGuard(c: LeaseCandidate, runnerReady: boolean, cache: Probe
   if (!usableImage(cache, c.profile)) return 'waiting:image';
   // A dev deployment (service recipe) runs its app behind the loopback forwarder: both images must be usable.
   if (c.recipe.executor === 'service' && !usableImage(cache, 'nexus-fwd')) return 'waiting:image';
+  // An approved install reaches its registries only through the Nexus egress proxy, which runs in the sde-node image.
+  if (c.recipe.network === 'egress-approved' && !usableImage(cache, 'sde-node')) return 'waiting:image';
   const floor = leaseFloorBytes(c.recipe.limits?.outputMaxBytes ?? 0);
   if (cache.freeBytes === null || cache.freeBytes < floor) return 'waiting:disk';
   if (c.recipe.executor === 'service' ? live.serviceContainers >= caps.serviceContainers : live.jobContainers >= caps.jobContainers) {

@@ -125,6 +125,7 @@ import {
 } from './planBuilder';
 import { stat } from 'node:fs/promises';
 import { resolveGitBinary } from '../../gitBinary';
+import { EGRESS_PROXY_PROFILE } from '../../../shared/nexus/egressPolicy';
 import { homeLabel } from '../../../shared/nexus/homeLabel';
 import type { RunnerPort } from './runnerPort';
 import { backoffMs, DEFAULT_CAPS, leaseGuard, SOLO_MEMORY_SHARE, usableImage, type LiveUse, type ProbeCache, type SchedulerCaps } from './scheduler';
@@ -738,8 +739,10 @@ export class ExecutionService {
     const ev = m.event;
     immediateTx(this.db, () => {
       appendJobEventTx(this.db, { type: 'attempt.progress', projectId: j.project_id, jobId: j.id, attemptN: a.n,
-        summary: ev.t === 'phase' ? `attempt ${a.n}: ${ev.phase}` : `attempt ${a.n}: size guard ${ev.guard}`,
-        data: ev.t === 'phase' ? { seq: m.seq, phase: ev.phase } : { seq: m.seq, guard: ev.guard, bytes: ev.bytes, limitBytes: ev.limitBytes } }, now);
+        summary: ev.t === 'phase' ? `attempt ${a.n}: ${ev.phase}` : ev.t === 'guard' ? `attempt ${a.n}: size guard ${ev.guard}`
+          : `attempt ${a.n}: egress ${ev.decision} ${ev.host}:${ev.port}${ev.decision === 'refused' ? ` (${ev.reason})` : ''}`,
+        data: ev.t === 'phase' ? { seq: m.seq, phase: ev.phase } : ev.t === 'guard' ? { seq: m.seq, guard: ev.guard, bytes: ev.bytes, limitBytes: ev.limitBytes }
+          : { seq: m.seq, egress: { decision: ev.decision, host: ev.host, port: ev.port, reason: ev.reason } } }, now);
     });
   }
 
@@ -1668,7 +1671,10 @@ export class ExecutionService {
       const plan = buildPlan({ job: { id: j.id, projectId: j.project_id }, attempt: { id: a.id, n: a.n }, bootId: this.bootId ?? '', recipe,
         profile, imageId: (image?.imageId as `sha256:${string}` | undefined) ?? null, dataHomeRoot: this.deps.dataHome.root,
         workRel: this.deps.dataHome.attemptWorkRel(j.id, a.n), logRel: this.deps.dataHome.attemptLogPath(j.id, a.n),
-        inputs: this.planInputs(j.id), repoPath: this.repoPathOf(j.project_id), approval: approval ?? null });
+        inputs: this.planInputs(j.id), repoPath: this.repoPathOf(j.project_id), approval: approval ?? null,
+        // B2a stabilization (constraint 5): the install reaches its registries only through the job's egress proxy (sde-node image).
+        egressProxy: { profile: (this.deps.profiles ?? []).find((pr) => pr.id === EGRESS_PROXY_PROFILE) ?? null,
+          imageId: (usableImage(this.probe, EGRESS_PROXY_PROFILE)?.imageId as `sha256:${string}` | undefined) ?? null } });
       this.db.prepare('UPDATE job_attempts SET sandbox_json = ?, lease_expires_at = ?, updated_at = ? WHERE id = ?')
         .run(JSON.stringify(sandboxRecord(plan)), now + LEASE_MS, now, a.id);
       this.moveJobTx(j.id, 'running', now, undefined, 'awaiting_approval');

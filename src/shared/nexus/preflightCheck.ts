@@ -13,6 +13,7 @@ import {
   type ContainerSpec, type PreflightObserved, type PreflightReport
 } from './execution';
 import { looksSecret } from './secretShape';
+import { EGRESS_PROXY_ALIAS, egressInternalNetwork, egressOutboundNetwork } from './egressPolicy';
 
 const MAX_TEXT = 512;
 const MAX_ITEMS = 64;
@@ -100,7 +101,8 @@ function finish(observed: PreflightObserved, problems: string[]): PreflightRepor
 export function expectedNetworkName(spec: ContainerSpec): string {
   const n = spec.network;
   if (n.mode === 'none') return 'none';
-  if (n.mode === 'egress-approved') return `nexus-egress-${spec.labels['nexus.job']}`;
+  // An approved install and its proxy: the job's INTERNAL egress network (no route out; B2a stabilization, constraint 5).
+  if (n.mode === 'egress-approved' || n.mode === 'egress-proxy') return egressInternalNetwork(String(spec.labels['nexus.job']));
   return n.network;
 }
 
@@ -116,8 +118,22 @@ export function publishNetworkName(spec: ContainerSpec): string | null {
 
 /** Every network endpoint a created container of this spec must have, and no other: its network, plus the forwarder's publish network. */
 export function expectedEndpoints(spec: ContainerSpec): string[] {
+  // The egress proxy alone also joins the job's outbound bridge.
+  if (spec.network?.mode === 'egress-proxy') return [expectedNetworkName(spec), egressOutboundNetwork(String(spec.labels['nexus.job']))];
   const pub = publishNetworkName(spec);
   return pub ? [expectedNetworkName(spec), pub] : [expectedNetworkName(spec)];
+}
+
+/**
+ * The network aliases an egress container must have on each endpoint (null: not checked, e.g. a dev deployment's app,
+ * which answers as `app`): the proxy is `nexus-egress-proxy` on the internal network and nothing on the outbound bridge;
+ * the install has none (nothing may impersonate the proxy).
+ */
+export function expectedAliases(spec: ContainerSpec, network: string): string[] | null {
+  const mode = spec.network?.mode;
+  if (mode === 'egress-proxy') return network === expectedNetworkName(spec) ? [EGRESS_PROXY_ALIAS] : [];
+  if (mode === 'egress-approved') return [];
+  return null;
 }
 
 /** A named volume's `Mode` in `docker inspect`: Docker 29.7.2 reports `z` for `--mount type=volume` and `rw` for compose. */
@@ -312,6 +328,16 @@ function compare(spec: ContainerSpec, inspect: unknown): PreflightReport {
     const names = nets.map(([k]) => k);
     for (const n of names) if (!wantAll.includes(n)) problems.push(`network endpoint ${clip(n)} is attached, expected only ${wantAll.join(' and ')}`);
     for (const w of wantAll) if (!names.includes(w)) problems.push(`network endpoint ${w} is not attached`);
+    for (const [n, ep] of nets) {
+      if (ep !== null && ep !== undefined && !isRec(ep)) { problems.push(`network endpoint ${clip(n)} is unreadable`); continue; }
+      // No fixed address, link or driver option on any endpoint (main never asks for one).
+      for (const f of ['IPAMConfig', 'Links', 'DriverOpts']) if (!isEmpty(own(ep, f))) problems.push(`network endpoint ${clip(n)} has ${f} ${show(own(ep, f))}, expected none`);
+      const want = expectedAliases(spec, n);
+      if (want !== null) {
+        const got = strList(own(ep, 'Aliases'));
+        if (got === null || !sameSet(got, want)) problems.push(`network endpoint ${clip(n)} aliases are ${show(own(ep, 'Aliases'))}, expected ${show(want)}`);
+      }
+    }
     // `none` has no endpoint on a created container: no address, no gateway, no endpoint id.
     if (wantNet === 'none') {
       const none = nets.find(([k]) => k === 'none')?.[1];
@@ -322,6 +348,10 @@ function compare(spec: ContainerSpec, inspect: unknown): PreflightReport {
       }
     }
   }
+
+  // Name resolution: the container's own /etc/hosts and resolver are Docker's defaults (an added host entry or DNS server
+  // could point a registry name, or the proxy's alias, anywhere).
+  for (const key of ['ExtraHosts', 'Dns', 'DnsOptions', 'DnsSearch', 'Links']) if (!isEmpty(h(key))) problems.push(`${key} is ${show(h(key))}, expected none`);
 
   // Mounts: exactly the spec's set (destination, source, RW, type, mode, propagation)
   const mounts = list(own(record, 'Mounts'));

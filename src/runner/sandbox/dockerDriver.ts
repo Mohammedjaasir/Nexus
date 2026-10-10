@@ -8,8 +8,9 @@
  * - `--mount` for every mount (never `-v`), exactly the spec's mounts;
  * - `--user 10001:10001`, `--cpus`, `--memory` = `--memory-swap` (no swap), `--pids-limit`, `--read-only`, the two
  *   tmpfs mounts, `--cap-drop ALL`, `--security-opt no-new-privileges`, `--ipc private`, `--cgroupns private`;
- * - `--network` from the spec (`none`, the job's egress bridge, a service's internal network; the forwarder also joins
- *   its publish network), `-p 127.0.0.1:<port>:<port>/tcp` only for the forwarder;
+ * - `--network` from the spec (`none`; an approved install's INTERNAL egress network; a service's internal network): the
+ *   forwarder also joins its publish network, and the egress proxy answers as `nexus-egress-proxy` on the internal
+ *   network and also joins the job's outbound bridge (expectedEndpoints); `-p 127.0.0.1:<port>:<port>/tcp` only for the forwarder;
  * - `--env` exactly the spec's pairs (the image's own ENV names are checked against `imageEnv` by preflight);
  * - every spec label (`nexus.*`, including `nexus.attempt`, `nexus.boot` and `nexus.home`);
  * - the image by its digest-pinned reference; preflight then checks the local image id (sha256).
@@ -25,7 +26,8 @@ import {
   IMAGE_VERSIONS_RE, type ContainerLabels, type ContainerSpec, type DiagnoseContainerFacts, type ExitInfo, type PreflightReport, type SandboxProbe,
   type SandboxProfileId
 } from '../../shared/nexus/execution';
-import { comparePreflight, expectedNetworkName, isPinnedImageRef, publishNetworkName } from '../../shared/nexus/preflightCheck';
+import { comparePreflight, expectedEndpoints, isPinnedImageRef } from '../../shared/nexus/preflightCheck';
+import { EGRESS_PROXY_ALIAS } from '../../shared/nexus/egressPolicy';
 import { redactSecretText } from '../../main/nexus/activity/redact';
 import type { RunResult } from '../proc';
 import type { CreateOptions, ImageInfo, ResourceFacts, ResourceKind, RunnerDriver } from '../types';
@@ -105,14 +107,20 @@ export function createArgv(spec: ContainerSpec, o: CreateOptions = {}): string[]
     '--tmpfs', `${HOME_TMPFS_PATH}:rw,nosuid,size=${HOME_TMPFS_MB}m,uid=${SANDBOX_UID}`,
     '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--runtime', 'runc', '--restart', 'no',
     '--ipc', 'private', '--cgroupns', 'private', '--log-driver', 'json-file', '--log-opt', 'max-size=32m', '--log-opt', 'max-file=2'];
-  // Network: the spec's mode; a dev deployment's app answers as `app`; the forwarder also joins its publish network.
-  argv.push('--network', expectedNetworkName(spec));
+  // Network: the spec's mode; a dev deployment's app answers as `app`; the egress proxy as `nexus-egress-proxy` (on its
+  // first network, the internal one: the legacy alias flag applies to the first network); the forwarder also joins its
+  // publish network and the proxy its outbound bridge.
+  const [first, ...more] = expectedEndpoints(spec);
+  argv.push('--network', first);
+  if (spec.network.mode === 'egress-proxy') {
+    if (o.alias) throw new SpecError('the egress proxy has its own alias only');
+    argv.push('--network-alias', EGRESS_PROXY_ALIAS);
+  }
   if (o.alias) {
     if (!/^[a-z][a-z0-9-]{0,30}$/.test(o.alias) || spec.network.mode !== 'service-internal') throw new SpecError('an alias needs a service network');
     argv.push('--network-alias', o.alias);
   }
-  const pubNet = publishNetworkName(spec);
-  if (pubNet) argv.push('--network', pubNet);
+  for (const n of more) argv.push('--network', n);
   for (const m of spec.mounts) {
     if (typeof m.containerPath !== 'string' || !m.containerPath.startsWith('/') || m.containerPath.includes('..')) throw new SpecError('a mount target is not absolute');
     const bind = /^[A-Za-z]:[\\/]/.test(m.hostPath) || m.hostPath.startsWith('/');

@@ -1125,12 +1125,18 @@ test('M7 an attempt another boot owns is never started from this process: the jo
   w.close();
 });
 
-test('M8 the consent says exactly what is enforced: one job, no install scripts, lockfile hashes; the hosts are expected, not blocked', () => {
+test('M8 the consent says exactly what is enforced: one job, through the Nexus egress proxy, ONLY the allow-listed hosts (the same list the proxy gets), no install scripts, lockfile hashes', () => {
+  // B2a stabilization (constraint 5): the hosts are now enforced, so the consent names them as the only reachable ones.
   const { w } = egressWorld({ imageContexts: (id) => (id === 'sde-node' ? CTX : null), freeBytes: 45 * GIB });
   const d = depsJob(w);
-  assert.equal(approvalOf(w, d.id).summary, 'Network access for this one Node dependency install job. Install scripts are disabled and packages must match '
-    + `the lockfile hashes (${LOCK.slice(0, 12)}). Packages are expected from registry.npmjs.org; other hosts are not blocked in this release.`);
-  assert.doesNotMatch(approvalOf(w, d.id).summary, /only from|once, from/i);
+  assert.equal(approvalOf(w, d.id).summary, 'Network access for this one Node dependency install job, through the Nexus egress proxy. '
+    + 'Only registry.npmjs.org (HTTPS, port 443) can be reached; every other host, private and loopback addresses, cloud metadata and this computer are refused. '
+    + `Install scripts are disabled and packages must match the lockfile hashes (${LOCK.slice(0, 12)}).`);
+  assert.doesNotMatch(approvalOf(w, d.id).summary, /not blocked|expected from/i);
+  // The hosts in the consent are exactly the allow-list the plan gives the proxy.
+  const { EGRESS_ALLOWLISTS, formatAllow } = require('./load-ts.cjs')('src/shared/nexus/egressPolicy.ts');
+  assert.deepEqual(JSON.parse(approvalOf(w, d.id).request_json).registries, EGRESS_ALLOWLISTS['sde.deps.node'].map((e) => e.host));
+  assert.equal(formatAllow(EGRESS_ALLOWLISTS['sde.deps.node']), 'registry.npmjs.org:443');
   const { approval } = w.nx.approvals.requestImage(w.me, 'sde-node', 'm8');
   assert.match(approval.summary, /not limited to particular hosts/);
   w.close();

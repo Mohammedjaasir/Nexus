@@ -887,11 +887,14 @@ To check a restore without launching the app: open the restored `harness.db` wit
     - `V9_ENABLED_BY_DEFAULT` is false. Until the pending `index.ts` edits land, nothing in the app enables v9, starts the runner, or registers channels #22 to #41.
     - Real databases stay at v8, and the B1 behaviour is unchanged.
     - The edits wait for the peer session's commit and the user's approval ([section 45](#45-pending-wiring)).
-26. **The egress network has no host allow-list.**
-    - An approved dependency install runs on a per-job bridge (`nexus-egress-<jobId>`) with ordinary outbound access.
+26. **Egress: what the allow-list enforces, and what it cannot** (B2a stabilization; before it, an approved install had ordinary outbound access and reached the host's `127.0.0.1`).
+    - An approved dependency install has **no route out**: it runs on the job's `--internal` network `nexus-egress-in-<jobId>`, whose only other member is the Nexus egress proxy ([section 37](#37-networks-and-approvals)). Only the proxy joins the outbound bridge `nexus-egress-out-<jobId>`.
+    - The proxy allows only HTTPS `CONNECT` to the recipe's allow-list (`registry.npmjs.org:443`; `pypi.org:443` and `files.pythonhosted.org:443`), checks that the TLS ClientHello names the same host, resolves the name itself and refuses if any address is private, loopback, link-local, CGNAT, metadata or otherwise not globally routable, then connects to the address it checked.
+    - **Not enforced inside the TLS tunnel.** The proxy does not decrypt TLS. A client could send an HTTP `Host` header for another site behind the same CDN as an allowed registry (domain fronting); whether the CDN serves it is the CDN's policy, not Nexus's. The tunnel's TLS name must match, and packages must still match the lockfile hashes.
+    - **Proven without the internet.** The real-Docker tests (K8, K12) use a test-only pinned entry to a local test server. The path to the real registries is not exercised by any automated test.
+    - **The internal network's gateway answers.** On Docker Desktop, a container on an `--internal` network gets connection refusals (not timeouts) from the gateway address of that network, which is the Docker VM. No listener was found on the probed ports. This is the same for the dev deployment's internal network.
     - Install scripts are disabled (`npm ci --ignore-scripts`, `pip --only-binary=:all:`), and every package must match a lockfile hash (`npm ci` integrity, `pip --require-hashes`).
-    - **Other hosts are not blocked.** The registries in the approval request are what is expected, not what is enforced. The approval summary says so.
-    - Image preparation has the same limit. An egress proxy with an allow-list is deferred, and this is reported to the user as a constraint 5 limitation.
+    - **Image preparation is still not limited to particular hosts.** `docker build` runs through the daemon's own network; its approval summary says so. A Python install needs the sde-node image too, because the proxy runs in it.
 27. **The discovery ceiling is about 1,300 files.**
     - A discovered test list is kept whole in the suite version's metadata, which is limited to 64 KiB. The list must be whole, because a test run judges coverage against it.
     - With typical path lengths, that holds about 1,300 files, well below `MAX_DISCOVERED_FILES` (5,000).
@@ -1081,7 +1084,7 @@ B1 did not start B0c, B2 or any execution work.
 | Change sets: implement, review, accept and iterate; `implements` edges; the repository write approval | B2b |
 | QA workflows and `covers` edges; handoff states and routes beyond B1 | B2c |
 | `data-scientist` workspace rows (M4); DA, DS, ML and DL workflows beyond the problem statements | B3 to B6 |
-| An egress host allow-list; GC of work folders, logs and dependency caches; moving the data home; GPU use | Later |
+| GC of work folders, logs and dependency caches; moving the data home; GPU use; an egress allow-list for image preparation | Later |
 | The execution UI (Runs from jobs, evidence, actions, approvals, deployments, setup) | B2a Tasks 14 and 15 (done: [section 40.1](#401-the-renderer)) |
 | The B0b and B1 items not listed under "Delivered" above: `reviews`, `reviewRequired` gating, multi-user grants, the activity anchor, scheduled backups, the linear redactor rewrite | As listed above |
 
@@ -3089,7 +3092,7 @@ It then lstats each step. Any link or junction is refused, and so is a final fil
 **Docker-side scratch.** Each resource carries `nexus.job`, `nexus.attempt`, `nexus.boot`, `nexus.project` and `nexus.home`:
 - `nexus-ws-<attemptId>`: the `/workspace` volume;
 - `nexus-deps-<profile>-<12 hex>`: dependency caches, written only by an approved install and mounted read-only afterwards;
-- `nexus-egress-<jobId>`: the egress bridge;
+- `nexus-egress-in-<jobId>` (internal: the install and its proxy) and `nexus-egress-out-<jobId>` (the proxy's outbound bridge);
 - `nexus-svc-<jobId>` and `nexus-pub-<jobId>`: the dev deployment networks.
 
 `nexus.home` is the first 16 hex characters of sha256 of the resolved data home path. On Windows the path is first lowercased and stripped of any `\\?\` prefix (`src/shared/nexus/homeLabel.ts`).
@@ -3243,7 +3246,8 @@ Every container goes through three steps, in this order: **create, inspect (pref
 | Mode | Used by | How | Approval |
 |---|---|---|---|
 | `none` | every recipe by default: snapshot, discovery, tests, build, assemble, diagnose | `--network none` | none |
-| `egress-approved` | `sde.deps.node` and `sde.deps.python` only | A per-job bridge `nexus-egress-<jobId>`, labelled and removed with the attempt. `npm ci --ignore-scripts`, or `pip install --only-binary=:all: --require-hashes --no-deps`. | A1, per job |
+| `egress-approved` | `sde.deps.node` and `sde.deps.python` only | The install joins only `docker network create --internal nexus-egress-in-<jobId>` (no route out), with `HTTPS_PROXY` (and npm's or pip's proxy setting) pointing at the job's Nexus egress proxy. `npm ci --ignore-scripts`, or `pip install --only-binary=:all: --require-hashes --no-deps`. | A1, per job |
+| egress proxy | one per approved install: `node /opt/nexus/egress-proxy.js` in the pinned sde-node image | joins `nexus-egress-in-<jobId>` as `nexus-egress-proxy` and the outbound bridge `nexus-egress-out-<jobId>`; no mount, no port; `NEXUS_EGRESS_ALLOW` is the recipe's allow-list | A1 (the same approval) |
 | image preparation | `docker build` of a profile | the daemon pulls the pinned base and installs the pinned packages | A2, per build |
 | `service-internal` | the dev deployment's app container | `docker network create --internal nexus-svc-<jobId>`; no egress | none |
 | forwarder | `nexus-fwd` (socat) | joins `nexus-svc-<jobId>` and `nexus-pub-<jobId>`; publishes only `127.0.0.1:<port>:8080`, with the port from 49152 to 65535 | none |
@@ -3253,6 +3257,12 @@ Every container goes through three steps, in this order: **create, inspect (pref
 2. The approval expires after 15 minutes. An install whose repository version records no lockfile hash fails at lease (`lockfile_missing`), and no approval is asked for.
 3. `nexus:approval:respond` with `once` decides, consumes the approval for the job's **current** attempt, and resumes the job, all in one transaction.
 4. The plan carries the approval (`plan.approval`). The runner refuses an egress network whose approval id is missing, differs, or was consumed by another job or attempt (`network_not_approved`).
+4a. **The egress policy** (B2a stabilization, constraint 5; `src/shared/nexus/egressPolicy.ts`, `infra/images/sde-node/egress-proxy.js`, `src/runner/egress.ts`).
+   - The allow-list is main's, per recipe (`EGRESS_ALLOWLISTS`): `sde.deps.node` reaches `registry.npmjs.org:443`; `sde.deps.python` reaches `pypi.org:443` and `files.pythonhosted.org:443`. The plan writes it into the proxy's `NEXUS_EGRESS_ALLOW`; the approval summary names the same hosts; the runner refuses a plan whose proxy carries anything else (`network_not_approved`), so a test-only pinned entry never reaches a real run.
+   - The proxy allows only `CONNECT host:port` for an exact allow-listed name and port. It refuses plain HTTP (`plain_http`), IP literals (`ip_literal`), other names (`host_not_allowed`) and ports (`port_not_allowed`), and malformed requests. After the `200` it reads the TLS ClientHello and refuses a missing or different name (`sni_mismatch`, `not_tls`). Only then does it resolve the name. If any address is loopback, private (10/8, 172.16/12, 192.168/16, fc00::/7), link-local (169.254/16, fe80::/10), CGNAT (100.64/10), cloud metadata, multicast, reserved, a documentation range, or an IPv4-mapped, NAT64 or 6to4 form of one, it refuses (`private_address`). Otherwise it connects to the address it checked, so a second lookup cannot rebind it.
+   - Preflight pins both containers before either starts: the install has exactly one endpoint (the internal network) and no alias; the proxy has the internal network with alias `nexus-egress-proxy` and the outbound bridge with none. For every container, `ExtraHosts`, `Dns`, `DnsOptions`, `DnsSearch` and `Links` must be empty, and no endpoint may carry `IPAMConfig`, `Links` or `DriverOpts`. The proxy's command, image and environment are compared exactly, as for any container.
+   - The runner starts the proxy first and starts the install only after the proxy prints that it listens (30 s, else a `docker_error` fault). Each decision the proxy prints becomes an `attempt.event` of type `egress` (host, port, decision, reason; never a path, query string or header; at most 200 per attempt) and a line in the attempt log. The proxy is stopped when the install exits, before the exit is reported.
+   - `job_attempts.sandbox_json` records the proxy's image, command, environment names, allow-list and both networks.
 5. A `deny`, an expiry, or a consumption more than 15 minutes old fails the job `denied`. A second answer is `illegal_transition`.
 
 **A2, image preparation.** `nexus:setup:prepareImage` creates a pending `image.prepare` approval. Its request holds the profile, the context sha256, the base digest, the estimated bytes and the free bytes.
@@ -3263,7 +3273,7 @@ Every container goes through three steps, in this order: **create, inspect (pref
 
 **Who may answer.** Only a stored, enabled principal of kind `user` may answer (`approval.respond`, which is owner-level). The system, agents and forged principals are denied and audited. `tr_approvals_transition` refuses any other decider.
 
-**What the consent says.** The approval summary states exactly what is enforced: "Install scripts are disabled and packages must match the lockfile hashes … Packages are expected from registry.npmjs.org; other hosts are not blocked in this release." **There is no host allow-list** ([section 16](#16-known-limitations-and-operational-notes), item 26).
+**What the consent says.** The approval summary states exactly what is enforced: "Network access for this one Node dependency install job, through the Nexus egress proxy. Only registry.npmjs.org (HTTPS, port 443) can be reached; every other host, private and loopback addresses, cloud metadata and this computer are refused. Install scripts are disabled and packages must match the lockfile hashes (…)." The hosts come from the same allow-list the proxy receives. What the proxy cannot see is listed in [section 16](#16-known-limitations-and-operational-notes), item 26.
 
 **Dev deployments.**
 - A preview runs the application manifest's validated `run` argv: 1 to 32 plain strings, never a shell string.
@@ -3687,7 +3697,7 @@ The B2a limitations are items 25 to 47 of [section 16](#16-known-limitations-and
 | Item | Limitation |
 |---|---|
 | 25 | v9 is opt-in, and the app does not start execution yet |
-| 26 | The egress network has no host allow-list |
+| 26 | Egress is limited to the allow-list through the Nexus proxy, but the proxy cannot see inside the TLS tunnel (domain fronting is the CDN's to refuse), the real registry path is untested, and image preparation is not limited to particular hosts |
 | 27 | The discovery ceiling is about 1,300 files |
 | 28 | `#41` runs blob GC only; work folders, logs and dependency caches are never reclaimed |
 | 29 | A job waiting for git leaves one abandoned attempt row, then waits without being leased until main finds git |
@@ -3739,7 +3749,7 @@ Each item records what the code does now, and the code wins. The "Ruling" lines 
 | Change sets: AI-assisted implementation, review, accept and iteration; the first `implements` edges; the repository write approval (`repo.write_refs`) | B2b |
 | QA workflows, `covers` edges, handoff routes to QA | B2c |
 | DA (B3), DS (B4), ML (B5) and DL (B6) workflows beyond the problem statements; `nexus_tools` Python; GPU use | B3 to B6 |
-| An egress proxy with a host allow-list | Later (plan "Later"); reported to the user as a constraint 5 limitation |
+| An egress allow-list for image preparation (`docker build` uses the daemon's network) | Later |
 | GC of work folders, logs and dependency caches; the data home relocation | Later |
 | Verification items: Linux `cp -P` keeping links in `dist` (collection refuses them); the forwarder's supervising shell under real signals; the socat pin; how Windows sees container-made symlinks in `/out`; the real inspect capture for P7 | Verification |
 | Temp-folder teardown in pre-B2a tests that leak `nx-*` folders | Final batch, after asking the user |

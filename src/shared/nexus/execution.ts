@@ -44,7 +44,11 @@ export interface ResourceLimits {
 
 export type NetworkMode =
   | { mode: 'none' }
-  | { mode: 'egress-approved'; approvalId: string; purpose: 'deps' | 'weights' }   // per-job bridge nexus-egress-<jobId>
+  // An approved install: the INTERNAL network nexus-egress-in-<jobId> only (no route out); it reaches the allow-listed
+  // registries through the job's Nexus egress proxy (src/shared/nexus/egressPolicy.ts).
+  | { mode: 'egress-approved'; approvalId: string; purpose: 'deps' | 'weights' }
+  // The egress proxy of that install: nexus-egress-in-<jobId> (alias nexus-egress-proxy) AND the outbound bridge nexus-egress-out-<jobId>.
+  | { mode: 'egress-proxy'; approvalId: string }
   | { mode: 'service-internal'; network: string }                                // internal nexus-svc-<jobId>
   | { mode: 'test-internal'; network: string };                                  // joins a preview's internal network
 
@@ -214,6 +218,12 @@ export interface ToolPlan extends PlanBase {
    * consumer is another job or attempt (defense in depth; main's plan builder already refuses).
    */
   approval?: { id: string; jobId: string; attemptN: number };
+  /**
+   * Egress plans only (B2a stabilization, constraint 5): the job's Nexus egress proxy. The install container (`container`)
+   * is on `networks.internal` only; the proxy joins it (alias `nexus-egress-proxy`) and `networks.outbound`, and allows
+   * HTTPS CONNECT to the recipe's allow-list only (NEXUS_EGRESS_ALLOW). Both containers pass preflight before either starts.
+   */
+  egressProxy?: { container: ContainerSpec; networks: { internal: string; outbound: string } };
   /**
    * node:test runs only (B2a Task 12, A5): node's JUnit reporter names no file, so the Nexus entry runs each discovered
    * file on its own (`nexus-node-test`), writing `/out/<dir>/<NNNN>.xml` for `files[NNNN - 1]`. After the exit the

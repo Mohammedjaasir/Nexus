@@ -11,8 +11,9 @@
  *   job `leased -> running (phase approval) -> awaiting_approval` in the same transaction and sends nothing to the
  *   runner. A repository snapshot without a lockfile hash (`metadata.lockfile.sha256`) is refused (`lockfile_missing`):
  *   the job fails at lease, no approval is asked for. The consent text says exactly what is enforced: network access for
- *   this one install job, install scripts disabled, packages matched against the lockfile hashes; the hosts are named
- *   as expected, not blocked (B2a has no host allow-list on the egress network).
+ *   this one install job, only through the Nexus egress proxy, to exactly the hosts of the recipe's allow-list (HTTPS,
+ *   port 443; src/shared/nexus/egressPolicy.ts, the same list the proxy receives), with every other host, private and
+ *   loopback addresses and this computer refused; install scripts disabled; packages matched against the lockfile hashes.
  * - A2 image preparation. `requestImage` (a user, owner of the platform) creates a pending `image.prepare` approval
  *   with the build context, the base digest, the estimated size and the free space now, and no job. It is refused
  *   before any row is written when the resource gate says no (`unavailable`, `setup:disk_low`, Docker missing or
@@ -60,6 +61,7 @@ import { ProjectAccess } from '../project/projectAccess';
 import { redactedErrorJson, storedWorkspace, validateKey } from '../jobs/jobService';
 import { appendJobEventTx } from '../exec/events';
 import { APPROVAL_STATUSES } from './approvalRules';
+import { egressAllowFor, EGRESS_ALLOWLISTS } from '../../../shared/nexus/egressPolicy';
 
 export const APPROVAL_TTL_MS = 15 * 60_000;
 /** How often the execution core runs the expiry sweep and the image builds' pass. */
@@ -75,10 +77,13 @@ export const DEFAULT_APPROVAL_LIST = 100;
 export const MAX_APPROVAL_LIST = 500;
 export type ImageProfileId = 'sde-node' | 'sde-python' | 'nexus-fwd';
 export const IMAGE_PROFILES: readonly ImageProfileId[] = Object.freeze(['sde-node', 'sde-python', 'nexus-fwd'] as ImageProfileId[]);
-/** The package registries an approved install's packages are expected from, by sandbox profile (named, not enforced in B2a). */
+/**
+ * The hosts an approved install can reach, by sandbox profile: exactly the egress proxy's allow-list of the profile's
+ * install recipe (src/shared/nexus/egressPolicy.ts; enforced since the B2a stabilization round, constraint 5).
+ */
 export const EGRESS_REGISTRIES: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  'sde-node': Object.freeze(['registry.npmjs.org']),
-  'sde-python': Object.freeze(['pypi.org', 'files.pythonhosted.org'])
+  'sde-node': Object.freeze(EGRESS_ALLOWLISTS['sde.deps.node'].map((e) => e.host)),
+  'sde-python': Object.freeze(EGRESS_ALLOWLISTS['sde.deps.python'].map((e) => e.host))
 });
 export type ApprovalDecision = 'once' | 'deny';
 
@@ -268,18 +273,24 @@ export class ApprovalService {
     if (!lock || !SHA_RE.test(lock)) {
       throw invalid('lockfile_missing', 'the repository snapshot records no lockfile hash; dependencies are installed only from a locked list');
     }
-    const registries = profile ? EGRESS_REGISTRIES[profile] : undefined;
-    if (!profile || !registries || !registries.every((r) => HOST_RE.test(r))) throw invalid('no_registry', 'no package registry is known for this profile');
+    // The hosts the proxy will allow for THIS recipe (the same list main writes into the proxy's environment).
+    const allow = egressAllowFor(recipe.id);
+    const registries = profile && allow && recipe.profiles.includes(profile as SandboxProfileId) ? allow.map((e) => e.host) : undefined;
+    if (!profile || !registries || registries.length === 0 || !registries.every((r) => HOST_RE.test(r))) {
+      throw invalid('no_registry', 'no package registry is known for this profile');
+    }
     const binding = { recipeId: recipe.id, recipeVersion: recipe.version, jobId: job.id, lockfileSha256: lock, profile };
     const request = { ...binding, registries: [...registries] };
     if (requestHoldsSecret(request)) throw invalid('secret_in_request', 'the approval request would hold a secret-shaped value');
     const id = newId(now);
     const requestSha = sha256(canonicalJson(binding));
     const what = profile === 'sde-python' ? 'Python' : 'Node';
-    // Exactly what is enforced (M8): one job, no install scripts, packages matched against the lockfile hashes. The
-    // per-job network has no host allow-list in B2a, so the registries are named as expected, not as the only hosts.
-    const summary = `Network access for this one ${what} dependency install job. Install scripts are disabled and packages must match `
-      + `the lockfile hashes (${lock.slice(0, 12)}). Packages are expected from ${registries.join(' and ')}; other hosts are not blocked in this release.`;
+    // Exactly what is enforced (M8): one job; only the allow-listed hosts, over HTTPS, through the Nexus egress proxy (the
+    // install container itself has no route out); no install scripts; packages matched against the lockfile hashes.
+    const hosts = allow!.map((e) => `${e.host} (HTTPS, port ${e.port})`).join(' and ');
+    const summary = `Network access for this one ${what} dependency install job, through the Nexus egress proxy. Only ${hosts} `
+      + `can be reached; every other host, private and loopback addresses, cloud metadata and this computer are refused. `
+      + `Install scripts are disabled and packages must match the lockfile hashes (${lock.slice(0, 12)}).`;
     this.db.prepare(`INSERT INTO approvals (id, project_id, job_id, session_id, reason, summary, request_json, request_sha256, status,
         requested_by, on_behalf_of, requested_at, expires_at, status_changed_at)
       VALUES (?, ?, ?, NULL, 'egress.deps', ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`)

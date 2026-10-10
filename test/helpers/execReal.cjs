@@ -241,7 +241,9 @@ async function runnerHarness(o = {}) {
       const jobId = newId(Date.now()); const attemptId = newId(Date.now());
       const plan = buildPlan({ job: { id: jobId, projectId: 'p-exec-k' }, attempt: { id: attemptId, n: 1 }, bootId, recipe, profile, imageId: imageOf(profile.id),
         dataHomeRoot: root, workRel: `work/${jobId}/1`, logRel: `logs/jobs/${jobId}/1.log`, inputs: x.inputs ?? [], repoPath: null,
-        approval: x.approval ? { id: x.approval, job_id: jobId, status: 'approved', consumed_at: Date.now(), consumed_by_job_id: jobId, consumed_by_attempt_n: 1 } : null });
+        approval: x.approval ? { id: x.approval, job_id: jobId, status: 'approved', consumed_at: Date.now(), consumed_by_job_id: jobId, consumed_by_attempt_n: 1 } : null,
+        // B2a stabilization (constraint 5): an approved install runs with the job's Nexus egress proxy (the sde-node image).
+        egressProxy: { profile: images.profiles.find((pr) => pr.id === 'sde-node') ?? null, imageId: imageOf('sde-node') } });
       if (argv) { plan.container.argv = [...argv]; delete plan.perFileJunit; }
       if (x.limits) Object.assign(plan.container.limits, x.limits);
       return plan;
@@ -256,6 +258,13 @@ async function runnerHarness(o = {}) {
         return fs.readFileSync(plan.logPath, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } })
           .filter((f) => f && (f.stream === 'stdout' || f.stream === 'stderr')).map((f) => `${f.text}\n`).join('');
       } catch { return ''; }
+    },
+    /** The attempt log's Nexus lines (what the runner itself wrote: egress decisions, refusals, ...). */
+    nexusLines(plan) {
+      try {
+        return fs.readFileSync(plan.logPath, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } })
+          .filter((f) => f && f.stream === 'nexus').map((f) => f.text);
+      } catch { return []; }
     },
     release(plan) { port1.postMessage({ op: 'attempt.release', attemptId: plan.attemptId }); },
     async close() { try { await core.shutdown(); } catch { /* down */ } port1.close(); removeLabelled(home); }

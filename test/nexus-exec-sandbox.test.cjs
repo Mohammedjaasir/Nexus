@@ -4,12 +4,33 @@
 // process (test/helpers/execReal.cjs runnerHarness) takes plans from main's own plan builder (the real recipe specs:
 // limits, mounts, network, user, flags) with a probe command run by the Nexus entry in place of the recipe argv.
 // Runs only behind the test:exec gate; anywhere else it prints the skip banner.
+// B2a stabilization (constraint 5): K8 now asserts the Nexus egress policy (it used to document that an approved install
+// reached the host); K12 proves the allowed path through the real proxy image with a TEST-ONLY pinned entry to a local test
+// server. Nothing here reaches the real internet: the real registry path (registry.npmjs.org, pypi.org) is NOT exercised.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { realDockerOrSkip } = require('./helpers/execGate.cjs');
 
 if (realDockerOrSkip()) {
   const { runnerHarness, realWorld, docker, dockerJson, hostServer, lanAddress, httpGet, sleep } = require('./helpers/execReal.cjs');
+  const http = require('node:http');
+  const fsx = require('node:fs');
+  const pathx = require('node:path');
+  const fspx = require('node:fs/promises');
+  const { DockerDriver } = require('./load-ts.cjs')('src/runner/sandbox/dockerDriver.ts');
+  const { dockerCli } = require('./load-ts.cjs')('src/runner/sandbox/dockerCli.ts');
+  const { parseEgressLine } = require('./load-ts.cjs')('src/shared/nexus/egressPolicy.ts');
+  const fixture = (name) => fsx.readFileSync(pathx.join(__dirname, 'fixtures', 'exec', name), 'utf8');
+  /** A loopback HTTP server on the host that counts every connection and request it receives (K8: it must receive none). */
+  async function countingServer() {
+    let hits = 0;
+    const server = http.createServer((_req, res) => { hits++; res.writeHead(200); res.end('host-ok'); });
+    server.on('connection', () => { hits++; });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    return { port: server.address().port, hits: () => hits, close: () => new Promise((r) => server.close(r)) };
+  }
+  /** `name: result` lines of a probe's output. */
+  const resultOf = (out) => (k) => (new RegExp(`^${k.replace(/[.[\]]/g, (c) => `\\${c}`)}: (.*)$`, 'm').exec(out) ?? [])[1] ?? 'missing';
   const { jobEnds } = require('./helpers/recipeFlows.cjs');
   const { faultyCreate } = require('./helpers/createFaults.cjs');
   const { exitFailure } = require('./load-ts.cjs')('src/main/nexus/exec/recovery.ts');
@@ -130,15 +151,115 @@ if (realDockerOrSkip()) {
     } finally { await srv.close(); }
   });
 
-  test('K8 egress-approved (the plan carries the approval this attempt consumed): the same connect reaches the host server', LONG, async () => {
-    const srv = await hostServer();
+  test('K8 egress-approved (the plan carries the approval this attempt consumed): the install has NO route out; through the Nexus proxy the host, its 127.0.0.1 server, metadata and private ranges are refused, and the host server receives nothing', LONG, async () => {
+    // B2a stabilization (constraint 5), an intended product change: before this round K8 documented that an approved
+    // install reached the host's 127.0.0.1 through host.docker.internal (no allow-list). It now asserts the policy.
+    const srv = await countingServer();
+    const h = await harness();
     try {
-      const script = `node -e "const h=require('http');h.get({host:'host.docker.internal',port:${srv.port},path:'/',timeout:5000},(r)=>{let b='';`
-        + `r.on('data',(c)=>b+=c);r.on('end',()=>{console.log('egress '+b);process.exit(0)})}).on('error',(e)=>{console.log('egress fail '+e.code);process.exit(0)})"`;
-      const r = await probe(script, { recipe: 'sde.deps.node', approval: '01K7A0APPROVA1F0RK8TEST000' });
-      assert.match(r.prov.preflight.observed.networkMode, /^nexus-egress-/);
-      assert.match(r.out, /^egress host-ok$/m, r.out.slice(-300));
+      const js = fixture('egress-k8-probe.js').replace(/__PORT__/g, String(srv.port));
+      const plan = h.start(h.plan('sde.deps.node', ['node', '-e', js], { approval: '01K7A0APPROVA1F0RK8TEST000' }));
+      const prov = await h.provisioned(plan);
+      assert.equal(prov.preflight.ok, true, prov.preflight.problems.join('; '));
+      // The topology Docker really built: the install on the INTERNAL network only; the proxy on it (alias) and the outbound bridge.
+      const inNet = `nexus-egress-in-${plan.jobId}`; const outNet = `nexus-egress-out-${plan.jobId}`;
+      assert.equal(prov.preflight.observed.networkMode, inNet);
+      assert.equal(dockerJson(['network', 'inspect', inNet])[0].Internal, true, 'the install network has no route out');
+      assert.equal(dockerJson(['network', 'inspect', outNet])[0].Internal, false);
+      const inst = dockerJson(['inspect', prov.containerId])[0];
+      assert.deepEqual(Object.keys(inst.NetworkSettings.Networks), [inNet], 'no direct egress network on the install container');
+      const pxId = docker(['ps', '-aq', '--no-trunc', '--filter', `label=nexus.attempt=${plan.attemptId}`, '--filter', 'label=nexus.kind=egress-proxy']).stdout.trim();
+      const px = dockerJson(['inspect', pxId])[0];
+      assert.deepEqual(Object.keys(px.NetworkSettings.Networks).sort(), [inNet, outNet].sort());
+      assert.ok(px.NetworkSettings.Networks[inNet].Aliases.includes('nexus-egress-proxy'));
+      assert.deepEqual(px.Config.Cmd, ['node', '/opt/nexus/egress-proxy.js']);
+      assert.ok(px.Config.Env.includes('NEXUS_EGRESS_ALLOW=registry.npmjs.org:443'));
+      const exited = await h.exited(plan, 180_000);
+      const out = h.output(plan);
+      assert.equal(exited.exit.code, 0, out.slice(-800));
+      const line = resultOf(out);
+      for (const k of ['direct host.docker.internal', 'direct host address', 'direct metadata', 'direct ten', 'direct lan', 'direct elsewhere']) {
+        assert.match(line(k), /^fail /, `${k}: ${line(k)}`);
+      }
+      const want = { 'proxy host.docker.internal': 'host_not_allowed', 'proxy host address': 'ip_literal', 'proxy metadata': 'ip_literal', 'proxy ten': 'ip_literal',
+        'proxy lan': 'ip_literal', 'proxy loopback v6': 'ip_literal', 'proxy localhost': 'host_not_allowed', 'proxy plain http': 'plain_http',
+        'proxy registry port 80': 'port_not_allowed' };
+      for (const [k, reason] of Object.entries(want)) assert.equal(line(k), `HTTP/1.1 403 Forbidden | ${reason}`, k);
+      assert.match(line('dns host.docker.internal'), /^fail /, 'the internal network does not even resolve the host');
+      assert.equal(srv.hits(), 0, 'the host\'s 127.0.0.1 server received nothing');
+      // Each proxy decision is a job event from the runner (and a line in the attempt log), without a path or query.
+      const ev = h.of('attempt.event', plan.attemptId).filter((m) => m.event.t === 'egress').map((m) => m.event);
+      assert.equal(ev.length, Object.keys(want).length, JSON.stringify(ev));
+      assert.ok(ev.every((e) => e.decision === 'refused'));
+      assert.ok(h.nexusLines(plan).some((l) => /^egress refused host\.docker\.internal:\d+ \(host_not_allowed\)$/.test(l)), h.nexusLines(plan).join('\n'));
+      assert.doesNotMatch(JSON.stringify(ev) + h.nexusLines(plan).join('\n'), /q=1|\/x\?/);
+      h.release(plan);
     } finally { await srv.close(); }
+  });
+
+  test('K12 the allowed path through the REAL proxy image: a TEST-ONLY pinned entry reaches a local test server; a name resolving to a private address, a wrong TLS name and a direct connect are refused; the runner refuses the pinned entry in a plan', LONG, async () => {
+    // What is and is not proven: the proxy and the topology on real Docker, with a test server on the job's outbound
+    // bridge. The REAL registries (registry.npmjs.org, pypi.org, files.pythonhosted.org) are NOT contacted: the real
+    // registry path is not exercised by any automated test.
+    const h = await harness();
+    const drv = new DockerDriver(dockerCli(fspx), { now: Date.now });
+    const plan = h.plan('sde.deps.node', ['true'], { approval: '01K7A0APPROVA1F0RK12TEST00' });
+    const { internal, outbound } = plan.egressProxy.networks;
+    const made = [];
+    try {
+      await drv.createNetwork(internal, { ...plan.resourceLabels }, { internal: true });
+      await drv.createNetwork(outbound, { ...plan.resourceLabels }, { internal: false });
+      // The test server: the pinned sde-node image, on the OUTBOUND bridge only, also answering (through Docker's own DNS)
+      // to a name the proxy would resolve to its private address.
+      const serverJs = "require('net').createServer((s)=>s.once('data',(d)=>s.end('registry-ok '+d.length))).listen(8443)";
+      const run = docker(['run', '-d', '--label', `nexus.home=${h.home}`, '--label', `nexus.attempt=${plan.attemptId}`, '--label', `nexus.job=${plan.jobId}`,
+        '--network', outbound, '--network-alias', 'nexus-k12-private.invalid', '--name', `nexus-${plan.attemptId.toLowerCase()}-k12reg`, '--user', '10001:10001',
+        '--read-only', '--cap-drop', 'ALL', '--pull', 'never', '--entrypoint', 'node', h.imageOf('sde-node'), '-e', serverJs]);
+      assert.equal(run.code, 0, run.stderr);
+      const serverId = run.stdout.trim(); made.push(serverId);
+      const ip = dockerJson(['inspect', serverId])[0].NetworkSettings.Networks[outbound].IPAddress;
+      assert.match(ip, /^\d+\.\d+\.\d+\.\d+$/);
+      // The proxy exactly as planned except its allow-list: a pinned test entry, and a name Docker resolves to a private address.
+      const proxySpec = { ...plan.egressProxy.container, env: { ...plan.egressProxy.container.env,
+        NEXUS_EGRESS_ALLOW: `nexus-test-registry.invalid:8443=${ip},nexus-k12-private.invalid:8443` } };
+      const { containerId: pid } = await drv.create(proxySpec); made.push(pid);
+      const pre = await drv.preflight(pid, proxySpec);
+      assert.equal(pre.ok, true, pre.problems.join('; '));
+      await drv.start(pid);
+      const t0 = Date.now();
+      while (!/nexus-egress-ready/.test(docker(['logs', pid]).stdout)) { if (Date.now() - t0 > 30_000) assert.fail('the proxy did not listen'); await sleep(250); }
+      // The install container as planned (internal network only, the proxy settings), running the client program.
+      for (const d of ['in', 'out']) fsx.mkdirSync(pathx.join(plan.workDir, d), { recursive: true });
+      await drv.createVolume(`nexus-ws-${plan.attemptId}`, { ...plan.resourceLabels });
+      const inst = { ...plan.container, argv: ['node', '-e', fixture('egress-k12-client.js').replace(/__IP__/g, ip)] };
+      const { containerId: cid } = await drv.create(inst); made.push(cid);
+      const pre2 = await drv.preflight(cid, inst);
+      assert.equal(pre2.ok, true, pre2.problems.join('; '));
+      await drv.start(cid);
+      const exit = await drv.wait(cid, new AbortController().signal);
+      const out = docker(['logs', cid]).stdout;
+      assert.equal(exit.code, 0, out);
+      const line = resultOf(out);
+      assert.match(line('allowed'), /^HTTP\/1\.1 200 Connection Established \/ registry-ok \d+$/, out);
+      assert.equal(line('private'), 'HTTP/1.1 200 Connection Established', 'the tunnel closed: the name resolved to a private address');
+      assert.equal(line('sni'), 'HTTP/1.1 200 Connection Established', 'the tunnel closed: the TLS name was not the CONNECT host');
+      assert.match(line('bypass address'), /^fail /, 'no direct route to the outbound bridge');
+      assert.match(line('bypass name'), /^fail /);
+      const decisions = docker(['logs', pid]).stdout.split('\n').map((l) => parseEgressLine(l.trim())).filter(Boolean);
+      assert.deepEqual(decisions.map((d) => [d.decision, d.host, d.reason]), [['allowed', 'nexus-test-registry.invalid', 'allowed'],
+        ['refused', 'nexus-k12-private.invalid', 'private_address'], ['refused', 'nexus-test-registry.invalid', 'sni_mismatch']]);
+      // The same test-only entry in a plan is refused by the runner before Docker is asked for anything.
+      const bad = h.plan('sde.deps.node', ['true'], { approval: '01K7A0APPROVA1F0RK12TEST01' });
+      bad.egressProxy.container.env.NEXUS_EGRESS_ALLOW = `registry.npmjs.org:443=${ip}`;
+      h.start(bad);
+      await h.until(() => h.of('attempt.refused', bad.attemptId).length > 0, 'refused', 60_000);
+      assert.equal(h.of('attempt.refused', bad.attemptId)[0].reason, 'network_not_approved');
+      assert.equal(docker(['ps', '-aq', '--filter', `label=nexus.attempt=${bad.attemptId}`]).stdout.trim(), '', 'nothing created');
+    } finally {
+      for (const id of made) docker(['rm', '-f', id]);
+      docker(['volume', 'rm', '-f', `nexus-ws-${plan.attemptId}`]);
+      docker(['network', 'rm', internal, outbound]);
+    }
   });
 
   test('K9 dev deployment: the app cannot reach the host; the forwarder binds 127.0.0.1 only; the host reaches the app through it, the LAN address does not', LONG, async () => {

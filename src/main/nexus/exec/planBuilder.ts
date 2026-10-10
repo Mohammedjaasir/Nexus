@@ -15,7 +15,12 @@
  *   volumes (`nexus-ws-<attemptId>`, `nexus-deps-<profile>-<lock12>`). Nothing else.
  * - network: `none` unless the recipe is `egress-approved` AND the caller passes an approval
  *   of THIS job that is approved and was consumed by THIS attempt; otherwise the plan is
- *   refused (`network_not_approved`). Never `egress-approved` for any other recipe.
+ *   refused (`network_not_approved`). Never `egress-approved` for any other recipe. An approved install never gets a
+ *   route out (B2a stabilization, constraint 5): it runs on the job's INTERNAL network `nexus-egress-in-<jobId>` with the
+ *   proxy settings (`egressClientEnv`), and the plan carries the job's Nexus egress proxy (`egressProxy`: the pinned
+ *   sde-node image running infra/images/sde-node/egress-proxy.js, on that network and the outbound bridge
+ *   `nexus-egress-out-<jobId>`), whose only allowed destinations are the recipe's allow-list
+ *   (src/shared/nexus/egressPolicy.ts EGRESS_ALLOWLISTS, HTTPS 443 only). No proxy image: the plan is refused (`image_missing`).
  * - labels, limits (`--pids-limit 512`, the recipe's CPUs, memory and output cap, a 512 MiB
  *   `/tmp`), read-only root, `--cap-drop ALL`, no-new-privileges: fixed.
  * - Engine recipes (`repo.snapshot`, `sde.app.assemble`) get an `EnginePlan` whose repository
@@ -46,13 +51,19 @@ import type { RecipeDef } from '../../../shared/nexus/recipes';
 import { looksSecret } from '../../../shared/nexus/secretShape';
 import { homeLabel } from '../../../shared/nexus/homeLabel';
 import { containsSecret } from '../activity/redact';
+import {
+  EGRESS_ENV_NAMES, EGRESS_PROXY_ARGV, EGRESS_PROXY_LIMITS, EGRESS_PROXY_PROFILE, egressAllowFor, egressClientEnv, egressInternalNetwork,
+  egressOutboundNetwork, formatAllow
+} from '../../../shared/nexus/egressPolicy';
 import { PlatformError } from '../errors';
 
 /** The environment names a container may receive from main (values are main's, never the host's). */
 export const ALLOWED_ENV_NAMES: readonly string[] = Object.freeze([
   'HOME', 'CI', 'NODE_ENV', 'PYTHONPATH', 'JEST_JUNIT_OUTPUT_FILE', 'PIP_NO_INPUT', 'npm_config_cache', 'PYTHONDONTWRITEBYTECODE',
   // B2a Task 12: the container's wall clock in whole seconds, for the Nexus entry's own `timeout` (main's number, never the job's).
-  'NEXUS_WALL_SECONDS'
+  'NEXUS_WALL_SECONDS',
+  // B2a stabilization (constraint 5): an approved install's proxy settings and the proxy's allow-list (main's constants).
+  ...EGRESS_ENV_NAMES
 ]);
 /**
  * The in-container backstop is this many times the wall clock (final batch item 2): main's timeout (limit plus the
@@ -164,6 +175,8 @@ export interface PlanContext {
   service?: ServiceContext | null;
   /** `sde.diagnose` only (B2a Task 12): what main read from its own rows about the subject. */
   diagnose?: DiagnoseContext | null;
+  /** Egress recipes only: the egress proxy's profile (sde-node) and the local id of its pinned image. */
+  egressProxy?: { profile: SandboxProfile | null; imageId: `sha256:${string}` | null } | null;
 }
 
 /**
@@ -354,6 +367,7 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
     { kind: 'workspace', hostPath: `nexus-ws-${attempt.id}`, containerPath: '/workspace', readOnly: false }
   ];
   if (deps) mounts.push({ kind: 'deps', hostPath: deps, containerPath: profile.id === 'sde-python' ? '/deps' : '/workspace/node_modules', readOnly: !egress });
+  const network = networkFor(recipe, job, attempt, ctx.approval);
   const container: ContainerSpec = {
     name: `nexus-${attempt.id.toLowerCase()}`,
     labels: { ...attemptLabels(ctx), 'nexus.kind': 'tool' },
@@ -362,9 +376,10 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
     entrypoint: [...profile.entrypoint],
     argv: expandArgv(recipe, framework, ctx.inputs),
     imageEnv: [...profile.imageEnv],
-    env: checkEnv({ ...envFor(recipe, profile.id, framework), NEXUS_WALL_SECONDS: wallSeconds(recipe.wallClockMs) }),
+    env: checkEnv({ ...envFor(recipe, profile.id, framework), NEXUS_WALL_SECONDS: wallSeconds(recipe.wallClockMs),
+      ...(network.mode === 'egress-approved' ? egressClientEnv(profile.id) : {}) }),
     mounts,
-    network: networkFor(recipe, job, attempt, ctx.approval),
+    network,
     limits: limitsFor(recipe),
     readOnlyRootfs: true,
     capDrop: ['ALL'],
@@ -373,8 +388,9 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
   // An egress plan names the approval it consumed (networkFor checked it is this job's, consumed by this attempt).
   const approval = container.network.mode === 'egress-approved' && ctx.approval
     ? { approval: { id: ctx.approval.id, jobId: job.id, attemptN: attempt.n } } : {};
+  const egressProxy = container.network.mode === 'egress-approved' ? { egressProxy: egressProxyFor(ctx, container.network.approvalId) } : {};
   const plan: ToolPlan = {
-    ...base, kind: 'tool', container, resourceLabels: attemptLabels(ctx), ...approval,
+    ...base, kind: 'tool', container, resourceLabels: attemptLabels(ctx), ...approval, ...egressProxy,
     staging: {
       ...(source && ctx.repoPath ? { source: { repoPath: ctx.repoPath, commit: source.commit } } : {}),
       blobs: [],
@@ -386,6 +402,31 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
       .filter((x) => x.relPath !== '')
   };
   return plan;
+}
+
+/**
+ * The Nexus egress proxy of an approved install (B2a stabilization, constraint 5): the pinned sde-node image, the fixed
+ * proxy command, the recipe's allow-list in NEXUS_EGRESS_ALLOW, no mount, small limits, the install's wall clock; on the
+ * job's internal network (alias nexus-egress-proxy) and its outbound bridge. Refused without an allow-list or the image.
+ */
+function egressProxyFor(ctx: PlanContext, approvalId: string): NonNullable<ToolPlan['egressProxy']> {
+  const { recipe, job, attempt } = ctx;
+  const allow = egressAllowFor(recipe.id);
+  if (!allow || allow.length === 0) return refuse('network_not_approved', 'this recipe has no egress allow-list');
+  const p = ctx.egressProxy;
+  if (!p || !p.profile || p.profile.id !== EGRESS_PROXY_PROFILE) return refuse('image_missing', 'the egress proxy image (sde-node) is not present');
+  if (!p.imageId || !/^sha256:[0-9a-f]{64}$/.test(p.imageId)) return refuse('image_missing', 'the egress proxy image (sde-node) is not present');
+  const container: ContainerSpec = {
+    name: `nexus-${attempt.id.toLowerCase()}-proxy`, labels: { ...attemptLabels(ctx), 'nexus.kind': 'egress-proxy' }, profile: p.profile.id,
+    image: { ref: imageRef(p.profile, p.imageId), id: p.imageId }, entrypoint: [...p.profile.entrypoint], argv: [...EGRESS_PROXY_ARGV],
+    imageEnv: [...p.profile.imageEnv],
+    env: checkEnv({ HOME: '/home/nexus', NEXUS_WALL_SECONDS: wallSeconds(recipe.wallClockMs), NEXUS_EGRESS_ALLOW: formatAllow(allow) }),
+    mounts: [], network: { mode: 'egress-proxy', approvalId },
+    limits: { cpus: EGRESS_PROXY_LIMITS.cpus, memoryMb: EGRESS_PROXY_LIMITS.memoryMb, pids: PIDS_LIMIT, wallClockMs: recipe.wallClockMs,
+      outputMaxBytes: EGRESS_PROXY_LIMITS.outputMaxBytes, tmpfsMb: EGRESS_PROXY_LIMITS.tmpfsMb },
+    readOnlyRootfs: true, capDrop: ['ALL'], noNewPrivileges: true
+  };
+  return { container, networks: { internal: egressInternalNetwork(job.id), outbound: egressOutboundNetwork(job.id) } };
 }
 
 /** The manifest's run argv as a container argv: 1-32 plain strings, none secret-shaped. Never a shell string. */
@@ -550,12 +591,17 @@ export function sandboxRecord(plan: AttemptPlan): Record<string, unknown> {
   // Each item capped as the service branch does (final review A1: 200 long test paths no longer overflow the column).
   const argv = c.argv.slice(0, RECORD_ARGV_ITEMS).map((x) => x.slice(0, RECORD_ARG_CHARS));
   const argvSha256 = createHash('sha256').update(JSON.stringify(c.argv)).digest('hex');
+  // An approved install records its proxy too: the image, the command, the allow-list it enforced and both networks.
+  const px = plan.egressProxy;
+  const egress = px ? { egressProxy: { name: px.container.name, profile: px.container.profile, image: px.container.image, entrypoint: px.container.entrypoint,
+    argv: px.container.argv, envNames: Object.keys(px.container.env).sort(), allow: (px.container.env.NEXUS_EGRESS_ALLOW ?? '').split(',').filter(Boolean),
+    network: px.container.network, networks: px.networks, limits: px.container.limits } } : {};
   return boundedRecord({
     executor: 'tool', name: c.name, profile: c.profile, image: c.image, entrypoint: c.entrypoint, argv, argvCount: c.argv.length, argvSha256,
     envNames: Object.keys(c.env).sort(), mounts: c.mounts.map((m) => ({ kind: m.kind, containerPath: m.containerPath, readOnly: m.readOnly })),
     network: c.network, limits: c.limits, user: '10001:10001', readOnlyRootfs: c.readOnlyRootfs, capDrop: c.capDrop,
     noNewPrivileges: c.noNewPrivileges, tmpfs: { '/tmp': `${c.limits.tmpfsMb}m`, '/home/nexus': '256m' },
-    sizeGuard: { outputMaxBytes: c.limits.outputMaxBytes, pollMs: 5000 }
+    sizeGuard: { outputMaxBytes: c.limits.outputMaxBytes, pollMs: 5000 }, ...egress
   });
 }
 

@@ -10,6 +10,7 @@ import {
   type SandboxProbe, type SandboxProfile, type SandboxProfileId, type StagedOutput
 } from './execution';
 import type { RuntimeHealth, RuntimeKind } from './runtime';
+import { EGRESS_HOST_RE, EGRESS_REASONS, type EgressReason } from './egressPolicy';
 
 // ----- main → runner (main builds these; the runner trusts their origin, not their paths' safety) -----
 
@@ -63,7 +64,15 @@ export const ATTEMPT_PHASES: readonly AttemptPhase[] =
 /** Progress facts from the runner. No percentages: only what was observed. */
 export type ProgressEvent =
   | { t: 'phase'; phase: AttemptPhase; at: number }
-  | { t: 'guard'; guard: 'output_too_large' | 'workspace_too_large'; bytes: number; limitBytes: number; at: number };
+  | { t: 'guard'; guard: 'output_too_large' | 'workspace_too_large'; bytes: number; limitBytes: number; at: number }
+  /**
+   * One decision of an approved install's Nexus egress proxy (B2a stabilization, constraint 5): the host the request
+   * named (never a path, query string or header), its port, and why. At most EGRESS_EVENT_MAX per attempt.
+   */
+  | { t: 'egress'; decision: 'allowed' | 'refused'; host: string; port: number; reason: EgressReason; at: number };
+
+/** The most egress decisions one attempt reports as events (the rest are in its log only). */
+export const EGRESS_EVENT_MAX = 200;
 
 /** A preflight report as carried over the wire: the runner may omit observed fields it could not read. */
 export interface ReportedPreflight { ok: boolean; observed: Partial<PreflightObserved>; problems: string[] }
@@ -343,8 +352,13 @@ const provisioned: Check<RunnerToMain> = (x) => {
 const progressEvent: Check<ProgressEvent> = (x) => {
   const p = obj<ProgressEvent>({ t: lit('phase'), phase: oneOf(ATTEMPT_PHASES), at: count })(x);
   if (p !== NO) return p;
-  return obj<ProgressEvent>({ t: lit('guard'), guard: oneOf(['output_too_large', 'workspace_too_large'] as const),
+  const g = obj<ProgressEvent>({ t: lit('guard'), guard: oneOf(['output_too_large', 'workspace_too_large'] as const),
     bytes: count, limitBytes: count, at: count })(x);
+  if (g !== NO) return g;
+  const e = obj<Extract<ProgressEvent, { t: 'egress' }>>({ t: lit('egress'), decision: oneOf(['allowed', 'refused'] as const),
+    host: str({ re: EGRESS_HOST_RE }), port: intIn(0, 65535), reason: oneOf(EGRESS_REASONS), at: count })(x);
+  if (e === NO) return NO;
+  return (e.decision === 'allowed') === (e.reason === 'allowed') ? e : NO;
 };
 
 const reconciled = obj<ReconciledAttempt>({ attemptId: ulid, container: oneOf(['running', 'exited', 'created', 'missing'] as const) },

@@ -490,7 +490,10 @@ test('C22 egress never appears in a plan without a consumed approval of this job
     { ...ok, consumed_at: null }, { ...ok, consumed_by_attempt_n: 2 }, { ...ok, consumed_by_job_id: 'other' }]) {
     assert.throws(() => buildPlan({ ...base, approval: bad }), code('invalid', 'network_not_approved'), JSON.stringify(bad));
   }
-  assert.deepEqual(buildPlan({ ...base, approval: ok }).container.network, { mode: 'egress-approved', approvalId: 'ap1', purpose: 'deps' });
+  // B2a stabilization (constraint 5): an approved plan also needs the egress proxy's image (sde-node); without it, refused.
+  assert.throws(() => buildPlan({ ...base, approval: ok }), code('invalid', 'image_missing'));
+  const proxyCtx = { profile: base.profile, imageId: base.imageId };
+  assert.deepEqual(buildPlan({ ...base, approval: ok, egressProxy: proxyCtx }).container.network, { mode: 'egress-approved', approvalId: 'ap1', purpose: 'deps' });
   // A non-egress recipe never gets egress, even with an approval in hand.
   assert.deepEqual(buildPlan({ ...base, recipe: getRecipe('sde.build.node'), approval: ok }).container.network, { mode: 'none' });
   // Through start: no approval path in the build -> refused; with one, nothing is sent until the approval is consumed.

@@ -78,6 +78,7 @@ function configuredFilters(dir) {
 }
 const { FILTER_CONFIG_ARGV } = loadTs('src/main/gitBinary.ts');
 const { ARCHIVE_EOL_CONFIG, inertSignatureArgs } = loadTs('src/runner/git.ts');
+const { PROXY_READY_MS } = loadTs('src/runner/egress.ts');
 
 const GIB = 2 ** 30;
 const NOW = 1_780_000_000_000;
@@ -674,14 +675,17 @@ test('D16 service: internal and publish networks with labels; the app on service
   assert.deepEqual(probes[0], [50001, '/health']);
 });
 
+function egressPlan(w) {
+  const jobId = newId(NOW); const attemptId = newId(NOW);
+  return buildPlan({ job: { id: jobId, projectId: 'p-ledger' }, attempt: { id: attemptId, n: 1 }, bootId: BOOT, recipe: getRecipe('sde.deps.node'),
+    profile: PROFILE, imageId: IMAGE, dataHomeRoot: w.home, workRel: `work/${jobId}/1`, logRel: `logs/jobs/${jobId}/1.log`, inputs: [], repoPath: null,
+    approval: { id: 'AP1', job_id: jobId, status: 'approved', consumed_at: NOW, consumed_by_job_id: jobId, consumed_by_attempt_n: 1 },
+    egressProxy: { profile: PROFILE, imageId: IMAGE } });
+}
+
 test('D17 egress-approved without an approval id, or with one main did not consume for this attempt, is refused network_not_approved', async () => {
   const w = await world();
-  const mk = () => {
-    const jobId = newId(NOW); const attemptId = newId(NOW);
-    return buildPlan({ job: { id: jobId, projectId: 'p-ledger' }, attempt: { id: attemptId, n: 1 }, bootId: BOOT, recipe: getRecipe('sde.deps.node'),
-      profile: PROFILE, imageId: IMAGE, dataHomeRoot: w.home, workRel: `work/${jobId}/1`, logRel: `logs/jobs/${jobId}/1.log`, inputs: [], repoPath: null,
-      approval: { id: 'AP1', job_id: jobId, status: 'approved', consumed_at: NOW, consumed_by_job_id: jobId, consumed_by_attempt_n: 1 } });
-  };
+  const mk = () => egressPlan(w);
   const noId = mk(); noId.container.network = { ...noId.container.network, approvalId: '' };
   const other = mk(); other.approval = { ...other.approval, id: 'AP2' };
   const otherJob = mk(); otherJob.approval = { ...otherJob.approval, jobId: newId(NOW) };
@@ -694,8 +698,71 @@ test('D17 egress-approved without an approval id, or with one main did not consu
   const ok = mk();
   const p = await start(w, ok);
   assert.equal(p.preflight.ok, true, p.preflight.problems.join('; '));
-  const net = w.driver.callsOf('createNetwork')[0];
-  assert.equal(net.args[0], `nexus-egress-${ok.jobId}`); assert.equal(net.args[2].internal, false); assert.equal(net.args[1]['nexus.home'], w.label);
+  // B2a stabilization (constraint 5): the install's network is INTERNAL (no route out); only the proxy joins the outbound bridge.
+  const nets = w.driver.callsOf('createNetwork').map((c) => [c.args[0], c.args[2].internal, c.args[1]['nexus.home'], c.args[1]['nexus.attempt']]);
+  assert.deepEqual(nets, [[`nexus-egress-in-${ok.jobId}`, true, w.label, ok.attemptId], [`nexus-egress-out-${ok.jobId}`, false, w.label, ok.attemptId]]);
+});
+
+test('D17b an approved install: the install and the proxy are both preflighted before either starts; the proxy starts first and must listen; its decisions become egress events; it stops when the install exits', async () => {
+  const w = await world();
+  const plan = egressPlan(w);
+  const p = await start(w, plan);
+  assert.equal(p.preflight.ok, true, p.preflight.problems.join('; '));
+  const creates = w.driver.callsOf('create').map((c) => c.args[0]);
+  assert.deepEqual(creates.map((s) => [s.labels['nexus.kind'], s.network.mode]), [['tool', 'egress-approved'], ['egress-proxy', 'egress-proxy']]);
+  const [installId, proxyId] = [...w.driver.containers.keys()];
+  const ops = w.driver.calls.filter((c) => ['create', 'preflight', 'start'].includes(c.op)).map((c) => `${c.op}:${c.args[0] === installId || c.args[0]?.labels?.['nexus.kind'] === 'tool' ? 'install' : 'proxy'}`);
+  assert.deepEqual(ops, ['create:install', 'create:proxy', 'preflight:install', 'preflight:proxy', 'start:proxy', 'start:install']);
+  // The proxy's decisions: each one an `egress` event (main's own parser accepts it) and an attempt-log line.
+  w.driver.emit(proxyId, 'stdout', 'nexus-egress {"decision":"allowed","host":"registry.npmjs.org","port":443,"reason":"allowed","address":"104.16.0.35"}\n'
+    + 'nexus-egress {"decision":"refused","host":"host.docker.internal","port":443,"reason":"host_not_allowed"}\nnexus-egress {"decision":"refused","host":"169.254.1');
+  w.driver.emit(proxyId, 'stdout', '69.254","port":80,"reason":"ip_literal"}\nnot a decision\n');
+  await until(() => w.of('attempt.event', plan.attemptId).filter((m) => m.event.t === 'egress').length === 3, 'three egress events');
+  const ev = w.of('attempt.event', plan.attemptId).filter((m) => m.event.t === 'egress').map((m) => m.event);
+  assert.deepEqual(ev.map((e) => [e.decision, e.host, e.port, e.reason]), [['allowed', 'registry.npmjs.org', 443, 'allowed'],
+    ['refused', 'host.docker.internal', 443, 'host_not_allowed'], ['refused', '169.254.169.254', 80, 'ip_literal']]);
+  for (const m of w.of('attempt.event', plan.attemptId)) assert.ok(parseRunnerMessage(m), JSON.stringify(m));
+  // The install exits: the proxy is stopped before the exit is reported.
+  outFile(plan, 'lock.sha256', 'a'.repeat(64) + '\n');
+  w.driver.exitContainer(installId, { code: 0 });
+  const e = await w.wait('attempt.exited', plan.attemptId);
+  assert.equal(e.exit.code, 0);
+  assert.equal(w.driver.containers.get(proxyId).state, 'exited', 'the proxy was stopped');
+  assert.ok(w.driver.calls.findIndex((c) => c.op === 'stop' && c.args[0] === proxyId) >= 0);
+  const log = fs.readFileSync(plan.logPath, 'utf8');
+  assert.match(log, /egress allowed registry\.npmjs\.org:443/); assert.match(log, /egress refused host\.docker\.internal:443 \(host_not_allowed\)/);
+  assert.match(log, /egress proxy: not a decision/);
+  // Release removes both containers and both networks.
+  w.send({ op: 'attempt.release', attemptId: plan.attemptId });
+  await until(() => w.driver.containers.size === 0 && w.driver.networks.size === 0, 'everything removed');
+});
+
+test('D17c the proxy fails closed: a proxy that never listens fails the attempt before the install starts; a proxy preflight problem removes both, starts neither; a tampered topology is refused', async () => {
+  const w = await world({ fake: { proxyReady: false } });
+  const plan = egressPlan(w);
+  w.send({ op: 'attempt.start', attemptId: plan.attemptId, plan });
+  await until(() => w.driver.callsOf('start').length === 1, 'the proxy started');
+  await w.advance(PROXY_READY_MS);
+  const f = await w.wait('fault', plan.attemptId);
+  assert.equal(f.failureClass, 'docker_error'); assert.match(f.message, /egress proxy did not start/);
+  assert.equal(w.driver.callsOf('start').length, 1, 'the install never started');
+  // Preflight of the proxy fails (its alias missing): both are removed, neither starts, main hears limits_not_applied's report.
+  const w2 = await world({ fake: { mutateInspect: (rec, spec) => { if (spec.network.mode === 'egress-proxy') for (const n of Object.values(rec[0].NetworkSettings.Networks)) n.Aliases = null; return rec; } } });
+  const p2 = egressPlan(w2);
+  const r2 = await start(w2, p2);
+  assert.equal(r2.preflight.ok, false);
+  assert.ok(r2.preflight.problems.some((x) => /^egress proxy: network endpoint .* aliases/.test(x)), r2.preflight.problems.join('; '));
+  assert.equal(w2.driver.callsOf('start').length, 0);
+  assert.equal(w2.driver.containers.size, 0, 'both removed');
+  // A plan whose proxy carries another allow-list (a test-only pinned entry, an extra host) never reaches Docker.
+  const w3 = await world();
+  for (const allow of ['registry.npmjs.org:443=127.0.0.1', 'registry.npmjs.org:443,evil.example:443']) {
+    const p3 = egressPlan(w3); p3.egressProxy.container.env.NEXUS_EGRESS_ALLOW = allow;
+    w3.send({ op: 'attempt.start', attemptId: p3.attemptId, plan: p3 });
+    const r3 = await w3.wait('attempt.refused', p3.attemptId);
+    assert.equal(r3.reason, 'network_not_approved'); assert.match(r3.detail, /allow-list/);
+  }
+  assert.equal(w3.driver.callsOf('create').length, 0);
 });
 
 // ---------- D20-D24: images, blobs, GC, shutdown, no Docker ----------
