@@ -11,7 +11,11 @@
  * - PlatformError 'platform_unavailable' -> a fixed message and a reason, never the
  *   service text: 'busy' for a held lock (detail.sqliteCode SQLITE_BUSY* or
  *   SQLITE_LOCKED*), 'handoffs_unavailable' (with its sub-reason) when v8 is off,
- *   otherwise 'startup_failed'.
+ *   'execution_unavailable' (B2a, with its sub-reason) when a service says execution is
+ *   off, otherwise 'startup_failed'.
+ * - PlatformError 'unavailable' (B2a): an action this machine cannot run now. Its
+ *   `setup:<id>` reason is kept (the renderer explains it) and `detail.setup` names the id;
+ *   the message is a fixed sentence per setup id.
  * - Anything else -> 'internal' with a fixed message, plus ONE log line naming the
  *   channel, the error's name and its code. No stack, no path, no SQLite text.
  */
@@ -26,8 +30,33 @@ const MAX_SCRUB_INPUT = 4000;
 const MAX_DETAIL_STRING = 128;
 
 export const DETAIL_KEYS: readonly NexusErrorDetailKey[] = Object.freeze([
-  'currentVersionId', 'handoffId', 'versionId', 'participationId', 'liveJobs', 'liveSessions', 'openHandoffs', 'existingId', 'limit'
+  'currentVersionId', 'handoffId', 'versionId', 'participationId', 'liveJobs', 'liveSessions', 'openHandoffs', 'existingId', 'limit',
+  // B2a Task 13: the records a refusal names and the disk gate's numbers.
+  'jobId', 'approvalId', 'deploymentId', 'setup', 'freeBytes', 'requiredBytes'
 ] as NexusErrorDetailKey[]);
+
+/**
+ * Why execution is off (the sub-reason of 'execution_unavailable'): the store's reasons, `not_enabled`,
+ * `v8_unavailable`, `registry_invalid` (the startup registry check failed) and `not_started` (main's execution wiring
+ * is not running). Anything else a service names is reported as `not_enabled`.
+ */
+export const EXECUTION_SUB_REASONS: readonly string[] = Object.freeze([
+  'held', 'auto_held', 'backup_failed', 'failed', 'shape', 'not_enabled', 'v8_unavailable', 'registry_invalid', 'not_started'
+]);
+export const EXECUTION_UNAVAILABLE_MESSAGE = 'Running work is not available on this database.';
+
+/** The fixed sentence of each setup:* answer (an action this machine cannot run now). */
+export const SETUP_MESSAGES: Readonly<Record<string, string>> = Object.freeze({
+  docker_missing: 'Docker is not installed, so this cannot run on this computer yet.',
+  docker_stopped: 'Docker is not running. Start Docker Desktop and try again.',
+  docker_memory_low: 'Docker has too little memory for this. Give Docker more memory in its settings.',
+  image_missing: 'A sandbox image this needs is not prepared yet.',
+  image_mismatch: 'A sandbox image this needs does not match the pinned version. Prepare it again.',
+  disk_low: 'There is not enough free disk space for this.',
+  runner_unavailable: 'The execution runner is not available right now.',
+  git_missing: 'Git is not installed, so this cannot run on this computer yet.'
+});
+const SETUP_RE = /^setup:([a-z][a-z0-9_]{0,31})$/;
 
 /** Plain sentences for the service reasons a person can act on. Keyed by detail.reason. */
 export const REASON_MESSAGES: Readonly<Record<string, string>> = Object.freeze({
@@ -96,7 +125,7 @@ const safeToken = (v: unknown, fallback: string): string =>
 export function fail(e: unknown, channel: string, log: (l: string) => void): NexusFail {
   try {
     if (e instanceof RequestError) {
-      return { ok: false, code: 'invalid', message: scrubMessage(`Invalid request: ${e.field} ${e.why}.`), reason: 'bad_request', field: e.field };
+      return { ok: false, code: 'invalid', message: scrubMessage(`Invalid request: ${e.field} ${e.why}.`), reason: e.reason === 'bad_params' ? 'bad_params' : 'bad_request', field: e.field };
     }
     if (e instanceof PlatformError) {
       const raw = e.detail && typeof e.detail === 'object' ? e.detail : undefined;
@@ -105,10 +134,22 @@ export function fail(e: unknown, channel: string, log: (l: string) => void): Nex
       // else (a seeded row missing, a shape problem found late) is 'startup_failed'.
       if (e.code === 'platform_unavailable') {
         if (raw && raw.reason === 'handoffs_unavailable') return unavailable('handoffs_unavailable', typeof raw.subReason === 'string' ? raw.subReason : null);
+        // A B2a service found execution off (the core, approvals, deployments or snapshots without the execution core).
+        if (raw && raw.reason === 'execution_unavailable') return unavailable('execution_unavailable', typeof raw.subReason === 'string' ? raw.subReason : null);
+        if (raw && raw.reason === 'not_enabled') return unavailable('execution_unavailable', 'not_enabled');
         const busy = raw !== undefined && typeof raw.sqliteCode === 'string' && SQLITE_BUSY_RE.test(raw.sqliteCode);
         return busy
           ? { ok: false, code: 'platform_unavailable', message: BUSY_MESSAGE, reason: 'busy' }
           : unavailable('startup_failed');
+      }
+      // An action this machine cannot run now: the setup id is kept as the reason and in detail.setup, with its sentence.
+      const setup = e.code === 'unavailable' && raw && typeof raw.reason === 'string' ? SETUP_RE.exec(raw.reason) : null;
+      if (setup) {
+        const out: NexusFail = { ok: false, code: 'unavailable', reason: `setup:${setup[1]}`,
+          message: Object.prototype.hasOwnProperty.call(SETUP_MESSAGES, setup[1]) ? SETUP_MESSAGES[setup[1]] : 'That cannot run on this computer right now.' };
+        const detail = safeDetail({ ...raw, setup: setup[1] });
+        if (detail) out.detail = detail;
+        return out;
       }
       const reason = raw && typeof raw.reason === 'string' && REASON_RE.test(raw.reason) ? raw.reason : undefined;
       const known = reason !== undefined && Object.prototype.hasOwnProperty.call(REASON_MESSAGES, reason) ? REASON_MESSAGES[reason] : undefined;
@@ -125,8 +166,15 @@ export function fail(e: unknown, channel: string, log: (l: string) => void): Nex
   return { ok: false, code: 'internal', message: INTERNAL_MESSAGE };
 }
 
-/** The answer of every channel while the platform (or, for handoff channels, v8) is not in place. */
+/**
+ * The answer of every channel while the platform (or, for handoff channels, v8; for the execution channels #24-#41,
+ * schema v9 execution) is not in place.
+ */
 export function unavailable(reason: string, subReason?: string | null): NexusFail {
+  if (reason === 'execution_unavailable') {
+    const sub = typeof subReason === 'string' && EXECUTION_SUB_REASONS.includes(subReason) ? subReason : 'not_enabled';
+    return { ok: false, code: 'platform_unavailable', message: EXECUTION_UNAVAILABLE_MESSAGE, reason, subReason: sub };
+  }
   const out: NexusFail = reason === 'handoffs_unavailable'
     ? { ok: false, code: 'platform_unavailable', message: 'Handoffs are not available on this database.', reason }
     : { ok: false, code: 'platform_unavailable', message: 'The Nexus platform is not available.', reason };

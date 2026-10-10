@@ -17,6 +17,10 @@
  * still live, which the v9 backstop refuses (and which would interrupt adoptable work). v7/v8 files run B1's routine
  * unchanged. The platform's `bootId` is the boot id phase A re-owns for; main attaches the runner with the same one.
  *
+ * The domain registry is checked at startup (B2a Task 13, registryImpl.ts): the registry's own soundness and its
+ * agreement with what main implements. A problem keeps execution off (`registry_invalid`); nothing throws, and the
+ * B1 services and the read-only channels keep working.
+ *
  * No IPC is registered here. Callers in main pass a Principal resolved through
  * `principals`; the renderer never supplies identity.
  */
@@ -44,6 +48,8 @@ import { v8ShapeProblem } from './db/schemaV8';
 import { v9ShapeProblem } from './db/schemaV9';
 import { SessionService } from './sessions/sessionService';
 import { WorkspaceService } from './workspace/workspaceService';
+import { ExecQueries } from './exec/execQueries';
+import { registryProblems } from './registryImpl';
 
 export interface NexusPlatform {
   principals: PrincipalResolver;
@@ -80,6 +86,10 @@ export interface NexusPlatform {
   deployments: DeploymentService | null;
   /** Repository snapshot requests and the app manifest contract; null unless execution is available. */
   repo: RepoService | null;
+  /** The execution reads of the IPC layer (actions, logs, previews, checks); null unless execution is available. */
+  queries: ExecQueries | null;
+  /** The domain registry's startup check (problems count; execution is off when it is not valid). */
+  registry: { valid: boolean; problems: number };
   /** This process's boot id: restart recovery re-owns for it, and main attaches the runner with it (B2a Task 10/11). */
   bootId: string;
   startup(): NexusStartupReport;
@@ -125,6 +135,8 @@ export interface NexusPlatformOptions {
   appVersion?: string | null;
   /** This process's boot id (a ULID); default: a new one. */
   bootId?: string;
+  /** Tests only: the registry check's problems (default: registryImpl's startup check). */
+  registryProblems?: () => string[];
 }
 
 /**
@@ -164,10 +176,17 @@ export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformO
   const handoffsAvailable = handoffs !== null;
   // Execution is off unless the caller turns it on (v9 stays off until verified); like handoffs, a forced `true`
   // counts only when the v9 shape also checks. Nothing executes yet: this flag is read by later services.
-  const executionAvailable = (opts?.execution ?? false) && handoffsAvailable && v9ShapeProblem(db, true) === null;
+  // The registry is checked at startup: an unsound registry (or one that disagrees with main) keeps execution off.
+  let problems: string[];
+  try { problems = (opts?.registryProblems ?? registryProblems)(); } catch { problems = ['the registry check could not run']; }
+  if (!Array.isArray(problems)) problems = ['the registry check could not run'];
+  const registryValid = problems.length === 0;
+  if (!registryValid) log(`[nexus] domain registry check failed: ${problems.length} problem(s); execution is off (first: ${String(problems[0]).slice(0, 160)})`);
+  const shapeOk = (opts?.execution ?? false) && handoffsAvailable && v9ShapeProblem(db, true) === null;
+  const executionAvailable = shapeOk && registryValid;
   const unavailableReason = executionAvailable ? null
     : !(opts?.execution ?? false) ? (opts?.executionUnavailableReason ?? 'not_enabled')
-      : !handoffsAvailable ? 'v8_unavailable' : 'shape';
+      : !handoffsAvailable ? 'v8_unavailable' : !shapeOk ? 'shape' : 'registry_invalid';
   // Exactly one BlobIndex per platform, shared by ingest and GC (one lock); built only with execution.
   const blobs = executionAvailable ? new BlobIndex(db, { auth, now }) : null;
   const validation = executionAvailable ? new ValidationService(db, { auth, artifacts, jobs, now, log, blobs,
@@ -190,6 +209,7 @@ export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformO
     ingest, validation, appVersion: opts?.appVersion ?? null
   });
   validation?.setSender((msg) => exec.sendToRunner(msg));
+  const queries = executionAvailable ? new ExecQueries(db, { auth, artifacts, exec }) : null;
   approvals?.bindExecution(exec);
   deployments?.bindExecution(exec);
   repo?.bindExecution(exec);
@@ -197,7 +217,7 @@ export function createNexusPlatform(db: Database.Database, opts?: NexusPlatformO
   const bootId = opts?.bootId ?? newId(now());
   return {
     principals, auth, activity, workspaces, projects, artifacts, lineage, jobs, sessions, handoffs, handoffsAvailable, executionAvailable,
-    exec, blobs, validation, approvals, deployments, repo, bootId,
+    exec, blobs, validation, approvals, deployments, repo, queries, registry: { valid: registryValid, problems: problems.length }, bootId,
     startup(): NexusStartupReport {
       // The seeded principals must resolve; a missing one throws platform_unavailable.
       principals.localUser();

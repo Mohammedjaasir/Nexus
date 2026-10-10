@@ -135,21 +135,28 @@ export interface AttemptView {
   id: string; n: number; state: string; outcome: string | null; exitCode: number | null; signal: string | null; oomKilled: boolean | null;
   network: string | null; preflight: { ok: boolean; problems: string[] } | null; error: { code: string; message: string } | null;
   createdAt: number; startedAt: number | null; finishedAt: number | null;
+  /** B2a Task 13: the sandbox image and profile the attempt's environment recorded (null for an engine attempt). */
+  imageId?: string | null; profile?: string | null;
 }
 export interface JobDetail extends ExecJob {
   /** Every attempt, oldest first (`attempts` stays the count). */
   attemptHistory: AttemptView[];
   approvals: { id: string; status: string; reason: string; expiresAt: number }[];
   outputs: { versionId: string; status: string; outputPath: string | null }[];
+  /** B2a Task 13: the dev deployment the job runs (a preview job), if any. */
+  deployment?: { id: string; status: string } | null;
 }
 export interface HealthSnapshot {
   execution: { available: boolean; reason: string | null };
   runner: { state: string; attached: boolean; faults: number };
-  docker: { state: 'unknown' | 'missing' | 'stopped' | 'running'; version?: string; cpus?: number; memoryBytes?: number };
-  images: { profile: SandboxProfileId; present: boolean; matches: boolean }[];
+  docker: { state: 'unknown' | 'missing' | 'stopped' | 'running'; version?: string; cpus?: number; memoryBytes?: number; os?: string; wsl2?: boolean };
+  images: { profile: SandboxProfileId; present: boolean; matches: boolean; sizeBytes?: number; imageId?: string }[];
   disk: { freeBytes: number | null; leaseFloorBytes: number };
   gate: GateResult | null;
   checkedAt: number | null;
+  /** B2a Task 13: the database file's schema version (PRAGMA user_version), and the GPU line of the last probe. */
+  schemaVersion?: number | null;
+  gpu?: { detected: boolean; model?: string };
 }
 
 /**
@@ -444,6 +451,8 @@ export class ExecutionService {
   }
 
   get available(): boolean { return this.deps.available; }
+  /** Why execution is off (the store's reason, `not_enabled`, `registry_invalid`, ...), or null while it is on. */
+  get unavailableReason(): string | null { return this.deps.available ? null : (this.deps.unavailableReason ?? 'not_enabled'); }
 
   private requireAvailable(): void {
     if (!this.deps.available) {
@@ -2083,16 +2092,20 @@ export class ExecutionService {
       const net = sb && isPlainObject(sb.network) && typeof sb.network.mode === 'string' ? sb.network.mode : sb && typeof sb.network === 'string' ? sb.network : null;
       const pf = sb && isPlainObject(sb.preflight) ? { ok: sb.preflight.ok === true, problems: Array.isArray(sb.preflight.problems) ? (sb.preflight.problems as unknown[]).map(String).slice(0, 20) : [] } : null;
       const err = parseJson(a.error_json) as { code?: string; message?: string } | null;
+      const env = parseJson(a.environment_json) as Record<string, unknown> | null;
       return { id: a.id, n: a.n, state: a.state, outcome: a.outcome, exitCode: a.exit_code, signal: a.signal,
         oomKilled: a.oom_killed === null ? null : a.oom_killed === 1, network: net, preflight: pf,
         error: err && typeof err.code === 'string' && typeof err.message === 'string' ? { code: err.code, message: err.message } : null,
-        createdAt: a.created_at, startedAt: a.started_at, finishedAt: a.finished_at };
+        createdAt: a.created_at, startedAt: a.started_at, finishedAt: a.finished_at,
+        imageId: env && typeof env.imageId === 'string' ? env.imageId : null, profile: env && typeof env.profile === 'string' ? env.profile : null };
     });
     const approvals = (this.db.prepare('SELECT id, status, reason, expires_at FROM approvals WHERE job_id = ? ORDER BY requested_at').all(j.id) as
       { id: string; status: string; reason: string; expires_at: number }[]).map((x) => ({ id: x.id, status: x.status, reason: x.reason, expiresAt: x.expires_at }));
     const outputs = (this.db.prepare('SELECT id, status, output_path FROM artifact_versions WHERE produced_by_job_id = ? ORDER BY created_at, id').all(j.id) as
       { id: string; status: string; output_path: string | null }[]).map((x) => ({ versionId: x.id, status: x.status, outputPath: x.output_path }));
-    return { ...this.toExecJob(j), attemptHistory: attempts, approvals, outputs };
+    const dep = this.db.prepare('SELECT id, status FROM deployments WHERE job_id = ? ORDER BY started_at DESC, id DESC LIMIT 1').get(j.id) as
+      { id: string; status: string } | undefined;
+    return { ...this.toExecJob(j), attemptHistory: attempts, approvals, outputs, deployment: dep ? { id: dep.id, status: dep.status } : null };
   }
 
   eventsSince(p: Principal, q: { sinceSeq: number; projectId?: string; limit?: number }): { events: JobEvent[]; lastSeq: number } {
@@ -2121,14 +2134,21 @@ export class ExecutionService {
     try { if (this.port) runnerState = this.port.state(); } catch { runnerState = 'unavailable'; }
     const c = this.probe;
     const floor = leaseFloorBytes(0);
+    let schemaVersion: number | null = null;
+    try { const v = this.db.pragma('user_version', { simple: true }); schemaVersion = typeof v === 'number' ? v : null; } catch { schemaVersion = null; }
     return {
       execution: { available: this.deps.available, reason: this.deps.available ? null : (this.deps.unavailableReason ?? 'not_enabled') },
       runner: { state: runnerState, attached: this.port !== null, faults: this.faults },
-      docker: c ? { state: c.probe.docker, version: c.probe.version, cpus: c.probe.cpus, memoryBytes: c.probe.memoryBytes } : { state: 'unknown' },
-      images: c ? c.images.map((i) => ({ profile: i.profile, present: i.present, matches: i.digestMatches })) : [],
+      docker: c ? { state: c.probe.docker, version: c.probe.version, cpus: c.probe.cpus, memoryBytes: c.probe.memoryBytes,
+        ...(c.probe.os !== undefined ? { os: c.probe.os } : {}), ...(c.probe.wsl2 !== undefined ? { wsl2: c.probe.wsl2 } : {}) } : { state: 'unknown' },
+      images: c ? c.images.map((i) => ({ profile: i.profile, present: i.present, matches: i.digestMatches,
+        ...(typeof i.sizeBytes === 'number' ? { sizeBytes: i.sizeBytes } : {}), ...(typeof i.imageId === 'string' ? { imageId: i.imageId } : {}) })) : [],
       disk: { freeBytes: c ? c.freeBytes : null, leaseFloorBytes: floor },
       gate: c ? evaluateGate(c.probe, c.freeBytes ?? -1, c.images) : null,
-      checkedAt: c ? c.at : null
+      checkedAt: c ? c.at : null,
+      schemaVersion,
+      gpu: c && c.probe.gpu ? { detected: c.probe.gpu.detected === true, ...(typeof c.probe.gpu.model === 'string' ? { model: c.probe.gpu.model } : {}) }
+        : { detected: false }
     };
   }
 

@@ -1,6 +1,8 @@
 'use strict';
 // B2a Task 8 adds the execution queries O10-O17 (execOrphans; allOrphans = O1-O17), kept apart so the B1 set and the
 // exact-key assertions made on it stay as they were.
+// B2a Task 13 adds O18-O22: the invariants of the Task 13 brief that O10-O17 did not already cover (the brief's
+// O11, O16 and O17 are the existing O11, O16 and O17). allOrphans = O1-O22.
 // B1 Task 7: the orphan queries O1-O9. `orphans(db)` returns { O1: n, ..., O9: n }; after any sequence of normal
 // UI operations every count must be 0. `orphanRows(db)` returns the offending rows themselves, for messages.
 // Pure reads: nothing here writes. The v8 queries (O3-O6) count 0 on a database without the handoff tables.
@@ -109,8 +111,36 @@ const EXEC_QUERIES = {
     AND NOT EXISTS (SELECT 1 FROM version_attempts va WHERE va.job_id = j.id AND va.attempt_n = j.attempts)
     AND NOT EXISTS (SELECT 1 FROM validations x WHERE x.job_id = j.id AND x.attempt_n = j.attempts)` : null
 };
+
+// ---------- B2a Task 13: O18-O22 (the brief's O10, O12, O13, O14 and O15 under new numbers) ----------
+// Kept apart from O10-O17 so Task 8's exact-key assertions on execOrphans / EXEC_ZERO stay as they were; allOrphans
+// and ALL_ZERO hold all of them.
+const T13_QUERIES = {
+  // O18 live (starting or running) attempts whose job is not leased, running or awaiting approval (brief O10; the
+  // existing O12 covers terminal jobs only: this adds a queued, retry_scheduled or missing job).
+  O18: (v9) => v9 ? `SELECT a.id, a.job_id AS job, j.state FROM job_attempts a LEFT JOIN jobs j ON j.id = a.job_id
+    WHERE a.state IN ('starting','running') AND (j.id IS NULL OR j.state NOT IN ('leased','running','awaiting_approval'))` : null,
+  // O19 storage without its blobs (brief O12, as this schema stores them): a blob version with no 'content' version
+  // blob of its sha256, and a tree version whose 'file' version blobs do not number its manifest's files (a tree's
+  // manifest is the hash of its file list, kept in storage_ref_json, not a stored blob).
+  O19: (v9) => v9 ? `SELECT v.id, v.storage_kind AS kind FROM artifact_versions v WHERE v.storage_kind = 'blob' AND NOT EXISTS (SELECT 1 FROM version_blobs vb
+      WHERE vb.version_id = v.id AND vb.role = 'content' AND vb.sha256 = json_extract(v.storage_ref_json, '$.sha256'))
+    UNION ALL SELECT v.id, v.storage_kind FROM artifact_versions v WHERE v.storage_kind = 'tree'
+      AND COALESCE(json_extract(v.storage_ref_json, '$.files'), -1) <> (SELECT COUNT(*) FROM version_blobs vb WHERE vb.version_id = v.id AND vb.role = 'file')` : null,
+  // O20 live deployments (starting, healthy, unhealthy) whose job is terminal (brief O13).
+  O20: (v9) => v9 ? `SELECT d.id, d.status, j.state FROM deployments d JOIN jobs j ON j.id = d.job_id
+    WHERE d.status IN ('starting','healthy','unhealthy') AND j.state IN ${TERMINAL_JOBS}` : null,
+  // O21 pending approvals past their expiry after a sweep (brief O14): `o.sweptAt` is when the caller last ran the
+  // expiry sweep (ApprovalService.expireDue); without it there is no sweep to hold the store to, and nothing counts.
+  O21: (v9, o) => v9 && Number.isSafeInteger(o?.sweptAt) ? `SELECT a.id, a.expires_at AS expiresAt FROM approvals a
+    WHERE a.status = 'pending' AND a.expires_at <= ${o.sweptAt}` : null,
+  // O22 validations bound to a job of another project than their version's (brief O15).
+  O22: (v9) => v9 ? `SELECT x.id, x.job_id AS job FROM validations x JOIN jobs j ON j.id = x.job_id JOIN artifact_versions v ON v.id = x.version_id
+    WHERE j.project_id <> v.project_id` : null
+};
+const T13_IDS = Object.freeze(Object.keys(T13_QUERIES));
 const EXEC_IDS = Object.freeze(Object.keys(EXEC_QUERIES));
-const hasV9 = (db) => ['job_attempts', 'validations', 'version_blobs', 'blobs', 'version_attempts'].every((t) => hasTable(db, t));
+const hasV9 = (db) => ['job_attempts', 'validations', 'version_blobs', 'blobs', 'version_attempts', 'deployments', 'approvals'].every((t) => hasTable(db, t));
 
 function execOrphanRows(db) {
   const v9 = hasV9(db);
@@ -127,8 +157,24 @@ function execOrphans(db) {
   return Object.fromEntries(EXEC_IDS.map((id) => [id, rows[id].length]));
 }
 
-/** O1-O17 in one object. */
-function allOrphans(db) { return { ...orphans(db), ...execOrphans(db) }; }
+/** O18-O22 rows. `o.sweptAt`: when the caller last ran the approval expiry sweep (O21). */
+function t13OrphanRows(db, o = {}) {
+  const v9 = hasV9(db);
+  const out = {};
+  for (const id of T13_IDS) {
+    const sql = T13_QUERIES[id](v9, o);
+    out[id] = sql ? db.prepare(sql).all() : [];
+  }
+  return out;
+}
+
+function t13Orphans(db, o = {}) {
+  const rows = t13OrphanRows(db, o);
+  return Object.fromEntries(T13_IDS.map((id) => [id, rows[id].length]));
+}
+
+/** O1-O22 in one object (`o.sweptAt` for O21). */
+function allOrphans(db, o = {}) { return { ...orphans(db), ...execOrphans(db), ...t13Orphans(db, o) }; }
 
 function orphanRows(db) {
   const v8 = hasTable(db, 'handoffs') && hasTable(db, 'handoff_subjects');
@@ -160,7 +206,9 @@ function storeHealth(db) {
 const ZERO = Object.freeze(Object.fromEntries(IDS.map((id) => [id, 0])));
 
 const EXEC_ZERO = Object.freeze(Object.fromEntries(EXEC_IDS.map((id) => [id, 0])));
-const ALL_ZERO = Object.freeze({ ...ZERO, ...EXEC_ZERO });
+const T13_ZERO = Object.freeze(Object.fromEntries(T13_IDS.map((id) => [id, 0])));
+const ALL_ZERO = Object.freeze({ ...ZERO, ...EXEC_ZERO, ...T13_ZERO });
 
 module.exports = { orphans, orphanRows, storeHealth, ORPHAN_IDS: IDS, ZERO,
-  execOrphans, execOrphanRows, allOrphans, EXEC_ORPHAN_IDS: EXEC_IDS, EXEC_ZERO, ALL_ZERO };
+  execOrphans, execOrphanRows, allOrphans, EXEC_ORPHAN_IDS: EXEC_IDS, EXEC_ZERO, ALL_ZERO,
+  t13Orphans, t13OrphanRows, T13_ORPHAN_IDS: T13_IDS, T13_ZERO };

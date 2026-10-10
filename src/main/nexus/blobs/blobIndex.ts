@@ -296,6 +296,12 @@ export class BlobIndex {
       liveAttempts: liveAttemptCount(this.db) };
   }
 
+  /** Step one of GC for a person (B2a Task 13, IPC #41): authorized like the apply (`blob.gc`, platform-wide; a denial is audited). */
+  gcDryRun(by: Principal): BlobGcDryRun {
+    this.deps.auth.require(by, 'blob.gc', PLATFORM, { entityType: 'blob' });
+    return this.gcCandidates();
+  }
+
   candidatesHash(candidates: readonly BlobGcCandidate[]): string { return candidatesHash(candidates); }
 
   /**

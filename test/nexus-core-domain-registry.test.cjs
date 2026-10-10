@@ -22,9 +22,9 @@ const { WORKSPACES } = loadTs('src/renderer/src/nexus/workspaces/registry.ts');
 
 // The e2e titles are written by Task 12 (enforced from it): every REAL step's e2e id is listed in B2A_IMPL.e2eTests and
 // is part of a test TITLE in one of these files (the fake-driver recipes file runs under test:db; the real-Docker one
-// behind the test:exec gate). Task 13 adds test/nexus-platform-b2a-flows.test.cjs to this list when it exists.
+// behind the test:exec gate). Task 13 added test/nexus-platform-b2a-flows.test.cjs (the flows through the IPC handlers).
 const E2E_ENFORCED = true;
-const E2E_FILES = ['test/nexus-platform-exec-recipes.test.cjs', 'test/nexus-exec-recipes.test.cjs'];
+const E2E_FILES = ['test/nexus-platform-exec-recipes.test.cjs', 'test/nexus-exec-recipes.test.cjs', 'test/nexus-platform-b2a-flows.test.cjs'];
 /** The real-Docker recipes file (test:exec gate): a Docker-dependent step's e2e id must be a title there too (fix round 1). */
 const REAL_DOCKER_E2E_FILE = 'test/nexus-exec-recipes.test.cjs';
 

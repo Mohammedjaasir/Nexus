@@ -8,12 +8,24 @@
  * (created_by, actor ids, on_behalf_of) are not sent; activity carries the actor kind.
  */
 import type {
-  ActivityEntry, Artifact, ArtifactEdge, ArtifactSummary, ArtifactVersion, Handoff, HandoffDetail, LineageNode, ProjectWorkspace
+  ActivityEntry, ApprovalStatus, Artifact, ArtifactEdge, ArtifactSummary, ArtifactVersion, DeploymentStatus, Handoff, HandoffDetail, LineageNode,
+  PrincipalKind, ProjectWorkspace, VersionStatus
 } from '../../shared/nexus/platform';
 import type {
-  ActivityDetailsView, ActivityView, ArtifactSummaryView, ArtifactView, EdgeView, HandoffDetailView, HandoffSummaryView,
-  LineageNodeView, ParticipationView, VersionContent, VersionDetail, VersionView
+  ActionAvailabilityView, ActivityDetailsView, ActivityView, ApprovalView, ArtifactSummaryView, ArtifactView, BlobGcView, DeploymentView, DiskGate,
+  DomainSpecView, EdgeView, EventView, HandoffDetailView, HandoffSummaryView, HealthView, JobDetailView, JobView, LineageNodeView, LogPageView,
+  ParticipationView, PreviewView, ValidationResultView, VersionContent, VersionDetail, VersionView
 } from '../../shared/nexus/ipc';
+import type { DomainSpec } from '../../shared/nexus/domainSpec';
+import { CURRENT_SUB_PHASE, isAtOrBefore, isExecutableEndToEnd } from '../../shared/nexus/domainSpec';
+import { RECOMMENDED_FREE_BYTES, REQUIRED_FREE_BYTES } from '../../shared/nexus/resourceGate';
+import type { ExecJob, HealthSnapshot, JobDetail } from '../nexus/exec/executionService';
+import type { JobEvent } from '../nexus/exec/events';
+import type { ActionAvailability, ValidatorSummary } from '../nexus/exec/execQueries';
+import type { ApprovalView as ServiceApprovalView } from '../nexus/approvals/approvalService';
+import type { DeploymentView as ServiceDeploymentView } from '../nexus/deployments/deploymentService';
+import type { GcPage, LogPage, PreviewPage } from '../nexusExec/execWiring';
+import { SYSTEM_ID as SYSTEM_PRINCIPAL } from '../nexus/auth/principals';
 import { scrubMessage } from './envelope';
 
 export function participationView(r: ProjectWorkspace): ParticipationView {
@@ -106,4 +118,192 @@ export function activityView(e: ActivityEntry): ActivityView {
   return { seq: e.seq, ts: e.ts, action: e.action, status: e.status, actorKind: e.actorKind,
     onBehalfOfUser: e.onBehalfOf !== null && e.onBehalfOf !== e.actorId, entityType: e.entityType, entityId: e.entityId,
     projectId: e.projectId, workspaceId: e.workspaceId, artifactId: e.artifactId, versionId: e.versionId, details: activityDetails(e.details) };
+}
+
+// ---------- B2a Task 13: the execution views (channels #22-#41) ----------
+// Field by field, as above. Never sent: principal ids (requested_by, on_behalf_of, decided_by), params, raw metadata,
+// sandbox or environment records, container ids, host ports other than a live deployment's loopback URL, log or object
+// locations, env values. Image ids are shortened to `sha256:` + 12 hex. Every free text is scrubbed (absolute paths cut
+// to their basename, secrets redacted, one line) and capped.
+
+const MAX_VIEW_TEXT = 300;
+const MAX_EVIDENCE_ITEMS = 40;
+const text = (s: unknown, max = MAX_VIEW_TEXT): string => scrubMessage(typeof s === 'string' ? s : '').slice(0, max);
+const textOrNull = (s: unknown, max = MAX_VIEW_TEXT): string | null => (typeof s === 'string' ? text(s, max) : null);
+const num = (n: unknown): number | null => (typeof n === 'number' && Number.isFinite(n) ? n : null);
+const LABEL = /^[a-z][a-z0-9_.:-]{0,63}$/;
+const label = (s: unknown): string | null => (typeof s === 'string' && LABEL.test(s) ? s : null);
+
+/** `sha256:<64 hex>` -> `sha256:<12 hex>`; anything else -> null (never a repository name, a tag or a host). */
+export function shortImageId(id: unknown): string | null {
+  return typeof id === 'string' && /^sha256:[0-9a-f]{64}$/.test(id) ? `sha256:${id.slice(7, 19)}` : null;
+}
+
+export function domainView(d: DomainSpec): DomainSpecView {
+  const vocabulary: DomainSpecView['vocabulary'] = {};
+  for (const [k, v] of Object.entries(d.vocabulary)) if (v) vocabulary[k] = { singular: v.singular, plural: v.plural };
+  return {
+    id: d.id, label: d.label, shortLabel: d.shortLabel, description: d.description, tier: d.tier, hueSlot: d.hueSlot, icon: d.icon, order: d.order,
+    statusNote: d.statusNote, vocabulary,
+    lifecycle: d.lifecycle.map((s) => ({
+      id: s.id, label: s.label, status: s.status, scopeNote: s.scopeNote ?? null, subPhase: s.subPhase,
+      delivered: s.status !== 'FUTURE' && isAtOrBefore(s.subPhase),
+      consumes: [...s.consumes], produces: [...s.produces], prerequisites: [...s.prerequisites],
+      actions: s.via.flatMap((v) => ('userAction' in v ? [v.userAction] : []))
+    })),
+    modules: d.modules.map((m) => ({ id: m.id, label: m.label, kinds: [...m.kinds], subPhase: m.subPhase })),
+    availableFromSubPhase: d.participationFromSubPhase, currentSubPhase: CURRENT_SUB_PHASE, executableEndToEnd: isExecutableEndToEnd(d)
+  };
+}
+
+const gateProblem = (p: { id: string; profile?: unknown }): string => (typeof p.profile === 'string' ? `${p.id}:${p.profile}` : p.id);
+
+export function healthView(h: HealthSnapshot, platform: { handoffs: boolean; execution: boolean; registry: { valid: boolean; problems: number };
+  subReason: string | null }): HealthView {
+  const gate = h.gate;
+  const free = h.disk.freeBytes;
+  const diskGate: DiskGate = free === null ? 'unknown' : free < REQUIRED_FREE_BYTES ? 'below_required' : free < RECOMMENDED_FREE_BYTES ? 'below_recommended' : 'ok';
+  return {
+    db: { version: num(h.schemaVersion), platform: true, handoffs: platform.handoffs, execution: platform.execution,
+      ...(platform.subReason ? { subReason: platform.subReason } : {}) },
+    registry: { valid: platform.registry.valid, problems: platform.registry.problems },
+    runner: { state: label(h.runner.state) ?? 'unknown', attached: h.runner.attached, restarts: h.runner.faults },
+    docker: { state: h.docker.state,
+      ...(typeof h.docker.version === 'string' ? { version: text(h.docker.version, 40) } : {}),
+      ...(typeof h.docker.os === 'string' ? { os: text(h.docker.os, 80) } : {}),
+      ...(typeof h.docker.wsl2 === 'boolean' ? { wsl2: h.docker.wsl2 } : {}),
+      ...(num(h.docker.cpus) !== null ? { cpus: h.docker.cpus } : {}),
+      ...(num(h.docker.memoryBytes) !== null ? { memoryBytes: h.docker.memoryBytes } : {}) },
+    images: h.images.map((i) => ({ profile: i.profile, present: i.present, matches: i.matches,
+      ...(num(i.sizeBytes) !== null ? { sizeBytes: i.sizeBytes } : {}),
+      ...(shortImageId(i.imageId) ? { imageIdShort: shortImageId(i.imageId)! } : {}) })),
+    disk: { dataHomeFreeBytes: free, requiredBytes: REQUIRED_FREE_BYTES, recommendedBytes: RECOMMENDED_FREE_BYTES, leaseFloorBytes: h.disk.leaseFloorBytes, gate: diskGate },
+    problems: gate ? gate.problems.map(gateProblem) : [],
+    gpu: { detected: h.gpu?.detected === true, ...(typeof h.gpu?.model === 'string' ? { model: text(h.gpu.model, 80) } : {}), supported: false },
+    checkedAt: h.checkedAt
+  };
+}
+
+export function actionView(a: ActionAvailability): ActionAvailabilityView {
+  return { actionId: a.actionId, label: a.label, stepId: a.stepId, available: a.available, reason: a.reason,
+    inputs: a.inputs.map((s) => ({ slot: s.slot, kinds: [...s.kinds], min: s.min, max: s.max })), needsApproval: a.needsApproval };
+}
+
+const kindOf = (principalId: unknown): PrincipalKind =>
+  principalId === SYSTEM_PRINCIPAL ? 'system' : typeof principalId === 'string' && /^agent[:.]/.test(principalId) ? 'agent' : 'user';
+const errorView = (e: unknown): { code: string; message: string } | null => {
+  if (!isObj(e) || typeof e.code !== 'string') return null;
+  return { code: label(e.code) ?? 'error', message: text(e.message) };
+};
+
+export function jobView(j: ExecJob): JobView {
+  return {
+    id: j.id, kind: j.kind, projectId: j.projectId, workspaceId: j.workspaceId, actionId: label(j.actionId), recipeId: label(j.recipeId),
+    state: j.state, phase: label(j.phase), headline: j.headline, outcome: label(j.outcome), error: errorView(j.error),
+    attempts: j.attempts, retryOf: j.retryOf, parentJobId: j.parentJobId, requestedByKind: kindOf(j.requestedBy),
+    inputs: j.inputs.map((x) => ({ versionId: x.versionId, slot: x.role, contentHash: x.contentHash })),
+    createdAt: j.createdAt, updatedAt: j.updatedAt, startedAt: j.startedAt, finishedAt: j.finishedAt, nextAttemptAt: j.nextAttemptAt,
+    cancelRequested: j.cancelRequestedAt !== null
+  };
+}
+
+export function jobDetailView(d: JobDetail): JobDetailView {
+  return {
+    ...jobView(d),
+    attemptHistory: d.attemptHistory.map((a) => ({
+      n: a.n, state: a.state, outcome: label(a.outcome), exitCode: a.exitCode, signal: label(a.signal), oomKilled: a.oomKilled,
+      network: label(a.network), preflight: a.preflight ? { ok: a.preflight.ok, problems: a.preflight.problems.slice(0, 20).map((x) => text(x, 120)) } : null,
+      imageIdShort: shortImageId(a.imageId), profile: label(a.profile), error: errorView(a.error),
+      createdAt: a.createdAt, startedAt: a.startedAt, finishedAt: a.finishedAt
+    })),
+    outputs: d.outputs.map((o) => ({ versionId: o.versionId, status: o.status as VersionStatus })),
+    approvals: d.approvals.map((a) => ({ id: a.id, status: a.status as ApprovalStatus, reason: label(a.reason) ?? 'approval', expiresAt: a.expiresAt })),
+    deployment: d.deployment ? { id: d.deployment.id, status: d.deployment.status as DeploymentStatus } : null
+  };
+}
+
+export function eventView(e: JobEvent): EventView {
+  return { seq: e.seq, ts: e.ts, type: label(e.type) ?? 'event', summary: text(e.summary), projectId: e.projectId, jobId: e.jobId, attemptN: e.attemptN };
+}
+
+/** Evidence items as typed facts: names, counts and hashes; never a host path (a `file` item keeps its relative name). */
+function evidenceView(ev: unknown): ValidationResultView['evidence'] {
+  if (!Array.isArray(ev)) return [];
+  const out: ValidationResultView['evidence'] = [];
+  for (const e of ev.slice(0, MAX_EVIDENCE_ITEMS)) {
+    if (!isObj(e) || typeof e.type !== 'string') continue;
+    const t = label(e.type) ?? 'fact';
+    const name = typeof e.name === 'string' ? e.name : typeof e.label === 'string' ? e.label : typeof e.field === 'string' ? e.field
+      : typeof e.path === 'string' ? e.path : typeof e.validator === 'string' ? e.validator : null;
+    let value: string | number | boolean | null = null;
+    if (typeof e.value === 'number' || typeof e.value === 'boolean') value = e.value;
+    else if (typeof e.value === 'string') value = text(e.value, 120);
+    else if (t === 'junit') value = `${num(e.passed) ?? 0}/${num(e.total) ?? 0} passed, ${num(e.failed) ?? 0} failed, ${num(e.errored) ?? 0} errored`;
+    else if (t === 'exit') value = num(e.code);
+    else if (t === 'http') value = num(e.status);
+    else if (typeof e.sha256 === 'string') value = `sha256:${e.sha256.slice(0, 12)}`;
+    else if (typeof e.commit === 'string') value = e.commit.slice(0, 12);
+    out.push({ type: t, name: name === null ? null : text(name, 120), value });
+  }
+  return out;
+}
+
+const STATUS = new Set(['passed', 'failed', 'error', 'skipped']);
+const statusOf = (s: unknown): 'passed' | 'failed' | 'error' | 'skipped' => (typeof s === 'string' && STATUS.has(s) ? s as 'passed' : 'error');
+
+export function validationView(v: ValidatorSummary): ValidationResultView {
+  const b = v.latestBlocking;
+  return {
+    validatorId: v.validatorId, blocking: v.blocking,
+    status: b ? statusOf(b.status) : null, summary: b ? text(b.summary, 500) : null, finishedAt: b ? b.finishedAt : null,
+    evidence: b ? evidenceView(b.evidence) : [],
+    latestRun: v.latestRun ? { status: statusOf(v.latestRun.status), summary: text(v.latestRun.summary, 500), finishedAt: v.latestRun.finishedAt } : null,
+    history: v.history
+  };
+}
+
+export function previewView(p: PreviewPage): PreviewView {
+  return { part: p.part, versionId: p.versionId, text: p.text,
+    rows: p.rows ? p.rows.map((r) => ({ name: text(r.name, 512), detail: textOrNull(r.detail, 512), bytes: r.bytes, outcome: textOrNull(r.outcome, 64) })) : null,
+    page: p.page, nextPage: p.nextPage, totalRows: p.totalRows, totalBytes: p.totalBytes };
+}
+
+export function logPageView(l: LogPage): LogPageView {
+  return { text: l.text, nextOffset: l.nextOffset, eof: l.eof, truncatedMiddle: l.truncatedMiddle };
+}
+
+export function deploymentView(d: ServiceDeploymentView): DeploymentView {
+  return { id: d.id, projectId: d.projectId, subjectVersionId: d.subjectVersionId, jobId: d.jobId, status: d.status, stopReason: label(d.stopReason),
+    // Only a live loopback URL: the service builds it from 127.0.0.1, the port and the manifest's validated health path.
+    url: typeof d.url === 'string' && /^http:\/\/127\.0\.0\.1:\d{1,5}\/[A-Za-z0-9/_.-]{0,200}$/.test(d.url) ? d.url : null,
+    bindAddress: d.bindAddress === '127.0.0.1' ? '127.0.0.1' : 'loopback', hostPort: d.hostPort,
+    healthPath: typeof d.healthPath === 'string' && /^\/[A-Za-z0-9/_.-]{0,200}$/.test(d.healthPath) ? d.healthPath : null,
+    lastProbe: d.lastProbe ? { at: d.lastProbe.at, status: d.lastProbe.status, ms: d.lastProbe.ms } : null, probes: d.probes,
+    startedAt: d.startedAt, stoppedAt: d.stoppedAt, endsAt: d.endsAt };
+}
+
+export function approvalView(a: ServiceApprovalView): ApprovalView {
+  const r = a.request;
+  const request: ApprovalView['request'] = {};
+  if (label(r.recipeId)) request.recipeId = r.recipeId;
+  const profile = label(r.profile) ?? label(r.profileId);
+  if (profile) request.profile = profile;
+  if (Array.isArray(r.registries)) request.registries = r.registries.slice(0, 8).map((x) => text(x, 120));
+  for (const k of ['lockfileSha256', 'contextSha256'] as const) if (typeof r[k] === 'string' && /^[0-9a-f]{64}$/.test(r[k]!)) request[k] = r[k];
+  if (typeof r.baseDigest === 'string' && /^sha256:[0-9a-f]{64}$/.test(r.baseDigest)) request.baseDigest = r.baseDigest;
+  if (num(r.estimatedBytes) !== null) request.estimatedBytes = r.estimatedBytes;
+  if (r.freeBytesNow === null || num(r.freeBytesNow) !== null) request.freeBytesNow = r.freeBytesNow ?? null;
+  const b = a.imageBuild;
+  return {
+    id: a.id, projectId: a.projectId, jobId: a.jobId, reason: label(a.reason) ?? 'approval', summary: text(a.summary, 500), status: a.status, request,
+    requestedAt: a.requestedAt, expiresAt: a.expiresAt, decidedAt: a.decidedAt, decision: a.decision === 'once' || a.decision === 'deny' ? a.decision : null,
+    consumedAt: a.consumedAt,
+    imageBuild: b ? { id: b.id, status: label(b.status) ?? 'unknown', imageIdShort: shortImageId(b.imageId), sizeBytes: num(b.sizeBytes),
+      error: b.error ? label(b.error.code) : null } : null
+  };
+}
+
+export function gcView(g: GcPage): BlobGcView {
+  return { candidates: g.candidates, bytes: g.bytes, candidatesHash: /^[0-9a-f]{64}$/.test(g.candidatesHash) ? g.candidatesHash : '', removed: g.removed,
+    fileDeleteFailed: g.fileDeleteFailed };
 }

@@ -80,6 +80,22 @@ const jsonBytes = (v: unknown): number => Buffer.byteLength(JSON.stringify(v), '
 /** The most files a build output tree may hold (the ingest transaction stays bounded; the blob index takes 10,000 per call). */
 export const MAX_TREE_FILES = 5000;
 
+/** The ingest rule of each recipe: the one dispatch table of `ingestTx` (B2a Task 13 pins it to the registry's B2A_IMPL). */
+export const INGEST_RULES: Readonly<Record<string, 'snapshot' | 'discovery' | 'testRun' | 'build' | 'assemble' | 'diagnose'>> = Object.freeze({
+  'repo.snapshot': 'snapshot', 'sde.test.discover': 'discovery', 'sde.test.node': 'testRun', 'sde.test.pytest': 'testRun',
+  'sde.build.node': 'build', 'sde.build.python': 'build', 'sde.app.assemble': 'assemble', 'sde.diagnose': 'diagnose'
+});
+/**
+ * The implemented recipes whose outputs are never ingested, each with why: a dependency install has no evidence rule in
+ * B2a (its exit is refused `no_ingest_rule`, so it never completes on an exit code alone), and a dev deployment is a
+ * service (its evidence is `app.preview_health`, recorded while it runs).
+ */
+export const NOT_INGESTED: Readonly<Record<string, string>> = Object.freeze({
+  'sde.deps.node': 'no evidence rule in B2a: refused no_ingest_rule',
+  'sde.deps.python': 'no evidence rule in B2a: refused no_ingest_rule',
+  'sde.preview.start': 'a service: its evidence is app.preview_health'
+});
+
 /** What a diagnosis attempt was planned to read (its sandbox record), or null when the record does not say. */
 function plannedDiagnosis(sandboxJson: string | null): { containerIds: string[]; attemptIds: string[] } | null {
   const rec = parse(sandboxJson);
@@ -109,13 +125,14 @@ export class IngestService implements IngestPort {
 
   ingestTx(ctx: IngestContext): IngestDecision {
     if (!this.db.inTransaction) throw new PlatformError('platform_unavailable', 'ingest runs inside the exit transaction');
-    switch (ctx.recipe.id) {
-      case 'repo.snapshot': return this.snapshot(ctx);
-      case 'sde.test.discover': return this.discovery(ctx);
-      case 'sde.test.node': case 'sde.test.pytest': return this.testRun(ctx);
-      case 'sde.build.node': case 'sde.build.python': return this.build(ctx);
-      case 'sde.app.assemble': return this.assemble(ctx);
-      case 'sde.diagnose': return this.diagnose(ctx);
+    const rule = Object.prototype.hasOwnProperty.call(INGEST_RULES, ctx.recipe.id) ? INGEST_RULES[ctx.recipe.id] : null;
+    switch (rule) {
+      case 'snapshot': return this.snapshot(ctx);
+      case 'discovery': return this.discovery(ctx);
+      case 'testRun': return this.testRun(ctx);
+      case 'build': return this.build(ctx);
+      case 'assemble': return this.assemble(ctx);
+      case 'diagnose': return this.diagnose(ctx);
       default: return refuse('ingest_unavailable', 'no_ingest_rule', `outputs of ${ctx.recipe.id} are not ingested in this build`);
     }
   }

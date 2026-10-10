@@ -90,7 +90,9 @@ export interface ActivityEntry { seq: number; id: ActivityId; ts: number; actorK
 export type PlatformErrorCode = 'denied' | 'not_found' | 'invalid' | 'conflict' | 'immutable' | 'cycle' | 'not_owner'
   | 'not_participating' | 'participation_inactive' | 'input_not_granted' | 'storage_unavailable' | 'illegal_transition' | 'platform_unavailable'
   // B2a: an action that cannot run on this machine now (a setup:* reason, or a product limit such as secrets for dev deployments).
-  | 'unavailable';
+  | 'unavailable'
+  // B2a Task 13: a preview or page larger than a reader may take at once (the request names a smaller page).
+  | 'too_large';
 // Execution (schema v9): the vocabularies seeded in attempt_states, approval_states and deployment_states.
 export type AttemptState = 'starting' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'timed_out' | 'abandoned';
 export type ApprovalStatus = 'pending' | 'approved' | 'denied' | 'expired' | 'withdrawn';

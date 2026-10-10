@@ -4,7 +4,10 @@ import type { HireManifest } from '../shared/hire';
 import type {
   ActivityPage, ActivityView, ArtifactDetail, ArtifactsListFilter, ArtifactSummaryView, HandoffDetailView, HandoffsListFilter,
   HandoffSummaryView, LineageQuery, LineageView, LinkSourcesView, NexusResult, ParticipationView, SaveCommitArgs, SaveResultView,
-  SaveTextFileArgs, SendHandoffArgs, SendHandoffView, VersionDetail, VersionView
+  SaveTextFileArgs, SendHandoffArgs, SendHandoffView, VersionDetail, VersionView,
+  ActionAvailabilityView, ActionsQuery, ApprovalDecisionArg, ApprovalsListFilter, ApprovalView, BlobGcArgs, BlobGcView, DeploymentsListFilter,
+  DeploymentView, DomainSpecView, EventsPageView, EventsQuery, HealthView, ImageProfileArg, InlineSaveView, JobDetailView, JobLogsQuery,
+  JobsListFilter, JobStartArgs, JobStartView, JobView, LogPageView, NexusHint, PreviewQuery, PreviewView, SaveInlineArgs, ValidationResultView
 } from '../shared/nexus/ipc';
 
 export type { HireManifest } from '../shared/hire';
@@ -1660,7 +1663,57 @@ const api = {
   nexusHandoffWithdraw: (handoffId: string): Promise<NexusResult<HandoffDetailView>> =>
     ipcRenderer.invoke('nexus:handoff:withdraw', handoffId),
   nexusActivityByProject: (projectId: string, page?: ActivityPage): Promise<NexusResult<ActivityView[]>> =>
-    ipcRenderer.invoke('nexus:activity:byProject', projectId, page)
+    ipcRenderer.invoke('nexus:activity:byProject', projectId, page),
+  // B2a: execution (#22-#41). Ids, input slots, an action's own params and an intent ULID; never a folder, a command,
+  // a network, an image or an identity.
+  nexusDomainsList: (): Promise<NexusResult<DomainSpecView[]>> =>
+    ipcRenderer.invoke('nexus:domains:list'),
+  nexusPlatformHealth: (): Promise<NexusResult<HealthView>> =>
+    ipcRenderer.invoke('nexus:platform:health'),
+  nexusActionsAvailable: (query: ActionsQuery): Promise<NexusResult<ActionAvailabilityView[]>> =>
+    ipcRenderer.invoke('nexus:actions:available', query),
+  nexusJobStart: (args: JobStartArgs): Promise<NexusResult<JobStartView>> =>
+    ipcRenderer.invoke('nexus:job:start', args),
+  nexusJobsList: (filter?: JobsListFilter): Promise<NexusResult<JobView[]>> =>
+    ipcRenderer.invoke('nexus:jobs:list', filter),
+  nexusJobGet: (jobId: string): Promise<NexusResult<JobDetailView>> =>
+    ipcRenderer.invoke('nexus:job:get', jobId),
+  nexusJobLogs: (jobId: string, query: JobLogsQuery): Promise<NexusResult<LogPageView>> =>
+    ipcRenderer.invoke('nexus:job:logs', jobId, query),
+  nexusJobCancel: (jobId: string): Promise<NexusResult<JobView>> =>
+    ipcRenderer.invoke('nexus:job:cancel', jobId),
+  nexusJobRetry: (jobId: string, intentId: string): Promise<NexusResult<{ job: JobView }>> =>
+    ipcRenderer.invoke('nexus:job:retry', jobId, intentId),
+  nexusEventsSince: (query: EventsQuery): Promise<NexusResult<EventsPageView>> =>
+    ipcRenderer.invoke('nexus:events:since', query),
+  nexusVersionValidations: (versionId: string): Promise<NexusResult<ValidationResultView[]>> =>
+    ipcRenderer.invoke('nexus:version:validations', versionId),
+  nexusVersionRevalidate: (versionId: string, intentId: string): Promise<NexusResult<{ jobs: JobView[] }>> =>
+    ipcRenderer.invoke('nexus:version:revalidate', versionId, intentId),
+  nexusVersionPreview: (versionId: string, query: PreviewQuery): Promise<NexusResult<PreviewView>> =>
+    ipcRenderer.invoke('nexus:version:preview', versionId, query),
+  nexusArtifactSaveInline: (args: SaveInlineArgs): Promise<NexusResult<InlineSaveView>> =>
+    ipcRenderer.invoke('nexus:artifact:saveInline', args),
+  nexusDeploymentsList: (filter?: DeploymentsListFilter): Promise<NexusResult<DeploymentView[]>> =>
+    ipcRenderer.invoke('nexus:deployments:list', filter),
+  nexusDeploymentStop: (deploymentId: string): Promise<NexusResult<DeploymentView>> =>
+    ipcRenderer.invoke('nexus:deployment:stop', deploymentId),
+  nexusApprovalsList: (filter?: ApprovalsListFilter): Promise<NexusResult<ApprovalView[]>> =>
+    ipcRenderer.invoke('nexus:approvals:list', filter),
+  nexusApprovalRespond: (approvalId: string, decision: ApprovalDecisionArg): Promise<NexusResult<ApprovalView>> =>
+    ipcRenderer.invoke('nexus:approval:respond', approvalId, decision),
+  nexusSetupPrepareImage: (profileId: ImageProfileArg, intentId: string): Promise<NexusResult<{ approval: ApprovalView; created: boolean }>> =>
+    ipcRenderer.invoke('nexus:setup:prepareImage', profileId, intentId),
+  nexusBlobsGc: (args: BlobGcArgs): Promise<NexusResult<BlobGcView>> =>
+    ipcRenderer.invoke('nexus:blobs:gc', args),
+  /** The hint push: the newest event seq only (pull nexusEventsSince for what changed). Returns an unsubscribe. */
+  onNexusHint: (cb: (hint: NexusHint) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, hint: NexusHint) => {
+      if (hint && typeof hint.lastSeq === 'number' && Number.isSafeInteger(hint.lastSeq)) cb({ lastSeq: hint.lastSeq });
+    };
+    ipcRenderer.on('nexus:hint', listener);
+    return () => { ipcRenderer.removeListener('nexus:hint', listener); };
+  }
 };
 
 contextBridge.exposeInMainWorld('cth', api);

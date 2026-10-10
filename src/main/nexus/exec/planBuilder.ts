@@ -477,7 +477,20 @@ function buildDiagnosePlan(ctx: PlanContext, base: Omit<EnginePlan, 'kind' | 'ta
     wallClockMs: ctx.recipe.wallClockMs };
 }
 
+/** The engine recipes main plans (each has its branch below; B2a Task 13 pins this list to the registry's B2A_IMPL). */
+export const ENGINE_TASK_RECIPES: readonly string[] = Object.freeze(['repo.snapshot', 'sde.app.assemble', 'sde.diagnose']);
+
+/**
+ * The recipes main can build a plan for: an engine recipe with its branch here, or a container recipe (tool or service)
+ * whose every argv template exists in ARGV_TEMPLATES.
+ */
+export function plannedRecipeIds(recipes: readonly RecipeDef[]): string[] {
+  return recipes.filter((r) => (r.executor === 'engine' ? ENGINE_TASK_RECIPES.includes(r.id)
+    : r.argvTemplates.length > 0 && r.argvTemplates.every((t) => Object.prototype.hasOwnProperty.call(ARGV_TEMPLATES, t)))).map((r) => r.id);
+}
+
 function buildEnginePlan(ctx: PlanContext, base: Omit<EnginePlan, 'kind' | 'task' | 'wallClockMs'>): EnginePlan {
+  if (!ENGINE_TASK_RECIPES.includes(ctx.recipe.id)) return refuse('not_in_this_build', `${ctx.recipe.id} is not an engine task of this build`);
   // A diagnosis reads Docker and the data home only: it needs no project folder.
   if (ctx.recipe.id === 'sde.diagnose') return buildDiagnosePlan(ctx, base);
   const repoPath = ctx.repoPath;

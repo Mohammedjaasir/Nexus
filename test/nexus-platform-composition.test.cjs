@@ -51,8 +51,15 @@ const NEXUS_CHANNEL_LIST = [
   'nexus:artifact:saveCommit', 'nexus:artifact:saveTextFile', 'nexus:version:markReady', 'nexus:version:promote',
   'nexus:version:discard', 'nexus:version:linkSources',
   'nexus:handoffs:list', 'nexus:handoff:get', 'nexus:handoff:send', 'nexus:handoff:accept', 'nexus:handoff:decline', 'nexus:handoff:withdraw',
-  'nexus:activity:byProject'
+  'nexus:activity:byProject',
+  // B2a Task 13 (pinned-test extension): the twenty execution channels #22-#41.
+  'nexus:domains:list', 'nexus:platform:health', 'nexus:actions:available', 'nexus:job:start', 'nexus:jobs:list', 'nexus:job:get',
+  'nexus:job:logs', 'nexus:job:cancel', 'nexus:job:retry', 'nexus:events:since', 'nexus:version:validations', 'nexus:version:revalidate',
+  'nexus:version:preview', 'nexus:artifact:saveInline', 'nexus:deployments:list', 'nexus:deployment:stop', 'nexus:approvals:list',
+  'nexus:approval:respond', 'nexus:setup:prepareImage', 'nexus:blobs:gc'
 ];
+// B2a Task 13 (pinned-test extension): the one push of the family, main -> renderer.
+const NEXUS_PUSH = ['nexus:hint'];
 // Task 7: every channel is registered and exposed (the read channels came in Task 6, the writes in Task 7).
 const NEXUS_REGISTERED = [...NEXUS_CHANNEL_LIST];
 const NEXUS_PRELOAD_METHODS = [
@@ -61,7 +68,12 @@ const NEXUS_PRELOAD_METHODS = [
   'nexusArtifactSaveCommit', 'nexusArtifactSaveTextFile', 'nexusVersionMarkReady', 'nexusVersionPromote',
   'nexusVersionDiscard', 'nexusVersionLinkSources',
   'nexusHandoffsList', 'nexusHandoffGet', 'nexusHandoffSend', 'nexusHandoffAccept', 'nexusHandoffDecline', 'nexusHandoffWithdraw',
-  'nexusActivityByProject'
+  'nexusActivityByProject',
+  // B2a Task 13 (pinned-test extension).
+  'nexusDomainsList', 'nexusPlatformHealth', 'nexusActionsAvailable', 'nexusJobStart', 'nexusJobsList', 'nexusJobGet',
+  'nexusJobLogs', 'nexusJobCancel', 'nexusJobRetry', 'nexusEventsSince', 'nexusVersionValidations', 'nexusVersionRevalidate',
+  'nexusVersionPreview', 'nexusArtifactSaveInline', 'nexusDeploymentsList', 'nexusDeploymentStop', 'nexusApprovalsList',
+  'nexusApprovalRespond', 'nexusSetupPrepareImage', 'nexusBlobsGc'
 ];
 const literals = (text) => new Set((text.match(/['"`]nexus:[A-Za-z:]+['"`]/g) || []).map((x) => x.slice(1, -1)));
 const sorted = (xs) => [...xs].sort();
@@ -77,22 +89,28 @@ test('nexus:* channels: one module, the exact list, the exact preload surface', 
   assert.match(idx, /registerNexusIpc\(ipcMain, \{/);
   assert.match(idx, /unavailableReason: \(\) => nexusUnavailableReason/);
   assert.match(idx, /handoffsUnavailableReason: \(\) => handoffsUnavailableReason/);
-  // The module's literals are NEXUS_CHANNELS, which is the literal list here.
-  const { NEXUS_CHANNELS, registerNexusIpc } = loadTs('src/main/nexusIpc/registerNexusIpc.ts');
-  assert.deepEqual([...NEXUS_CHANNELS], NEXUS_CHANNEL_LIST);
-  assert.deepEqual(sorted(literals(mod)), sorted(NEXUS_CHANNEL_LIST));
-  // The channels actually registered (a fake registrar) equal the preload's literals and the full list (21).
+  // The module's literals are NEXUS_CHANNELS (B1, 21) and NEXUS_EXEC_CHANNELS (B2a, 20), which are the literal list
+  // here, plus the one push (B2a Task 13 pinned-test extension: literals(mod) == NEXUS_CHANNEL_LIST + NEXUS_PUSH).
+  const { NEXUS_CHANNELS, NEXUS_EXEC_CHANNELS, NEXUS_ALL_CHANNELS, registerNexusIpc } = loadTs('src/main/nexusIpc/registerNexusIpc.ts');
+  assert.deepEqual([...NEXUS_CHANNELS, ...NEXUS_EXEC_CHANNELS], NEXUS_CHANNEL_LIST);
+  assert.deepEqual([...NEXUS_ALL_CHANNELS], NEXUS_CHANNEL_LIST);
+  assert.deepEqual(sorted(literals(mod)), sorted([...NEXUS_CHANNEL_LIST, ...NEXUS_PUSH]));
+  // The channels actually registered (a fake registrar, with main's execution deps) equal the preload's literals and the full list (41).
   const registered = [];
   registerNexusIpc({ handle: (c) => registered.push(c) }, { platform: () => null, unavailableReason: () => 'not_open',
     sources: { projectRoot: async () => null, readFile: async () => ({ error: 'not_found' }), resolveCommit: async () => ({ error: 'not_a_commit' }) },
-    log: () => {} });
+    log: () => {}, executionUnavailableReason: () => null });
   assert.deepEqual(sorted(registered), sorted(NEXUS_REGISTERED));
-  assert.deepEqual(sorted(literals(preload)), sorted(NEXUS_REGISTERED));
+  assert.deepEqual(sorted(literals(preload)), sorted([...NEXUS_REGISTERED, ...NEXUS_PUSH]));
   for (const c of registered) assert.ok(NEXUS_CHANNEL_LIST.includes(c), c);
   // The exact preload methods, each invoking its own channel once.
   const methods = (preload.match(/^\s{2}(nexus[A-Z][A-Za-z]*):/gm) || []).map((x) => x.trim().slice(0, -1));
   assert.deepEqual(methods, NEXUS_PRELOAD_METHODS);
-  assert.equal((preload.match(/ipcRenderer\.(invoke|send|sendSync|on)\(\s*['"`]nexus:/g) || []).length, NEXUS_REGISTERED.length);
+  // B2a Task 13 (pinned-test extension): one more, exactly one ipcRenderer.on of the hint push.
+  assert.equal((preload.match(/ipcRenderer\.(invoke|send|sendSync|on)\(\s*['"`]nexus:/g) || []).length, NEXUS_REGISTERED.length + 1);
+  assert.equal((preload.match(/ipcRenderer\.on\(\s*['"`]nexus:/g) || []).length, 1);
+  assert.equal((preload.match(/ipcRenderer\.on\('nexus:hint'/g) || []).length, 1);
+  assert.equal((preload.match(/ipcRenderer\.invoke\(\s*['"`]nexus:/g) || []).length, NEXUS_REGISTERED.length);
   assert.match(preload, /^import type \{[^}]*NexusResult[^}]*\} from '\.\.\/shared\/nexus\/ipc';/m);
   // No nexus: literal anywhere else under src/main.
   for (const f of walkTs('src/main')) {
@@ -121,11 +139,13 @@ test('nexusIpc: every registration goes through the one wrapper; no identity fro
   for (const f of ['src/main/nexusIpc/registerNexusIpc.ts', 'src/main/nexusIpc/validate.ts']) {
     assert.doesNotMatch(read(f), /\.(principal|principalId|actor|actorId|role|onBehalfOf)\b/, f);
   }
-  assert.equal(NEXUS_REGISTERED.length, 21);
-  assert.equal(NEXUS_PRELOAD_METHODS.length, 21);
-  // ... and 'kind' is read from a request only as the artifact-kind filter of nexus:artifacts:list.
-  assert.deepEqual(mod.match(/\bo\.kind\b[^\n]*/g), ["o.kind === undefined ? undefined : V.artifactKind(o.kind, 'kind'),"]);
-  assert.equal((mod.match(/['"`]kind['"`]/g) || []).length, 2, "the 'kind' key of the artifacts filter and its field name");
+  assert.equal(NEXUS_REGISTERED.length, 41);
+  assert.equal(NEXUS_PRELOAD_METHODS.length, 41);
+  // ... and 'kind' is read from a request only as the artifact-kind filter of nexus:artifacts:list and (B2a Task 13
+  // pinned-test extension) as saveInline's user-authorable kind.
+  assert.deepEqual(mod.match(/\bo\.kind\b[^\n]*/g), ["o.kind === undefined ? undefined : V.artifactKind(o.kind, 'kind'),", "o.kind, 'kind'),"]);
+  assert.match(mod, /kind: V\.userAuthorableKind\(o\.kind, 'kind'\),/);
+  assert.equal((mod.match(/['"`]kind['"`]/g) || []).length, 4, "the 'kind' keys of the artifacts filter and of saveInline, and their field names");
   // The ban on transport inside the platform core keeps its meaning: the IPC layer lives in src/main/nexusIpc.
   for (const f of walkTs('src/main/nexus')) assert.doesNotMatch(read(f), /ipcMain|ipcRenderer|webContents/, f);
 });

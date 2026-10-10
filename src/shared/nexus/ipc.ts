@@ -5,32 +5,44 @@
 // Identity never crosses this boundary from the renderer: no request shape names a
 // principal, an actor, a role or a folder. Main resolves the principal on every call.
 import type {
-  ActivityStatus, ArtifactId, HandoffId, HandoffStatus, LineageRelation, ParticipationId, ParticipationStatus,
-  PlatformErrorCode, PrincipalKind, ProjectId, VersionId, VersionStatus, WorkspaceId
+  ActivityStatus, ApprovalStatus, ArtifactId, DeploymentStatus, HandoffId, HandoffStatus, JobId, JobKind, JobState, LineageRelation,
+  ParticipationId, ParticipationStatus, PlatformErrorCode, PrincipalKind, ProjectId, VersionId, VersionStatus, WorkspaceId
 } from './platform';
+import type { DomainTier, StepStatus, SubPhase } from './domainSpec';
 
 /** Why the whole platform is unavailable (every channel answers platform_unavailable with this reason). */
 export type PlatformUnavailableReason = 'held' | 'migration_failed' | 'newer_schema' | 'shape_mismatch' | 'startup_failed' | 'not_open';
 /** Why handoffs alone are off while the platform is up (the sub-reason of 'handoffs_unavailable'). */
 export type HandoffsUnavailableSubReason = 'held' | 'auto_held' | 'backup_failed' | 'failed' | 'shape';
 /**
- * The `reason` of a platform_unavailable answer. 'busy': another writer held the database lock past the busy
- * timeout; nothing was written and the same request may be sent again.
+ * Why execution (schema v9) is off while the platform is up: the sub-reason of 'execution_unavailable' (B2a). The
+ * store's reasons (as for handoffs), plus: execution not turned on in this build (`not_enabled`), v8 not in place
+ * (`v8_unavailable`), the domain registry failed its startup check (`registry_invalid`), and the execution wiring not
+ * started in main (`not_started`: the runner host and the data home readers do not exist yet).
  */
-export type UnavailableReason = PlatformUnavailableReason | 'handoffs_unavailable' | 'busy';
+export type ExecutionUnavailableSubReason = 'held' | 'auto_held' | 'backup_failed' | 'failed' | 'shape' | 'not_enabled'
+  | 'v8_unavailable' | 'registry_invalid' | 'not_started';
+/**
+ * The `reason` of a platform_unavailable answer. 'busy': another writer held the database lock past the busy
+ * timeout; nothing was written and the same request may be sent again. 'execution_unavailable' (B2a): the channel
+ * needs schema v9 execution, which is off (with its sub-reason); the B1 channels and #22/#23 still answer.
+ */
+export type UnavailableReason = PlatformUnavailableReason | 'handoffs_unavailable' | 'execution_unavailable' | 'busy';
 
 export type NexusErrorCode = PlatformErrorCode | 'internal';
 
 /** The keys a failure's `detail` may carry; everything else is dropped in main. */
 export type NexusErrorDetailKey = 'currentVersionId' | 'handoffId' | 'versionId' | 'participationId' | 'liveJobs'
-  | 'liveSessions' | 'openHandoffs' | 'existingId' | 'limit';
+  | 'liveSessions' | 'openHandoffs' | 'existingId' | 'limit'
+  // B2a Task 13: the records a refusal names, and the numbers of a setup:* answer (the disk gate).
+  | 'jobId' | 'approvalId' | 'deploymentId' | 'setup' | 'freeBytes' | 'requiredBytes';
 
 export type NexusOk<T> = { ok: true; data: T; truncated?: boolean };
 export type NexusFail = {
   ok: false; code: NexusErrorCode; message: string;
   /** A machine-readable refinement: an unavailable reason, 'bad_request', or a service reason such as 'path_refused'. */
   reason?: string;
-  /** With reason 'handoffs_unavailable': why v8 is not in place. */
+  /** With reason 'handoffs_unavailable': why v8 is not in place; with 'execution_unavailable': why execution is off. */
   subReason?: string;
   /** With reason 'bad_request': the request field that was refused. */
   field?: string;
@@ -107,6 +119,147 @@ export interface SaveResultView { artifact: ArtifactView; version: VersionView; 
 export interface LinkSourcesView { edges: EdgeView[]; created: number }
 export interface SendHandoffView { handoff: HandoffDetailView; created: boolean }
 
+// ---------- B2a execution views (channels #22-#41) ----------
+// The same rules as above: built field by field in main (nexusIpc/dto.ts); no principal id, no host path, no raw
+// metadata, no env value; strings scrubbed and capped; image ids shortened to `sha256:` + 12 hex characters.
+
+/** One lifecycle step of a domain: its position, status in this build and what it needs. Never a result. */
+export interface LifecycleStepView {
+  id: string; label: string; status: StepStatus;
+  /** For PARTIAL the scope limit; for FUTURE why it is not in this build. */
+  scopeNote: string | null;
+  subPhase: SubPhase;
+  /** True when the step is REAL or PARTIAL and delivered in this build's sub-phase. */
+  delivered: boolean;
+  consumes: string[]; produces: string[]; prerequisites: string[];
+  /** The user actions that work toward the step (ids; their availability is #24). */
+  actions: string[];
+}
+export interface DomainSpecView {
+  id: string; label: string; shortLabel: string; description: string; tier: DomainTier; hueSlot: number; icon: string; order: number;
+  statusNote: string;
+  /** Kind words in the domain's own language. */
+  vocabulary: Record<string, { singular: string; plural: string }>;
+  lifecycle: LifecycleStepView[];
+  modules: { id: string; label: string; kinds: string[]; subPhase: SubPhase }[];
+  /** The sub-phase from which a project can take part in the domain. */
+  availableFromSubPhase: SubPhase;
+  /** This build's sub-phase. */
+  currentSubPhase: SubPhase;
+  /** True only when every step of every completion rule runs in this build (never claimed otherwise). */
+  executableEndToEnd: boolean;
+}
+export type DiskGate = 'ok' | 'below_recommended' | 'below_required' | 'unknown';
+/** The execution setup as main last observed it (cached; reading it never waits on Docker or the runner). */
+export interface HealthView {
+  db: { version: number | null; platform: boolean; handoffs: boolean; execution: boolean; subReason?: string };
+  /** The domain registry's startup check: when it fails, execution stays off (`registry_invalid`). */
+  registry: { valid: boolean; problems: number };
+  runner: { state: string; attached: boolean; restarts: number };
+  docker: { state: 'unknown' | 'missing' | 'stopped' | 'running'; version?: string; os?: string; wsl2?: boolean; cpus?: number; memoryBytes?: number };
+  images: { profile: string; present: boolean; matches: boolean; sizeBytes?: number; imageIdShort?: string }[];
+  disk: { dataHomeFreeBytes: number | null; requiredBytes: number; recommendedBytes: number; leaseFloorBytes: number; gate: DiskGate };
+  /** The gate's problems as ids (`disk_low`, `docker_stopped`, `image_missing:sde-node`, ...), advisory ones included. */
+  problems: string[];
+  gpu: { detected: boolean; model?: string; supported: false };
+  checkedAt: number | null;
+}
+/**
+ * An action as the user may see it now. `reason` when not available: `planned` (a later sub-phase), `future` (its
+ * step is FUTURE), `setup:<id>` (this machine: Docker, an image, the disk gate, the runner), `permission`,
+ * `blocked_by_step:<stepId>` (an input the step produces is missing), `not_applicable` (the version given is not an
+ * input it takes, or there is nothing for it to act on).
+ */
+export interface ActionAvailabilityView {
+  actionId: string; label: string; stepId: string | null; available: boolean; reason: string | null;
+  /** The input slots the action takes (kinds by id; the version picker offers candidate or active versions). */
+  inputs: { slot: string; kinds: string[]; min: number; max: number }[];
+  /** True when the action needs the network once (an approval is asked before anything is downloaded). */
+  needsApproval: boolean;
+}
+export type JobHeadline =
+  | 'queued' | 'waiting:runner' | 'waiting:docker' | 'waiting:image' | 'waiting:disk' | 'waiting:slots' | 'waiting:memory'
+  | 'waiting:git' | 'waiting:retry' | 'provisioning' | 'running' | 'waiting_for_approval' | 'collecting' | 'validating'
+  | 'checks_passed' | 'checks_failed' | 'checks_could_not_run' | 'failed' | 'cancelled' | 'timed_out' | 'interrupted';
+/** A job without its params, principals or host facts. `headline` is never a bare "completed" for a run whose checks failed. */
+export interface JobView {
+  id: JobId; kind: JobKind; projectId: ProjectId; workspaceId: WorkspaceId; actionId: string | null; recipeId: string | null;
+  state: JobState; phase: string | null; headline: JobHeadline; outcome: string | null; error: { code: string; message: string } | null;
+  attempts: number; retryOf: JobId | null; parentJobId: JobId | null;
+  /** Who asked: the user, or the system on the user's behalf (a check, a recovery); never an id. */
+  requestedByKind: PrincipalKind;
+  inputs: { versionId: VersionId; slot: string; contentHash: string }[];
+  createdAt: number; updatedAt: number; startedAt: number | null; finishedAt: number | null; nextAttemptAt: number | null;
+  cancelRequested: boolean;
+}
+export interface AttemptSummaryView {
+  n: number; state: string; outcome: string | null; exitCode: number | null; signal: string | null; oomKilled: boolean | null;
+  /** The network mode the attempt ran with (`none`, `egress-approved`, `service-internal`, `not-applicable`). */
+  network: string | null;
+  preflight: { ok: boolean; problems: string[] } | null;
+  /** The sandbox image, shortened (`sha256:` + 12 hex). */
+  imageIdShort: string | null; profile: string | null;
+  error: { code: string; message: string } | null;
+  createdAt: number; startedAt: number | null; finishedAt: number | null;
+}
+export interface JobDetailView extends JobView {
+  attemptHistory: AttemptSummaryView[];
+  outputs: { versionId: VersionId; status: VersionStatus }[];
+  approvals: { id: string; status: ApprovalStatus; reason: string; expiresAt: number }[];
+  deployment: { id: string; status: DeploymentStatus } | null;
+}
+export interface EventView {
+  seq: number; ts: number; type: string; summary: string; projectId: ProjectId | null; jobId: JobId | null; attemptN: number | null;
+}
+export interface EventsPageView { events: EventView[]; lastSeq: number }
+/**
+ * One validator on a version. `status` is the LATEST BLOCKING row's (what the version's state reads); `latestRun` is
+ * the newest advisory result (a user's run on a candidate, a deduplicated output): a run result, never the status.
+ */
+export interface ValidationResultView {
+  validatorId: string; blocking: boolean;
+  status: 'passed' | 'failed' | 'error' | 'skipped' | null;
+  summary: string | null; finishedAt: number | null;
+  /** The evidence of the latest blocking row: typed facts only (counts, hashes, names), each string capped. */
+  evidence: { type: string; name: string | null; value: string | number | boolean | null }[];
+  /** The newest advisory result, if any (a run result; it never sets `status`). */
+  latestRun: { status: 'passed' | 'failed' | 'error' | 'skipped'; summary: string; finishedAt: number } | null;
+  /** Every row recorded for this validator on the version, blocking and advisory. */
+  history: number;
+}
+export type PreviewPart = 'content' | 'manifest' | 'discovery' | 'junit_summary';
+export interface PreviewView {
+  part: PreviewPart; versionId: VersionId;
+  /** A page of text (redacted), or of rows (manifest files, discovered tests, JUnit cases: failures first). */
+  text: string | null;
+  rows: { name: string; detail: string | null; bytes: number | null; outcome: string | null }[] | null;
+  page: number; nextPage: number | null; totalRows: number | null; totalBytes: number | null;
+}
+export interface LogPageView { text: string; nextOffset: number; eof: boolean; truncatedMiddle: boolean }
+export interface DeploymentView {
+  id: string; projectId: ProjectId; subjectVersionId: VersionId; jobId: JobId; status: DeploymentStatus; stopReason: string | null;
+  /** `http://127.0.0.1:<port><healthPath>` while live, else null. */
+  url: string | null; bindAddress: string; hostPort: number | null; healthPath: string | null;
+  lastProbe: { at: number; status: number | null; ms: number | null } | null; probes: number;
+  startedAt: number; stoppedAt: number | null; endsAt: number;
+}
+export interface ApprovalView {
+  id: string; projectId: ProjectId | null; jobId: JobId | null; reason: string; summary: string; status: ApprovalStatus;
+  /** Exactly what is asked: the recipe or image profile, the registries, the hashes it is bound to, the size. */
+  request: { recipeId?: string; profile?: string; registries?: string[]; lockfileSha256?: string; contextSha256?: string;
+    baseDigest?: string; estimatedBytes?: number; freeBytesNow?: number | null };
+  requestedAt: number; expiresAt: number; decidedAt: number | null; decision: 'once' | 'deny' | null; consumedAt: number | null;
+  imageBuild: { id: string; status: string; imageIdShort: string | null; sizeBytes: number | null; error: string | null } | null;
+}
+export interface JobStartView { job: JobView; created: boolean }
+export interface InlineSaveView { artifact: ArtifactView; version: VersionView; created: boolean }
+export interface BlobGcView {
+  /** Blobs no version references any more (dry run: what would go; apply: what went). */
+  candidates: number; bytes: number; candidatesHash: string; removed: number;
+  /** Object files that could not be removed (reported, never retried blind). */
+  fileDeleteFailed: number;
+}
+
 // ---------- requests (what the renderer sends: ids and small values only) ----------
 
 export interface ArtifactsListFilter {
@@ -124,3 +277,30 @@ export interface SendHandoffArgs {
   projectId: ProjectId; fromParticipationId: ParticipationId; toParticipationId: ParticipationId;
   versionIds: VersionId[]; title: string; note?: string;
 }
+
+// ---------- B2a requests (channels #22-#41): ids, enums and bounded values; never a folder, a command, a network,
+// an image, an environment or an identity. `intentId` is a ULID the renderer mints once per user intent.
+export interface ActionsQuery { projectId: ProjectId; workspaceId: WorkspaceId; versionId?: VersionId }
+export interface JobStartArgs {
+  projectId: ProjectId; workspaceId: WorkspaceId; actionId: string;
+  inputs: { versionId: VersionId; slot: string }[];
+  /** The action's own parameters (its closed schema; at most 8 KiB). */
+  params: Record<string, string | number | boolean>;
+  intentId: string;
+}
+export interface JobsListFilter { projectId?: ProjectId; workspaceId?: WorkspaceId; states?: JobState[]; jobKind?: JobKind; limit?: number }
+export interface JobLogsQuery { attempt: number; fromOffset: number; maxBytes: number }
+export interface EventsQuery { sinceSeq: number; projectId?: ProjectId; limit?: number }
+export interface PreviewQuery { part: PreviewPart; page?: number; maxBytes: number }
+export interface SaveInlineArgs {
+  projectId: ProjectId; workspaceId: WorkspaceId; kind: 'requirement' | 'problem_statement'; target: SaveTargetArg;
+  /** The structured content (at most 32 KiB); its schema is checked in main. */
+  content: Record<string, unknown>;
+}
+export interface DeploymentsListFilter { projectId?: ProjectId; status?: DeploymentStatus }
+export interface ApprovalsListFilter { projectId?: ProjectId; status?: ApprovalStatus }
+export type ApprovalDecisionArg = 'once' | 'deny';
+export type ImageProfileArg = 'sde-node' | 'sde-python' | 'nexus-fwd';
+export type BlobGcArgs = { apply: false } | { apply: true; expectedCandidatesHash: string };
+/** The nexus:hint push: only the newest event seq (pull #31 for what changed). */
+export interface NexusHint { lastSeq: number }

@@ -145,3 +145,26 @@ test('no nexus:* request schema has a folder field (only relPath)', () => {
   // A parsed request never names a root or a cwd field either.
   assert.doesNotMatch(mod, /\.(root|rootPath|cwd)\b/);
 });
+
+// B2a Task 13 (pinned-test extension): the same scan over the execution request shapes (#22-#41), and wider keys.
+test('no nexus:* request schema (B1 or B2a) names a folder, file, image, network, argv, command or env; relPath only in #10', () => {
+  const read = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
+  const mod = read('src/main/nexusIpc/registerNexusIpc.ts');
+  const validate = read('src/main/nexusIpc/validate.ts');
+  const schemaLists = (text, re) => [...text.matchAll(re)].map((m) => m[1]);
+  const lists = [...schemaLists(mod, /(?:V\.object|optionalObject)\([^,]+,\s*\[([^\]]*)\]/g), ...schemaLists(validate, /V\.object\([^,]+,\s*\[([^\]]*)\]/g)];
+  assert.ok(lists.length >= 18, `the B1 and B2a schemas were found (${lists.length})`);
+  const keysOf = (l) => [...l.matchAll(/['"`]([^'"`]+)['"`]/g)].map((m) => m[1]);
+  const banned = /^(root|rootPath|cwd|path|dir|folder|file|image|network|argv|command|env)$|Path$|Root$|Dir$|File$/i;
+  for (const k of lists.flatMap(keysOf)) assert.ok(k === 'relPath' || !banned.test(k), k);
+  // relPath is the one path-like key, in exactly one schema: #10 (saveTextFile).
+  const withRel = lists.filter((l) => keysOf(l).includes('relPath'));
+  assert.equal(withRel.length, 1);
+  assert.match(mod, /reg\('nexus:artifact:saveTextFile'[\s\S]{0,200}V\.object\(args\[0\], \['projectId', 'workspaceId', 'relPath', 'target'\]/);
+  // The request types the preload sends: no such key in any of them (relPath only in SaveTextFileArgs).
+  const ipc = read('src/shared/nexus/ipc.ts');
+  const requests = ipc.slice(ipc.indexOf('// ---------- requests'));
+  const typeKeys = [...requests.matchAll(/\b([A-Za-z]+)\??:\s/g)].map((m) => m[1]);
+  for (const k of typeKeys) assert.ok(k === 'relPath' || !banned.test(k), k);
+  assert.equal((requests.match(/\brelPath\??:/g) || []).length, 1);
+});

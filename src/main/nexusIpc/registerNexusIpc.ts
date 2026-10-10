@@ -18,22 +18,37 @@
  * This module lives outside src/main/nexus on purpose: the platform core never knows
  * about transport (the composition test bans Electron's IPC objects there).
  * B1 Task 6 registered the read channels; Task 7 the write channels (all 21).
+ *
+ * B2a Task 13 adds the twenty execution channels #22-#41 (NEXUS_EXEC_CHANNELS), through the same wrapper, registered
+ * when main passes the execution deps (`executionUnavailableReason`, `exec`). Every one except #22 (the domain registry)
+ * and #23 (health, from main's cache) first needs schema v9 execution: while it is off they answer platform_unavailable
+ * with reason 'execution_unavailable' and its sub-reason (the store's reason, `not_enabled`, `registry_invalid` when the
+ * startup registry check failed, `not_started` when main's execution wiring is not running). The renderer sends ids,
+ * input slots, an action's own params and an intent ULID; main picks every recipe, image, argv, network and mount.
+ * The approval resume and every other system-only operation of the execution core is never reachable from here: an
+ * approval is answered only through #39 (once or deny). The one push, nexus:hint, is sent by `sendNexusHint` below.
  */
 import type { Principal } from '../../shared/nexus/platform';
 import type {
   HandoffsUnavailableSubReason, NexusOk, NexusResult, PlatformUnavailableReason
 } from '../../shared/nexus/ipc';
 import type { NexusPlatform } from '../nexus/platform';
+import type { ExecIpcPort } from '../nexusExec/execWiring';
 import { MAX_LIST_LIMIT } from '../nexus/artifact/artifactService';
 import { UserSaves, type SaveResult, type SourcePorts } from '../nexus/commands/userSaves';
 import { PlatformError } from '../nexus/errors';
 import { HANDOFF_STATUSES, MAX_SUBJECTS } from '../nexus/handoff/handoffRules';
 import { MAX_LINK_SOURCES } from '../nexus/lineage/lineageService';
+import { getUserAction } from '../../shared/nexus/actions';
+import { DOMAINS } from '../../shared/nexus/domains/index';
 import { fail, ok, unavailable } from './envelope';
-import { V } from './validate';
 import {
-  activityView, artifactView, edgeView, handoffDetailView, handoffSummaryView, lineageNodeView, participationView, summaryView,
-  versionDetail, versionView
+  APPROVAL_STATUSES_ACCEPTED, DEPLOYMENT_STATUSES_ACCEPTED, PREVIEW_PARTS, RequestError, V
+} from './validate';
+import {
+  actionView, activityView, approvalView, artifactView, deploymentView, domainView, edgeView, eventView, gcView, handoffDetailView,
+  handoffSummaryView, healthView, jobDetailView, jobView, lineageNodeView, logPageView, participationView, previewView, summaryView,
+  validationView, versionDetail, versionView
 } from './dto';
 
 /** All 21 nexus:* channels of B1, in the order of the IPC surface table. */
@@ -66,11 +81,50 @@ const HANDOFF_CHANNELS: ReadonlySet<string> = new Set([
   'nexus:handoffs:list', 'nexus:handoff:get', 'nexus:handoff:send', 'nexus:handoff:accept', 'nexus:handoff:decline', 'nexus:handoff:withdraw'
 ]);
 
+/** B2a Task 13: the twenty execution channels #22-#41, in the order of the IPC surface table. */
+export const NEXUS_EXEC_CHANNELS: readonly string[] = Object.freeze([
+  'nexus:domains:list',
+  'nexus:platform:health',
+  'nexus:actions:available',
+  'nexus:job:start',
+  'nexus:jobs:list',
+  'nexus:job:get',
+  'nexus:job:logs',
+  'nexus:job:cancel',
+  'nexus:job:retry',
+  'nexus:events:since',
+  'nexus:version:validations',
+  'nexus:version:revalidate',
+  'nexus:version:preview',
+  'nexus:artifact:saveInline',
+  'nexus:deployments:list',
+  'nexus:deployment:stop',
+  'nexus:approvals:list',
+  'nexus:approval:respond',
+  'nexus:setup:prepareImage',
+  'nexus:blobs:gc'
+]);
+/** Every nexus:* channel (41): B1's 21 and B2a's 20. */
+export const NEXUS_ALL_CHANNELS: readonly string[] = Object.freeze([...NEXUS_CHANNELS, ...NEXUS_EXEC_CHANNELS]);
+/** The one push of the family (main -> renderer): `{ lastSeq }` only. */
+export const NEXUS_HINT_CHANNEL = 'nexus:hint';
+
+/** #24-#41: they need schema v9 execution (#22 and #23 answer whenever the platform is up). */
+const EXECUTION_CHANNELS: ReadonlySet<string> = new Set(NEXUS_EXEC_CHANNELS.filter((c) => c !== 'nexus:domains:list' && c !== 'nexus:platform:health'));
+
 /** List limits as the renderer may ask for them; a larger integer is clamped to the channel's maximum. */
 export const ARTIFACTS_LIST_MAX = 500;
 export const HANDOFFS_LIST_MAX = 500;
 export const ACTIVITY_PAGE_MAX = 50;
 const DEFAULT_LIST = 200;
+/** B2a: jobs and events lists (the core's caps), a log or preview page (256 KiB), attempt numbers, preview pages. */
+export const JOBS_LIST_MAX = 500;
+const DEFAULT_EXEC_LIST = 100;
+export const EVENTS_MAX = 500;
+export const MAX_READ_PAGE = 262_144;
+const MAX_ATTEMPT_N = 1_000_000;
+const MAX_PREVIEW_PAGE = 100_000;
+const PLATFORM = { type: 'platform' } as const;
 /** The widest integer a limit may be before it is refused rather than clamped. */
 const LIMIT_CEILING = 100000;
 
@@ -86,7 +140,18 @@ export interface NexusIpcDeps {
   /** Main adapters for user saves (project folder, file read, commit resolve); used by the two save channels. */
   sources: SourcePorts;
   log: (line: string) => void;
+  /**
+   * B2a: why execution is off as main's store says (null when it is on). With this or `exec` given, the execution
+   * channels #22-#41 are registered; read at call time, and the platform's own reason (a failed registry check, a
+   * shape problem) applies when this says null.
+   */
+  executionUnavailableReason?: () => string | null;
+  /** B2a: main's execution wiring (logs, previews, blob GC through the data home); null until it runs (`not_started`). */
+  exec?: () => ExecIpcPort | null;
 }
+
+/** A renderer the nexus:hint push goes to (main passes its live web contents). */
+export interface HintTarget { send(channel: string, payload: unknown): void; isDestroyed?(): boolean }
 
 type Run<A> = (nx: NexusPlatform, me: Principal, a: A) => NexusOk<unknown> | Promise<NexusOk<unknown>>;
 
@@ -102,7 +167,34 @@ const optionalObject = <K extends string>(x: unknown, keys: readonly K[]): Recor
 
 const saveView = (r: SaveResult) => ({ artifact: artifactView(r.artifact), version: versionView(r.version), created: r.created });
 
+/** The execution sub-reason an execution service would refuse with (the envelope maps it to 'execution_unavailable'). */
+const execOffError = (subReason: string): PlatformError =>
+  new PlatformError('platform_unavailable', 'execution is not available', { reason: 'execution_unavailable', subReason });
+const queriesOf = (nx: NexusPlatform) => nx.queries ?? (() => { throw execOffError(nx.exec.unavailableReason ?? 'not_enabled'); })();
+const validationOf = (nx: NexusPlatform) => nx.validation ?? (() => { throw execOffError(nx.exec.unavailableReason ?? 'not_enabled'); })();
+const deploymentsOf = (nx: NexusPlatform) => nx.deployments ?? (() => { throw execOffError(nx.exec.unavailableReason ?? 'not_enabled'); })();
+const approvalsOf = (nx: NexusPlatform) => nx.approvals ?? (() => { throw execOffError(nx.exec.unavailableReason ?? 'not_enabled'); })();
+/** True for an action whose only recipe is the repository snapshot (RepoService checks the folder first). */
+const snapshotAction = (actionId: string): boolean => {
+  const a = getUserAction(actionId);
+  return !!a && 'recipes' in a.run && a.run.recipes.length === 1 && a.run.recipes[0] === 'repo.snapshot';
+};
+
 export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): void {
+  const execution = deps.executionUnavailableReason !== undefined || deps.exec !== undefined;
+  /** Why execution is off now (main's store first, then the platform's own reason), or null while it is on. */
+  const executionOff = (nx: NexusPlatform): string | null => {
+    let main: string | null;
+    try { const r = deps.executionUnavailableReason?.(); main = typeof r === 'string' && r.length > 0 ? r : null; } catch { main = 'not_enabled'; }
+    if (main) return main;
+    return nx.executionAvailable ? null : (nx.exec.unavailableReason ?? 'not_enabled');
+  };
+  const portOf = (): ExecIpcPort => {
+    let port: ExecIpcPort | null = null;
+    try { port = deps.exec?.() ?? null; } catch { port = null; }
+    if (!port) throw execOffError('not_started');
+    return port;
+  };
   // UserSaves is built lazily, once per platform instance (the platform object changes only across a restart).
   const savers = new WeakMap<NexusPlatform, UserSaves>();
   const userSaves = (nx: NexusPlatform): UserSaves => {
@@ -112,11 +204,16 @@ export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): v
   };
   const handler = <A>(channel: string, parse: (args: unknown[]) => A, run: Run<A>) => {
     const needsHandoffs = HANDOFF_CHANNELS.has(channel);
+    const needsExecution = EXECUTION_CHANNELS.has(channel);
     return async (_evt: unknown, ...args: unknown[]): Promise<NexusResult<unknown>> => {
       try {
         const nx = deps.platform();
         if (!nx) return unavailable(deps.unavailableReason() ?? 'not_open');
         if (needsHandoffs && !nx.handoffs) return unavailable('handoffs_unavailable', deps.handoffsUnavailableReason?.() ?? null);
+        if (needsExecution) {
+          const off = executionOff(nx);
+          if (off !== null) return unavailable('execution_unavailable', off);
+        }
         const a = parse(args);
         const me = nx.principals.localUser();
         return await run(nx, me, a);
@@ -127,7 +224,7 @@ export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): v
   };
   const seen = new Set<string>();
   const reg = <A>(channel: string, parse: (args: unknown[]) => A, run: Run<A>): void => {
-    if (!NEXUS_CHANNELS.includes(channel) || seen.has(channel)) throw new Error(`nexus ipc: unexpected channel ${channel}`);
+    if (!NEXUS_ALL_CHANNELS.includes(channel) || seen.has(channel)) throw new Error(`nexus ipc: unexpected channel ${channel}`);
     seen.add(channel);
     registrar.handle(channel, handler(channel, parse, run));
   };
@@ -318,4 +415,206 @@ export function registerNexusIpc(registrar: IpcRegistrar, deps: NexusIpcDeps): v
     const rows = nx.activity.list(me, { projectId: q.projectId, beforeSeq: q.beforeSeq, limit: q.limit + 1 });
     return ok(rows.slice(0, q.limit).map(activityView), rows.length > q.limit);
   });
+
+  // ---------- B2a Task 13: the execution channels #22-#41 (registered when main passes the execution deps) ----------
+  if (!execution) return;
+
+  // #22 the domain registry as the renderer shows it: lifecycle steps with REAL / PARTIAL / FUTURE, never a result.
+  reg('nexus:domains:list', (args) => { V.arity(args, 0); }, () => ok(DOMAINS.map(domainView)));
+
+  // #23 the execution setup from main's cache (never waits on Docker or the runner): the gate with its exact numbers.
+  reg('nexus:platform:health', (args) => { V.arity(args, 0); }, (nx, me) => {
+    nx.auth.require(me, 'platform.health', PLATFORM, { entityType: 'platform' });
+    const off = executionOff(nx);
+    return ok(healthView(nx.exec.health(), { handoffs: nx.handoffsAvailable, execution: off === null, registry: nx.registry, subReason: off }));
+  });
+
+  // #24 the domain's actions with whether each can run now and why not.
+  reg('nexus:actions:available', (args) => {
+    V.arity(args, 1);
+    const o = V.object(args[0], ['projectId', 'workspaceId', 'versionId'] as const, ['versionId'] as const);
+    const q = { projectId: V.projectId(o.projectId), workspaceId: V.workspaceId(o.workspaceId) };
+    return o.versionId === undefined ? q : { ...q, versionId: V.platformId(o.versionId, 'versionId') };
+  }, (nx, me, q) => ok(queriesOf(nx).actionsFor(me, q).map(actionView)));
+
+  // #25 start an action: ids, input slots, the action's own params and the intent; main picks the recipe, the image,
+  // the argv, the network and every mount. A repository snapshot goes through RepoService (the folder is checked first).
+  reg('nexus:job:start', (args) => {
+    V.arity(args, 1);
+    const o = V.object(args[0], ['projectId', 'workspaceId', 'actionId', 'inputs', 'params', 'intentId'] as const);
+    const actionId = V.actionId(o.actionId);
+    return { projectId: V.projectId(o.projectId), workspaceId: V.workspaceId(o.workspaceId), actionId, inputs: V.jobInputs(o.inputs),
+      params: V.actionParams(actionId, o.params), intentId: V.intentId(o.intentId) };
+  }, async (nx, me, q) => {
+    if (nx.repo && snapshotAction(q.actionId)) {
+      if (q.inputs.length > 0) throw new PlatformError('invalid', 'a snapshot takes no input', { reason: 'input_not_allowed' });
+      const r = await nx.repo.requestSnapshot(me, { projectId: q.projectId, workspaceId: q.workspaceId, intentId: q.intentId });
+      return ok({ job: jobView(nx.exec.get(me, r.job.id)), created: r.created });
+    }
+    const r = nx.exec.start(me, { ...q, params: { ...q.params } });
+    return ok({ job: jobView(r.job), created: r.created });
+  });
+
+  // #26 jobs the user may read, newest first.
+  reg('nexus:jobs:list', (args) => {
+    V.arity(args, 1);
+    const o = optionalObject(args[0], ['projectId', 'workspaceId', 'states', 'jobKind', 'limit'] as const);
+    return {
+      projectId: o.projectId === undefined ? undefined : V.projectId(o.projectId),
+      workspaceId: o.workspaceId === undefined ? undefined : V.workspaceId(o.workspaceId),
+      states: o.states === undefined ? undefined : V.jobStates(o.states),
+      jobKind: o.jobKind === undefined ? undefined : V.jobKind(o.jobKind),
+      limit: limitOf(o.limit, 'limit', JOBS_LIST_MAX, DEFAULT_EXEC_LIST)
+    };
+  }, (nx, me, f) => {
+    const filter: Record<string, unknown> = { limit: f.limit };
+    if (f.projectId !== undefined) filter.projectId = f.projectId;
+    if (f.workspaceId !== undefined) filter.workspaceId = f.workspaceId;
+    if (f.states !== undefined) filter.states = f.states;
+    if (f.jobKind !== undefined) filter.jobKind = f.jobKind;
+    const r = nx.exec.list(me, filter as Parameters<typeof nx.exec.list>[1]);
+    return ok(r.jobs.map(jobView), r.truncated);
+  });
+
+  // #27 one job with its attempts, outputs, approvals and deployment.
+  reg('nexus:job:get', (args) => { V.arity(args, 1); return V.platformId(args[0], 'jobId'); },
+    (nx, me, jobId) => ok(jobDetailView(nx.exec.get(me, jobId))));
+
+  // #28 a page of one attempt's stored log, redacted again on read (the location comes from the attempt row only).
+  reg('nexus:job:logs', (args) => {
+    V.arity(args, 2);
+    const jobId = V.platformId(args[0], 'jobId');
+    const o = V.object(args[1], ['attempt', 'fromOffset', 'maxBytes'] as const);
+    return { jobId, attempt: V.int(o.attempt, 'attempt', 1, MAX_ATTEMPT_N), fromOffset: V.int(o.fromOffset, 'fromOffset', 0, Number.MAX_SAFE_INTEGER),
+      maxBytes: V.int(o.maxBytes, 'maxBytes', 1, MAX_READ_PAGE) };
+  }, async (nx, me, q) => ok(logPageView(await portOf().logs(me, q.jobId, { attempt: q.attempt, fromOffset: q.fromOffset, maxBytes: q.maxBytes }))));
+
+  // #29 cancel a live job (its children first; a pending approval is withdrawn).
+  reg('nexus:job:cancel', (args) => { V.arity(args, 1); return V.platformId(args[0], 'jobId'); },
+    (nx, me, jobId) => ok(jobView(nx.exec.cancel(me, jobId))));
+
+  // #30 retry a finished job as a new job (retry_of), once per intent.
+  reg('nexus:job:retry', (args) => {
+    V.arity(args, 2);
+    return { jobId: V.platformId(args[0], 'jobId'), intentId: V.intentId(args[1]) };
+  }, (nx, me, q) => ok({ job: jobView(nx.exec.retry(me, q.jobId, q.intentId).job) }));
+
+  // #31 job events after a seq (what the nexus:hint push says changed).
+  reg('nexus:events:since', (args) => {
+    V.arity(args, 1);
+    const o = V.object(args[0], ['sinceSeq', 'projectId', 'limit'] as const, ['projectId', 'limit'] as const);
+    return { sinceSeq: V.int(o.sinceSeq, 'sinceSeq', 0, Number.MAX_SAFE_INTEGER),
+      projectId: o.projectId === undefined ? undefined : V.projectId(o.projectId), limit: limitOf(o.limit, 'limit', EVENTS_MAX, EVENTS_MAX) };
+  }, (nx, me, q) => {
+    const r = nx.exec.eventsSince(me, q.projectId === undefined ? { sinceSeq: q.sinceSeq, limit: q.limit } : { sinceSeq: q.sinceSeq, projectId: q.projectId, limit: q.limit });
+    return ok({ events: r.events.map(eventView), lastSeq: r.lastSeq });
+  });
+
+  // #32 a version's checks: the latest BLOCKING row per validator is its status; advisory runs are shown apart.
+  reg('nexus:version:validations', (args) => { V.arity(args, 1); return V.platformId(args[0], 'versionId'); },
+    (nx, me, versionId) => ok(queriesOf(nx).validationsFor(me, versionId).map(validationView)));
+
+  // #33 run a draft's blocking checks again (a live check of the same validator is the answer, never a second one).
+  reg('nexus:version:revalidate', (args) => {
+    V.arity(args, 2);
+    return { versionId: V.platformId(args[0], 'versionId'), intentId: V.intentId(args[1]) };
+  }, (nx, me, q) => {
+    const r = validationOf(nx).revalidate(me, q.versionId);
+    return ok({ jobs: r.jobs.map((id) => jobView(nx.exec.get(me, id))) });
+  });
+
+  // #34 a page of what a version holds (text redacted again, rows capped), at most 256 KiB per page.
+  reg('nexus:version:preview', (args) => {
+    V.arity(args, 2);
+    const versionId = V.platformId(args[0], 'versionId');
+    const o = V.object(args[1], ['part', 'page', 'maxBytes'] as const, ['page'] as const);
+    return { versionId, part: V.enumOf(o.part, 'part', PREVIEW_PARTS), page: o.page === undefined ? 0 : V.int(o.page, 'page', 0, MAX_PREVIEW_PAGE),
+      maxBytes: V.int(o.maxBytes, 'maxBytes', 1, MAX_READ_PAGE) };
+  }, async (nx, me, q) => ok(previewView(await portOf().preview(me, q.versionId, { part: q.part, page: q.page, maxBytes: q.maxBytes }))));
+
+  // #35 save a requirement or a problem statement the user wrote (a draft; its register checks recorded).
+  reg('nexus:artifact:saveInline', (args) => {
+    V.arity(args, 1);
+    const o = V.object(args[0], ['projectId', 'workspaceId', 'kind', 'target', 'content'] as const);
+    return {
+      projectId: V.projectId(o.projectId), workspaceId: V.workspaceId(o.workspaceId),
+      kind: V.userAuthorableKind(o.kind, 'kind'),
+      target: V.saveTarget(o.target), content: V.inlineContent(o.content)
+    };
+  }, (nx, me, q) => ok(saveView(nx.artifacts.saveInline(me, q as Parameters<typeof nx.artifacts.saveInline>[1]))));
+
+  // #36 dev deployments the user may read.
+  reg('nexus:deployments:list', (args) => {
+    V.arity(args, 1);
+    const o = optionalObject(args[0], ['projectId', 'status'] as const);
+    const f: { projectId?: string; status?: (typeof DEPLOYMENT_STATUSES_ACCEPTED)[number] } = {};
+    if (o.projectId !== undefined) f.projectId = V.projectId(o.projectId);
+    if (o.status !== undefined) f.status = V.enumOf(o.status, 'status', DEPLOYMENT_STATUSES_ACCEPTED);
+    return f;
+  }, (nx, me, f) => {
+    const r = deploymentsOf(nx).list(me, f);
+    return ok(r.deployments.map(deploymentView), r.truncated);
+  });
+
+  // #37 stop a dev deployment (a user only).
+  reg('nexus:deployment:stop', (args) => { V.arity(args, 1); return V.platformId(args[0], 'deploymentId'); },
+    (nx, me, deploymentId) => ok(deploymentView(deploymentsOf(nx).stop(me, deploymentId))));
+
+  // #38 approvals the user may read, newest first.
+  reg('nexus:approvals:list', (args) => {
+    V.arity(args, 1);
+    const o = optionalObject(args[0], ['projectId', 'status'] as const);
+    const f: { projectId?: string; status?: (typeof APPROVAL_STATUSES_ACCEPTED)[number] } = {};
+    if (o.projectId !== undefined) f.projectId = V.projectId(o.projectId);
+    if (o.status !== undefined) f.status = V.enumOf(o.status, 'status', APPROVAL_STATUSES_ACCEPTED);
+    return f;
+  }, (nx, me, f) => {
+    const r = approvalsOf(nx).list(me, f);
+    return ok(r.approvals.map(approvalView), r.truncated);
+  });
+
+  // #39 the user's answer: once or deny (there is no 'always'). The one door to a waiting job's plan: the service
+  // consumes the approval for the job's current attempt and resumes it; nothing else here can resume a job.
+  reg('nexus:approval:respond', (args) => {
+    V.arity(args, 2);
+    return { approvalId: V.platformId(args[0], 'approvalId'), decision: V.decision(args[1]) };
+  }, (nx, me, q) => ok(approvalView(approvalsOf(nx).respond(me, q.approvalId, q.decision))));
+
+  // #40 ask to prepare a sandbox image (an approval the user answers with #39).
+  reg('nexus:setup:prepareImage', (args) => {
+    V.arity(args, 2);
+    return { profileId: V.imageProfile(args[0]), intentId: V.intentId(args[1]) };
+  }, (nx, me, q) => {
+    const r = approvalsOf(nx).requestImage(me, q.profileId, q.intentId);
+    return ok({ approval: approvalView(r.approval), created: r.created });
+  });
+
+  // #41 blob GC: a dry run, then the apply with the dry run's hash (refused when the candidates changed). Authorized
+  // like every channel (the wrapper, then blob.gc platform-wide in the service; a denial is audited).
+  reg('nexus:blobs:gc', (args) => {
+    V.arity(args, 1);
+    const o = V.object(args[0], ['apply', 'expectedCandidatesHash'] as const, ['expectedCandidatesHash'] as const);
+    if (o.apply === false) {
+      if (o.expectedCandidatesHash !== undefined) throw new RequestError('expectedCandidatesHash', 'is sent only with apply: true');
+      return { apply: false as const };
+    }
+    if (o.apply !== true) throw new RequestError('apply', 'must be true or false');
+    return { apply: true as const, expectedCandidatesHash: V.sha256(o.expectedCandidatesHash, 'expectedCandidatesHash') };
+  }, async (nx, me, q) => ok(gcView(await portOf().blobsGc(me, q))));
+}
+
+/**
+ * The nexus:hint push (B2a Task 13): main -> renderer, `{ lastSeq }` only, coalesced to at most 4 per second by main's
+ * execution wiring (hintCoalescer), which calls this with each live target. The one push of the nexus family and the
+ * only place it is sent. Never throws; false when nothing was sent.
+ */
+export function sendNexusHint(target: HintTarget, lastSeq: number): boolean {
+  if (!Number.isSafeInteger(lastSeq) || lastSeq < 0) return false;
+  try {
+    if (typeof target?.isDestroyed === 'function' && target.isDestroyed()) return false;
+    target.send(NEXUS_HINT_CHANNEL, { lastSeq });
+    return true;
+  } catch {
+    return false;
+  }
 }

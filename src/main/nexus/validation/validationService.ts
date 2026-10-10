@@ -60,6 +60,22 @@ import * as appManifest from './validators/appManifestSchema';
 import * as diag from './validators/diagSchema';
 
 export { VERIFY_TIMEOUT_MS, type ResolveCommit } from './checkRunner';
+
+/**
+ * The pure validators main runs, by id: the one dispatch table of `runPure` (B2a Task 13 pins its keys, with the
+ * validators main executes elsewhere, to the registry's B2A_IMPL).
+ */
+export const PURE_VALIDATORS: Readonly<Record<string, (facts: unknown) => ValidatorOutcome>> = Object.freeze({
+  [gitHead.ID]: (f: unknown) => gitHead.run(f as gitHead.GitHeadFacts),
+  [req.ID]: (f: unknown) => req.run(f),
+  [problem.ID]: (f: unknown) => problem.run(f),
+  [suite.ID]: (f: unknown) => suite.run(f as suite.SuiteDiscoveredFacts),
+  [appManifest.ID]: (f: unknown) => appManifest.run(f),
+  [diag.ID]: (f: unknown) => diag.run(f),
+  [build.EXIT_ZERO]: (f: unknown) => build.exitZero(f as Parameters<typeof build.exitZero>[0]),
+  [build.MANIFEST_PRESENT]: (f: unknown) => build.manifestPresent(f as Parameters<typeof build.manifestPresent>[0]),
+  [build.OUTPUT_HASHED]: (f: unknown) => build.outputHashed(f as Parameters<typeof build.outputHashed>[0])
+});
 export const MAX_EVIDENCE_CHARS = 65_536;
 export const MAX_SUMMARY_CHARS = 500;
 
@@ -259,20 +275,10 @@ export class ValidationService {
     });
   }
 
-  /** A pure validator by id. */
+  /** A pure validator by id (PURE_VALIDATORS). */
   runPure(id: string, facts: unknown): ValidatorOutcome {
-    switch (id) {
-      case gitHead.ID: return gitHead.run(facts as gitHead.GitHeadFacts);
-      case req.ID: return req.run(facts);
-      case problem.ID: return problem.run(facts);
-      case suite.ID: return suite.run(facts as suite.SuiteDiscoveredFacts);
-      case appManifest.ID: return appManifest.run(facts);
-      case diag.ID: return diag.run(facts);
-      case build.EXIT_ZERO: return build.exitZero(facts as Parameters<typeof build.exitZero>[0]);
-      case build.MANIFEST_PRESENT: return build.manifestPresent(facts as Parameters<typeof build.manifestPresent>[0]);
-      case build.OUTPUT_HASHED: return build.outputHashed(facts as Parameters<typeof build.outputHashed>[0]);
-      default: return errored('unknown_validator', 'Checks could not run: this check is not in this build.');
-    }
+    const fn = Object.prototype.hasOwnProperty.call(PURE_VALIDATORS, id) ? PURE_VALIDATORS[id] : null;
+    return fn ? fn(facts) : errored('unknown_validator', 'Checks could not run: this check is not in this build.');
   }
 
   /** For ArtifactService.saveInline (late-bound hook): the register validators of an inline kind over its content. */

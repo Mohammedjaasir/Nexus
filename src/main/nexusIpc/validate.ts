@@ -12,12 +12,25 @@
  * - Strings have length caps and patterns; numbers are finite integers in range;
  *   arrays hold unique entries within their bounds.
  * Pure: no I/O and no service access.
+ *
+ * B2a Task 13 adds the execution request shapes: an intent is a ULID the renderer mints once per user intent; job
+ * inputs are `{ versionId, slot }` (a slot names the action's input, never a principal's standing); the jobs filter
+ * uses `jobKind`; an action's params are checked against that action's own closed schema (src/shared/nexus/actions.ts):
+ * a key naming an execution setting (a network, ports, an image, an argv, an environment, a command, a mount, an
+ * identity) is a bad request, and any other breach of the schema (an unknown parameter, a value with a separator,
+ * `..`, a drive, a stream name or a trailing dot) is `bad_params`.
  */
+import { USER_ACTIONS } from '../../shared/nexus/actions';
+import type { ParamField } from '../../shared/nexus/domainSpec';
+import { JOB_STATES } from '../nexus/jobs/jobRules';
 
 export class RequestError extends Error {
-  constructor(readonly field: string, readonly why: string) {
+  /** `bad_request` (the shape) or `bad_params` (an action's own parameter schema). */
+  readonly reason: 'bad_request' | 'bad_params';
+  constructor(readonly field: string, readonly why: string, reason: 'bad_request' | 'bad_params' = 'bad_request') {
     super(`${field} ${why}`);
     this.name = 'RequestError';
+    this.reason = reason;
   }
 }
 
@@ -34,6 +47,28 @@ const MAX_REL_PATH = 1024;
 const MAX_TITLE = 200;
 const MAX_NOTE = 2000;
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+/** An action id (`sde.tests.run`), a slot (`repository`), a validator or recipe label. */
+const ACTION_ID = /^[a-z][a-z0-9_.-]{1,63}$/;
+const SLOT = /^[a-z][a-z0-9_]{0,31}$/;
+const SHA256 = /^[0-9a-f]{64}$/;
+/** The most job inputs a start takes (the core's MAX_START_INPUTS) and the params / inline content budgets. */
+export const MAX_JOB_INPUTS = 64;
+export const MAX_PARAMS_BYTES = 8 * 1024;
+export const MAX_INLINE_CONTENT_BYTES = 32 * 1024;
+const MAX_PARAM_KEYS = 32;
+const MAX_CONTENT_DEPTH = 8;
+const MAX_CONTENT_NODES = 4000;
+/**
+ * Parameter names that would choose how or where something runs (S8): never accepted from the renderer, whatever the
+ * action. Main picks the network, the image, the argv, the environment and every mount itself.
+ */
+const EXECUTION_SETTING_KEY = /^(network|networks|net|ports?|publish|expose|image|images|digest|argv|args|arguments|command|cmd|entrypoint|env|environment|exec|shell|script|mounts?|volumes?|binds?|devices?|privileged|cap_?add|capabilities|security_?opt|user|uid|gid|principal|principalid|actor|actorid|role|token|secrets?|egress|registry|registries|host|hostname|url|proxy)$/i;
+export const JOB_KINDS_ACCEPTED = ['agent.run', 'tool.run', 'validate', 'ingest'] as const;
+export const DEPLOYMENT_STATUSES_ACCEPTED = ['starting', 'healthy', 'unhealthy', 'stopped', 'failed'] as const;
+export const APPROVAL_STATUSES_ACCEPTED = ['pending', 'approved', 'denied', 'expired', 'withdrawn'] as const;
+export const IMAGE_PROFILES_ACCEPTED = ['sde-node', 'sde-python', 'nexus-fwd'] as const;
+export const PREVIEW_PARTS = ['content', 'manifest', 'discovery', 'junit_summary'] as const;
+export const INLINE_KINDS_ACCEPTED = ['requirement', 'problem_statement'] as const;
 
 const isPlain = (x: unknown): x is Record<string, unknown> => {
   if (typeof x !== 'object' || x === null || Array.isArray(x)) return false;
@@ -146,5 +181,132 @@ export const V = {
   /** The positional arguments of a channel: at most `n`; trailing undefined arguments are ignored. */
   arity(args: readonly unknown[], n: number): void {
     for (let i = n; i < args.length; i++) if (args[i] !== undefined) throw new RequestError('arguments', `takes at most ${n}`);
+  },
+
+  // ---------- B2a Task 13: the execution request shapes ----------
+
+  /** A user intent: a ULID the renderer minted once (re-sent on reload, never a second job). */
+  intentId(x: unknown, f = 'intentId'): string { return pattern(x, f, PLATFORM_ID, 26); },
+  actionId(x: unknown): string {
+    const s = str(x, 'actionId');
+    if (!ACTION_ID.test(s)) throw new RequestError('actionId', 'is not a valid action id');
+    return s;
+  },
+  slot(x: unknown, f: string): string {
+    const s = str(x, f);
+    if (!SLOT.test(s)) throw new RequestError(f, 'is not a valid input slot');
+    return s;
+  },
+  sha256(x: unknown, f: string): string {
+    const s = str(x, f);
+    if (!SHA256.test(s)) throw new RequestError(f, 'must be a lowercase sha256');
+    return s;
+  },
+  jobKind(x: unknown): string { return V.enumOf(x, 'jobKind', JOB_KINDS_ACCEPTED); },
+  /** 1..11 unique job states. */
+  jobStates(x: unknown): string[] {
+    if (!Array.isArray(x) || x.length < 1 || x.length > JOB_STATES.length) throw new RequestError('states', `must list 1 to ${JOB_STATES.length} job states`);
+    const out = x.map((v, i) => V.enumOf(v, `states[${i}]`, JOB_STATES));
+    if (new Set(out).size !== out.length) throw new RequestError('states', 'must not repeat a state');
+    return out;
+  },
+  /** An approval answer: once or deny. 'always' does not exist (every approval is for one attempt). */
+  decision(x: unknown): 'once' | 'deny' { return V.enumOf(x, 'decision', ['once', 'deny'] as const); },
+  imageProfile(x: unknown): string { return V.enumOf(x, 'profileId', IMAGE_PROFILES_ACCEPTED); },
+  /** The two kinds a user writes inline (a requirement, a problem statement); every other kind is refused here. */
+  userAuthorableKind(x: unknown, f: string): string { return V.enumOf(x, f, INLINE_KINDS_ACCEPTED); },
+  /** 0..64 job inputs, each exactly `{ versionId, slot }`, no pair twice. */
+  jobInputs(x: unknown): { versionId: string; slot: string }[] {
+    if (!Array.isArray(x) || x.length > MAX_JOB_INPUTS) throw new RequestError('inputs', `must list 0 to ${MAX_JOB_INPUTS} inputs`);
+    const out = x.map((v, i) => {
+      const o = V.object(v, ['versionId', 'slot'] as const);
+      return { versionId: V.platformId(o.versionId, `inputs[${i}].versionId`), slot: V.slot(o.slot, `inputs[${i}].slot`) };
+    });
+    if (new Set(out.map((i) => `${i.slot}\u0000${i.versionId}`)).size !== out.length) throw new RequestError('inputs', 'must not repeat an input');
+    return out;
+  },
+  /**
+   * An action's params: a plain object of at most 32 scalar values and 8 KiB, each read from its own data descriptor.
+   * A key naming an execution setting is a bad request; then, for a known action, its own closed schema is applied
+   * (an unknown action's params must be empty: the service refuses the action itself).
+   */
+  actionParams(actionId: string, x: unknown): Record<string, string | number | boolean> {
+    const raw = x === undefined ? {} : x;
+    if (!isPlain(raw)) throw new RequestError('params', 'must be an object');
+    const keys = Reflect.ownKeys(raw);
+    if (keys.length > MAX_PARAM_KEYS) throw new RequestError('params', `holds at most ${MAX_PARAM_KEYS} values`);
+    const out = Object.create(null) as Record<string, string | number | boolean>;
+    for (const k of keys) {
+      if (typeof k !== 'string' || FORBIDDEN_KEYS.has(k)) throw new RequestError('params', 'has a forbidden key');
+      if (EXECUTION_SETTING_KEY.test(k)) throw new RequestError('params', 'names an execution setting the renderer never chooses');
+      const d = Object.getOwnPropertyDescriptor(raw, k)!;
+      if (d.get !== undefined || d.set !== undefined || !('value' in d)) throw new RequestError('params', 'must hold plain values');
+      const v = d.value;
+      if (typeof v === 'string') { if (v.length > 1024) throw new RequestError('params', 'holds a value that is too long'); }
+      else if (typeof v === 'number') { if (!Number.isFinite(v)) throw new RequestError('params', 'holds a number that is not finite'); }
+      else if (typeof v !== 'boolean') throw new RequestError('params', 'must hold strings, numbers or booleans');
+      out[k] = v;
+    }
+    if (JSON.stringify(out).length > MAX_PARAMS_BYTES) throw new RequestError('params', `must be at most ${MAX_PARAMS_BYTES} bytes`);
+    const action = USER_ACTIONS.find((a) => a.id === actionId);
+    if (!action) {
+      if (Object.keys(out).length > 0) throw new RequestError('params', 'are not accepted for an unknown action', 'bad_params');
+      return out;
+    }
+    const schema = action.params;
+    for (const k of Object.keys(out)) {
+      if (!Object.prototype.hasOwnProperty.call(schema.properties, k)) throw new RequestError('params', 'has a parameter this action does not take', 'bad_params');
+    }
+    for (const r of schema.required) if (!(r in out)) throw new RequestError('params', `needs ${/^[a-zA-Z]{1,32}$/.test(r) ? r : 'a value'}`, 'bad_params');
+    for (const [k, def] of Object.entries(schema.properties) as [string, ParamField][]) {
+      if (!(k in out)) continue;
+      if (!paramFits(def, out[k])) throw new RequestError('params', 'holds a value this action does not accept', 'bad_params');
+    }
+    return out;
+  },
+  /** A requirement's or problem statement's content: plain JSON (objects, arrays, scalars), at most 32 KiB, depth 8. */
+  inlineContent(x: unknown): Record<string, unknown> {
+    if (!isPlain(x)) throw new RequestError('content', 'must be an object');
+    let nodes = 0;
+    const copy = (v: unknown, depth: number): unknown => {
+      if (++nodes > MAX_CONTENT_NODES) throw new RequestError('content', 'is too large');
+      if (v === null || typeof v === 'string' || typeof v === 'boolean') return v;
+      if (typeof v === 'number') { if (!Number.isFinite(v)) throw new RequestError('content', 'holds a number that is not finite'); return v; }
+      if (depth >= MAX_CONTENT_DEPTH) throw new RequestError('content', 'is nested too deeply');
+      if (Array.isArray(v)) {
+        if (Object.getPrototypeOf(v) !== Array.prototype) throw new RequestError('content', 'must be plain JSON');
+        return v.map((y, i) => {
+          const d = Object.getOwnPropertyDescriptor(v, i);
+          if (!d || d.get !== undefined || d.set !== undefined) throw new RequestError('content', 'must hold plain values');
+          return copy(d.value, depth + 1);
+        });
+      }
+      if (!isPlain(v)) throw new RequestError('content', 'must be plain JSON');
+      const o = Object.create(null) as Record<string, unknown>;
+      for (const k of Reflect.ownKeys(v)) {
+        if (typeof k !== 'string' || FORBIDDEN_KEYS.has(k)) throw new RequestError('content', 'has a forbidden key');
+        const d = Object.getOwnPropertyDescriptor(v, k)!;
+        if (d.get !== undefined || d.set !== undefined || !('value' in d)) throw new RequestError('content', 'must hold plain values');
+        if (d.value === undefined) continue;
+        o[k] = copy(d.value, depth + 1);
+      }
+      return o;
+    };
+    const out = copy(x, 0) as Record<string, unknown>;
+    if (Buffer.byteLength(JSON.stringify(out), 'utf8') > MAX_INLINE_CONTENT_BYTES) throw new RequestError('content', `must be at most ${MAX_INLINE_CONTENT_BYTES} bytes`);
+    // A plain object again (the service's schema check reads it as ordinary JSON).
+    return JSON.parse(JSON.stringify(out)) as Record<string, unknown>;
   }
 };
+
+/** One parameter value against its field: bounded strings with no separator, `..`, NUL, drive or stream name. */
+function paramFits(def: ParamField, v: unknown): boolean {
+  if (def.type === 'boolean') return typeof v === 'boolean';
+  if (def.type === 'integer') return typeof v === 'number' && Number.isSafeInteger(v) && v >= def.minimum && v <= def.maximum;
+  if (typeof v !== 'string' || v.length === 0 || v.length > def.maxLength) return false;
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1F\x7F\/\\:]/.test(v) || v.includes('..') || /[. ]$/.test(v)) return false;
+  if (def.pattern !== undefined && !new RegExp(def.pattern).test(v)) return false;
+  if (def.enum !== undefined && !def.enum.includes(v)) return false;
+  return true;
+}
