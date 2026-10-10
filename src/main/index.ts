@@ -37,7 +37,8 @@ import {
 import {
   getBranch, getStatus, getLog, getBranches, getAheadBehind, isRepo, getDiff, mainRepoRoot,
   addWorktree, removeWorktree, worktreeHasUnintegratedWork, worktreeIsGcSafe,
-  getLogGraph, getCommitFiles, getFileAtRev, compareRefs, listWorktrees, checkoutRef, repoToplevel
+  getLogGraph, getCommitFiles, getFileAtRev, compareRefs, listWorktrees, checkoutRef, repoToplevel,
+  repositoryCheck, resolveCommit
 } from './git';
 import { HiveManager, type AgentMeta, type HiveMessage, type HiveTask } from './hive';
 import { HookServer } from './hooks';
@@ -54,6 +55,9 @@ import { PersistStore, type HandoffsUnavailableReason } from './db';
 import { createNexusPlatform, type NexusPlatform } from './nexus/platform';
 import { registerNexusIpc } from './nexusIpc/registerNexusIpc';
 import { createSourcePorts } from './nexusIpc/sources';
+import { startExecution, type ExecutionHandle } from './nexusExec/execWiring';
+import { resolveDataHome } from './nexusExec/dataHome';
+import { imagesDirFor, loadImageProfiles } from './nexusExec/profiles';
 import { readAgentUsage, readContextTokens, seedSessionTranscript, resolveSessionCwd } from './transcript';
 import { listIssues, listCIRuns } from './github';
 import { SlackWebhookServer, SlackReplyServer, postSlackReply, type SlackEventFile } from './slack';
@@ -378,7 +382,7 @@ const reflector = new MemoryReflector(
 const persist = new PersistStore();
 const projectManager = new ProjectManager(persist);
 // The Nexus platform core, composed on persist's connection once the database is
-// at v7 or v8. Read lazily by the nexus:* IPC module (registerNexusIpc below).
+// at v7, v8 or v9. Read lazily by the nexus:* IPC module (registerNexusIpc below).
 let nexusPlatform: NexusPlatform | null = null;
 /**
  * Why the WHOLE platform is unavailable, for the later nexus:* IPC layer to return with
@@ -391,6 +395,10 @@ let nexusUnavailableReason: NexusUnavailableReason | null = 'not_open';
  * with platform_unavailable / handoffs_unavailable and this sub-reason). null otherwise.
  */
 let handoffsUnavailableReason: HandoffsUnavailableReason | null = null;
+/** Why execution (schema v9) is off, for the execution channels (#24-#41); null once it is on. */
+let executionUnavailableReason: string | null = 'not_enabled';
+/** Main's execution wiring (runner host, data home readers); null until startExecution resolves. */
+let nexusExecution: ExecutionHandle | null = null;
 
 /** The reason from the store's two migration outcomes (before the platform starts). */
 function storeUnavailableReason(): NexusUnavailableReason | null {
@@ -3073,7 +3081,9 @@ registerNexusIpc(ipcMain, {
   unavailableReason: () => nexusUnavailableReason,
   handoffsUnavailableReason: () => handoffsUnavailableReason,
   sources: createSourcePorts({ acceptFsRoot, getProject: (id) => projectManager.getProject(id) }),
-  log: nexusMainLog
+  log: nexusMainLog,
+  executionUnavailableReason: () => executionUnavailableReason,
+  exec: () => nexusExecution
 });
 
 // ─── IPC: clipboard ─────────────────────────────────────────────────────────
@@ -5673,31 +5683,58 @@ app.whenReady().then(() => {
   // Open the durable store first — createWindow() reads the saved window bounds.
   // Guarded: a DB failure (e.g. a bad native build) must degrade to defaults,
   // never block app startup.
-  // The v7 and v8 migrations log through nexusMainLog (lines arrive ISO-stamped), back up
-  // to userData/backups first, and are held at v6 when NEXUS_DB_HOLD_V7=1 (v8 alone,
-  // at v7, when NEXUS_DB_HOLD_V8=1).
+  // The v7, v8 and v9 migrations log through nexusMainLog (lines arrive ISO-stamped), back up
+  // to userData/backups first, and are held at v6 when NEXUS_DB_HOLD_V7=1 (v8 and later,
+  // at v7, when NEXUS_DB_HOLD_V8=1; v9 alone, at v8, when NEXUS_DB_HOLD_V9=1).
+  // v9 (execution records) runs only when enabled: NEXUS_ENABLE_V9=1 turns it on; otherwise
+  // enableV9 stays undefined so the store's V9_ENABLED_BY_DEFAULT decides (never an explicit false).
   try {
     persist.open({
       log: nexusMainLog,
       backupDir: join(app.getPath('userData'), 'backups'),
       holdV7: process.env.NEXUS_DB_HOLD_V7 === '1',
       holdV8: process.env.NEXUS_DB_HOLD_V8 === '1',
+      holdV9: process.env.NEXUS_DB_HOLD_V9 === '1',
+      enableV9: process.env.NEXUS_ENABLE_V9 === '1' ? true : undefined,
       appVersion: app.getVersion()
     });
   } catch (e) { console.error('[db] open failed:', e); }
-  // Compose the platform core on the same connection, only when the store is at v7 or v8.
-  // A failure here leaves nexusPlatform null and never blocks the window: Phase A
-  // keeps working on the legacy tables. Only the error's name and code are logged.
+  // Compose the platform core on the same connection, only when the store is at v7, v8 or v9
+  // (execution on only at v9, when the store says so). A failure here leaves nexusPlatform null
+  // and never blocks the window: Phase A keeps working on the legacy tables. Only the error's
+  // name and code are logged.
   nexusUnavailableReason = storeUnavailableReason();
   handoffsUnavailableReason = persist.handoffsUnavailableReason;
   try {
+    // B2a Task 12 (A3): the pinned sandbox profiles and image contexts from infra/images/lock.json (packaged:
+    // <resources>/images); without them nothing is planned and image preparation is refused.
+    const imageProfiles = loadImageProfiles(imagesDirFor({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath() }));
+    if (imageProfiles.problem) nexusMainLog(`${new Date().toISOString()} [nexus] sandbox profiles not loaded: ${imageProfiles.problem}`);
     nexusPlatform = persist.platformAvailable
       ? createNexusPlatform(persist.platformDatabase()!, {
         log: (line) => nexusMainLog(`${new Date().toISOString()} ${line}`),
-        handoffs: persist.handoffsAvailable
+        handoffs: persist.handoffsAvailable,
+        execution: persist.executionAvailable,
+        executionUnavailableReason: persist.executionUnavailableReason,
+        dataHome: persist.executionAvailable ? resolveDataHome(app.getPath('userData')) : null,
+        profiles: imageProfiles.profiles,
+        imageContexts: imageProfiles.imageContexts,
+        acceptFsRoot,
+        isRepository: repositoryCheck,
+        resolveCommit,
+        appVersion: app.getVersion()
       })
       : null;
     nexusPlatform?.startup();
+    executionUnavailableReason = persist.executionAvailable ? null : (persist.executionUnavailableReason ?? 'not_enabled');
+    // B2a Task 11: after `[nexus] platform ready`, once: the runner utilityProcess and the execution wiring.
+    if (nexusPlatform && persist.executionAvailable) {
+      void startExecution({ platform: nexusPlatform, userData: app.getPath('userData'),
+        log: (line) => nexusMainLog(`${new Date().toISOString()} ${line}`),
+        hintTargets: () => [...allWindows].map((win) => (win.isDestroyed() ? null : win.webContents)) })
+        .then((h) => { nexusExecution = h; })
+        .catch((e) => nexusMainLog(`${new Date().toISOString()} [nexus] execution did not start error=${e instanceof Error ? e.name : typeof e}`));
+    }
   } catch (e) {
     nexusPlatform = null;
     nexusUnavailableReason = 'startup_failed';
@@ -5760,14 +5797,25 @@ app.whenReady().then(() => {
 
 // before-quit covers Cmd-Q / dock-quit; the per-window close handler covers
 // the red close button. Both routes hit the same warning UX.
+// B2a Task 11: once the quit is allowed, the execution wiring is stopped first — awaited, bounded
+// at 10 s — so dev deployments do not survive a fast quit; then the quit is re-entered.
+let quittingForExecution = false;
 app.on('before-quit', (e) => {
-  if (allowQuit) return;
-  const count = ptyManager.list().length;
-  if (count === 0) return;
+  if (allowQuit || ptyManager.list().length === 0) {
+    const h = nexusExecution;
+    if (h && !quittingForExecution) {
+      quittingForExecution = true;
+      nexusExecution = null;
+      e.preventDefault();
+      const bound = new Promise<void>((resolve) => setTimeout(resolve, 10_000));
+      void Promise.race([h.stop().catch(() => undefined), bound]).finally(() => app.quit());
+    }
+    return;
+  }
   e.preventDefault();
   if (mainWindow) {
     mainWindow.focus();
-    mainWindow.webContents.send('app:closeRequested', { ptyCount: count });
+    mainWindow.webContents.send('app:closeRequested', { ptyCount: ptyManager.list().length });
   }
 });
 

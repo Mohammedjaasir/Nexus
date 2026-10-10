@@ -183,3 +183,26 @@ test('utilityProcess appears only in src/main/nexusExec/runnerHost.ts; src/main/
     assert.doesNotMatch(read(f), /utilityProcess|MessageChannelMain/, f);
   }
 });
+
+// B2a integration (platform-core §45.3): main starts execution once, after the platform startup, and hands the IPC
+// layer its execution deps.
+test('index.ts starts execution exactly once, after the platform startup, and hands the IPC layer its execution deps', () => {
+  const idx = read('src/main/index.ts');
+  assert.equal((idx.match(/startExecution\(/g) || []).length, 1);
+  assert.ok(idx.indexOf('startExecution(') > idx.indexOf('nexusPlatform?.startup();'));
+  assert.match(idx, /executionUnavailableReason: \(\) => executionUnavailableReason/);
+  assert.match(idx, /exec: \(\) => nexusExecution/);
+  assert.match(idx, /isRepository: repositoryCheck/);
+  assert.match(idx, /execution: persist\.executionAvailable/);
+});
+test('NEXUS_DB_HOLD_V9 is honoured by main', () => {
+  const idx = read('src/main/index.ts');
+  const call = idx.slice(idx.indexOf('persist.open({'), idx.indexOf('});', idx.indexOf('persist.open({')));
+  assert.match(call, /holdV9: process\.env\.NEXUS_DB_HOLD_V9 === '1'/);
+});
+test('main enables v9 only through NEXUS_ENABLE_V9 and never passes an explicit enableV9: false (ruling F1)', () => {
+  const idx = read('src/main/index.ts');
+  const call = idx.slice(idx.indexOf('persist.open({'), idx.indexOf('});', idx.indexOf('persist.open({')));
+  assert.match(call, /enableV9: process\.env\.NEXUS_ENABLE_V9 === '1' \? true : undefined/);
+  assert.doesNotMatch(idx, /enableV9:\s*false/);
+});
