@@ -1,3 +1,5 @@
+// first: pins the data folder before anything asks for userData (see dataDir.ts)
+import './dataDir';
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, powerMonitor, powerSaveBlocker, screen, shell, Notification } from 'electron';
 import { spawn } from 'node:child_process';
 import {
