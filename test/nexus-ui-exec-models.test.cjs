@@ -667,3 +667,185 @@ test('final fix: the new labels read as words (unreadable_output_entry, start_wi
   assert.equal(R.jobRun(job({ headline: 'failed', state: 'failed', error: { code: 'x', message: 'Out of memory.' } })).headline, 'Failed: out of memory');
   assert.match(src('data/useExecution.ts'), /export const CHECK_AGAIN_REREAD_MS = 1_500;/);
 });
+
+// ---------- B2a stabilization (workstream B): the screen gaps the fresh-app click-through found ----------
+
+const { getUserAction } = loadTs('src/shared/nexus/actions.ts');
+/** main's #24 answer for the SDE actions on a version (as the click-through saw it: discover, deps and build available). */
+const sdeAnswer = (available = true) => ['sde.deps.install', 'sde.tests.discover', 'sde.build.run', 'sde.tests.run', 'sde.app.assemble'].map((id) => {
+  const def = getUserAction(id);
+  return { actionId: id, label: def.label, stepId: null, available, reason: available ? null : 'blocked_by_step:repository', needsApproval: id === 'sde.deps.install',
+    inputs: def.inputs.map((s) => ({ ...s })) };
+});
+test('S1/S2 a project-owned repository version gets the SDE version bar: "Find tests on a commit" and "Build" with the registry\'s input slot', () => {
+  // The repository snapshot is project-owned (ownerWorkspaceId null): the bar comes from each active workspace whose actions take it.
+  assert.deepEqual(AM.workspacesActingOn('repository', ['sde', 'ml', 'data', 'research']), ['sde']);
+  assert.deepEqual(AM.workspacesActingOn('test_suite', ['ml', 'sde']), ['sde']);
+  assert.deepEqual(AM.workspacesActingOn('repository', ['ml', 'dl']), [], 'no other domain acts on a repository in B2a');
+  for (const status of ['active', 'candidate']) {
+    const bar = AM.actionBar(sdeAnswer(), { workspaceId: 'sde', availability: READY, version: { kind: 'repository', status } });
+    const ids = bar.buttons.map((b) => b.actionId);
+    assert.deepEqual(ids, ['sde.deps.install', 'sde.tests.discover', 'sde.build.run'], status);
+    // Each button fills the slot the registry defines for that action (sde.build.run: one repository version).
+    for (const b of bar.buttons) assert.equal(b.slot, getUserAction(b.actionId).inputs.find((s) => s.kinds.includes('repository')).slot, b.actionId);
+    assert.deepEqual(getUserAction('sde.build.run').inputs, [{ slot: 'repository', kinds: ['repository'], min: 1, max: 1 }]);
+  }
+  // A draft or failed repository version is not offered; main's refusal gives no button; a setup problem gives the setup sentence.
+  assert.equal(AM.actionBar(sdeAnswer(), { workspaceId: 'sde', availability: READY, version: { kind: 'repository', status: 'draft' } }).buttons.length, 0);
+  assert.equal(AM.actionBar(sdeAnswer(false), { workspaceId: 'sde', availability: READY, version: { kind: 'repository', status: 'active' } }).buttons.length, 0);
+  const setup = AM.actionBar(sdeAnswer(), { workspaceId: 'sde', availability: { kind: 'setup', problems: ['docker_stopped'], profiles: [], text: 't' },
+    version: { kind: 'repository', status: 'active' } });
+  assert.equal(setup.buttons.length, 0);
+  assert.ok(setup.sentences.every((s) => s.setup));
+  // Where it renders: the Folio of a project-owned version, one bar per acting workspace, through the same ActionBar.
+  const passport = src('project/ArtifactPassport.tsx');
+  assert.match(passport, /\{shownVersion && projectOwned\(artifact\) && artifact\.status === 'active' && workspacesActingOn\(artifact\.kind, activeWorkspaces\)\.map\(\(w\) => \(\n\s*<ActionBar key=\{w\} projectId=\{project\.id\} workspaceId=\{w\}/);
+  assert.match(passport, /version=\{\{ id: shownVersion\.id, kind: artifact\.kind, status: shownVersion\.status \}\} \/>\n\s*\)\)\}/);
+  // The real job API with that version as the input, under one intent; loading, failure (execFailText) and cancellation.
+  const bar = src('project/ActionBar.tsx');
+  assert.match(bar, /const inputs = slot && version \? \[\{ versionId: version\.id, slot \}\] : \[\];/);
+  assert.match(bar, /withIntent\(key, \(intentId\) => nexusClient\.jobStart\(\{ projectId, workspaceId, actionId, inputs, params: \{\}, intentId \}\)\)/);
+  assert.match(bar, /\{busy === b\.actionId \? 'Starting…' : /);
+  assert.match(bar, /: \{ text: execFailText\(r\), alert: true \}\);/);
+  assert.match(bar, /const r = await nexusClient\.jobCancel\(started\.jobId\);/);
+  assert.match(bar, /\{cancelling \? 'Cancelling…' : 'Cancel'\}/);
+  assert.equal(AM.startedNote('Find tests on a commit', true), 'Find tests on a commit: started. Follow it in Runs.');
+  assert.equal(AM.startedNote('Build', false), 'Build: already started. Follow it in Runs.');
+});
+
+test('S3 the execution setup sheet opens from the Runs tool in every availability state, ready included', () => {
+  const runs = src('runs/ProjectRuns.tsx');
+  assert.match(runs, /\{ui && <Button variant="quiet" onClick=\{ui\.openSetup\}>This computer’s execution setup<\/Button>\}/);
+  const jobs = runs.slice(runs.indexOf('function JobsSection'), runs.indexOf('export function ProjectRuns'));
+  assert.doesNotMatch(jobs, /availability|useHealth/, 'the link is not gated by any availability state');
+  assert.ok(jobs.indexOf('ui.openSetup') < jobs.indexOf('{off &&'), 'shown before (and whatever) the jobs read says');
+  // The bench lends the Runs tool the sheet: ProjectRuns renders inside the ExecutionUiContext provider.
+  const bench = src('project/ProjectBench.tsx');
+  assert.match(bench, /openSetup: \(\) => setSetupOpen\(true\),/);
+  assert.match(bench, /<ExecutionSetupSheet open=\{setupOpen\} onClose=\{closeSetup\} \/>/);
+  // The sheet itself renders in every state: rows when health was read, a sentence otherwise.
+  for (const a of [READY, { kind: 'unknown', text: null, retry: false }, { kind: 'execution_off', subReason: 'held', text: 't' }, { kind: 'platform_off', text: 't' }]) {
+    assert.equal(typeof X.setupLead(a, []) === 'string' || X.setupLead(a, []) === null, true);
+  }
+});
+
+test('S5 image sizes read in KB, MB or GB (never "0 GB" for 71.5 MB); an unknown size reads "unknown"', () => {
+  const MIB = 2 ** 20;
+  assert.equal(X.sizeLabel(71.5 * MIB), '71.5 MB');
+  assert.equal(X.sizeLabel(60 * MIB), '60 MB');
+  assert.equal(X.sizeLabel(4 * MIB), '4 MB');
+  assert.equal(X.sizeLabel(1.25 * GIB), '1.3 GB');
+  assert.equal(X.sizeLabel(512 * 1024), '512 KB');
+  assert.equal(X.sizeLabel(900), '900 bytes');
+  for (const bad of [NaN, Infinity, -1, undefined, null]) assert.equal(X.sizeLabel(bad), 'unknown');
+  const h = health({ images: [{ profile: 'sde-node', present: true, matches: true, sizeBytes: 71.5 * MIB, imageIdShort: 'sha256:abcdef012345' },
+    { profile: 'sde-python', present: true, matches: true, sizeBytes: 60 * MIB }, { profile: 'nexus-fwd', present: true, matches: true, sizeBytes: 4 * MIB }] });
+  const rows = X.setupSheet(h);
+  assert.equal(rows.find((r) => r.id === 'image:sde-node').text, 'Prepared (sha256:abcdef012345, 71.5 MB).');
+  assert.equal(rows.find((r) => r.id === 'image:sde-python').text, 'Prepared (60 MB).');
+  assert.equal(rows.find((r) => r.id === 'image:nexus-fwd').text, 'Prepared (4 MB).');
+  assert.ok(rows.every((r) => !/\b0 GB\b/.test(r.text)), 'no "0 GB" anywhere');
+  // The gate's own numbers keep their GB wording (free disk is never overstated).
+  assert.equal(X.gb(18.96 * GIB), '18.9 GB');
+});
+
+test('S6 a run log reads as lines: a time, a stream marker and the text; anything else is shown safely as raw text', () => {
+  const LG = loadTs('src/renderer/src/nexus/runs/logModel.ts');
+  const fmt = (ts) => `t${ts}`;
+  const text = [
+    JSON.stringify({ ts: 1, stream: 'stdout', text: '✔ adds two numbers (0.5ms)' }),
+    JSON.stringify({ ts: 2, stream: 'stderr', text: '<script>alert(1)</script>' }),
+    JSON.stringify({ ts: 3, stream: 'nexus', text: '[output truncated: the middle of the output was dropped]', truncatedMiddle: true }),
+    '{"ts":4,"stream":"elsewhere","text":"x"}',
+    'not json at all',
+    `{"ts":5,"stream":"stdout","text":"${'y'.repeat(1000)}`,
+    '', '\r'
+  ].join('\n');
+  const lines = LG.logLines(text, fmt);
+  assert.equal(lines.length, 6, 'blank lines are dropped');
+  assert.deepEqual(lines[0], { kind: 'frame', time: 't1', stream: 'stdout', marker: 'out', text: '✔ adds two numbers (0.5ms)', truncatedMiddle: false });
+  assert.deepEqual([lines[1].marker, lines[1].text], ['err', '<script>alert(1)</script>'], 'the text is kept as text');
+  assert.deepEqual([lines[2].marker, lines[2].truncatedMiddle], ['nexus', true]);
+  for (const l of lines.slice(3)) { assert.equal(l.kind, 'raw'); assert.equal(l.marker, LG.RAW_MARKER); }
+  assert.equal(lines[3].text, '{"ts":4,"stream":"elsewhere","text":"x"}', 'an unknown stream is not a frame');
+  assert.equal(lines[5].cut, true);
+  assert.equal(lines[5].text.length, LG.RAW_LINE_CHARS + 1, 'a malformed line is cut, with an ellipsis');
+  assert.match(LG.logTime(new Date(2026, 0, 2, 3, 4, 5, 6).getTime()), /^03:04:05\.006$/);
+  // The sheet renders the lines as React text, never as HTML, and no longer prints the raw page text.
+  const sheet = src('runs/JobLogSheet.tsx');
+  assert.match(sheet, /const lines = useMemo\(\(\) => logLines\(pages\.map\(\(p\) => p\.text\)\.join\(''\)\), \[pages\]\);/);
+  assert.doesNotMatch(sheet, /dangerouslySetInnerHTML|innerHTML/);
+  assert.doesNotMatch(sheet, /aria-label="Log text">\{pages\.map/);
+  assert.match(sheet, /<span className="nx-xl__ts">\{l\.time\}<\/span> <span className="nx-xl__st">\{l\.marker\}<\/span> \{l\.text\}/);
+});
+
+test('S8 an application\'s health check state comes from its deployments and checks: draft, not checked, checking, healthy, failed', () => {
+  const P = (status, validators, deployments) => EV.applicationPreview({ status, validators, deployments });
+  const MANIFEST = { 'app.manifest_schema': 'passed', 'app.preview_health': null };
+  const dep = (status, startedAt = 1) => ({ status, startedAt });
+  assert.deepEqual(P('draft', MANIFEST, []), { state: 'not_checked', word: 'Not checked yet: start a dev deployment to check it' });
+  assert.deepEqual(P('draft', MANIFEST, [dep('stopped')]), { state: 'not_checked', word: 'Not checked yet: start a dev deployment to check it' });
+  assert.deepEqual(P('draft', MANIFEST, [dep('starting')]), { state: 'checking', word: 'Checking: the dev deployment is starting' });
+  assert.deepEqual(P('draft', MANIFEST, [dep('healthy')]).state, 'checking', 'healthy, its check not recorded yet');
+  assert.deepEqual(P('draft', { ...MANIFEST, 'app.preview_health': 'passed' }, [dep('healthy')]), { state: 'healthy', word: 'Answered its health check' });
+  assert.deepEqual(P('draft', { ...MANIFEST, 'app.preview_health': 'failed' }, []), { state: 'failed', word: 'Failed its health check' });
+  assert.deepEqual(P('draft', MANIFEST, [dep('failed', 2), dep('stopped', 1)]), { state: 'failed', word: 'The dev deployment failed' });
+  assert.deepEqual(P('draft', { 'app.manifest_schema': 'failed' }, []).state, 'failed');
+  // Unread checks or deployments: no claim either way ("Draft"), never "Checking…".
+  assert.deepEqual(P('draft', null, []), { state: 'draft', word: 'Draft' });
+  assert.deepEqual(P('draft', MANIFEST, null), { state: 'draft', word: 'Draft' });
+  assert.equal(P('candidate', { ...MANIFEST, 'app.preview_health': null }, []), null, 'a version that left draft keeps its own word');
+  // The evidence headline of a draft application never reads "Checking…" before a deployment.
+  const results = [val({ validatorId: 'app.manifest_schema', status: 'passed' }), val({ validatorId: 'app.preview_health', status: null })];
+  assert.equal(EV.evidenceView(results, { status: 'draft' }).headline, 'Checking…', 'without the application context: unchanged');
+  assert.equal(EV.evidenceView(results, { status: 'draft' }, true, { deployments: [] }).headline, 'Not checked yet: start a dev deployment to check it');
+  assert.equal(EV.evidenceView(results, { status: 'draft' }, true, { deployments: [dep('starting')] }).headline, 'Checking: the dev deployment is starting');
+  assert.equal(EV.evidenceView(results, { status: 'draft' }, true, { deployments: null }).headline, 'Some checks have not run');
+  // The version row and the Spine word.
+  assert.equal(EV.applicationChecksWord({ status: 'draft', validationState: 'pending', validators: null, deployments: [] }), null);
+  assert.equal(EV.applicationChecksWord({ status: 'draft', validationState: 'pending', validators: MANIFEST, deployments: [] }), 'Not checked yet: start a dev deployment to check it');
+  assert.equal(EV.applicationChecksWord({ status: 'candidate', validationState: 'passed', validators: null, deployments: null }), 'Checks passed');
+  const SM = loadTs('src/renderer/src/nexus/project/spineModel.ts');
+  const app = (id, status) => ({ artifact: { id, kind: 'application', status: 'active', ownerWorkspaceId: 'sde', ownerParticipationId: 'pp', name: id, createdAt: 1 },
+    versionCount: 1, current: null, latest: { id: `v-${id}`, versionNo: 1, status } });
+  const words = new Map([['artifact:a1', 'Checking…'], ['artifact:a2', 'Checking…'], ['artifact:a3', 'Checks passed']]);
+  const out = SM.withApplicationWords(words, [app('a1', 'draft'), app('a2', 'draft'), app('a3', 'candidate')],
+    new Map([['v-a1', MANIFEST], ['v-a2', MANIFEST]]), [{ subjectVersionId: 'v-a2', status: 'starting', startedAt: 1 }]);
+  assert.equal(out.get('artifact:a1'), 'Not checked yet: start a dev deployment to check it');
+  assert.equal(out.get('artifact:a2'), 'Checking: the dev deployment is starting');
+  assert.equal(out.get('artifact:a3'), 'Checks passed');
+  assert.equal(SM.withApplicationWords(words, [app('a1', 'draft')], null, null).has('artifact:a1'), false, 'unread: no word, never "Checking…"');
+  const passport = src('project/ArtifactPassport.tsx');
+  assert.match(passport, /\{shownVersion && isApp && <EvidenceSection key=\{shownVersion\.id\} version=\{shownVersion\} checked preview=\{\{ deployments: deploymentsOf\(shownVersion\.id\) \}\} \/>\}/);
+  assert.match(src('project/ProjectBench.tsx'), /withApplicationWords\(versionChecks\.words, artifacts, versionChecks\.validators, projectDeployments\.data\)/);
+});
+
+test('S9 before the first probe the setup sheet reads "not checked yet" (the HealthView main produces, and main\'s own health())', () => {
+  // The HealthView main sends before its first probe: checkedAt null, Docker unknown, free disk unmeasured, no images.
+  const unprobed = health({ checkedAt: null, docker: { state: 'unknown' }, images: [], runner: { state: 'unavailable', attached: false, restarts: 0 },
+    disk: { dataHomeFreeBytes: null, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'unknown' }, problems: [] });
+  const sheetOf = (h) => {
+    const a = X.availabilityFrom({ unavailable: null }, { ok: true, data: h });
+    const rows = X.setupSheet(h);
+    return { a, rows, lead: X.setupLead(a, rows), checked: X.checkedLine(h.checkedAt) };
+  };
+  const s = sheetOf(unprobed);
+  assert.deepEqual([s.a.kind, s.a.checking], ['unknown', true]);
+  assert.equal(s.lead, X.NOT_CHECKED);
+  assert.match(s.lead, /has not been checked yet/);
+  assert.equal(s.checked, 'This computer has not been checked yet.');
+  assert.deepEqual([s.rows.find((r) => r.id === 'docker').word, s.rows.find((r) => r.id === 'disk').word], ['Not checked', 'Not checked']);
+  assert.ok(!s.rows.some((r) => r.id.startsWith('image:')), 'no image is claimed either way');
+  // Main's own health() before any probe (no runner attached, nothing cached), through the real DTO mapping.
+  const { ExecutionService } = loadTs('src/main/nexus/exec/executionService.ts');
+  const { healthView } = loadTs('src/main/nexusIpc/dto.ts');
+  const db = { pragma: () => 9, prepare: () => { throw new Error('health() reads no table'); } };
+  const svc = new ExecutionService(db, { available: true, auth: { require() {} }, now: () => NOW });
+  const snap = svc.health();
+  assert.deepEqual([snap.checkedAt, snap.docker.state, snap.disk.freeBytes, snap.gate, snap.images.length], [null, 'unknown', null, null, 0]);
+  const view = healthView(snap, { handoffs: true, execution: true, registry: { valid: true, problems: 0 }, subReason: null });
+  assert.deepEqual([view.checkedAt, view.docker.state, view.disk.gate, view.disk.dataHomeFreeBytes], [null, 'unknown', 'unknown', null]);
+  const m = sheetOf(view);
+  assert.deepEqual([m.a.kind, m.lead, m.checked], ['unknown', X.NOT_CHECKED, 'This computer has not been checked yet.']);
+  assert.notEqual(m.lead, 'Jobs can run on this computer.');
+});

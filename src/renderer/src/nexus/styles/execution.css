@@ -104,3 +104,11 @@
 .nx-lrail__bar li[data-state="failed"] { border: 2px solid var(--nx-ink); }
 .nx-lrail__line { margin: 0; font-size: 11px; color: var(--nx-text-3); white-space: nowrap; }
 @media (max-width: 767px) { .nx-lrail__step { grid-template-columns: 24px minmax(0, 1fr); } .nx-lrail__word, .nx-lrail__scope { grid-column: 2; } }
+/* B2a stabilization: a run log as readable lines (time, stream marker, text); a line that is not a frame is marked. */
+.nx-xl__line { display: block; }
+.nx-xl__ts { color: var(--nx-text-3); }
+.nx-xl__st { display: inline-block; min-width: 5ch; color: var(--nx-text-3); }
+.nx-xl__line[data-stream="stderr"] .nx-xl__st { font-weight: 650; }
+.nx-xl__line[data-raw="true"] .nx-xl__st { font-style: italic; }
+/* B2a stabilization: the Jobs heading carries the link to this computer's execution setup (every state, ready included). */
+.nx-xj__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--nx-s2); }

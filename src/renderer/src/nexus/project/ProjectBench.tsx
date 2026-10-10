@@ -36,7 +36,7 @@ import { ApprovalsSection } from './ApprovalsSection';
 import { RequirementSheet } from './RequirementSheet';
 import { ExecutionUiContext, type ExecutionUi } from './execContext';
 import type { LogRange } from './evidenceModel';
-import { checkedVersionIds, railRecordsFor, spineChecks, versionsToRead, type SpineGroup, type ValidatorStatuses } from './spineModel';
+import { checkedVersionIds, railRecordsFor, spineChecks, versionsToRead, withApplicationWords, type SpineGroup, type ValidatorStatuses } from './spineModel';
 import type { VersionStatus } from '@shared/nexus/platform';
 import type { ArtifactSummary } from './spineModel';
 
@@ -259,7 +259,9 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   // B2a execution: the setup sheet, the writing sheet and the log reader live at the bench; the Folio opens them.
   const { availability } = useHealth();
   const versionChecks = useVersionChecks(artifacts);
-  const checks = versionChecks.words;
+  const projectDeployments = useDeployments(project.id);
+  const checks = useMemo(() => withApplicationWords(versionChecks.words, artifacts, versionChecks.validators, projectDeployments.data),
+    [versionChecks.words, versionChecks.validators, artifacts, projectDeployments.data]);
   const rails = useGroupRails(project.id, groups, artifacts, versionChecks.validators);
   const [setupOpen, setSetupOpen] = useState(false);
   const [write, setWrite] = useState<{ workspaceId: string; kind: 'requirement' | 'problem_statement' } | null>(null);

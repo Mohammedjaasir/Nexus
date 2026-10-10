@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { getUserAction } from '@shared/nexus/actions';
 import { nexusClient } from '../data/nexusClient';
 import { errorCopy, execFailText } from '../data/errorCopy';
-import { useActions, useHealth, withIntent } from '../data/useExecution';
+import { useActions, useExecStore, useHealth, withIntent } from '../data/useExecution';
 import { useParticipationIndex } from '../data/useParticipations';
 import { viewOf } from '../workspaces/participation';
 import { Button } from '../ui/Button';
 import { useExecutionUi } from './execContext';
-import { actionBar } from './actionModel';
+import { actionBar, startedNote } from './actionModel';
 
 /** The actions of one workspace here: available ones as buttons, the others as sentences that say why (with "How to
  *  set up" when the fix is on this computer). With a version, only actions that take it as an input. Actions of
@@ -21,6 +21,9 @@ export function ActionBar({ projectId, workspaceId, version, title }: {
   const list = useActions(projectId, workspaceId, version?.id ?? null);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ text: string; alert: boolean } | null>(null);
+  // The job this bar just started, while it can still be stopped from here (Runs offers Cancel too).
+  const [started, setStarted] = useState<{ jobId: string; label: string } | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   if (!ui) return null; // outside a project bench (the Artifacts page): nothing to open the sheets with
   if (list.fail) {
     const c = errorCopy(list.fail.code, list.fail.reason, list.fail.subReason);
@@ -45,14 +48,22 @@ export function ActionBar({ projectId, workspaceId, version, title }: {
       ui.openWrite({ workspaceId, kind });
       return;
     }
-    setBusy(actionId); setNote(null);
+    setBusy(actionId); setNote(null); setStarted(null);
     const inputs = slot && version ? [{ versionId: version.id, slot }] : [];
     const key = `start:${projectId}:${workspaceId}:${actionId}:${version?.id ?? ''}`;
     const r = await withIntent(key, (intentId) => nexusClient.jobStart({ projectId, workspaceId, actionId, inputs, params: {}, intentId }));
     setBusy(null);
-    setNote(r.ok
-      ? { text: r.data.created ? `${def.label}: started. Follow it in Runs.` : `${def.label}: already started. Follow it in Runs.`, alert: false }
-      : { text: execFailText(r), alert: true });
+    setNote(r.ok ? { text: startedNote(def.label, r.data.created), alert: false } : { text: execFailText(r), alert: true });
+    if (r.ok && !r.data.job.cancelRequested) setStarted({ jobId: r.data.job.id, label: def.label });
+  };
+  const cancel = async () => {
+    if (!started || cancelling) return;
+    setCancelling(true);
+    const r = await nexusClient.jobCancel(started.jobId);
+    useExecStore.getState().bump(['jobs', 'approvals']);
+    setCancelling(false);
+    setStarted(null);
+    setNote(r.ok ? { text: `${started.label}: asked to stop. Runs shows where it stopped.`, alert: false } : { text: execFailText(r), alert: true });
   };
 
   return (
@@ -78,7 +89,12 @@ export function ActionBar({ projectId, workspaceId, version, title }: {
           ))}
         </ul>
       )}
-      {note && <p className={note.alert ? 'nx-passport__note' : 'nx-muted'} role={note.alert ? 'alert' : 'status'}>{note.text}</p>}
+      {note && (
+        <p className={note.alert ? 'nx-passport__note' : 'nx-muted nx-xa__line'} role={note.alert ? 'alert' : 'status'}>
+          <span>{note.text}</span>
+          {started && <> <Button variant="quiet" disabled={cancelling} onClick={() => { void cancel(); }}>{cancelling ? 'Cancelling…' : 'Cancel'}</Button></>}
+        </p>
+      )}
     </section>
   );
 }

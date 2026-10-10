@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { nexusClient } from '../data/nexusClient';
 import { execFailText } from '../data/errorCopy';
 import { useJob } from '../data/useExecution';
@@ -6,6 +6,7 @@ import { rangeAttempt, type LogRange } from '../project/evidenceModel';
 import { Sheet } from '../ui/Sheet';
 import { Button } from '../ui/Button';
 import { jobTitle } from './jobRunModel';
+import { logLines } from './logModel';
 
 /** One read of the log: main answers whole frames, redacted again on read, at most this many bytes. */
 export const LOG_PAGE_BYTES = 64 * 1024;
@@ -51,6 +52,8 @@ function LogBody({ jobId, range, onClose }: { jobId: string; range: LogRange | n
   useEffect(() => { setPages([]); void read(start, false); /* a new attempt or range starts over */ }, [shown, start, resolving]);
 
   const last = pages[pages.length - 1] ?? null;
+  // Whole frames, one per line: each one a time, a stream marker and its text (React text, never HTML).
+  const lines = useMemo(() => logLines(pages.map((p) => p.text).join('')), [pages]);
   return (
     <div className="nx-xl">
       <header className="nx-xs__head">
@@ -68,7 +71,17 @@ function LogBody({ jobId, range, onClose }: { jobId: string; range: LogRange | n
       {start > 0 && <p className="nx-muted">Starts at byte {start}.</p>}
       {shown === null && job.loaded && <p className="nx-muted">This job has no attempt yet, so it has no log.</p>}
       {pages.length > 0 && (
-        <pre className="nx-xl__text" tabIndex={0} aria-label="Log text">{pages.map((p) => p.text).join('')}</pre>
+        <pre className="nx-xl__text" tabIndex={0} aria-label="Log text">
+          {lines.map((l, i) => l.kind === 'frame' ? (
+            <span key={i} className="nx-xl__line" data-stream={l.stream}>
+              <span className="nx-xl__ts">{l.time}</span> <span className="nx-xl__st">{l.marker}</span> {l.text}
+            </span>
+          ) : (
+            <span key={i} className="nx-xl__line" data-raw="true">
+              <span className="nx-xl__st">{l.marker}</span> {l.text}
+            </span>
+          ))}
+        </pre>
       )}
       {last?.truncatedMiddle && <p className="nx-muted">Part of the middle of this log was not kept (it ran past its size limit).</p>}
       {last && !last.eof && <Button disabled={loading} onClick={() => { void read(last.nextOffset, true); }}>{loading ? 'Reading…' : 'Load more'}</Button>}

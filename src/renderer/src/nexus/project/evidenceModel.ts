@@ -24,7 +24,7 @@ export interface EvidenceRow {
   latestRun: { word: string; summary: string } | null;
   history: number;
 }
-export interface EvidenceView { headline: ChecksHeadline; rows: EvidenceRow[]; revalidate: boolean }
+export interface EvidenceView { headline: ChecksHeadline | PreviewWord; rows: EvidenceRow[]; revalidate: boolean }
 
 export const STATUS_WORD: Readonly<Record<string, string>> = Object.freeze({
   passed: 'Passed', failed: 'Failed', error: 'Could not run', skipped: 'Skipped'
@@ -81,7 +81,9 @@ export function factOf(e: ValidationResultView['evidence'][number], validatorId:
  * as runs). `checked` is false for a kind no check ever gates: it never reads "Checking…". Revalidate is offered only
  * for a draft whose blocking checks could not run.
  */
-export function evidenceView(results: readonly ValidationResultView[], version: Pick<VersionView, 'status'> | null, checked = true): EvidenceView {
+export function evidenceView(results: readonly ValidationResultView[], version: Pick<VersionView, 'status'> | null, checked = true,
+  /** For an application: its dev deployments (null while unread), so a draft never reads "Checking…" while nothing checks it. */
+  preview?: { deployments: readonly PreviewDeployment[] | null }): EvidenceView {
   const rows: EvidenceRow[] = results.map((r) => ({
     validatorId: r.validatorId, label: validatorLabel(r.validatorId), word: statusWord(r.status), status: r.status, blocking: r.blocking,
     summary: r.status === 'error' ? `Checks could not run: ${(r.summary ?? 'no reason was recorded').replace(/\.+$/, '')}.` : r.summary,
@@ -101,7 +103,69 @@ export function evidenceView(results: readonly ValidationResultView[], version: 
   else if (blocking.every((r) => r.status === 'skipped')) headline = 'No checks ran';
   else headline = 'Checks passed';
   const revalidate = checked && draft && blocking.some((r) => r.status === 'error');
+  if (preview && headline === 'Checking…' && version) {
+    const validators: Record<string, CheckStatus> = {};
+    for (const r of blocking) validators[r.validatorId] = r.status;
+    const p = applicationPreview({ status: version.status, validators, deployments: preview.deployments });
+    // A draft nothing can be said about (its deployments unread) claims no checking either.
+    if (p) return { headline: p.state === 'draft' ? 'Some checks have not run' : p.word, rows, revalidate };
+  }
   return { headline, rows, revalidate };
+}
+
+// ---------- an application's dev deployment check (B2a stabilization) ----------
+
+export type PreviewState = 'draft' | 'not_checked' | 'checking' | 'healthy' | 'failed';
+export type PreviewWord = 'Draft' | 'Not checked yet: start a dev deployment to check it' | 'Checking: the dev deployment is starting'
+  | 'Checking: waiting for the dev deployment to answer' | 'Answered its health check' | 'Failed its health check'
+  | 'The health check could not run' | 'Checks failed' | 'The dev deployment failed';
+export interface PreviewView { state: PreviewState; word: PreviewWord }
+export interface PreviewDeployment { status: 'starting' | 'healthy' | 'unhealthy' | 'stopped' | 'failed'; startedAt: number }
+
+const LIVE_DEPLOYMENT = new Set(['starting', 'healthy', 'unhealthy']);
+
+/**
+ * Where an application version's health check stands, from its blocking check results (`validators`, null while
+ * unread) and the dev deployments of that version (null while unread). `app.preview_health` runs only on a dev
+ * deployment, so a draft with none is "not checked yet", never "Checking…":
+ *  - failed: a blocking check failed or could not run, or the version's latest dev deployment failed;
+ *  - healthy: `app.preview_health` passed;
+ *  - checking: a dev deployment of the version is starting, or live and not yet recorded as answering;
+ *  - not_checked: a draft whose manifest passed, with no live dev deployment;
+ *  - draft: a draft whose checks or deployments could not be read (no claim either way).
+ * Null for a version that left draft with nothing above to add (its own checks word stands).
+ */
+export function applicationPreview(i: { status: VersionView['status']; validators: Readonly<Record<string, CheckStatus | undefined>> | null;
+  deployments: readonly PreviewDeployment[] | null }): PreviewView | null {
+  const v = i.validators ?? {};
+  const manifest = v['app.manifest_schema'] ?? null;
+  const health = v['app.preview_health'] ?? null;
+  if (manifest === 'failed') return { state: 'failed', word: 'Checks failed' };
+  if (health === 'failed') return { state: 'failed', word: 'Failed its health check' };
+  if (health === 'error' || manifest === 'error') return { state: 'failed', word: 'The health check could not run' };
+  if (health === 'passed') return { state: 'healthy', word: 'Answered its health check' };
+  if (i.deployments) {
+    const latest = [...i.deployments].sort((a, b) => b.startedAt - a.startedAt)[0] ?? null;
+    const live = i.deployments.find((d) => LIVE_DEPLOYMENT.has(d.status)) ?? null;
+    if (live) return { state: 'checking', word: live.status === 'starting' ? 'Checking: the dev deployment is starting' : 'Checking: waiting for the dev deployment to answer' };
+    if (latest && latest.status === 'failed') return { state: 'failed', word: 'The dev deployment failed' };
+  }
+  if (i.status !== 'draft') return null;
+  if (i.validators && i.deployments && manifest === 'passed') return { state: 'not_checked', word: 'Not checked yet: start a dev deployment to check it' };
+  return { state: 'draft', word: 'Draft' };
+}
+
+/**
+ * The checks word of an application version (a Spine node, a version row): for a draft, where its health check
+ * stands (applicationPreview); null for a draft nothing can be said about (never "Checking…" with nothing checking);
+ * otherwise the version's own checks word.
+ */
+export function applicationChecksWord(i: { status: VersionView['status']; validationState: VersionView['validationState'] | null | undefined;
+  validators: Readonly<Record<string, CheckStatus | undefined>> | null; deployments: readonly PreviewDeployment[] | null }): string | null {
+  if (i.status !== 'draft') return checksWord(i.validationState, i.status);
+  const p = applicationPreview(i);
+  if (!p || p.state === 'draft') return checksWord(i.validationState, i.status) === 'Checking…' ? null : checksWord(i.validationState, i.status);
+  return p.word;
 }
 
 /** The word a Spine node and a version row show for a version's validation state. */

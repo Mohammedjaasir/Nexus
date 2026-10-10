@@ -16,6 +16,18 @@ export function gb(bytes: number): string {
   return `${Number.isInteger(v) ? v.toFixed(0) : v.toFixed(1)} GB`;
 }
 
+/**
+ * A size in the unit that reads best (bytes, KB, MB or GB; binary, as `gb`), with one decimal below 100 when it is
+ * not whole: an image of 71.5 MB never reads "0 GB". A size that is not a known non-negative number reads "unknown".
+ */
+export function sizeLabel(bytes: number | null | undefined): string {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes < 0) return 'unknown';
+  if (bytes < 1024) return `${Math.round(bytes)} bytes`;
+  const [v, unit] = bytes >= GIB ? [bytes / GIB, 'GB'] : bytes >= 2 ** 20 ? [bytes / 2 ** 20, 'MB'] : [bytes / 1024, 'KB'];
+  const r = v < 100 ? Math.round(v * 10) / 10 : Math.round(v);
+  return `${Number.isInteger(r) ? r.toFixed(0) : r.toFixed(1)} ${unit}`;
+}
+
 // ---------- availability ----------
 
 export type SetupProblemId = 'docker_missing' | 'docker_stopped' | 'docker_memory_low' | 'docker_cpus_low' | 'disk_low' | 'image_missing'
@@ -210,7 +222,7 @@ export function setupSheet(h: HealthView, ctx: { estimates?: ReadonlyMap<string,
   for (const img of h.images) {
     const label = PROFILE_LABEL[img.profile] ?? `Sandbox image ${img.profile}`;
     if (img.present && img.matches) {
-      const facts = [img.imageIdShort ?? null, typeof img.sizeBytes === 'number' ? gb(img.sizeBytes) : null].filter((x) => x !== null).join(', ');
+      const facts = [img.imageIdShort ?? null, typeof img.sizeBytes === 'number' ? sizeLabel(img.sizeBytes) : null].filter((x) => x !== null).join(', ');
       rows.push(row(`image:${img.profile}`, label, 'ok', facts ? `Prepared (${facts}).` : 'Prepared.'));
       continue;
     }

@@ -3,7 +3,7 @@ import type { ArtifactSummaryView } from '@shared/nexus/ipc';
 import { UNASSIGNED_LABEL } from '../workspaces/mapping';
 import { viewOf, type ParticipationIndex, type ParticipationRow } from '../workspaces/participation';
 import { kindIsChecked, kindLabel, shownVersionOf, statusLabel } from './artifactModel';
-import { checksWord } from './evidenceModel';
+import { applicationPreview, checksWord, type PreviewDeployment } from './evidenceModel';
 import type { RailRecords } from '../workspaces/lifecycleModel';
 
 export type ChangeKind = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked';
@@ -160,12 +160,39 @@ export function spineChecks(reads: readonly { nodeId: string; validationState: '
   return m;
 }
 
+/**
+ * The checks words with each draft application node said from its records (B2a stabilization): its health check runs
+ * only on a dev deployment, so a draft with none reads "Not checked yet…", one whose deployment is starting reads
+ * "Checking: …", and one nothing can be said about (checks or deployments unread) has no word, never "Checking…".
+ */
+export function withApplicationWords(words: ReadonlyMap<string, string>, artifacts: readonly ArtifactSummary[],
+  validators: ReadonlyMap<string, ValidatorStatuses> | null,
+  deployments: readonly (PreviewDeployment & { subjectVersionId: string })[] | null): Map<string, string> {
+  const out = new Map(words);
+  for (const s of artifacts) {
+    if (s.artifact.status !== 'active' || s.artifact.kind !== 'application') continue;
+    const v = shownVersionOf(s);
+    if (!v || v.status !== 'draft') continue;
+    const nodeId = `artifact:${s.artifact.id}`;
+    const p = applicationPreview({ status: v.status, validators: validators?.get(v.id) ?? null,
+      deployments: deployments ? deployments.filter((d) => d.subjectVersionId === v.id) : null });
+    if (p && p.state !== 'draft') out.set(nodeId, p.word);
+    else if (out.get(nodeId) === 'Checking…') out.delete(nodeId);
+  }
+  return out;
+}
+
 // ---------- B2a Task 15: the records behind each group's lifecycle rail ----------
 
 export type ValidatorStatuses = Readonly<Record<string, 'passed' | 'failed' | 'error' | 'skipped'>>;
 
+/** A project-owned artifact (a repository snapshot): no participation owns it, so it is a record of every group's rail. */
+export const projectOwned = (a: Pick<ArtifactSummary['artifact'], 'ownerWorkspaceId' | 'ownerParticipationId'>): boolean =>
+  !a.ownerWorkspaceId && !a.ownerParticipationId;
+
 /**
- * The records of one participation group: the shown versions of the artifacts it owns, each with the latest blocking
+ * The records of one participation group: the shown versions of the artifacts it owns and of the project-owned ones
+ * (a repository snapshot is the project's, and the SDE Repository step is done on it), each with the latest blocking
  * result per validator (read with #32), the live jobs' actions and whether a dev deployment answers. Null while the
  * checks could not be read: the rail then claims no state at all.
  */
@@ -176,7 +203,7 @@ export function railRecordsFor(i: {
   if (!i.checks) return null;
   const versions: RailRecords['versions'] = [];
   for (const s of i.artifacts) {
-    if (s.artifact.status !== 'active' || s.artifact.ownerWorkspaceId !== i.workspaceId) continue;
+    if (s.artifact.status !== 'active' || !(s.artifact.ownerWorkspaceId === i.workspaceId || projectOwned(s.artifact))) continue;
     const v = shownVersionOf(s);
     if (!v) continue;
     // A checked kind whose version was not read (past SPINE_CHECK_READS) has no known results: it is marked unread,

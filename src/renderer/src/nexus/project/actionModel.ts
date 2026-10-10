@@ -5,7 +5,7 @@
 // whose step is not in this release is not shown at all.
 import type { ActionAvailabilityView, ApprovalView, DeploymentView } from '@shared/nexus/ipc';
 import type { DeploymentStatus } from '@shared/nexus/platform';
-import { getUserAction } from '@shared/nexus/actions';
+import { USER_ACTIONS, getUserAction } from '@shared/nexus/actions';
 import { getDomain } from '@shared/nexus/domains';
 import { isAtOrBefore } from '@shared/nexus/domainSpec';
 import { setupText } from '../data/errorCopy';
@@ -99,6 +99,24 @@ export function actionBar(list: readonly ActionAvailabilityView[], ctx: ActionCo
     buttons.push({ actionId: a.actionId, label: a.label, needsApproval: a.needsApproval, slot: fit ? fit.slot : null, inline });
   }
   return { buttons, sentences };
+}
+
+/** The line after a start: the job is followed in Runs (main answered an existing job for a repeated intent). */
+export function startedNote(label: string, created: boolean): string {
+  return created ? `${label}: started. Follow it in Runs.` : `${label}: already started. Follow it in Runs.`;
+}
+
+/**
+ * The workspaces, among a project's active ones, whose own actions take a version of `kind` as an input. A
+ * project-owned version (a repository snapshot: no participation owns it) gets one version bar per such workspace,
+ * so "Find tests on a commit" and "Build" are offered on it; each bar still shows a button only where main's #24
+ * answer for that version says the action is available.
+ */
+export function workspacesActingOn(kind: string, workspaceIds: readonly string[]): string[] {
+  return workspaceIds.filter((w) => {
+    const d = getDomain(w);
+    return !!d && USER_ACTIONS.some((a) => d.actions.includes(a.id) && a.inputs.some((s) => s.kinds.includes(kind)));
+  });
 }
 
 // ---------- approvals ----------

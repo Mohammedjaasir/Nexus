@@ -78,10 +78,15 @@ function JobRow({ job, explain }: { job: JobView; explain: boolean }) {
 /** Jobs of this project, persisted (nexus:jobs:list), newest first. */
 function JobsSection({ projectId }: { projectId: string }) {
   const jobs = useJobs(projectId);
+  const ui = useExecutionUi();
   const off = jobs.fail ? errorCopy(jobs.fail.code, jobs.fail.reason, jobs.fail.subReason) : null;
   return (
     <section className="nx-xj" aria-labelledby="nx-xj-title">
-      <h2 id="nx-xj-title" className="nx-xj__title">Jobs</h2>
+      <div className="nx-xj__head">
+        <h2 id="nx-xj-title" className="nx-xj__title">Jobs</h2>
+        {/* The setup sheet opens from here in every state of this computer, ready included (Check again, the GPU line). */}
+        {ui && <Button variant="quiet" onClick={ui.openSetup}>This computer’s execution setup</Button>}
+      </div>
       {/* The execution notice is the bench's (one line above every tool), not repeated here. */}
       {off && off.kind !== 'execution_unavailable' && off.kind !== 'unavailable' && (
         <p className="nx-muted" role="status">{off.text} {off.retry && <Button variant="quiet" onClick={jobs.reload}>Try again</Button>}</p>

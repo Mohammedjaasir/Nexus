@@ -10,12 +10,14 @@ import { navigate } from '../router/useRoute';
 import { PASSPORT_HANDOFF_READS, canHandOff, hasReceiver, type HandoffStart } from '../handoffs/handoffModel';
 import { Button } from '../ui/Button';
 import { Popover } from '../ui/Sheet';
-import type { ArtifactNode, ArtifactSummary } from './spineModel';
+import { projectOwned, type ArtifactNode, type ArtifactSummary } from './spineModel';
 import { ActionBar } from './ActionBar';
 import { DeploymentsSection } from './DeploymentsSection';
 import { EvidenceSection } from './EvidenceSection';
 import { KindViewer } from './kindViewers';
-import { checksWord } from './evidenceModel';
+import { applicationChecksWord, checksWord, type CheckStatus, type PreviewDeployment } from './evidenceModel';
+import { useDeployments, useValidations } from '../data/useExecution';
+import { workspacesActingOn } from './actionModel';
 import {
   IDLE_ACTIONS, LINK_CANDIDATE_ARTIFACTS, actionDoneText, actionsFor, actionPendingText, actionFailed, actionFailureText, actionLabel, actionSucceeded, artifactPassportView,
   askActionConfirm, beginAction, canLinkSources, candidateArtifactIds, cancelActionConfirm, confirmText, kindIsChecked, kindLabelIn, passportActionsFor,
@@ -169,6 +171,23 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
   const [pickerOpened, setPickerOpened] = useState(false);
 
   const artifact = loaded ? loaded.detail.artifact : null;
+  // An application's health check runs only on a dev deployment: its version words read the deployments of each
+  // version and the shown version's blocking results, so a draft never reads "Checking…" while nothing checks it.
+  const isApp = artifact?.kind === 'application';
+  const deployments = useDeployments(project.id);
+  const shownForChecks = loaded ? loaded.detail.versions.find((v) => v.versionNo === node.versionNo) ?? null : null;
+  const shownValidations = useValidations(isApp && shownForChecks ? shownForChecks.id : null);
+  const deploymentsOf = (versionId: string): PreviewDeployment[] | null =>
+    deployments.data ? deployments.data.filter((d) => d.subjectVersionId === versionId).map((d) => ({ status: d.status, startedAt: d.startedAt })) : null;
+  const validatorsOf = (versionId: string): Record<string, CheckStatus> | null => {
+    if (!shownForChecks || versionId !== shownForChecks.id || !shownValidations.data) return null;
+    const m: Record<string, CheckStatus> = {};
+    for (const r of shownValidations.data) if (r.blocking) m[r.validatorId] = r.status;
+    return m;
+  };
+  const wordOf = (v: VersionView): string | null => (isApp
+    ? applicationChecksWord({ status: v.status, validationState: v.validationState, validators: validatorsOf(v.id), deployments: deploymentsOf(v.id) })
+    : checksWord(v.validationState, v.status));
   const ownerRow = artifact && artifact.ownerParticipationId
     ? (idx.byProject.get(project.id) ?? []).find((r) => r.id === artifact.ownerParticipationId) ?? null
     : null;
@@ -176,6 +195,8 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
   const ownerActive = ownerRow !== null && ownerRow.status === 'active';
   // Hand off needs someone to receive it: another active participation of this project (the send sheet's choices).
   const receiver = ownerRow !== null && hasReceiver(idx, project.id, ownerRow.id);
+  // A project-owned version (a repository snapshot) is acted on from each active workspace whose actions take it.
+  const activeWorkspaces = (idx.byProject.get(project.id) ?? []).filter((r) => r.status === 'active').map((r) => r.workspaceId);
   const versionsById = useMemo(() => new Map((loaded?.detail.versions ?? []).map((v) => [v.id, v])), [loaded]);
   const shownVersion = loaded ? loaded.detail.versions.find((v) => v.versionNo === node.versionNo) ?? null : null;
   const linkable = artifact !== null && shownVersion !== null && canLinkSources(artifact, ownerActive, canWrite);
@@ -276,7 +297,7 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
                 <span className="nx-id">v{row.versionNo}</span>
                 <span className="nx-apx__version">
                   <span>{row.status}{row.current ? ', current' : ''}{row.shown && !row.current ? (onSpine ? ', shown on the spine' : ', shown here') : ''}</span>
-                  {v && kindIsChecked(artifact.kind) && checksWord(v.validationState, v.status) && <span className="nx-muted">{checksWord(v.validationState, v.status)}</span>}
+                  {v && kindIsChecked(artifact.kind) && wordOf(v) && <span className="nx-muted">{wordOf(v)}</span>}
                   {row.content && <span className="nx-apx__content">{row.content}</span>}
                   {row.subject && <span className="nx-muted">{row.subject}</span>}
                   {v && (allowed.length > 0 || handOff) && !confirming && (
@@ -319,11 +340,16 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
         </ol>
       </section>
       {shownVersion && <KindViewer kind={artifact.kind} version={shownVersion} />}
-      {shownVersion && <EvidenceSection key={shownVersion.id} version={shownVersion} checked={kindIsChecked(artifact.kind)} />}
+      {shownVersion && !isApp && <EvidenceSection key={shownVersion.id} version={shownVersion} checked={kindIsChecked(artifact.kind)} />}
+      {shownVersion && isApp && <EvidenceSection key={shownVersion.id} version={shownVersion} checked preview={{ deployments: deploymentsOf(shownVersion.id) }} />}
       {shownVersion && artifact.ownerWorkspaceId && ownerActive && artifact.status === 'active' && (
         <ActionBar projectId={project.id} workspaceId={artifact.ownerWorkspaceId} title="Actions"
           version={{ id: shownVersion.id, kind: artifact.kind, status: shownVersion.status }} />
       )}
+      {shownVersion && projectOwned(artifact) && artifact.status === 'active' && workspacesActingOn(artifact.kind, activeWorkspaces).map((w) => (
+        <ActionBar key={w} projectId={project.id} workspaceId={w} title={`${viewOf(w).label} actions`}
+          version={{ id: shownVersion.id, kind: artifact.kind, status: shownVersion.status }} />
+      ))}
       {artifact.kind === 'application' && artifact.ownerWorkspaceId && (
         <DeploymentsSection projectId={project.id} workspaceId={artifact.ownerWorkspaceId} versionIds={loaded.detail.versions.map((x) => x.id)} />
       )}
