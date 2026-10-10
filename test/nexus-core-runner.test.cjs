@@ -580,7 +580,14 @@ test('D14c (final review B1) a planted filter driver never runs on the host: arc
   gitOk(r.dir, ['config', 'filter.evil.clean', `echo clean >> "${shMarker}"; cat`]);
   gitOk(r.dir, ['config', 'filter.evil.required', 'true']);
   // The control: plain git does run the planted driver (the test would see a marker if Nexus did not switch it off).
-  fs.writeFileSync(path.join(r.dir, 'a.txt'), 'changed in the work tree\n');
+  // Deterministic: git status runs the clean filter only for an entry it must compare by content. A size change is
+  // "modified" from the stat alone, so the work-tree edit keeps the committed size and gets an mtime far from the index
+  // entry's: the stat is dirty but not decisive, and git must clean the file to compare it, whatever the clock granularity.
+  const edited = 'COMMITTED TEXT\n';
+  assert.equal(edited.length, 'committed text\n'.length);
+  fs.writeFileSync(path.join(r.dir, 'a.txt'), edited);
+  const past = new Date('2001-01-01T00:00:00Z');
+  fs.utimesSync(path.join(r.dir, 'a.txt'), past, past);
   const ctl = cp.spawnSync('git', ['status', '--porcelain'], { cwd: r.dir, encoding: 'utf8', windowsHide: true });
   assert.equal(ctl.status, 0, ctl.stderr);
   assert.ok(fs.existsSync(marker), 'the planted driver runs under plain git (control)');

@@ -54,7 +54,14 @@ test('FF2 (B1) main\'s git status (src/main/git.ts) runs no planted filter drive
   const shMarker = marker.split('\\').join('/');
   gitOk(dir, ['config', 'filter.evil.clean', `echo clean >> "${shMarker}"; cat`]);
   gitOk(dir, ['config', 'filter.evil.smudge', `echo smudge >> "${shMarker}"; cat`]);
-  fs.writeFileSync(path.join(dir, 'a.txt'), 'changed in the work tree\n');
+  // Deterministic control: git status runs the clean filter only for an entry it must compare by content. A size change
+  // is "modified" from the stat alone, so the edit keeps the committed size and gets an mtime far from the index entry's:
+  // the stat is dirty but not decisive, and git must clean the file to compare it, whatever the clock granularity.
+  const edited = 'COMMITTED\n';
+  assert.equal(edited.length, 'committed\n'.length);
+  fs.writeFileSync(path.join(dir, 'a.txt'), edited);
+  const past = new Date('2001-01-01T00:00:00Z');
+  fs.utimesSync(path.join(dir, 'a.txt'), past, past);
   const ctl = cp.spawnSync('git', ['status', '--porcelain'], { cwd: dir, encoding: 'utf8', windowsHide: true });
   assert.equal(ctl.status, 0, ctl.stderr);
   assert.ok(fs.existsSync(marker), 'control: plain git runs the planted clean filter');
