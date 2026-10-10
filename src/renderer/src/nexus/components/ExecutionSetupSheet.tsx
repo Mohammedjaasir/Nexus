@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import type { ImageProfileArg } from '@shared/nexus/ipc';
 import { nexusClient } from '../data/nexusClient';
 import { execFailText } from '../data/errorCopy';
-import { checkedLine, noticeFor, setupSheet } from '../data/executionModel';
-import { useApprovals, useHealth, withIntent } from '../data/useExecution';
+import { checkedLine, noticeFor, setupLead, setupSheet } from '../data/executionModel';
+import { useApprovals, useHealth, useHealthPoll, withIntent } from '../data/useExecution';
 import { ApprovalList } from '../project/ApprovalsSection';
 import { Sheet } from '../ui/Sheet';
 import { Button } from '../ui/Button';
@@ -22,6 +22,7 @@ export function ExecutionSetupSheet({ open, onClose }: { open: boolean; onClose:
 
 function SetupBody({ onClose }: { onClose: () => void }) {
   const { health, availability, refresh } = useHealth();
+  useHealthPoll(true);
   const approvals = useApprovals(null);
   const prepares = useMemo(() => (approvals.data ?? []).filter((a) => a.reason === 'image.prepare'), [approvals.data]);
   const waiting = prepares.filter((a) => a.status === 'pending');
@@ -35,6 +36,7 @@ function SetupBody({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ text: string; alert: boolean } | null>(null);
   const notice = noticeFor(availability);
+  const lead = setupLead(availability, rows);
 
   const prepare = async (profile: string) => {
     if (busy || !PROFILES.includes(profile)) return;
@@ -51,9 +53,7 @@ function SetupBody({ onClose }: { onClose: () => void }) {
         <p className="nx-xs__kind">This computer</p>
         <h2 id="nx-xs-title" className="nx-xs__title">Execution setup</h2>
       </header>
-      {notice && availability.kind !== 'setup' && <p className="nx-xs__lead">{notice.text}</p>}
-      {availability.kind === 'setup' && <p className="nx-xs__lead">Jobs run only once every row below is ready. Nothing here is changed for you.</p>}
-      {availability.kind === 'ready' && <p className="nx-xs__lead">Jobs can run on this computer.</p>}
+      {lead ? <p className="nx-xs__lead">{lead}</p> : notice && <p className="nx-xs__lead">{notice.text}</p>}
       {health ? (
         <ul className="nx-xs__rows" aria-label="Execution setup">
           {rows.map((r) => (

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { ApprovalView } from '@shared/nexus/ipc';
 import { nexusClient } from '../data/nexusClient';
-import { errorCopy } from '../data/errorCopy';
+import { execFailText } from '../data/errorCopy';
 import { useApprovals, useExecStore } from '../data/useExecution';
 import { Button } from '../ui/Button';
 import { approvalRow } from './actionModel';
@@ -14,6 +14,17 @@ export function ApprovalList({ approvals, label }: { approvals: ApprovalView[]; 
   const [note, setNote] = useState<{ id: string; text: string; alert: boolean } | null>(null);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  // Focus moves into the confirmation (onto Cancel, never the approving button) and back to the row's
+  // "Approve once" when it closes without an answer, as the Passport's confirmations do.
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const approveRefs = useRef(new Map<string, HTMLButtonElement>());
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+  useEffect(() => { if (confirming) cancelRef.current?.focus(); }, [confirming]);
+  useEffect(() => { if (returnTo && !confirming) { approveRefs.current.get(returnTo)?.focus(); setReturnTo(null); } }, [returnTo, confirming]);
+  const cancelConfirm = (id: string) => { if (pending) return; setConfirming(null); setReturnTo(id); };
+  const onConfirmKey = (id: string) => (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancelConfirm(id); }
+  };
   const now = Date.now();
   const answer = async (id: string, decision: 'once' | 'deny') => {
     if (pending) return;
@@ -23,7 +34,7 @@ export function ApprovalList({ approvals, label }: { approvals: ApprovalView[]; 
     if (!alive.current) return;
     setPending(null); setConfirming(null);
     setNote(r.ok ? { id, text: decision === 'once' ? 'Approved once.' : 'Denied.', alert: false }
-      : { id, text: errorCopy(r.code, r.reason, r.subReason).text, alert: true });
+      : { id, text: execFailText(r), alert: true });
   };
   return (
     <ul className="nx-xq__list" aria-label={label}>
@@ -39,16 +50,17 @@ export function ApprovalList({ approvals, label }: { approvals: ApprovalView[]; 
             <p className="nx-muted nx-xq__meta">{v.expires}</p>
             {v.answers.length > 0 && confirming !== a.id && (
               <div className="nx-xq__acts">
-                <Button variant="primary" disabled={pending !== null} onClick={() => setConfirming(a.id)}>Approve once</Button>
+                <button ref={(el) => { if (el) approveRefs.current.set(a.id, el); else approveRefs.current.delete(a.id); }} type="button"
+                  className="nx-btn nx-btn--primary" disabled={pending !== null} onClick={() => setConfirming(a.id)}><span>Approve once</span></button>
                 <Button disabled={pending !== null} onClick={() => { void answer(a.id, 'deny'); }}>{pending === a.id ? 'Answering…' : 'Deny'}</Button>
               </div>
             )}
             {v.answers.length > 0 && confirming === a.id && (
-              <div className="nx-xq__confirm" role="group" aria-label={`Approve ${v.title} once`}>
+              <div className="nx-xq__confirm" role="group" aria-label={`Approve ${v.title} once`} onKeyDown={onConfirmKey(a.id)}>
                 <p>Allow this once? It reaches only what is listed above, for this request only.</p>
                 <div className="nx-xq__acts">
                   <Button variant="primary" disabled={pending !== null} onClick={() => { void answer(a.id, 'once'); }}>{pending === a.id ? 'Answering…' : 'Approve once'}</Button>
-                  <Button disabled={pending !== null} onClick={() => setConfirming(null)}>Cancel</Button>
+                  <button ref={cancelRef} type="button" className="nx-btn" disabled={pending !== null} onClick={() => cancelConfirm(a.id)}><span>Cancel</span></button>
                 </div>
               </div>
             )}

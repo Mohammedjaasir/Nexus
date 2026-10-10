@@ -3,17 +3,15 @@
 // answered. No React, so tests load it directly. Every number shown here comes
 // from the HealthView or an approval; nothing is estimated in the renderer.
 import type { EventView, HealthView, NexusResult } from '@shared/nexus/ipc';
+import { GIB, MIN_DOCKER_CPUS, MIN_DOCKER_MEMORY } from '@shared/nexus/resourceGate';
 import { errorCopy, executionNotice, unavailableNotice } from './errorCopy';
-
-const GIB = 2 ** 30;
-const MIN_DOCKER_MEMORY = 4 * GIB;
-const MIN_DOCKER_CPUS = 2;
 
 /**
  * Sizes in GB as Windows Explorer shows them (binary: 1 GB = 2^30 bytes), which is also how the resource gate
  * counts. Rounded down to one decimal, so free space is never overstated; a whole number has no decimal.
  */
 export function gb(bytes: number): string {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes < 0) return 'unknown';
   const v = Math.floor((bytes / GIB) * 10) / 10;
   return `${Number.isInteger(v) ? v.toFixed(0) : v.toFixed(1)} GB`;
 }
@@ -21,7 +19,7 @@ export function gb(bytes: number): string {
 // ---------- availability ----------
 
 export type SetupProblemId = 'docker_missing' | 'docker_stopped' | 'docker_memory_low' | 'docker_cpus_low' | 'disk_low' | 'image_missing'
-  | 'image_mismatch' | 'runner_unavailable' | 'probe_unreadable';
+  | 'image_mismatch' | 'runner_unavailable' | 'git_missing' | 'probe_unreadable';
 
 /**
  * - unknown: health not read yet (or a passing failure: `retry`);
@@ -31,14 +29,14 @@ export type SetupProblemId = 'docker_missing' | 'docker_stopped' | 'docker_memor
  * - ready: heavy execution can run (an advisory, such as disk below the recommended size, may remain).
  */
 export type ExecAvailability =
-  | { kind: 'unknown'; text: string | null; retry: boolean }
+  | { kind: 'unknown'; text: string | null; retry: boolean; checking?: boolean }
   | { kind: 'platform_off'; text: string }
   | { kind: 'execution_off'; subReason: string; text: string }
   | { kind: 'setup'; problems: SetupProblemId[]; profiles: string[]; text: string }
   | { kind: 'ready'; advisories: string[] };
 
 const PROBLEM_ORDER: SetupProblemId[] = ['disk_low', 'docker_missing', 'docker_stopped', 'docker_memory_low', 'docker_cpus_low',
-  'image_missing', 'image_mismatch', 'runner_unavailable', 'probe_unreadable'];
+  'image_missing', 'image_mismatch', 'runner_unavailable', 'git_missing', 'probe_unreadable'];
 
 const PROBLEM_LINE: Record<SetupProblemId, string> = {
   disk_low: 'there is not enough free disk',
@@ -49,6 +47,7 @@ const PROBLEM_LINE: Record<SetupProblemId, string> = {
   image_missing: 'a sandbox image is not prepared',
   image_mismatch: 'a sandbox image does not match the pinned version',
   runner_unavailable: 'the execution runner is not running',
+  git_missing: 'git is not installed',
   probe_unreadable: 'this computer could not be checked'
 };
 
@@ -85,22 +84,29 @@ export function availabilityFrom(platform: { unavailable: { reason: string | nul
     return { kind: 'execution_off', subReason: sub, text: executionNotice(sub) };
   }
   if (!h.registry.valid) return { kind: 'execution_off', subReason: 'registry_invalid', text: executionNotice('registry_invalid') };
+  // Before main's first probe every fact is unknown: nothing may read as ready.
+  if (h.checkedAt === null) return { kind: 'unknown', text: NOT_CHECKED, retry: false, checking: true };
   const { problems, profiles } = setupProblems(h);
   if (problems.length > 0) {
     const first = PROBLEM_LINE[problems[0]];
     const more = problems.length > 1 ? ` (and ${problems.length - 1} more)` : '';
     return { kind: 'setup', problems, profiles, text: `Jobs cannot run on this computer yet: ${first}${more}. Open the setup to see what to do.` };
   }
+  if (h.docker.state === 'unknown' || h.disk.gate === 'unknown' || h.disk.dataHomeFreeBytes === null) {
+    return { kind: 'unknown', text: NOT_CHECKED, retry: false, checking: true };
+  }
   const advisories = h.disk.gate === 'below_recommended' && h.disk.dataHomeFreeBytes !== null
     ? [`Free disk is ${gb(h.disk.dataHomeFreeBytes)}; ${gb(h.disk.recommendedBytes)} is recommended.`] : [];
   return { kind: 'ready', advisories };
 }
 
+export const NOT_CHECKED = 'This computer has not been checked yet, so jobs cannot start. Open the setup to check it.';
+
 /** The one-line notice (ExecutionNotice): null when jobs can run and nothing needs saying. */
 export function noticeFor(a: ExecAvailability): { text: string; setup: boolean } | null {
   switch (a.kind) {
     case 'ready': return a.advisories.length ? { text: a.advisories[0], setup: true } : null;
-    case 'unknown': return a.text ? { text: a.text, setup: false } : null;
+    case 'unknown': return a.text ? { text: a.text, setup: a.checking === true } : null;
     case 'platform_off': return null; // the platform notice already says it
     case 'execution_off': return { text: a.text, setup: a.subReason !== 'unreachable' };
     case 'setup': return { text: a.text, setup: true };
@@ -193,6 +199,8 @@ export function setupSheet(h: HealthView, ctx: { estimates?: ReadonlyMap<string,
       rows.push(row(`image:${img.profile}`, label, 'problem', text, 'It can be prepared once Docker is running and the disk has room.'));
     }
   }
+  // HealthView has no git field: git is shown only when main reported it missing (never claimed as ready).
+  if ((h.problems ?? []).includes('git_missing')) rows.push(row('git', 'Git', 'problem', 'Git is not installed.', 'Install Git, then restart the app.'));
   rows.push(h.runner.attached
     ? row('runner', 'Execution runner', 'ok', h.runner.restarts > 0 ? `Running (restarted ${h.runner.restarts} times).` : 'Running.')
     : row('runner', 'Execution runner', 'problem', 'Not running.', 'Restart the app; the runner starts with it.'));
@@ -200,6 +208,14 @@ export function setupSheet(h: HealthView, ctx: { estimates?: ReadonlyMap<string,
   // The GPU line is a fact, not a requirement: it is never a problem and never offered.
   rows[rows.length - 1].word = h.gpu.detected ? 'Not used' : 'Not needed';
   return rows;
+}
+
+/** The sheet's lead line: "Jobs can run" only when execution is ready AND every row is fine. */
+export function setupLead(a: ExecAvailability, rows: readonly SetupRow[]): string | null {
+  if (a.kind === 'setup') return 'Jobs run only once every row below is ready. Nothing here is changed for you.';
+  if (a.kind === 'ready' && rows.length > 0 && rows.every((r) => r.state === 'ok' || r.state === 'advisory')) return 'Jobs can run on this computer.';
+  if (a.kind === 'unknown' && a.checking) return NOT_CHECKED;
+  return null;
 }
 
 /** "Checked at 14:05", or that it was never checked. */
@@ -224,8 +240,10 @@ export function affectedLists(events: readonly Pick<EventView, 'type' | 'summary
         if (FINISHED.test(e.summary)) { out.add('artifacts'); out.add('validations'); }
         break;
       case 'attempt.transition': case 'attempt.provisioned': case 'attempt.progress': case 'attempt.output':
-      case 'attempt.heartbeat_gap': case 'preflight': case 'recovery':
+      case 'attempt.heartbeat_gap':
         out.add('jobs'); break;
+      // A preflight or a recovery pass re-probes this computer: the setup facts may have changed too.
+      case 'preflight': case 'recovery': out.add('jobs'); out.add('health'); break;
       case 'approval': out.add('approvals'); out.add('jobs'); break;
       case 'image_build': out.add('approvals'); out.add('health'); break;
       case 'deployment': out.add('deployments'); out.add('artifacts'); break;

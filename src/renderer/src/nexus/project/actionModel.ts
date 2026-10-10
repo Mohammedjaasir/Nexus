@@ -7,6 +7,7 @@ import type { ActionAvailabilityView, ApprovalView, DeploymentView } from '@shar
 import type { DeploymentStatus } from '@shared/nexus/platform';
 import { getUserAction } from '@shared/nexus/actions';
 import { getDomain } from '@shared/nexus/domains';
+import { isAtOrBefore } from '@shared/nexus/domainSpec';
 import { setupText } from '../data/errorCopy';
 import { gb, type ExecAvailability } from '../data/executionModel';
 
@@ -28,10 +29,12 @@ export interface ActionBarView { buttons: ActionButton[]; sentences: ActionSente
 export interface ActionContext {
   workspaceId: string;
   availability: ExecAvailability;
-  /** The version this bar acts on (its kind and status), or null for the project-level bar. */
+  /**
+   * The version this bar acts on (its kind and status): the bar then lists only actions that take that version as an
+   * input. Null for the project-level bar: it lists actions that take no input, and the reasons input-taking actions
+   * cannot start (an available one is offered on its input version instead).
+   */
   version: { kind: string; status: string } | null;
-  /** Kinds with a version usable as an input now (candidate or active; a draft application for a dev deployment). */
-  usableKinds: ReadonlySet<string>;
 }
 
 function stepLabel(workspaceId: string, stepId: string): string {
@@ -51,24 +54,27 @@ export function reasonSentence(a: Pick<ActionAvailabilityView, 'label' | 'reason
 }
 
 /**
- * The bar. Main's answer is trusted for what it refuses and checked again for what it allows: a step that is not
- * in this release, a machine prerequisite while the setup is not ready, or a missing input never gives a button.
+ * The bar. Main's answer is trusted for what it refuses and checked again for what it allows. The step is derived
+ * from the registry (the step whose `via` names the action), never from the answer's `stepId`; an action that is not
+ * one of this workspace's own, has no step, or whose step is not in this release is never listed. A machine
+ * prerequisite while the setup is not ready, or a version that is not usable as an input, never gives a button.
  */
 export function actionBar(list: readonly ActionAvailabilityView[], ctx: ActionContext): ActionBarView {
   const buttons: ActionButton[] = [];
   const sentences: ActionSentence[] = [];
   const domain = getDomain(ctx.workspaceId);
+  if (!domain) return { buttons, sentences };
   for (const a of list) {
-    if (PLACED_ACTIONS.includes(a.actionId)) continue;
+    if (PLACED_ACTIONS.includes(a.actionId) || !domain.actions.includes(a.actionId)) continue;
     const def = getUserAction(a.actionId);
-    const step = a.stepId ? domain?.lifecycle.find((s) => s.id === a.stepId) ?? null : null;
-    if (a.reason === 'future' || a.reason === 'planned' || !def || (step && step.status === 'FUTURE')) continue;
+    const step = domain.lifecycle.find((s) => s.via.some((v) => 'userAction' in v && v.userAction === a.actionId)) ?? null;
+    if (!def || !step || step.status === 'FUTURE' || !isAtOrBefore(step.subPhase) || a.reason === 'future' || a.reason === 'planned') continue;
     const inline = 'inlineKind' in def.run;
-    const required = a.inputs.filter((s) => s.min >= 1);
-    // The input this context fills: the shown version when its kind fits a slot.
-    const fit = ctx.version ? a.inputs.find((s) => s.kinds.includes(ctx.version!.kind)) ?? null : null;
-    if (ctx.version && required.length > 0 && !fit) continue; // not an action on this version
-    if (!ctx.version && required.length > 0 && a.available) continue; // offered on the version itself
+    const takesInput = def.inputs.some((s) => s.min >= 1);
+    // The input slot this version fills, from the registry's own slots.
+    const fit = ctx.version ? def.inputs.find((s) => s.kinds.includes(ctx.version!.kind)) ?? null : null;
+    if (ctx.version && !fit) continue; // the version bar: only actions on this version
+    if (!ctx.version && takesInput && a.available) continue; // offered on its input version
     if (!a.available) {
       const text = reasonSentence(a, ctx.workspaceId);
       if (text) sentences.push({ actionId: a.actionId, text, setup: (a.reason ?? '').startsWith('setup:') });
@@ -80,10 +86,11 @@ export function actionBar(list: readonly ActionAvailabilityView[], ctx: ActionCo
     }
     if (fit) {
       const preview = a.actionId === 'sde.preview.start';
-      const ok = ctx.version!.status === 'candidate' || ctx.version!.status === 'active' || (preview && ctx.version!.status === 'draft');
-      if (!ok) { sentences.push({ actionId: a.actionId, text: `${a.label}: this version is not ready to be used yet.`, setup: false }); continue; }
-    } else if (required.some((s) => !s.kinds.some((k) => ctx.usableKinds.has(k)))) {
-      continue;
+      const st = ctx.version!.status;
+      if (!(st === 'candidate' || st === 'active' || (preview && st === 'draft'))) {
+        sentences.push({ actionId: a.actionId, text: `${a.label}: this version is not ready to be used yet.`, setup: false });
+        continue;
+      }
     }
     buttons.push({ actionId: a.actionId, label: a.label, needsApproval: a.needsApproval, slot: fit ? fit.slot : null, inline });
   }

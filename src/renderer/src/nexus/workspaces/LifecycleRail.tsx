@@ -29,6 +29,7 @@ export function LifecycleRail({ rail, compact = false }: { rail: RailView; compa
       <ol className="nx-lrail__steps">
         {rail.steps.map((s) => (
           <li key={s.id} className="nx-lrail__step" data-future={s.future ? 'true' : undefined} data-state={s.state ?? undefined}>
+            <span className="nx-lrail__n nx-id" aria-hidden="true">{s.n}</span>
             <span className="nx-lrail__label">{s.label}</span>
             <span className="nx-lrail__word">{s.word}</span>
             {s.note && <span className="nx-lrail__scope">{s.note}</span>}

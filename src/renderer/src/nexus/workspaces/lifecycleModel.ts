@@ -53,6 +53,8 @@ export interface RailRecords {
 }
 
 export interface RailStep {
+  /** The step's place in the lifecycle, from 1. */
+  n: number;
   id: string; label: string; status: StepStatus; subPhase: SubPhase; future: boolean;
   /** Derived from records inside a project; null on a workspace page (no project, so no state). */
   state: StepState | null;
@@ -84,7 +86,7 @@ export function railFor(view: DomainSpecView, records: RailRecords | null = null
   const supported = view.tier === 'first-class' && view.lifecycle.length > 0;
   const availability = !supported ? NOT_SUPPORTED
     : !isAtOrBefore(view.availableFromSubPhase, view.currentSubPhase) ? `Available from ${view.availableFromSubPhase}; it cannot be added to a project yet` : null;
-  const steps: RailStep[] = view.lifecycle.map((s) => {
+  const steps: RailStep[] = view.lifecycle.map((s, i) => {
     const future = s.status === 'FUTURE' || !isAtOrBefore(s.subPhase, view.currentSubPhase);
     const full = spec?.lifecycle.find((x) => x.id === s.id) ?? null;
     let state: StepState | null = null;
@@ -98,7 +100,7 @@ export function railFor(view: DomainSpecView, records: RailRecords | null = null
       }, view.currentSubPhase);
     }
     return {
-      id: s.id, label: s.label, status: s.status, subPhase: s.subPhase, future, state,
+      n: i + 1, id: s.id, label: s.label, status: s.status, subPhase: s.subPhase, future, state,
       word: future ? STATUS_WORD.FUTURE : state ? STATE_WORD[state] : STATUS_WORD[s.status],
       note: future ? futureLine(s.subPhase) : s.scopeNote
     };
@@ -116,7 +118,11 @@ export function railSummary(r: RailView): string {
   const inRelease = r.steps.filter((s) => !s.future);
   const done = inRelease.filter((s) => s.state === 'done').length;
   const later = r.steps.length - inRelease.length;
+  const attention = inRelease.filter((s) => s.state === 'failed').length;
+  const moving = inRelease.filter((s) => s.state === 'in_progress').length;
   const parts = [`${done} of ${inRelease.length} steps in this release done`];
+  if (attention > 0) parts.push(`${attention} need${attention === 1 ? 's' : ''} attention`);
+  if (moving > 0) parts.push(`${moving} in progress`);
   if (later > 0) parts.push(`${later} not in this release`);
   return parts.join('; ');
 }

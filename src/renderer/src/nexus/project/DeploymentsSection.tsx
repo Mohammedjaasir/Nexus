@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { nexusClient } from '../data/nexusClient';
-import { execFailText } from '../data/errorCopy';
+import { nexusClient, openLoopbackUrl } from '../data/nexusClient';
+import { errorCopy, execFailText } from '../data/errorCopy';
 import { useActions, useDeployments, useExecStore, withIntent } from '../data/useExecution';
 import { Button } from '../ui/Button';
 import { deploymentRow } from './actionModel';
@@ -14,7 +14,21 @@ export function DeploymentsSection({ projectId, workspaceId, versionIds }: { pro
   const ui = useExecutionUi();
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ text: string; alert: boolean } | null>(null);
+  if (list.fail) {
+    const c = errorCopy(list.fail.code, list.fail.reason, list.fail.subReason);
+    if (c.kind !== 'busy' && c.kind !== 'internal') return null; // execution off: the notice says why
+    return (
+      <section aria-label="Dev deployments">
+        <h2>Dev deployments</h2>
+        <p className="nx-muted nx-xa__line" role="status"><span>The dev deployments could not be read. {c.text}</span> <Button variant="quiet" onClick={list.reload}>Try again</Button></p>
+      </section>
+    );
+  }
   if (!list.data) return null;
+  const open = async (url: string) => {
+    const r = await openLoopbackUrl(url);
+    if (!r.ok) setNote({ text: `The address could not be opened in the browser. Open ${url} yourself.`, alert: true });
+  };
   const mine = list.data.filter((d) => versionIds.includes(d.subjectVersionId)).sort((a, b) => b.startedAt - a.startedAt).slice(0, 10);
   const canDiagnose = !!actions.data?.some((a) => a.actionId === 'sde.diagnose' && a.available);
   const run = async (key: string, send: () => Promise<{ ok: boolean; code?: string; reason?: string; subReason?: string }>, done: string) => {
@@ -35,7 +49,7 @@ export function DeploymentsSection({ projectId, workspaceId, versionIds }: { pro
             return (
               <li key={d.id} className="nx-xd__row">
                 <p className="nx-xq__head"><span className="nx-xq__word">{v.word}</span>
-                  {v.url && <button type="button" className="nx-apx__handoff" onClick={() => { void window.cth.openExternal(v.url!); }}>{v.url}</button>}</p>
+                  {v.url && <button type="button" className="nx-apx__handoff" onClick={() => { void open(v.url!); }}>{v.url}</button>}</p>
                 <dl className="nx-xq__facts">{v.facts.map((f) => <div key={f.label}><dt>{f.label}</dt><dd>{f.value}</dd></div>)}</dl>
                 <div className="nx-xq__acts">
                   {v.canStop && <Button disabled={busy !== null} onClick={() => { void run(`stop:${d.id}`, () => nexusClient.deploymentStop(d.id), 'Stopping the dev deployment.'); }}>{busy === `stop:${d.id}` ? 'Stopping…' : 'Stop'}</Button>}

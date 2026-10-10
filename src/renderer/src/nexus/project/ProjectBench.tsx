@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { Project } from '@shared/project';
 import { useStore } from '@/store/store';
@@ -36,39 +36,62 @@ import { ApprovalsSection } from './ApprovalsSection';
 import { RequirementSheet } from './RequirementSheet';
 import { ExecutionUiContext, type ExecutionUi } from './execContext';
 import type { LogRange } from './evidenceModel';
-import { checkedVersionIds, railRecordsFor, spineChecks, type SpineGroup, type ValidatorStatuses } from './spineModel';
+import { checkedVersionIds, railRecordsFor, spineChecks, versionsToRead, type SpineGroup, type ValidatorStatuses } from './spineModel';
+import type { VersionStatus } from '@shared/nexus/platform';
 import type { ArtifactSummary } from './spineModel';
 
-/** The latest blocking result per validator of each checked shown version (#32); null while checks cannot be read. */
-function useRailChecks(artifacts: ArtifactSummary[]): Map<string, ValidatorStatuses> | null {
+type VersionCheck = { status: VersionStatus; word: string | null; validators: ValidatorStatuses | null };
+
+/**
+ * The checks of each checked artifact node: its word (nexus:version:get, B1, so it works with execution off) and the
+ * latest blocking result per validator (#32, null while execution is off). Only versions that are new, changed status
+ * or are still drafts are read again on a change (versionsToRead).
+ */
+function useVersionChecks(artifacts: ArtifactSummary[]): { words: Map<string, string>; validators: Map<string, ValidatorStatuses> | null } {
   const rev = usePlatform((s) => s.rev);
   const tick = useExecStore((s) => s.ticks.validations);
   const wanted = useMemo(() => checkedVersionIds(artifacts), [artifacts]);
-  const key = wanted.map((w) => w.versionId).join(',');
-  const [checks, setChecks] = useState<Map<string, ValidatorStatuses> | null>(null);
+  const cache = useRef(new Map<string, VersionCheck>());
+  const lastTick = useRef(tick);
+  const [version, setVersion] = useState(0);
   useEffect(() => {
     let alive = true;
-    void Promise.all(wanted.map((w) => nexusClient.versionValidations(w.versionId))).then((rs) => {
+    // Checks unread while execution was off are read again once execution events arrive (a validations tick).
+    const ticked = tick !== lastTick.current;
+    lastTick.current = tick;
+    const readAt = new Map([...cache.current].filter(([, c]) => !(ticked && c.validators === null)).map(([id, c]) => [id, c.status]));
+    const todo = versionsToRead(wanted, readAt);
+    if (todo.length === 0) { setVersion((n) => n + 1); return; }
+    void Promise.all(todo.map(async (w) => {
+      const [g, v] = await Promise.all([nexusClient.versionGet(w.versionId), nexusClient.versionValidations(w.versionId)]);
+      const statuses: Record<string, 'passed' | 'failed' | 'error' | 'skipped'> = {};
+      if (v.ok) for (const x of v.data) if (x.blocking && x.status) statuses[x.validatorId] = x.status;
+      return { w, word: g.ok ? spineChecks([{ nodeId: w.nodeId, validationState: g.data.validationState, status: g.data.status }]).get(w.nodeId) ?? null : null,
+        validators: v.ok ? statuses : null };
+    })).then((rs) => {
       if (!alive) return;
-      if (rs.some((r) => !r.ok)) { setChecks(null); return; }
-      const m = new Map<string, ValidatorStatuses>();
-      rs.forEach((r, i) => {
-        if (!r.ok) return;
-        const statuses: Record<string, 'passed' | 'failed' | 'error' | 'skipped'> = {};
-        for (const x of r.data) if (x.blocking && x.status) statuses[x.validatorId] = x.status;
-        m.set(wanted[i].versionId, statuses);
-      });
-      setChecks(m);
+      for (const r of rs) cache.current.set(r.w.versionId, { status: r.w.status, word: r.word, validators: r.validators });
+      setVersion((n) => n + 1);
     });
     return () => { alive = false; };
-  }, [key, rev, tick]);
-  return checks;
+  }, [wanted, rev, tick]);
+  return useMemo(() => {
+    const words = new Map<string, string>();
+    const validators = new Map<string, ValidatorStatuses>();
+    let readable = true;
+    for (const w of wanted) {
+      const c = cache.current.get(w.versionId);
+      if (!c) { readable = false; continue; }
+      if (c.word) words.set(w.nodeId, c.word);
+      if (c.validators) validators.set(w.versionId, c.validators); else readable = false;
+    }
+    return { words, validators: readable ? validators : null };
+  }, [wanted, version]);
 }
 
 /** Each active group's lifecycle rail, from records only (versions and their checks, live jobs, dev deployments). */
-function useGroupRails(projectId: string, groups: SpineGroup[], artifacts: ArtifactSummary[]): Map<string, RailView> {
+function useGroupRails(projectId: string, groups: SpineGroup[], artifacts: ArtifactSummary[], checks: Map<string, ValidatorStatuses> | null): Map<string, RailView> {
   const domains = useDomains().list;
-  const checks = useRailChecks(artifacts);
   const jobs = useJobs(projectId);
   const deployments = useDeployments(projectId);
   return useMemo(() => {
@@ -86,25 +109,6 @@ function useGroupRails(projectId: string, groups: SpineGroup[], artifacts: Artif
     }
     return m;
   }, [groups, domains, checks, jobs.data, deployments.data, artifacts]);
-}
-
-/** The checks word of each checked artifact node (nexus:version:get of its shown version), read again on rev. */
-function useSpineChecks(artifacts: ArtifactSummary[]): Map<string, string> {
-  const rev = usePlatform((s) => s.rev);
-  const wanted = useMemo(() => checkedVersionIds(artifacts), [artifacts]);
-  const key = wanted.map((w) => w.versionId).join(',');
-  const [checks, setChecks] = useState<Map<string, string>>(new Map());
-  useEffect(() => {
-    if (wanted.length === 0) { setChecks(new Map()); return; }
-    let alive = true;
-    void Promise.all(wanted.map((w) => nexusClient.versionGet(w.versionId))).then((rs) => {
-      if (!alive) return;
-      const reads = rs.flatMap((r, i) => (r.ok ? [{ nodeId: wanted[i].nodeId, validationState: r.data.validationState, status: r.data.status }] : []));
-      setChecks(spineChecks(reads));
-    });
-    return () => { alive = false; };
-  }, [key, rev]);
-  return checks;
 }
 
 /** The project route: opens the project, then shows the Spine workbench. */
@@ -254,8 +258,9 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   useEffect(() => { if (!canWrite) { setSaveSource(null); setHandoffStart(null); } }, [canWrite]);
   // B2a execution: the setup sheet, the writing sheet and the log reader live at the bench; the Folio opens them.
   const { availability } = useHealth();
-  const checks = useSpineChecks(artifacts);
-  const rails = useGroupRails(project.id, groups, artifacts);
+  const versionChecks = useVersionChecks(artifacts);
+  const checks = versionChecks.words;
+  const rails = useGroupRails(project.id, groups, artifacts, versionChecks.validators);
   const [setupOpen, setSetupOpen] = useState(false);
   const [write, setWrite] = useState<{ workspaceId: string; kind: 'requirement' | 'problem_statement' } | null>(null);
   const [log, setLog] = useState<{ jobId: string; range?: LogRange | null } | null>(null);

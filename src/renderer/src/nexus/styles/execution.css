@@ -64,6 +64,7 @@
 
 /* Action sentences (project/ActionBar.tsx) and the writing sheet's criteria (project/RequirementSheet.tsx). */
 .nx-xa__why { list-style: none; margin: var(--nx-s2) 0 0; padding: 0; display: grid; gap: var(--nx-s1); color: var(--nx-text-2); }
+.nx-xa__line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); margin: 0; }
 .nx-xa__why li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nx-s2); }
 .nx-xw__crit { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: var(--nx-s2); }
 
@@ -77,12 +78,20 @@
    A step's state is its word; steps not in this release are hatched like drafts (the hatch lives in project.css with the draft node's) and are never controls. */
 .nx-lrail { display: grid; gap: var(--nx-s2); }
 .nx-lrail__note { margin: 0; color: var(--nx-text-2); font-size: 13px; }
-.nx-lrail__steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--nx-s2); }
-.nx-lrail__step { display: grid; gap: 2px; padding: var(--nx-s2) var(--nx-s3); border: 1px solid var(--nx-line-strong); border-radius: var(--nx-r-obj); background: var(--nx-surface); font-size: 12.5px; }
-.nx-lrail__step[data-future="true"] { border-style: dashed; color: var(--nx-text-2); }
-.nx-lrail__step[data-state="done"] { border-color: var(--nx-ink); }
+.nx-lrail__steps { list-style: none; margin: 0; padding: 0; counter-reset: none; }
+/* An ordered rail in the Folio's version-timeline words (.nx-versions): one rule down the left, a marker per step,
+   the step number, its label, its word and its note on one ruled line. No tiles: the order is the line. */
+.nx-lrail__step { display: grid; grid-template-columns: 24px minmax(120px, 220px) minmax(110px, auto) minmax(0, 1fr); align-items: baseline; gap: 2px var(--nx-s3); padding: 5px 0 5px 12px; border-left: 1px solid var(--nx-line-strong); position: relative; font-size: 12.5px; }
+.nx-lrail__step::before { content: ""; position: absolute; left: -5px; top: 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--nx-surface); border: 1.5px solid var(--nx-line-strong); box-sizing: border-box; }
+.nx-lrail__step[data-state="done"]::before { background: var(--nx-ink); border-color: var(--nx-ink); }
+.nx-lrail__step[data-state="in_progress"]::before { border-color: var(--nx-ink); }
+.nx-lrail__step[data-state="failed"]::before { border: 3px solid var(--nx-ink); }
+.nx-lrail__step[data-future="true"] { border-left-style: dashed; color: var(--nx-text-2); }
+.nx-lrail__step[data-future="true"] .nx-lrail__label { color: var(--nx-text-2); font-weight: 550; }
+.nx-lrail__n { color: var(--nx-text-3); font-size: 11px; }
 .nx-lrail__label { font-weight: 650; color: var(--nx-ink); }
 .nx-lrail__word { color: var(--nx-text-2); font-weight: 600; }
+.nx-lrail__step[data-state="failed"] .nx-lrail__word { color: var(--nx-ink); }
 .nx-lrail__scope { color: var(--nx-text-3); }
 .nx-lrail__modules { margin: 0; color: var(--nx-text-2); font-size: 12.5px; }
 .nx-lrail__sub { font-weight: 600; color: var(--nx-text-3); }
@@ -92,4 +101,6 @@
 .nx-lrail__bar li[data-future="true"] { border-style: dashed; border-color: var(--nx-line); }
 .nx-lrail__bar li[data-state="done"] { background: var(--nx-ink); border-color: var(--nx-ink); }
 .nx-lrail__bar li[data-state="in_progress"] { background: var(--nx-line-strong); }
+.nx-lrail__bar li[data-state="failed"] { border: 2px solid var(--nx-ink); }
 .nx-lrail__line { margin: 0; font-size: 11px; color: var(--nx-text-3); white-space: nowrap; }
+@media (max-width: 767px) { .nx-lrail__step { grid-template-columns: 24px minmax(0, 1fr); } .nx-lrail__word, .nx-lrail__scope { grid-column: 2; } }

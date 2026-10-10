@@ -55,6 +55,21 @@ export function newIntentId(at: number = Date.now()): string {
   return time + rand;
 }
 
+/** A dev deployment's loopback address, exactly `http://127.0.0.1:<port>`; anything else is refused before any call. */
+export const LOOPBACK_URL_RE = /^http:\/\/127\.0\.0\.1:([1-9]\d{0,4})$/;
+
+/** Opens a dev deployment's address in the browser (main's allow-list checks it again). Never throws. */
+export async function openLoopbackUrl(url: string): Promise<{ ok: boolean }> {
+  const m = LOOPBACK_URL_RE.exec(url);
+  if (!m || Number(m[1]) > 65535) return { ok: false };
+  try {
+    const r = await window.cth.openExternal(url);
+    return { ok: !!r && r.ok === true };
+  } catch {
+    return { ok: false };
+  }
+}
+
 export const nexusClient = {
   participationsList: (): Promise<NexusResult<ParticipationView[]>> => call(() => window.cth.nexusParticipationsList()),
   participationAttach: (projectId: string, workspaceId: string): Promise<NexusResult<ParticipationView>> =>

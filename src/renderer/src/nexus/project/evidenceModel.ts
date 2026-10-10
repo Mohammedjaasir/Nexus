@@ -6,7 +6,8 @@ import type { ValidationResultView, VersionView } from '@shared/nexus/ipc';
 import { getValidator } from '@shared/nexus/validators';
 
 export type CheckStatus = ValidationResultView['status'];
-export type ChecksHeadline = 'Checks passed' | 'Checks failed' | 'Checks could not run' | 'Checking…' | 'No checks recorded';
+export type ChecksHeadline = 'Checks passed' | 'Checks failed' | 'Checks could not run' | 'Checking…' | 'No checks recorded'
+  | 'No checks for this kind' | 'No blocking checks' | 'No checks ran' | 'Some checks have not run';
 
 export interface EvidenceFact { kind: string; label: string; value: string; source: string }
 export interface EvidenceRow {
@@ -49,8 +50,8 @@ export const validatorLabel = (id: string): string => VALIDATOR_LABEL[id] ?? (ge
 
 /** A hash as 12 hex characters (`sha256:` kept when present); anything else unchanged. */
 export function shortHash(v: string): string {
-  const m = /^(sha256:)?([0-9a-f]{12,64})$/.exec(v);
-  return m ? `${m[1] ?? ''}${m[2].slice(0, 12)}` : v;
+  const m = /^(sha256:)?([0-9a-f]{12,64})$/i.exec(v);
+  return m ? `${(m[1] ?? '').toLowerCase()}${m[2].slice(0, 12).toLowerCase()}` : v;
 }
 
 const str = (v: unknown): string => (v === null || v === undefined ? '' : String(v));
@@ -75,8 +76,12 @@ export function factOf(e: ValidationResultView['evidence'][number], validatorId:
   }
 }
 
-/** The evidence page of one version. Revalidate is offered only for a draft whose blocking checks could not run. */
-export function evidenceView(results: readonly ValidationResultView[], version: Pick<VersionView, 'status'> | null): EvidenceView {
+/**
+ * The evidence page of one version. The headline reads the BLOCKING rows only (advisory rows are run results, shown
+ * as runs). `checked` is false for a kind no check ever gates: it never reads "Checking…". Revalidate is offered only
+ * for a draft whose blocking checks could not run.
+ */
+export function evidenceView(results: readonly ValidationResultView[], version: Pick<VersionView, 'status'> | null, checked = true): EvidenceView {
   const rows: EvidenceRow[] = results.map((r) => ({
     validatorId: r.validatorId, label: validatorLabel(r.validatorId), word: statusWord(r.status), status: r.status, blocking: r.blocking,
     summary: r.status === 'error' ? `Checks could not run: ${(r.summary ?? 'no reason was recorded').replace(/\.+$/, '')}.` : r.summary,
@@ -84,15 +89,18 @@ export function evidenceView(results: readonly ValidationResultView[], version: 
     latestRun: r.latestRun ? { word: statusWord(r.latestRun.status), summary: r.latestRun.summary } : null,
     history: r.history
   }));
+  const draft = version?.status === 'draft';
   const blocking = results.filter((r) => r.blocking);
   let headline: ChecksHeadline;
-  if (results.length === 0) headline = version?.status === 'draft' ? 'Checking…' : 'No checks recorded';
+  if (!checked) headline = 'No checks for this kind';
+  else if (results.length === 0) headline = draft ? 'Checking…' : 'No checks recorded';
+  else if (blocking.length === 0) headline = 'No blocking checks';
   else if (blocking.some((r) => r.status === 'failed')) headline = 'Checks failed';
   else if (blocking.some((r) => r.status === 'error')) headline = 'Checks could not run';
-  else if (blocking.length > 0 && blocking.every((r) => r.status === 'passed' || r.status === 'skipped')) headline = 'Checks passed';
-  else if (blocking.length === 0) headline = results.some((r) => r.latestRun?.status === 'failed') ? 'Checks failed' : 'Checks passed';
-  else headline = 'Checking…';
-  const revalidate = version?.status === 'draft' && blocking.some((r) => r.status === 'error');
+  else if (blocking.some((r) => r.status === null)) headline = draft ? 'Checking…' : 'Some checks have not run';
+  else if (blocking.every((r) => r.status === 'skipped')) headline = 'No checks ran';
+  else headline = 'Checks passed';
+  const revalidate = checked && draft && blocking.some((r) => r.status === 'error');
   return { headline, rows, revalidate };
 }
 
@@ -139,6 +147,14 @@ export function logRangesOf(report: unknown, jobId: string, attempts: number): L
   return out;
 }
 
+/** An object or array value as short JSON text (never "[object Object]"). */
+function jsonText(v: unknown): string {
+  let t: string;
+  try { t = JSON.stringify(v) ?? ''; } catch { t = ''; }
+  if (!t) return 'Not readable';
+  return t.length > 120 ? `${t.slice(0, 119)}…` : t;
+}
+
 /** A diagnostic report's facts with their sources, for the report viewer. */
 export function reportFacts(report: unknown): { name: string; value: string; source: string }[] {
   if (!isObj(report) || !Array.isArray(report.fields)) return [];
@@ -146,7 +162,9 @@ export function reportFacts(report: unknown): { name: string; value: string; sou
   for (const f of report.fields as unknown[]) {
     if (!isObj(f) || typeof f.name !== 'string') continue;
     const v = f.value;
-    const value = v === null || v === undefined ? 'Not observed' : isObj(v) && typeof v.sha256 === 'string' ? shortHash(v.sha256) : String(v);
+    const value = v === null || v === undefined ? 'Not observed'
+      : isObj(v) && typeof v.sha256 === 'string' ? shortHash(v.sha256)
+      : typeof v === 'object' ? jsonText(v) : String(v);
     const s = isObj(f.source) ? f.source : {};
     const source = s.type === 'inspect' ? `docker inspect ${typeof s.field === 'string' ? s.field : ''}`.trim()
       : s.type === 'http' ? `health probe ${typeof s.path === 'string' ? s.path : ''}`.trim()

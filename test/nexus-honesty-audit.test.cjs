@@ -34,6 +34,9 @@ const STATES = {
   'Docker stopped': X.availabilityFrom({ unavailable: null }, ok(health({ docker: { state: 'stopped' }, problems: ['docker_stopped'] }))),
   'disk below the gate': X.availabilityFrom({ unavailable: null }, ok(health({ disk: { dataHomeFreeBytes: 18 * GIB, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'below_required' }, problems: ['disk_low'] }))),
   'image missing': X.availabilityFrom({ unavailable: null }, ok(health({ images: [{ profile: 'sde-node', present: false, matches: false }], problems: ['image_missing:sde-node'] }))),
+  'not checked yet': X.availabilityFrom({ unavailable: null }, ok(health({ checkedAt: null, docker: { state: 'unknown' },
+    disk: { dataHomeFreeBytes: null, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'unknown' } }))),
+  'git missing': X.availabilityFrom({ unavailable: null }, ok(health({ problems: ['git_missing'] }))),
   'all ready': X.availabilityFrom({ unavailable: null }, ok(health()))
 };
 const MACHINE = /^(docker|disk:|image:)/;
@@ -44,17 +47,21 @@ const generous = (d) => USER_ACTIONS.filter((a) => d.actions.includes(a.id)).map
   actionId: a.id, label: a.label, available: true, reason: null, needsApproval: false, inputs: a.inputs.map((s) => ({ ...s })),
   stepId: d.lifecycle.find((s) => s.via.some((v) => v.userAction === a.id))?.id ?? null
 }));
-// Plus actions main never sends today, pointed at every FUTURE step of the domain.
-const futureFakes = (d) => d.lifecycle.filter((s) => s.status === 'FUTURE').map((s) => ({
-  actionId: d.actions[0] ?? 'sde.requirement.write', label: `fake ${s.id}`, available: true, reason: null, needsApproval: false, inputs: [], stepId: s.id
-}));
+// Plus answers main never sends today: this domain's actions pointed at every FUTURE step or at no step, and every
+// other domain's actions answered under this one.
+const futureFakes = (d) => [
+  ...d.lifecycle.filter((s) => s.status === 'FUTURE').flatMap((s) => d.actions.map((id) => ({
+    actionId: id, label: `pointed at ${s.id}`, available: true, reason: null, needsApproval: false, inputs: [], stepId: s.id }))),
+  ...d.actions.map((id) => ({ actionId: id, label: `no step ${id}`, available: true, reason: null, needsApproval: false, inputs: [], stepId: null })),
+  ...USER_ACTIONS.filter((a) => !d.actions.includes(a.id)).map((a) => ({
+    actionId: a.id, label: `fake cross ${a.id}`, available: true, reason: null, needsApproval: false, inputs: [], stepId: null }))
+];
 
 test('HA1 no enabled action maps to a FUTURE step, an unmet machine prerequisite or a missing input (every domain x every state)', () => {
   let checked = 0;
   for (const d of DOMAINS) {
     for (const [state, availability] of Object.entries(STATES)) {
-      const contexts = [{ version: null, usableKinds: new Set() }, { version: null, usableKinds: new Set(KINDS) },
-        ...KINDS.flatMap((k) => ['draft', 'candidate', 'active'].map((st) => ({ version: { kind: k, status: st }, usableKinds: new Set() })))];
+      const contexts = [{ version: null }, ...KINDS.flatMap((k) => ['draft', 'candidate', 'active'].map((st) => ({ version: { kind: k, status: st } })))];
       for (const c of contexts) {
         const bar = AM.actionBar([...generous(d), ...futureFakes(d)], { workspaceId: d.id, availability, ...c });
         for (const b of bar.buttons) {
@@ -62,14 +69,18 @@ test('HA1 no enabled action maps to a FUTURE step, an unmet machine prerequisite
           const def = USER_ACTIONS.find((a) => a.id === b.actionId);
           const step = d.lifecycle.find((s) => s.via.some((v) => v.userAction === b.actionId));
           const where = `${d.id} / ${state} / ${b.actionId} / ${c.version ? `${c.version.kind}:${c.version.status}` : 'project'}`;
-          assert.ok(!/^fake /.test(b.label), `${where}: a FUTURE step offered`);
+          assert.ok(!/^fake cross /.test(b.label), `${where}: another domain's action offered`);
+          assert.ok(d.actions.includes(b.actionId), `${where}: not this domain's action`);
           assert.ok(step && step.status !== 'FUTURE', `${where}: its step is in this release`);
           if (def.prerequisites.some((p) => MACHINE.test(p))) assert.equal(availability.kind, 'ready', `${where}: machine prerequisite unmet`);
           for (const slot of def.inputs.filter((s) => s.min >= 1)) {
-            const filled = c.version ? slot.kinds.includes(c.version.kind) && (['candidate', 'active'].includes(c.version.status)
-              || (b.actionId === 'sde.preview.start' && c.version.status === 'draft')) : slot.kinds.some((k) => c.usableKinds.has(k));
+            // An input-taking action is a button only on a usable version of its input kind (never on the project bar).
+            const filled = !!c.version && slot.kinds.includes(c.version.kind) && (['candidate', 'active'].includes(c.version.status)
+              || (b.actionId === 'sde.preview.start' && c.version.status === 'draft'));
             assert.ok(filled, `${where}: input ${slot.slot} missing`);
           }
+          // A version bar never shows an action that does not take the version.
+          if (c.version) assert.ok(def.inputs.some((s) => s.kinds.includes(c.version.kind)), `${where}: not an action on this version`);
         }
       }
     }
@@ -81,7 +92,7 @@ test('HA1 a domain a project cannot take part in, or a registry-only one, offers
   for (const id of ['data-scientist', 'research', 'uiux', 'devops']) {
     const d = DOMAINS.find((x) => x.id === id);
     assert.deepEqual(d.actions, [], id);
-    const bar = AM.actionBar([...generous(d), ...futureFakes(d)], { workspaceId: id, availability: STATES['all ready'], version: null, usableKinds: new Set(KINDS) });
+    const bar = AM.actionBar([...generous(d), ...futureFakes(d)], { workspaceId: id, availability: STATES['all ready'], version: null });
     assert.equal(bar.buttons.length, 0, id);
   }
 });
@@ -119,6 +130,10 @@ test('HA1 no number without a source: rail numbers are sub-phase names or counts
         const inRelease = r.steps.filter((s) => !s.future);
         const nums = (rest.match(/\d+/g) || []).map(Number);
         const expected = [inRelease.filter((s) => s.state === 'done').length, inRelease.length];
+        const attention = inRelease.filter((s) => s.state === 'failed').length;
+        const moving = inRelease.filter((s) => s.state === 'in_progress').length;
+        if (attention > 0) expected.push(attention);
+        if (moving > 0) expected.push(moving);
         if (r.steps.length > inRelease.length) expected.push(r.steps.length - inRelease.length);
         assert.deepEqual(nums, expected, `${v.id}: ${t}`);
       }

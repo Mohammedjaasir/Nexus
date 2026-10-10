@@ -110,7 +110,7 @@ function SourcePassport({ project, node, headSha, onRefreshProject, onOpenTermin
         </section>
       ))}
       {node.kind === 'source' && <WorkspacesSection key={project.id} projectId={project.id} />}
-      {node.kind === 'source' && <ProjectActions projectId={project.id} artifacts={artifacts} />}
+      {node.kind === 'source' && <ProjectActions projectId={project.id} />}
       {p.versions.length > 0 && (
         <section>
           <h2>Versions</h2>

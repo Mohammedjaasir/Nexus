@@ -3,9 +3,8 @@ import type { JobView } from '@shared/nexus/ipc';
 import { useAssistant } from '../assistant/useAssistant';
 import { useNexusUi } from '../state/uiStore';
 import { nexusClient } from '../data/nexusClient';
-import { errorCopy } from '../data/errorCopy';
-import { useHealth, useJobs, useExecStore, withIntent } from '../data/useExecution';
-import { ExecutionNotice } from '../components/ExecutionNotice';
+import { errorCopy, execFailText } from '../data/errorCopy';
+import { useJobs, useExecStore, withIntent } from '../data/useExecution';
 import { useExecutionUi } from '../project/execContext';
 import { Button } from '../ui/Button';
 import { RunStrip } from './RunStrip';
@@ -49,7 +48,7 @@ function JobRow({ job, explain }: { job: JobView; explain: boolean }) {
     useExecStore.getState().bump(['jobs', 'approvals']);
     if (!alive.current) return;
     setBusy(null);
-    if (!r.ok) setNote(errorCopy(r.code, r.reason, r.subReason).text);
+    if (!r.ok) setNote(execFailText(r));
   };
   return (
     <article className={`nx-run${run.needsYou ? ' nx-run--needs-input' : ''}`} aria-labelledby={titleId}>
@@ -79,13 +78,11 @@ function JobRow({ job, explain }: { job: JobView; explain: boolean }) {
 /** Jobs of this project, persisted (nexus:jobs:list), newest first. */
 function JobsSection({ projectId }: { projectId: string }) {
   const jobs = useJobs(projectId);
-  const { availability } = useHealth();
-  const ui = useExecutionUi();
   const off = jobs.fail ? errorCopy(jobs.fail.code, jobs.fail.reason, jobs.fail.subReason) : null;
   return (
     <section className="nx-xj" aria-labelledby="nx-xj-title">
       <h2 id="nx-xj-title" className="nx-xj__title">Jobs</h2>
-      <ExecutionNotice availability={availability} onSetup={ui?.openSetup} />
+      {/* The execution notice is the bench's (one line above every tool), not repeated here. */}
       {off && off.kind !== 'execution_unavailable' && off.kind !== 'unavailable' && (
         <p className="nx-muted" role="status">{off.text} {off.retry && <Button variant="quiet" onClick={jobs.reload}>Try again</Button>}</p>
       )}

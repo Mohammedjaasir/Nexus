@@ -121,6 +121,34 @@ test('U-E1 log ranges carry {jobId, offset, length}; the attempt only when the j
   assert.equal(facts.find((f) => f.name === 'log.frames').source, 'run log range');
 });
 
+test('U-E1 (fix round 1) the headline reads blocking rows only; unchecked kinds never read "Checking…"', () => {
+  assert.equal(EV.evidenceView([], { status: 'draft' }, false).headline, 'No checks for this kind');
+  assert.equal(EV.evidenceView([], { status: 'draft' }, false).revalidate, false);
+  // A failed advisory run never makes the headline "Checks passed".
+  const advFailed = EV.evidenceView([val({ blocking: false, status: null, latestRun: { status: 'failed', summary: 'x', finishedAt: NOW } })], { status: 'active' });
+  assert.equal(advFailed.headline, 'No blocking checks');
+  // A blocking row with no status yet reads "Checking…" only on a draft.
+  assert.equal(EV.evidenceView([val({ status: null })], { status: 'candidate' }).headline, 'Some checks have not run');
+  assert.equal(EV.evidenceView([val({ status: null })], { status: 'draft' }).headline, 'Checking…');
+  assert.equal(EV.evidenceView([val({ status: 'skipped' }), val({ validatorId: 'x', status: 'skipped' })], { status: 'active' }).headline, 'No checks ran');
+  assert.equal(EV.evidenceView([val({ status: 'skipped' }), val({ validatorId: 'x', status: 'passed' })], { status: 'active' }).headline, 'Checks passed');
+  assert.match(src('project/ArtifactPassport.tsx'), /<EvidenceSection key=\{shownVersion\.id\} version=\{shownVersion\} checked=\{kindIsChecked\(artifact\.kind\)\} \/>/);
+  assert.match(src('project/EvidenceSection.tsx'), /useValidations\(checked \? version\.id : null\)/);
+});
+
+test('(fix round 1) robustness: hashes in any case, object facts as JSON, sizes that are not numbers, unique keys, shared gate constants', () => {
+  assert.equal(EV.shortHash(`sha256:${'AB'.repeat(32)}`), `sha256:${'ab'.repeat(6)}`);
+  assert.equal(EV.shortHash('C'.repeat(64)), 'c'.repeat(12));
+  const facts = EV.reportFacts({ fields: [{ name: 'limits', value: { cpus: 2, memory: 4 }, source: { type: 'inspect', field: 'HostConfig' } }, { name: 'ports', value: ['a', 'b'], source: {} }] });
+  assert.equal(facts[0].value, '{"cpus":2,"memory":4}');
+  assert.equal(facts[1].value, '["a","b"]');
+  for (const bad of [NaN, Infinity, -1, undefined]) assert.equal(X.gb(bad), 'unknown');
+  assert.match(src('project/kindViewers.tsx'), /<li key=\{`\$\{i\}:\$\{x\}`\}>/);
+  assert.doesNotMatch(src('project/kindViewers.tsx'), /<li key=\{x\}>/);
+  assert.match(src('data/executionModel.ts'), /import \{ GIB, MIN_DOCKER_CPUS, MIN_DOCKER_MEMORY \} from '@shared\/nexus\/resourceGate';/);
+  assert.doesNotMatch(src('data/executionModel.ts'), /const (GIB|MIN_DOCKER_MEMORY|MIN_DOCKER_CPUS) =/);
+});
+
 test('U-E1 a check that could not run reads "Checks could not run: <reason>" and offers Revalidate on a draft only', () => {
   const rows = [val({ status: 'error', summary: 'The runner was not available.' })];
   const draft = EV.evidenceView(rows, { status: 'draft' });
@@ -134,6 +162,7 @@ test('U-E1 a check that could not run reads "Checks could not run: <reason>" and
   assert.equal(EV.evidenceView([], { status: 'active' }).headline, 'No checks recorded');
   // An advisory row is a run result, never the status.
   const adv = EV.evidenceView([val({ validatorId: 'sde.deps.lock_matches', blocking: false, status: null, latestRun: { status: 'passed', summary: 'ok', finishedAt: NOW } })], { status: 'active' });
+  assert.equal(adv.headline, 'No blocking checks');
   assert.equal(adv.rows[0].word, 'Not run yet');
   assert.equal(adv.rows[0].latestRun.word, 'Passed');
   // "Checking…" on a non-draft is never shown (the B1 default validation state is "pending").
@@ -156,7 +185,7 @@ test('U-A1 available actions are buttons; unavailable ones are sentences with th
     act('sde.future.thing', { label: 'Later', available: false, reason: 'future' }),
     act('sde.preview.stop', { label: 'Stop' })
   ];
-  const v = AM.actionBar(list, { workspaceId: 'sde', availability: READY, version: null, usableKinds: new Set() });
+  const v = AM.actionBar(list, { workspaceId: 'sde', availability: READY, version: null });
   assert.deepEqual(v.buttons.map((b) => [b.actionId, b.inline]), [['sde.requirement.write', true]]);
   assert.deepEqual(v.sentences.map((s) => [s.actionId, s.setup]), [['sde.repository.snapshot', true], ['sde.build.run', false]]);
   assert.equal(v.sentences[0].text, 'Take a repository snapshot: Git is not installed, so this cannot run on this computer yet.');
@@ -168,18 +197,34 @@ test('U-A1 available actions are buttons; unavailable ones are sentences with th
 test('U-A1 a button needs the machine ready, a usable input and a step in this release (defence in depth)', () => {
   const tests = act('sde.tests.run', { label: 'Run tests on a commit', stepId: 'tests', inputs: [{ slot: 'suite', kinds: ['test_suite'], min: 1, max: 1 }] });
   // While the setup fails, a Docker action that main still listed as available is a sentence.
-  const off = AM.actionBar([tests], { workspaceId: 'sde', availability: SETUP, version: { kind: 'test_suite', status: 'candidate' }, usableKinds: new Set(['test_suite']) });
+  const off = AM.actionBar([tests], { workspaceId: 'sde', availability: SETUP, version: { kind: 'test_suite', status: 'candidate' } });
   assert.equal(off.buttons.length, 0);
   assert.equal(off.sentences[0].setup, true);
-  const on = AM.actionBar([tests], { workspaceId: 'sde', availability: READY, version: { kind: 'test_suite', status: 'candidate' }, usableKinds: new Set(['test_suite']) });
+  const on = AM.actionBar([tests], { workspaceId: 'sde', availability: READY, version: { kind: 'test_suite', status: 'candidate' } });
   assert.deepEqual(on.buttons.map((b) => [b.actionId, b.slot]), [['sde.tests.run', 'suite']]);
-  const draft = AM.actionBar([tests], { workspaceId: 'sde', availability: READY, version: { kind: 'test_suite', status: 'draft' }, usableKinds: new Set() });
+  const draft = AM.actionBar([tests], { workspaceId: 'sde', availability: READY, version: { kind: 'test_suite', status: 'draft' } });
   assert.equal(draft.buttons.length, 0, 'a draft is not an input');
-  const other = AM.actionBar([tests], { workspaceId: 'sde', availability: READY, version: { kind: 'build', status: 'candidate' }, usableKinds: new Set() });
+  const other = AM.actionBar([tests], { workspaceId: 'sde', availability: READY, version: { kind: 'build', status: 'candidate' } });
   assert.deepEqual([other.buttons.length, other.sentences.length], [0, 0], 'not an action on this version');
-  // A step marked FUTURE in the registry never gives a button, whatever the answer says.
-  const fut = AM.actionBar([act('sde.requirement.write', { stepId: 'ai-implementation' })], { workspaceId: 'sde', availability: READY, version: null, usableKinds: new Set() });
-  assert.equal(fut.buttons.length + fut.sentences.length, 0);
+});
+
+test('U-A1 (fix round 1) the step comes from the registry, never the answer; other domains actions and no-input actions stay off a version bar', () => {
+  // The answer's stepId is ignored: the registry's own step decides (here the REAL requirement step).
+  const lied = AM.actionBar([act('sde.requirement.write', { label: 'Write a requirement', stepId: 'ai-implementation' })], { workspaceId: 'sde', availability: READY, version: null });
+  assert.deepEqual(lied.buttons.map((b) => b.actionId), ['sde.requirement.write']);
+  const noStep = AM.actionBar([act('sde.requirement.write', { label: 'Write a requirement', stepId: null })], { workspaceId: 'sde', availability: READY, version: null });
+  assert.equal(noStep.buttons.length, 1, 'stepId null does not matter');
+  // An action of another workspace, answered under this one, is never listed.
+  const cross = AM.actionBar([act('data.problem.write', { label: 'Write a business question' }), act('ml.problem.write')], { workspaceId: 'sde', availability: READY, version: null });
+  assert.equal(cross.buttons.length + cross.sentences.length, 0);
+  // A version bar never shows project-level, no-input actions.
+  const onVersion = AM.actionBar([act('sde.requirement.write', { label: 'Write a requirement' }), act('sde.repository.snapshot', { label: 'Snapshot' })],
+    { workspaceId: 'sde', availability: READY, version: { kind: 'requirement', status: 'candidate' } });
+  assert.equal(onVersion.buttons.length + onVersion.sentences.length, 0);
+  // A registry-only workspace offers nothing.
+  assert.equal(AM.actionBar([act('sde.requirement.write')], { workspaceId: 'research', availability: READY, version: null }).buttons.length, 0);
+  assert.doesNotMatch(src('project/actionModel.ts'), /usableKinds/);
+  assert.match(src('project/actionModel.ts'), /domain\.lifecycle\.find\(\(s\) => s\.via\.some/);
 });
 
 // ---------- U-AP1 ----------
@@ -410,4 +455,112 @@ test('pin: the bench lends the Folio its sheets and mounts the notice and the ap
   assert.match(bench, /<ApprovalsSection projectId=\{project\.id\} \/>/);
   const passport = src('project/ArtifactPassport.tsx');
   for (const c of ['<KindViewer', '<EvidenceSection', '<ActionBar', '<DeploymentsSection']) assert.ok(passport.includes(c), c);
+});
+
+// ---------- fix round 1 ----------
+
+test('(fix round 1, item 1) before the first probe nothing reads as ready, and the sheet never says jobs can run', () => {
+  const unprobed = health({ checkedAt: null, docker: { state: 'unknown' }, disk: { dataHomeFreeBytes: null, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'unknown' }, problems: [] });
+  const a = X.availabilityFrom({ unavailable: null }, { ok: true, data: unprobed });
+  assert.deepEqual([a.kind, a.checking], ['unknown', true]);
+  assert.match(a.text, /This computer has not been checked yet/);
+  assert.deepEqual(X.noticeFor(a), { text: a.text, setup: true }, 'the notice shows, with How to set up');
+  assert.notEqual(X.setupLead(a, X.setupSheet(unprobed)), 'Jobs can run on this computer.');
+  // Checked, but Docker or the disk still unknown: still not ready.
+  for (const h of [health({ docker: { state: 'unknown' } }), health({ disk: { dataHomeFreeBytes: null, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'unknown' } })]) {
+    assert.equal(X.availabilityFrom({ unavailable: null }, { ok: true, data: h }).kind, 'unknown');
+  }
+  // The lead says jobs can run only when ready and every row is fine.
+  const ready = X.availabilityFrom({ unavailable: null }, { ok: true, data: health() });
+  assert.equal(X.setupLead(ready, X.setupSheet(health())), 'Jobs can run on this computer.');
+  assert.equal(X.setupLead(ready, X.setupSheet(health({ runner: { state: 'x', attached: false, restarts: 0 } }))), null);
+  assert.match(src('components/ExecutionSetupSheet.tsx'), /const lead = setupLead\(availability, rows\);/);
+  assert.doesNotMatch(src('components/ExecutionSetupSheet.tsx'), /availability\.kind === 'ready' && <p/);
+});
+
+test('(fix round 1) git_missing is a problem and a row of the sheet, never ready', () => {
+  const h = health({ problems: ['git_missing'] });
+  const a = X.availabilityFrom({ unavailable: null }, { ok: true, data: h });
+  assert.deepEqual([a.kind, a.problems], ['setup', ['git_missing']]);
+  const r = X.setupSheet(h).find((x) => x.id === 'git');
+  assert.deepEqual([r.state, r.text], ['problem', 'Git is not installed.']);
+  assert.equal(X.setupSheet(health()).some((x) => x.id === 'git'), false, 'no claim about git when main says nothing');
+});
+
+test('(fix round 1, item 5) an unknown headline reads neutrally, never "Failed"; validating reads "Checking"', () => {
+  const v = R.jobRun(job({ headline: 'waiting:something_new', state: 'queued' }));
+  assert.doesNotMatch(`${v.headline} ${v.word}`, /fail/i);
+  const u = R.jobRun(job({ headline: 'brand_new', state: 'completed' }));
+  assert.equal(u.headline, 'Status: completed');
+  assert.equal(u.word, 'Status unknown');
+  assert.equal(R.jobRun(job({ headline: 'validating', state: 'completed' })).word, 'Checking');
+  assert.equal(R.jobRun(job({ headline: 'failed', state: 'failed', error: { code: 'x', message: 'Out of memory.' } })).headline, 'Failed: out of memory');
+});
+
+test('(fix round 1, item 8) one shared health read, re-read on preflight and recovery, polled while the sheet is open; previews keep their pages', () => {
+  const hook = src('data/useExecution.ts');
+  assert.equal((hook.match(/nexusClient\.platformHealth\(\)/g) || []).length, 1, 'one read site');
+  assert.match(hook, /if \(healthInFlight \|\| \(!force && healthLoadedTick === st\.ticks\.health\)\) return;/);
+  assert.match(hook, /export const HEALTH_POLL_MS = 15_000;/);
+  assert.match(src('components/ExecutionSetupSheet.tsx'), /useHealthPoll\(true\);/);
+  for (const t of ['preflight', 'recovery']) assert.ok(X.affectedLists([{ type: t, summary: '' }]).has('health'), t);
+  const viewers = src('project/kindViewers.tsx');
+  assert.match(viewers, /\}, \[versionId, part\]\);/, 'pages reset only for another version or part');
+  assert.match(viewers, /if \(tick === firstTick\.current \|\| pageCount\.current > 1\) return;/);
+});
+
+test('(fix round 1, item 8) a finished job re-reads only new, changed or draft versions', () => {
+  const SM = loadTs('src/renderer/src/nexus/project/spineModel.ts');
+  const wanted = [{ versionId: 'A', status: 'candidate' }, { versionId: 'B', status: 'draft' }, { versionId: 'C', status: 'active' }, { versionId: 'D', status: 'candidate' }];
+  const readAt = new Map([['A', 'candidate'], ['B', 'draft'], ['C', 'candidate']]);
+  assert.deepEqual(SM.versionsToRead(wanted, readAt).map((w) => w.versionId), ['B', 'C', 'D']);
+  const bench = src('project/ProjectBench.tsx');
+  assert.match(bench, /const todo = versionsToRead\(wanted, readAt\);/);
+  assert.doesNotMatch(bench, /function useSpineChecks|function useRailChecks/);
+});
+
+test('(fix round 1, item 9) execution actions word their failures with execFailText', () => {
+  for (const f of ['project/ApprovalsSection.tsx', 'project/EvidenceSection.tsx', 'runs/ProjectRuns.tsx', 'runs/JobLogSheet.tsx', 'project/ActionBar.tsx',
+    'project/DeploymentsSection.tsx', 'components/ExecutionSetupSheet.tsx']) {
+    const s = src(f);
+    assert.match(s, /execFailText\(/, f);
+    assert.doesNotMatch(s, /errorCopy\(r\.code/, `${f}: a failed action never uses the generic copy`);
+  }
+});
+
+test('(fix round 1, item 10) approving moves focus into the confirmation and back on Cancel or Escape', () => {
+  const s = src('project/ApprovalsSection.tsx');
+  assert.match(s, /useEffect\(\(\) => \{ if \(confirming\) cancelRef\.current\?\.focus\(\); \}, \[confirming\]\);/);
+  assert.match(s, /approveRefs\.current\.get\(returnTo\)\?\.focus\(\)/);
+  assert.match(s, /<button ref=\{cancelRef\} type="button" className="nx-btn" disabled=\{pending !== null\} onClick=\{\(\) => cancelConfirm\(a\.id\)\}>/);
+  assert.match(s, /onKeyDown=\{onConfirmKey\(a\.id\)\}/);
+});
+
+test('(fix round 1, item 11) the Runs tool does not repeat the bench notice', () => {
+  assert.doesNotMatch(src('runs/ProjectRuns.tsx'), /<ExecutionNotice/);
+  assert.equal((src('project/ProjectBench.tsx').match(/<ExecutionNotice/g) || []).length, 1);
+});
+
+test('(fix round 1, item 13) the loopback address opens through a guarded helper; failed list reads say so', async () => {
+  const calls = [];
+  global.window = { cth: { openExternal: (u) => { calls.push(u); return Promise.resolve({ ok: u.endsWith(':8080') }); } } };
+  try {
+    assert.deepEqual(await C.openLoopbackUrl('http://127.0.0.1:8080'), { ok: true });
+    assert.deepEqual(await C.openLoopbackUrl('http://127.0.0.1:9090'), { ok: false }, 'main refused it');
+    for (const bad of ['http://0.0.0.0:80', 'https://127.0.0.1:80', 'http://127.0.0.1:99999', 'http://127.0.0.1:80/x', 'http://localhost:80']) {
+      assert.deepEqual(await C.openLoopbackUrl(bad), { ok: false }, bad);
+    }
+    assert.deepEqual(calls, ['http://127.0.0.1:8080', 'http://127.0.0.1:9090'], 'a refused address is never handed to the shell');
+    global.window = { cth: { openExternal: () => Promise.reject(new Error('x')) } };
+    assert.deepEqual(await C.openLoopbackUrl('http://127.0.0.1:8080'), { ok: false });
+  } finally { delete global.window; }
+  const dep = src('project/DeploymentsSection.tsx');
+  assert.doesNotMatch(dep, /window\.cth/);
+  assert.match(dep, /const r = await openLoopbackUrl\(url\);/);
+  assert.match(dep, /The dev deployments could not be read\./);
+  assert.match(src('project/ActionBar.tsx'), /The actions could not be read\./);
+});
+
+test('(fix round 1, item 14) the hint pull stops when the cursor does not move', () => {
+  assert.match(src('data/useExecution.ts'), /if \(knownSeq <= before\) break;/);
 });

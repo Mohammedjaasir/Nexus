@@ -133,14 +133,24 @@ export function kindOf(index: string, worktree: string): ChangeKind {
 
 /** The shown versions whose checks the Spine reads (kinds that are checked before they leave draft), capped. */
 export const SPINE_CHECK_READS = 40;
-export function checkedVersionIds(artifacts: readonly ArtifactSummary[]): { nodeId: string; versionId: string }[] {
-  const out: { nodeId: string; versionId: string }[] = [];
+export function checkedVersionIds(artifacts: readonly ArtifactSummary[]): { nodeId: string; versionId: string; status: VersionStatus }[] {
+  const out: { nodeId: string; versionId: string; status: VersionStatus }[] = [];
   for (const s of artifacts) {
     if (s.artifact.status !== 'active' || !kindIsChecked(s.artifact.kind)) continue;
     const v = shownVersionOf(s);
-    if (v) out.push({ nodeId: `artifact:${s.artifact.id}`, versionId: v.id });
+    if (v) out.push({ nodeId: `artifact:${s.artifact.id}`, versionId: v.id, status: v.status });
   }
   return out.slice(0, SPINE_CHECK_READS);
+}
+
+/**
+ * Which of the wanted versions to read again after a change: a version not read yet, one whose status changed since
+ * it was read, and every draft (its checks are what is still moving). A candidate or active version's blocking
+ * results do not change without its status changing, so it is not read again (a finished job costs a few reads, not
+ * one per node).
+ */
+export function versionsToRead<T extends { versionId: string; status: VersionStatus }>(wanted: readonly T[], readAt: ReadonlyMap<string, VersionStatus>): T[] {
+  return wanted.filter((w) => w.status === 'draft' || readAt.get(w.versionId) !== w.status);
 }
 
 /** Node id -> its checks word, from the versions read (validation state and status); a node without one is left out. */

@@ -117,6 +117,10 @@ function stagesFor(h: JobHeadline, started: boolean): { stages: JobStage[]; resu
   }
 }
 
+const KNOWN = new Set<string>(['queued', 'waiting:runner', 'waiting:docker', 'waiting:image', 'waiting:disk', 'waiting:slots', 'waiting:memory',
+  'waiting:git', 'waiting:retry', 'provisioning', 'running', 'waiting_for_approval', 'collecting', 'validating', 'checks_passed', 'checks_failed',
+  'checks_could_not_run', 'failed', 'cancelled', 'timed_out', 'interrupted']);
+
 const RESULT_WORD: Record<Exclude<JobResult, null>, string> = {
   passed: 'Checks passed', failed: 'Checks failed', could_not_run: 'Checks could not run', failed_run: 'Failed', cancelled: 'Cancelled',
   timed_out: 'Timed out', interrupted: 'Interrupted'
@@ -144,9 +148,13 @@ export function jobRun(j: JobView, o: { reason?: string | null } = {}): JobRunVi
   else if (h === 'cancelled') headline = 'Cancelled';
   else if (h === 'timed_out') headline = `Stopped: it ran past its time limit${clause(reason)}`;
   else if (h === 'interrupted') headline = 'Interrupted: the app stopped while it ran';
-  else headline = `Failed${clause(reason)}`;
+  else if (h === 'failed') headline = `Failed${clause(reason)}`;
+  // A headline this build does not know (a newer main): neutral words, never a verdict.
+  else headline = `Status: ${String(j.state).replace(/_/g, ' ')}`;
   const live = LIVE_STATES.includes(j.state);
-  const word = result ? RESULT_WORD[result] : h === 'waiting_for_approval' ? 'Waiting for you' : live ? (h.startsWith('waiting') || h === 'queued' ? 'Waiting' : 'In progress') : 'Finished';
+  const known = KNOWN.has(h);
+  const word = result ? RESULT_WORD[result] : h === 'waiting_for_approval' ? 'Waiting for you' : h === 'validating' ? 'Checking'
+    : !known ? 'Status unknown' : live ? (h.startsWith('waiting') || h === 'queued' ? 'Waiting' : 'In progress') : 'Ended';
   return {
     id: j.id, title: jobTitle(j), headline, word, stages, result, live,
     canCancel: canCancelJob(j), canRetry: canRetryJob(j), needsYou: h === 'waiting_for_approval'

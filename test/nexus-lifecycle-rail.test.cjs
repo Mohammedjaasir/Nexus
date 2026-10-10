@@ -118,6 +118,11 @@ test('LR2 the compact summary counts only the rail\'s own steps', () => {
   const r = L.railFor(view('sde'), rec({ versions: [{ kind: 'test_suite', status: 'candidate', validators: PASSED }] }));
   assert.equal(L.railSummary(r), '2 of 9 steps in this release done; 3 not in this release');
   assert.equal(L.railSummary(rail('data-scientist')), 'Available from B4; it cannot be added to a project yet');
+  // Steps that need attention or are moving are counted too (fix round 1).
+  const busy = L.railFor(view('sde'), rec({ versions: [{ kind: 'test_suite', status: 'candidate', validators: { 'suite.discovered': 'passed', 'sde.tests_pass': 'failed' } },
+    { kind: 'repository', status: 'active', validators: { 'git.head_resolves': 'passed' } }], liveActions: ['sde.build.run'] }));
+  assert.equal(L.railSummary(busy), '2 of 9 steps in this release done; 1 needs attention; 1 in progress; 3 not in this release');
+  assert.deepEqual(rail('sde').steps.map((s) => s.n), Array.from({ length: 12 }, (_, i) => i + 1));
   assert.deepEqual(L.liveActionsOf([{ state: 'running', actionId: 'a' }, { state: 'completed', actionId: 'b' }, { state: 'queued', actionId: null }]), ['a']);
 });
 
@@ -128,11 +133,30 @@ test('pin: the rail draws FUTURE steps hatched and never as a control; the works
   assert.match(r, /data-future=\{s\.future \? 'true' : undefined\}/);
   assert.doesNotMatch(r, /<button|onClick|tabIndex/, 'nothing in the rail is a control');
   assert.match(r, /<span className="nx-lrail__word">\{s\.word\}<\/span>/, 'state is always a word');
-  assert.match(src('styles/project.css'), /\.nx-lrail__step\[data-future="true"\] \{ background: repeating-linear-gradient/);
+  assert.match(src('styles/project.css'), /\.nx-lrail__step\[data-future="true"\]::before \{ border-style: dashed; background: repeating-linear-gradient/);
+  assert.match(r, /<span className="nx-lrail__n nx-id" aria-hidden="true">\{s\.n\}<\/span>/, 'the step number');
   const page = src('pages/WorkspacePage.tsx');
   assert.match(page, /\{rail && <LifecycleRail rail=\{rail\} \/>\}/);
   assert.match(page, /useDomains\(\)\.list\.find\(\(d\) => d\.id === id\)/);
   assert.ok(page.indexOf('<LifecycleRail') < page.indexOf('id="ws-panel-projects"'), 'above the project list');
   assert.match(src('project/Spine.tsx'), /\{!g\.muted && rails\?\.get\(g\.workspaceId\) && <LifecycleRail rail=\{rails\.get\(g\.workspaceId\)!\} compact \/>\}/);
   assert.match(src('project/ProjectBench.tsx'), /railRecordsFor\(\{ workspaceId: g\.workspaceId, artifacts, checks, liveActions, deploymentHealthy: healthy, participating: true \}\)/);
+});
+
+test('pin (fix round 1): the full rail is an ordered ruled line, not a grid of cards or tiles', () => {
+  const css = src('styles/execution.css') + src('styles/project.css');
+  assert.doesNotMatch(css, /repeat\(auto-fill/, 'no auto-fill tile grid');
+  const rules = [...css.matchAll(/(\.nx-lrail__step[^{]*)\{([^}]*)\}/g)];
+  assert.ok(rules.length > 0);
+  for (const [, sel, body] of rules) {
+    if (sel.includes('::before')) continue; // the marker dot may be round
+    assert.doesNotMatch(body, /border-radius/, `${sel} is not a rounded tile`);
+    assert.doesNotMatch(body, /background\s*:/, `${sel} is not a filled tile`);
+    assert.doesNotMatch(body, /border\s*:\s*1px solid/, `${sel} has no tile border (only the left rule)`);
+  }
+  const step = rules.find(([, sel]) => sel.trim() === '.nx-lrail__step')[2];
+  assert.match(step, /border-left: 1px solid var\(--nx-line-strong\)/, 'one rule down the left, as the version timeline');
+  assert.match(css, /\.nx-lrail__step::before \{ content: ""; position: absolute;/, 'a marker per step');
+  assert.match(css, /\.nx-lrail__step\[data-state="failed"\]::before/);
+  assert.match(css, /\.nx-lrail__bar li\[data-state="failed"\]/, 'a failed step is marked in the compact rail too');
 });

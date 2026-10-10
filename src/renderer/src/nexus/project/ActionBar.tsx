@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react';
-import type { ArtifactSummaryView } from '@shared/nexus/ipc';
+import { useState } from 'react';
 import { getUserAction } from '@shared/nexus/actions';
 import { nexusClient } from '../data/nexusClient';
-import { execFailText } from '../data/errorCopy';
+import { errorCopy, execFailText } from '../data/errorCopy';
 import { useActions, useHealth, withIntent } from '../data/useExecution';
 import { useParticipationIndex } from '../data/useParticipations';
 import { viewOf } from '../workspaces/participation';
@@ -10,31 +9,32 @@ import { Button } from '../ui/Button';
 import { useExecutionUi } from './execContext';
 import { actionBar } from './actionModel';
 
-/** Kinds with a version usable as an input now: candidate or active (the shown version of each artifact). */
-export function usableKindsOf(artifacts: readonly ArtifactSummaryView[]): Set<string> {
-  const out = new Set<string>();
-  for (const s of artifacts) {
-    if (s.artifact.status !== 'active') continue;
-    if (s.current || (s.latest && (s.latest.status === 'candidate' || s.latest.status === 'active'))) out.add(s.artifact.kind);
-  }
-  return out;
-}
-
 /** The actions of one workspace here: available ones as buttons, the others as sentences that say why (with "How to
- *  set up" when the fix is on this computer). Actions of steps not in this release are not listed. */
-export function ActionBar({ projectId, workspaceId, version, artifacts, title }: {
+ *  set up" when the fix is on this computer). With a version, only actions that take it as an input. Actions of
+ *  steps not in this release are not listed. */
+export function ActionBar({ projectId, workspaceId, version, title }: {
   projectId: string; workspaceId: string; title: string;
   version: { id: string; kind: string; status: string } | null;
-  artifacts: readonly ArtifactSummaryView[];
 }) {
   const ui = useExecutionUi();
   const { availability } = useHealth();
   const list = useActions(projectId, workspaceId, version?.id ?? null);
-  const usable = useMemo(() => usableKindsOf(artifacts), [artifacts]);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ text: string; alert: boolean } | null>(null);
-  if (!ui || !list.data) return null; // execution off or outside a project bench: the notice says why
-  const view = actionBar(list.data, { workspaceId, availability, version: version ? { kind: version.kind, status: version.status } : null, usableKinds: usable });
+  if (!ui) return null; // outside a project bench (the Artifacts page): nothing to open the sheets with
+  if (list.fail) {
+    const c = errorCopy(list.fail.code, list.fail.reason, list.fail.subReason);
+    // Execution off: the notice says why. A passing failure says so here, with Try again.
+    if (c.kind !== 'busy' && c.kind !== 'internal') return null;
+    return (
+      <section aria-label={title}>
+        <h2>{title}</h2>
+        <p className="nx-muted nx-xa__line" role="status"><span>The actions could not be read. {c.text}</span> <Button variant="quiet" onClick={list.reload}>Try again</Button></p>
+      </section>
+    );
+  }
+  if (!list.data) return null;
+  const view = actionBar(list.data, { workspaceId, availability, version: version ? { kind: version.kind, status: version.status } : null });
   if (view.buttons.length === 0 && view.sentences.length === 0) return null;
 
   const start = async (actionId: string, slot: string | null) => {
@@ -83,15 +83,14 @@ export function ActionBar({ projectId, workspaceId, version, artifacts, title }:
   );
 }
 
-/** The project-level bars: one per active workspace of the project that has actions in this release. */
-export function ProjectActions({ projectId, artifacts }: { projectId: string; artifacts: readonly ArtifactSummaryView[] }) {
+/** The project-level bars: one per active workspace of the project (actions that take no input, and why others wait). */
+export function ProjectActions({ projectId }: { projectId: string }) {
   const idx = useParticipationIndex();
   const rows = (idx.byProject.get(projectId) ?? []).filter((r) => r.status === 'active');
   return (
     <>
       {rows.map((r) => (
-        <ActionBar key={r.workspaceId} projectId={projectId} workspaceId={r.workspaceId} version={null} artifacts={artifacts}
-          title={`${viewOf(r.workspaceId).label} actions`} />
+        <ActionBar key={r.workspaceId} projectId={projectId} workspaceId={r.workspaceId} version={null} title={`${viewOf(r.workspaceId).label} actions`} />
       ))}
     </>
   );

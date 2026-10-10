@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PreviewPart, PreviewView, VersionView } from '@shared/nexus/ipc';
 import { nexusClient } from '../data/nexusClient';
 import { errorCopy } from '../data/errorCopy';
@@ -34,7 +34,17 @@ function usePreview(versionId: string, part: PreviewPart): { pages: PreviewView[
     setPages([]); setLoaded(false);
     void read(null, () => alive);
     return () => { alive = false; };
-  }, [versionId, part, tick]);
+  }, [versionId, part]);
+  // New check results (a validations tick) refresh the first page in place; pages already loaded further are kept.
+  const pageCount = useRef(0);
+  pageCount.current = pages.length;
+  const firstTick = useRef(tick);
+  useEffect(() => {
+    if (tick === firstTick.current || pageCount.current > 1) return;
+    let alive = true;
+    void read(null, () => alive);
+    return () => { alive = false; };
+  }, [tick]);
   const last = pages[pages.length - 1] ?? null;
   const hasMore = last !== null && (part === 'content' ? last.nextPage !== null : last.nextRow !== null);
   return { pages, error, loaded, more: hasMore ? () => { void read(last, () => true); } : null };
@@ -103,8 +113,8 @@ function Structured({ version, kind }: { version: VersionView; kind: 'requiremen
       {typeof j.question === 'string' && <p className="nx-xv__title">{j.question}</p>}
       {typeof j.context === 'string' && <p className="nx-xv__body">{j.context}</p>}
       {typeof j.audience === 'string' && <p className="nx-muted">For: {j.audience}</p>}
-      {list(j.successCriteria).length > 0 && <><h2>Success criteria</h2><ul className="nx-xv__rows">{list(j.successCriteria).map((x) => <li key={x}>{x}</li>)}</ul></>}
-      {list(j.constraints).length > 0 && <><h2>Constraints</h2><ul className="nx-xv__rows">{list(j.constraints).map((x) => <li key={x}>{x}</li>)}</ul></>}
+      {list(j.successCriteria).length > 0 && <><h2>Success criteria</h2><ul className="nx-xv__rows">{list(j.successCriteria).map((x, i) => <li key={`${i}:${x}`}>{x}</li>)}</ul></>}
+      {list(j.constraints).length > 0 && <><h2>Constraints</h2><ul className="nx-xv__rows">{list(j.constraints).map((x, i) => <li key={`${i}:${x}`}>{x}</li>)}</ul></>}
     </section>
   );
 }

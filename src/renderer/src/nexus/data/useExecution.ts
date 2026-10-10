@@ -61,9 +61,12 @@ async function pull(): Promise<void> {
       const r = await nexusClient.eventsSince({ sinceSeq: knownSeq, limit: EVENTS_PAGE });
       if (!r.ok) { applyLists(new Set(ALL)); knownSeq = wantedSeq; break; }
       const lists = affectedLists(r.data.events);
+      const before = knownSeq;
       const last = r.data.events.length ? r.data.events[r.data.events.length - 1].seq : wantedSeq;
       knownSeq = Math.max(knownSeq, last, r.data.events.length < EVENTS_PAGE ? wantedSeq : last);
       applyLists(lists);
+      // A page that does not move the cursor would loop forever: stop, and let the next hint try again.
+      if (knownSeq <= before) break;
     }
   } finally {
     pulling = false;
@@ -125,21 +128,46 @@ function useRead<T>(key: string | null, run: () => Promise<NexusResult<T>>, deps
 
 // ---------- the hooks ----------
 
-/** Health (#23) and where execution stands; read on mount, on image events and on `refresh`. */
+// ---------- health: one shared read for every hook instance ----------
+
+let healthInFlight = false;
+let healthLoadedTick = -1;
+
+/** Reads #23 once per health tick (or when forced), whichever hook asks; concurrent asks share the one read. */
+function loadHealth(force: boolean): void {
+  const st = useExecStore.getState();
+  if (healthInFlight || (!force && healthLoadedTick === st.ticks.health)) return;
+  healthInFlight = true;
+  const tick = st.ticks.health;
+  void nexusClient.platformHealth().then((r) => {
+    healthInFlight = false;
+    healthLoadedTick = tick;
+    useExecStore.getState().setHealth(r);
+    // A tick that arrived while this read ran is read again.
+    if (useExecStore.getState().ticks.health !== tick) loadHealth(false);
+  });
+}
+
+/** Health (#23) and where execution stands. One read is shared by every mounted hook; it is read again on
+ *  image, preflight and recovery events, and on `refresh`. */
 export function useHealth(): { health: HealthView | null; availability: ExecAvailability; refresh: () => void } {
   useHints();
   const health = useExecStore((s) => s.health);
   const tick = useExecStore((s) => s.ticks.health);
-  const setHealth = useExecStore((s) => s.setHealth);
   const unavailable = usePlatform((s) => s.unavailable);
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    let alive = true;
-    void nexusClient.platformHealth().then((r) => { if (alive) setHealth(r); });
-    return () => { alive = false; };
-  }, [tick, attempt, setHealth]);
-  const refresh = useCallback(() => setAttempt((n) => n + 1), []);
+  useEffect(() => { loadHealth(false); }, [tick]);
+  const refresh = useCallback(() => loadHealth(true), []);
   return { health: health && health.ok ? health.data : null, availability: availabilityFrom({ unavailable }, health), refresh };
+}
+
+/** While the setup sheet is open, this computer is read again gently (main answers from its cache). */
+export const HEALTH_POLL_MS = 15_000;
+export function useHealthPoll(active: boolean): void {
+  useEffect(() => {
+    if (!active) return;
+    const t = setInterval(() => loadHealth(true), HEALTH_POLL_MS);
+    return () => clearInterval(t);
+  }, [active]);
 }
 
 let domainsCache: { list: DomainSpecView[]; source: 'main' | 'bundled' } | null = null;

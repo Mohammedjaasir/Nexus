@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { VersionView } from '@shared/nexus/ipc';
 import { nexusClient } from '../data/nexusClient';
-import { errorCopy } from '../data/errorCopy';
+import { errorCopy, execFailText } from '../data/errorCopy';
 import { useValidations, withIntent } from '../data/useExecution';
 import { Button } from '../ui/Button';
 import { evidenceView } from './evidenceModel';
@@ -9,8 +9,9 @@ import { evidenceView } from './evidenceModel';
 /** The Folio's evidence page for one version: the headline ("Checks passed", "Checks failed", "Checks could not
  *  run", "Checking…"), then each check with its word, its sentence and its sourced facts. Revalidate is offered
  *  only for a draft whose checks could not run. Nothing renders while execution is off (the notice says why). */
-export function EvidenceSection({ version }: { version: VersionView }) {
-  const v = useValidations(version.id);
+export function EvidenceSection({ version, checked = true }: { version: VersionView; checked?: boolean }) {
+  // A kind no check ever gates is not read at all: it says so, and never "Checking…".
+  const v = useValidations(checked ? version.id : null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ text: string; alert: boolean } | null>(null);
   if (v.fail) {
@@ -19,13 +20,13 @@ export function EvidenceSection({ version }: { version: VersionView }) {
     return <section><h2>Checks</h2><p className="nx-muted" role="status">{c.text}</p></section>;
   }
   if (!v.loaded) return <section><h2>Checks</h2><p className="nx-muted" role="status">Reading checks…</p></section>;
-  const view = evidenceView(v.data ?? [], version);
+  const view = evidenceView(v.data ?? [], version, checked);
   const revalidate = async () => {
     if (busy) return;
     setBusy(true); setNote(null);
     const r = await withIntent(`revalidate:${version.id}`, (id) => nexusClient.versionRevalidate(version.id, id));
     setBusy(false);
-    setNote(r.ok ? { text: 'The checks were queued again.', alert: false } : { text: errorCopy(r.code, r.reason, r.subReason).text, alert: true });
+    setNote(r.ok ? { text: 'The checks were queued again.', alert: false } : { text: execFailText(r), alert: true });
     v.reload();
   };
   return (

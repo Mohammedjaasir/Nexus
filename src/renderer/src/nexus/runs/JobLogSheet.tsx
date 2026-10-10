@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { nexusClient } from '../data/nexusClient';
-import { errorCopy } from '../data/errorCopy';
+import { execFailText } from '../data/errorCopy';
 import { useJob } from '../data/useExecution';
 import type { LogRange } from '../project/evidenceModel';
 import { Sheet } from '../ui/Sheet';
@@ -40,7 +40,7 @@ function LogBody({ jobId, range, onClose }: { jobId: string; range: LogRange | n
     const r = await nexusClient.jobLogs(jobId, { attempt: shown, fromOffset, maxBytes: LOG_PAGE_BYTES });
     if (mine !== seq.current) return;
     setLoading(false);
-    if (!r.ok) { setError(errorCopy(r.code, r.reason, r.subReason).text); return; }
+    if (!r.ok) { setError(execFailText(r)); return; }
     setPages((p) => (append ? [...p, r.data] : [r.data]));
   };
   useEffect(() => { setPages([]); void read(start, false); /* a new attempt or range starts over */ }, [shown, start]);

@@ -319,10 +319,10 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
         </ol>
       </section>
       {shownVersion && <KindViewer kind={artifact.kind} version={shownVersion} />}
-      {shownVersion && <EvidenceSection key={shownVersion.id} version={shownVersion} />}
+      {shownVersion && <EvidenceSection key={shownVersion.id} version={shownVersion} checked={kindIsChecked(artifact.kind)} />}
       {shownVersion && artifact.ownerWorkspaceId && ownerActive && artifact.status === 'active' && (
         <ActionBar projectId={project.id} workspaceId={artifact.ownerWorkspaceId} title="Actions"
-          version={{ id: shownVersion.id, kind: artifact.kind, status: shownVersion.status }} artifacts={artifacts} />
+          version={{ id: shownVersion.id, kind: artifact.kind, status: shownVersion.status }} />
       )}
       {artifact.kind === 'application' && artifact.ownerWorkspaceId && (
         <DeploymentsSection projectId={project.id} workspaceId={artifact.ownerWorkspaceId} versionIds={loaded.detail.versions.map((x) => x.id)} />
