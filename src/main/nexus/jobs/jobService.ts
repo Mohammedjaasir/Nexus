@@ -51,6 +51,7 @@ import { containsSecret, redactSecretText, redactText } from '../activity/redact
 import { canonicalJson } from '../db/canonical';
 import { newId } from '../db/ids';
 import { immediateTx } from '../db/tx';
+import { cachedStmt } from '../db/stmtCache';
 import { PlatformError } from '../errors';
 import { ProjectAccess } from '../project/projectAccess';
 import { assertExactJson, INLINE_MAX_BYTES } from '../artifact/versionRules';
@@ -120,7 +121,7 @@ export function participationFor(db: Database.Database, projectId: ProjectId, wo
 /** The workspace of a STORED participation row: the only workspace a job or session authorizes with. */
 export function storedWorkspace(db: Database.Database, participationId: ParticipationId | null): WorkspaceId | undefined {
   if (!isStr(participationId)) return undefined;
-  return (db.prepare('SELECT workspace_id AS w FROM project_workspaces WHERE id = ?').get(participationId) as { w: string } | undefined)?.w;
+  return (cachedStmt(db, 'SELECT workspace_id AS w FROM project_workspaces WHERE id = ?').get(participationId) as { w: string } | undefined)?.w;
 }
 
 /**
@@ -709,7 +710,8 @@ export class JobService {
   }
 
   toJob(r: JobRow): Job {
-    const inputs = (this.db.prepare('SELECT version_id, role, content_hash FROM job_inputs WHERE job_id = ? ORDER BY rowid').all(r.id) as
+    // Once per listed job (exec.list): compiled once per connection.
+    const inputs = (cachedStmt(this.db, 'SELECT version_id, role, content_hash FROM job_inputs WHERE job_id = ? ORDER BY rowid').all(r.id) as
       { version_id: string; role: string; content_hash: string }[]).map((x) => ({ versionId: x.version_id, role: x.role, contentHash: x.content_hash }));
     const params = parse(r.params_json);
     return {

@@ -20,6 +20,7 @@ import type Database from 'better-sqlite3';
 import type { AttemptState } from '../../../shared/nexus/platform';
 import { redactedErrorJson } from '../jobs/jobService';
 import { PlatformError } from '../errors';
+import { cachedStmt } from '../db/stmtCache';
 import { canTransitionAttempt, TERMINAL_ATTEMPT_STATES } from './attemptRules';
 import { appendJobEventTx } from './events';
 
@@ -43,7 +44,8 @@ export function attemptRow(db: Database.Database, id: string): AttemptRow | null
 }
 
 export function liveAttemptOf(db: Database.Database, jobId: string): AttemptRow | null {
-  return (db.prepare("SELECT * FROM job_attempts WHERE job_id = ? AND state IN ('starting','running')").get(jobId) as AttemptRow | undefined) ?? null;
+  // Read once per listed job (a job's headline): compiled once per connection.
+  return (cachedStmt(db, "SELECT * FROM job_attempts WHERE job_id = ? AND state IN ('starting','running')").get(jobId) as AttemptRow | undefined) ?? null;
 }
 
 function boundedJson(v: unknown, max: number, what: string): string {

@@ -921,3 +921,26 @@ test('Palt alternating stalled and normal ticks (11 s, 1 s, ...) extend leases a
   assert.ok(probes <= Math.ceil(elapsed / 60_000) * 2 + 1, `probes bounded: ${probes} in ${elapsed / 1000} s`);
   w.close();
 });
+
+// B2a stabilization A: exec.list and exec.get compiled one statement per listed job per query (SQL parse and plan,
+// plus a read lock each), which made a list + get of 13 to 36 jobs take 8 to 20 ms (median) on a real-Docker run and
+// stretched them into L11's outliers. Their statements are now compiled once per connection, so the number of
+// db.prepare calls of a warm list + get does not grow with the number of jobs listed.
+test('P1 a warm exec.list + exec.get prepares no statement per listed job (the count does not grow with the page)', () => {
+  const w = execWorld(); const runner = new FakeRunner(); w.exec.attachRunner(runner, w.bootId);
+  const prepares = () => {
+    const prep = w.db.prepare; let n = 0;
+    w.db.prepare = function (sql) { n++; return prep.call(this, sql); };
+    try { const l = w.exec.list(w.me, { projectId: w.projectId }); w.exec.get(w.me, l.jobs[0].id); return { n, listed: l.jobs.length }; }
+    finally { w.db.prepare = prep; }
+  };
+  const add = (k) => { for (let i = 0; i < k; i++) { const j = w.exec.start(w.me, w.req('sde.build.run')).job; w.exec.cancel(w.me, j.id); } };
+  add(2); prepares();
+  const small = prepares();
+  add(14);
+  const big = prepares();
+  assert.equal(big.listed - small.listed, 14);
+  assert.equal(big.n, small.n, `prepares of a warm list + get: ${small.n} for ${small.listed} jobs, ${big.n} for ${big.listed} jobs`);
+  assert.ok(big.n <= 8, `${big.n} prepares (authorization only)`);
+  w.close();
+});

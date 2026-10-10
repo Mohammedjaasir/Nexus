@@ -110,6 +110,7 @@ import type { BlobIndex, IngestToken } from '../blobs/blobIndex';
 import { getValidator } from '../../../shared/nexus/validators';
 import { newId } from '../db/ids';
 import { immediateTx } from '../db/tx';
+import { cachedStmt } from '../db/stmtCache';
 import { PlatformError } from '../errors';
 import { ProjectAccess } from '../project/projectAccess';
 import { canRetry, isJobState, TERMINAL_JOB_STATES } from '../jobs/jobRules';
@@ -2234,33 +2235,49 @@ export class ExecutionService {
     if (f.workspaceId !== undefined) { if (!isStr(f.workspaceId)) throw new PlatformError('invalid', 'workspaceId must be an id'); where.push('workspace_id = ?'); args.push(f.workspaceId); }
     if (f.states !== undefined) { where.push(`state IN (${f.states.map(() => '?').join(', ')})`); args.push(...f.states); }
     if (f.jobKind !== undefined) { where.push('kind = ?'); args.push(f.jobKind); }
-    const rows = this.db.prepare(`SELECT * FROM jobs ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY created_at DESC, id DESC LIMIT ?`)
-      .all(...args, limit + 1) as ExecJobRow[];
-    return { jobs: rows.slice(0, limit).map((r) => this.toExecJob(r)), truncated: rows.length > limit };
+    // One read transaction (one snapshot) for the page and every per-job read of it, after authorization (a denial's
+    // audit row is never inside it). The SQL shapes are bounded (the filters above), so the statement is cached.
+    return this.readTx(() => {
+      const rows = cachedStmt(this.db, `SELECT * FROM jobs ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY created_at DESC, id DESC LIMIT ?`)
+        .all(...args, limit + 1) as ExecJobRow[];
+      return { jobs: rows.slice(0, limit).map((r) => this.toExecJob(r)), truncated: rows.length > limit };
+    });
   }
 
   get(p: Principal, jobId: string): JobDetail {
     this.requireAvailable();
-    const j = this.load(p, jobId, 'job.read');
-    const attempts = (this.db.prepare('SELECT * FROM job_attempts WHERE job_id = ? ORDER BY n').all(j.id) as AttemptRow[]).map((a) => {
-      const sb = parseJson(a.sandbox_json) as Record<string, unknown> | null;
-      const net = sb && isPlainObject(sb.network) && typeof sb.network.mode === 'string' ? sb.network.mode : sb && typeof sb.network === 'string' ? sb.network : null;
-      const pf = sb && isPlainObject(sb.preflight) ? { ok: sb.preflight.ok === true, problems: Array.isArray(sb.preflight.problems) ? (sb.preflight.problems as unknown[]).map(String).slice(0, 20) : [] } : null;
-      const err = parseJson(a.error_json) as { code?: string; message?: string } | null;
-      const env = parseJson(a.environment_json) as Record<string, unknown> | null;
-      return { id: a.id, n: a.n, state: a.state, outcome: a.outcome, exitCode: a.exit_code, signal: a.signal,
-        oomKilled: a.oom_killed === null ? null : a.oom_killed === 1, network: net, preflight: pf,
-        error: err && typeof err.code === 'string' && typeof err.message === 'string' ? { code: err.code, message: err.message } : null,
-        createdAt: a.created_at, startedAt: a.started_at, finishedAt: a.finished_at,
-        imageId: env && typeof env.imageId === 'string' ? env.imageId : null, profile: env && typeof env.profile === 'string' ? env.profile : null };
+    const j0 = this.load(p, jobId, 'job.read');
+    // Authorized: the rest is one read transaction (the job row re-read in it, so the detail is one snapshot).
+    return this.readTx(() => {
+      const j = this.row(j0.id) ?? j0;
+      const attempts = (cachedStmt(this.db, 'SELECT * FROM job_attempts WHERE job_id = ? ORDER BY n').all(j.id) as AttemptRow[]).map((a) => {
+        const sb = parseJson(a.sandbox_json) as Record<string, unknown> | null;
+        const net = sb && isPlainObject(sb.network) && typeof sb.network.mode === 'string' ? sb.network.mode : sb && typeof sb.network === 'string' ? sb.network : null;
+        const pf = sb && isPlainObject(sb.preflight) ? { ok: sb.preflight.ok === true, problems: Array.isArray(sb.preflight.problems) ? (sb.preflight.problems as unknown[]).map(String).slice(0, 20) : [] } : null;
+        const err = parseJson(a.error_json) as { code?: string; message?: string } | null;
+        const env = parseJson(a.environment_json) as Record<string, unknown> | null;
+        return { id: a.id, n: a.n, state: a.state, outcome: a.outcome, exitCode: a.exit_code, signal: a.signal,
+          oomKilled: a.oom_killed === null ? null : a.oom_killed === 1, network: net, preflight: pf,
+          error: err && typeof err.code === 'string' && typeof err.message === 'string' ? { code: err.code, message: err.message } : null,
+          createdAt: a.created_at, startedAt: a.started_at, finishedAt: a.finished_at,
+          imageId: env && typeof env.imageId === 'string' ? env.imageId : null, profile: env && typeof env.profile === 'string' ? env.profile : null };
+      });
+      const approvals = (cachedStmt(this.db, 'SELECT id, status, reason, expires_at FROM approvals WHERE job_id = ? ORDER BY requested_at').all(j.id) as
+        { id: string; status: string; reason: string; expires_at: number }[]).map((x) => ({ id: x.id, status: x.status, reason: x.reason, expiresAt: x.expires_at }));
+      const outputs = (cachedStmt(this.db, 'SELECT id, status, output_path FROM artifact_versions WHERE produced_by_job_id = ? ORDER BY created_at, id').all(j.id) as
+        { id: string; status: string; output_path: string | null }[]).map((x) => ({ versionId: x.id, status: x.status, outputPath: x.output_path }));
+      const dep = cachedStmt(this.db, 'SELECT id, status FROM deployments WHERE job_id = ? ORDER BY started_at DESC, id DESC LIMIT 1').get(j.id) as
+        { id: string; status: string } | undefined;
+      return { ...this.toExecJob(j), attemptHistory: attempts, approvals, outputs, deployment: dep ? { id: dep.id, status: dep.status } : null };
     });
-    const approvals = (this.db.prepare('SELECT id, status, reason, expires_at FROM approvals WHERE job_id = ? ORDER BY requested_at').all(j.id) as
-      { id: string; status: string; reason: string; expires_at: number }[]).map((x) => ({ id: x.id, status: x.status, reason: x.reason, expiresAt: x.expires_at }));
-    const outputs = (this.db.prepare('SELECT id, status, output_path FROM artifact_versions WHERE produced_by_job_id = ? ORDER BY created_at, id').all(j.id) as
-      { id: string; status: string; output_path: string | null }[]).map((x) => ({ versionId: x.id, status: x.status, outputPath: x.output_path }));
-    const dep = this.db.prepare('SELECT id, status FROM deployments WHERE job_id = ? ORDER BY started_at DESC, id DESC LIMIT 1').get(j.id) as
-      { id: string; status: string } | undefined;
-    return { ...this.toExecJob(j), attemptHistory: attempts, approvals, outputs, deployment: dep ? { id: dep.id, status: dep.status } : null };
+  }
+
+  /**
+   * A read-only unit of reads in one deferred transaction: one snapshot, and one read lock instead of one per statement.
+   * Inside a caller's transaction it is a savepoint of it. Nothing in `fn` writes.
+   */
+  private readTx<T>(fn: () => T): T {
+    return this.db.inTransaction ? fn() : this.db.transaction(fn).deferred();
   }
 
   eventsSince(p: Principal, q: { sinceSeq: number; projectId?: string; limit?: number }): { events: JobEvent[]; lastSeq: number } {
@@ -2345,7 +2362,7 @@ export class ExecutionService {
   // ---------- reads ----------
 
   private row(id: string): ExecJobRow | null {
-    return (this.db.prepare('SELECT * FROM jobs WHERE id = ?').get(id) as ExecJobRow | undefined) ?? null;
+    return (cachedStmt(this.db, 'SELECT * FROM jobs WHERE id = ?').get(id) as ExecJobRow | undefined) ?? null;
   }
 
   private capabilityOf(j: ExecJobRow): Capability | null {
@@ -2376,17 +2393,17 @@ export class ExecutionService {
       // The latest blocking row per (version, validator) of what the job made or checked, plus the job's own evidence
       // recorded on a version that was no longer a draft (a deduplicated output, a run on a candidate): those rows
       // are advisory for the version but are this job's result.
-      const blocking = this.db.prepare(`SELECT v.status FROM validations v WHERE v.blocking = 1 AND ${rel}
+      const blocking = cachedStmt(this.db, `SELECT v.status FROM validations v WHERE v.blocking = 1 AND ${rel}
         AND NOT EXISTS (SELECT 1 FROM validations w WHERE w.version_id = v.version_id AND w.validator_id = v.validator_id AND w.blocking = 1
           AND (w.finished_at > v.finished_at OR (w.finished_at = v.finished_at AND w.rowid > v.rowid)))`).all({ id: j.id }) as { status: string }[];
-      const own = (this.db.prepare(`SELECT v.status, v.validator_id FROM validations v WHERE v.job_id = @id AND v.blocking = 0
+      const own = (cachedStmt(this.db, `SELECT v.status, v.validator_id FROM validations v WHERE v.job_id = @id AND v.blocking = 0
         AND NOT EXISTS (SELECT 1 FROM validations w WHERE w.job_id = v.job_id AND w.version_id = v.version_id AND w.validator_id = v.validator_id
           AND w.blocking = 0 AND (w.finished_at > v.finished_at OR (w.finished_at = v.finished_at AND w.rowid > v.rowid)))`).all({ id: j.id }) as
         { status: string; validator_id: string }[]).filter((x) => getValidator(x.validator_id) !== null);
       // (Any registered validator: an advisory one, sde.deps.lock_matches, is an install's own result.)
       const latest = [...blocking, ...own];
-      const outs = this.db.prepare('SELECT status FROM artifact_versions WHERE produced_by_job_id = ?').all(j.id) as { status: string }[];
-      const liveChildren = (this.db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE parent_job_id = ? AND state IN (${LIVE_JOB_STATES.map(() => '?').join(', ')})`)
+      const outs = cachedStmt(this.db, 'SELECT status FROM artifact_versions WHERE produced_by_job_id = ?').all(j.id) as { status: string }[];
+      const liveChildren = (cachedStmt(this.db, `SELECT COUNT(*) AS n FROM jobs WHERE parent_job_id = ? AND state IN (${LIVE_JOB_STATES.map(() => '?').join(', ')})`)
         .get(j.id, ...LIVE_JOB_STATES) as { n: number }).n;
       checks = {
         failed: latest.filter((x) => x.status === 'failed').length + outs.filter((x) => x.status === 'failed').length,
