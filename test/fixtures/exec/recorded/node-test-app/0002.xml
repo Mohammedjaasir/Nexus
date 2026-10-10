@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="routes" time="0.001545" disabled="0" errors="0" tests="2" failures="0" skipped="0" hostname="nexus-sandbox">
+		<testcase name="answers /health with 200" time="0.000593" classname="test"/>
+		<testcase name="answers an unknown path with 404" time="0.000102" classname="test"/>
+	</testsuite>
+	<!-- tests 2 -->
+	<!-- suites 1 -->
+	<!-- pass 2 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 41.5 -->
+</testsuites>

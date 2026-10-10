@@ -28,7 +28,10 @@
  * - a user's test run on a candidate suite records its result (advisory) and keeps its JUnit bytes as a blob
  *   named by the result's evidence (the suite itself is immutable).
  *
- * A recipe without an ingest rule here (dependency install, diagnostics: Task 9 and later) is refused with
+ * - a diagnosis (B2a Task 12): the runner's facts re-validated, main's own probe table of the deployment added, the report
+ *   stored inline as a `diagnostic_report` draft (lineage to the previewed application), `diag.schema` run, finalized.
+ *
+ * A recipe without an ingest rule here (dependency install) is refused with
  * `ingest_unavailable` / `no_ingest_rule`: unfinished work is never completed.
  */
 import { createHash } from 'node:crypto';
@@ -42,12 +45,13 @@ import { INLINE_MAX_BYTES } from '../artifact/versionRules';
 import type { BlobIndex, IngestToken } from '../blobs/blobIndex';
 import { PlatformError } from '../errors';
 import type { ResolveCommit, ValidationService } from '../validation/validationService';
-import { checkDiscovery, checkGitFacts, COMMIT_RE, type ValidatorOutcome } from '../validation/normalized';
+import { checkDiagnosis, checkDiscovery, checkGitFacts, COMMIT_RE, type ValidatorOutcome } from '../validation/normalized';
 import * as tests from '../validation/validators/testsPass';
 import { manifestSha256, exitZero, EXIT_ZERO, type TreeFile } from '../validation/validators/buildChecks';
 import type { AttemptExited, IngestContext, IngestDecision, IngestPort } from './executionService';
 import { MAX_DISCOVERED_FILES } from './planBuilder';
-import { acceptManifestReport, APP_MANIFEST_MAX_BYTES } from '../repo/repoService';
+import { acceptManifestReport, APP_MANIFEST_MAX_BYTES, readAppManifest } from '../repo/repoService';
+import { buildDiagnosticReport, type ProbeTable } from './diagnosticReport';
 
 export type { AttemptExited };
 
@@ -101,6 +105,7 @@ export class IngestService implements IngestPort {
       case 'sde.test.node': case 'sde.test.pytest': return this.testRun(ctx);
       case 'sde.build.node': case 'sde.build.python': return this.build(ctx);
       case 'sde.app.assemble': return this.assemble(ctx);
+      case 'sde.diagnose': return this.diagnose(ctx);
       default: return refuse('ingest_unavailable', 'no_ingest_rule', `outputs of ${ctx.recipe.id} are not ingested in this build`);
     }
   }
@@ -395,6 +400,61 @@ export class IngestService implements IngestPort {
     this.bindAttempt(v.id, job.id, attempt.n);
     this.deps.faults?.afterRows?.(ctx.recipe.id);
     this.deps.validation.runRegisterTx(system, v.id, { 'app.manifest_schema': manifest }, { jobId: job.id, attemptN: attempt.n });
+    this.deps.validation.finalizeIfReady(system, v.id);
+    return ok;
+  }
+
+  // ---------- diagnosis (engine, B2a Task 12) ----------
+
+  /** Main's own probe table of the diagnosed deployment (its stored probes and the previewed manifest's health path). */
+  private probeTable(projectId: string, deploymentId: string): ProbeTable | null {
+    const d = this.db.prepare('SELECT health_json, subject_version_id FROM deployments WHERE id = ? AND project_id = ?').get(deploymentId, projectId) as
+      { health_json: string; subject_version_id: string } | undefined;
+    if (!d) return null;
+    const subject = this.db.prepare('SELECT storage_ref_json FROM artifact_versions WHERE id = ?').get(d.subject_version_id) as { storage_ref_json: string } | undefined;
+    const manifest = readAppManifest(subject?.storage_ref_json ?? null);
+    const raw = parse(d.health_json);
+    const probes = (Array.isArray(raw) ? raw : []).filter(isObj).filter((p) => typeof p.at === 'number' && Number.isSafeInteger(p.at) && p.at >= 0)
+      .map((p) => ({ at: p.at as number, status: typeof p.status === 'number' && Number.isInteger(p.status) ? p.status : null,
+        ms: typeof p.ms === 'number' && Number.isFinite(p.ms) && p.ms >= 0 ? p.ms : null }));
+    return manifest ? { path: manifest.healthPath, probes } : null;
+  }
+
+  private diagnose(ctx: IngestContext): IngestDecision {
+    const { job, attempt, system } = ctx;
+    if (job.participation_id === null) return refuse('invalid_output', 'bad_input', 'the diagnosis has no participation');
+    const reported = ctx.exited.parsed.find((p) => p.parser === 'diagnostic');
+    const d = checkDiagnosis(reported?.normalized);
+    if (!d.ok) return refuse('invalid_output', 'parser_contract', `the diagnosis was not usable: ${d.message}`);
+    const capRow = this.db.prepare('SELECT capabilities_json FROM jobs WHERE id = ?').get(job.id) as { capabilities_json: string } | undefined;
+    const caps = parse(capRow?.capabilities_json ?? null);
+    const cap = Array.isArray(caps) && isObj(caps[0]) && isObj(caps[0].diagnose) ? caps[0].diagnose : null;
+    const target = cap?.target === 'deployment' || cap?.target === 'job' ? cap.target : null;
+    const targetId = typeof cap?.targetId === 'string' ? cap.targetId : null;
+    if (!target || !targetId || target !== d.value.target) return refuse('invalid_output', 'bad_input', 'the diagnosis does not match its subject');
+    const subjectVersionId = typeof cap?.subjectVersionId === 'string' ? cap.subjectVersionId : null;
+    const report = buildDiagnosticReport(d.value, targetId, target === 'deployment' ? this.probeTable(job.project_id, targetId) : null);
+    if (containsSecret(report)) return secretRefusal('diagnostic report');
+    if (jsonBytes(report) > INLINE_MAX_BYTES) return refuse('invalid_output', 'report_too_large', `the diagnostic report is larger than ${INLINE_MAX_BYTES} bytes`);
+    const contentHash = sha256(`diagnostic_report\n${JSON.stringify(report)}`);
+    const artifactId = this.ownedArtifact(job.participation_id, 'diagnostic_report', 'Diagnostic report');
+    const prior = this.already(job.id, 'report') ?? (artifactId ? this.sameContent(artifactId, contentHash) : null);
+    if (prior) return this.dedupe(ctx, prior, 'diag.schema', this.deps.validation.runPure('diag.schema', report));
+    const previous = artifactId ? this.latestLive(artifactId) : null;
+    const subjectOk = subjectVersionId !== null
+      && !!this.db.prepare('SELECT 1 FROM artifact_versions WHERE id = ? AND project_id = ?').get(subjectVersionId, job.project_id);
+    const v = this.deps.artifacts.insertSystemVersionTx(system, {
+      ...(artifactId ? { artifactId } : { newArtifact: { kind: 'diagnostic_report', name: 'Diagnostic report', participation: job.participation_id } }),
+      storage: { kind: 'inline', json: report }, contentHash,
+      metadata: { target, fields: report.fields.length, sources: [...new Set(report.fields.map((f) => String(f.source.type)))].sort() },
+      environment: this.environment(ctx), jobId: job.id, attemptN: attempt.n, outputPath: 'report', action: 'exec.diagnose',
+      onBehalfOf: job.on_behalf_of, now: this.deps.now(),
+      inputs: [...(subjectOk ? [{ versionId: subjectVersionId!, role: 'application', relation: 'derived_from' as const, source: 'ingest' as const }] : []),
+        ...(previous ? [{ versionId: previous.id, role: 'previous', relation: 'derived_from' as const, source: 'ingest' as const }] : [])]
+    });
+    this.bindAttempt(v.id, job.id, attempt.n);
+    this.deps.faults?.afterRows?.(ctx.recipe.id);
+    this.deps.validation.runRegisterTx(system, v.id, { 'diag.schema': report }, { jobId: job.id, attemptN: attempt.n });
     this.deps.validation.finalizeIfReady(system, v.id);
     return ok;
   }

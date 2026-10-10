@@ -1,0 +1,155 @@
+#!/bin/sh
+# nexus-entry: the Nexus-owned entry of the sde-node and sde-python images (B2a Task 12). POSIX sh.
+#
+# No value from a job is ever evaluated as shell text: every argument travels as "$@" or as one positional parameter,
+# never through eval, never inside a string a shell re-reads. The command is the container's Cmd, built by main from
+# fixed argv templates (src/main/nexus/exec/planBuilder.ts): one step, or several joined by the token --nexus-then.
+#
+#  1. NEXUS_WALL_SECONDS (whole seconds, set by main from the plan's wall clock) bounds the whole run: the steps run
+#     under `timeout -s TERM -k 10`, so the container ends itself at its wall clock plus 10 s even if the runner is gone.
+#  2. /in/src.tar (a git archive of one commit), when staged, is extracted into /workspace with --no-same-owner
+#     --no-same-permissions; /in/dist (a dev deployment's build), when staged, is copied to /workspace/dist without
+#     following links. The working folder is /workspace.
+#  3. Built-in steps (Nexus helpers, never looked up on PATH):
+#       nexus-glob --out <file> <pattern>...       files matching `**/<name>` or `<dir>/**/<name>` (node_modules and
+#                                                  .git skipped), one relative path per line, sorted, to <file>
+#       nexus-capture --out <file> -- <argv>...    runs argv with its standard output written to <file>
+#       nexus-collect --from <rel> --to <path>     copies the relative folder <rel> to <path> (under /out), links as links
+#       nexus-node-test --out-dir <dir> -- <file>...  node --test once per file, each with its own JUnit report
+#                                                  <dir>/0001.xml, 0002.xml, ... (the runner merges and attributes them)
+#     Every <file>, <path> and <dir> is under /out; every <rel> is relative with no `..`. Any other step runs as given.
+#  Exit: the first failing step's code (124 when the wall clock ran out), else 0. 64: a malformed command.
+#
+# NEXUS_ENTRY_ROOT is for the host test of this script only (test/nexus-core-exec-entry.test.cjs): it prefixes /in,
+# /out and /workspace. A container never has it: main's environment allow-list and preflight's image-environment check
+# refuse any name the image and the plan do not declare.
+
+SEP='--nexus-then'
+R="${NEXUS_ENTRY_ROOT:-}"
+NL='
+'
+
+die() { printf 'nexus-entry: %s\n' "$1" >&2; exit "${2:-64}"; }
+
+# A path under /out, as the host sees it: sets OUT_PATH (no command substitution, so a refusal exits this shell).
+out_path() {
+  case "$1" in /out|/out/*) ;; *) die "a Nexus output path is not under /out: $1" ;; esac
+  case "$1" in *'/..'|*'/../'*|*'/.'|*'/./'*|*'//'*|*"$NL"*) die "a Nexus output path is not a plain path: $1" ;; esac
+  OUT_PATH="$R$1"
+}
+
+# A plain relative path (no leading /, no `..` or `.` segment except a lone `.`, no empty segment, no leading -).
+rel_ok() {
+  [ "$1" = . ] && return 0
+  case "$1" in ''|/*|-*|*'//'*|*"$NL"*) return 1 ;; esac
+  case "/$1/" in */../*|*/./*) return 1 ;; esac
+  return 0
+}
+
+glob_step() {
+  [ "$1" = --out ] && [ $# -ge 2 ] || die 'nexus-glob: --out <file> comes first'
+  out_path "$2"; dest=$OUT_PATH; shift 2
+  tmp="$dest.part"
+  : > "$tmp" || die "nexus-glob: cannot write $dest" 73
+  for pat in "$@"; do
+    case "$pat" in
+      '**/'*) dir=.; name=${pat#'**/'} ;;
+      *'/**/'*) dir=${pat%%'/**/'*}; name=${pat#*'/**/'} ;;
+      *) die "nexus-glob: unsupported pattern: $pat" ;;
+    esac
+    case "$name" in ''|*/*|*"$NL"*) die "nexus-glob: unsupported pattern: $pat" ;; esac
+    rel_ok "$dir" || die "nexus-glob: unsupported pattern: $pat"
+    [ -d "$dir" ] || continue
+    find "$dir" \( -name node_modules -o -name .git \) -prune -o -type f -name "$name" ! -name "*$NL*" -print >> "$tmp" || die 'nexus-glob: find failed' 70
+  done
+  sed 's|^\./||' "$tmp" | LC_ALL=C sort -u > "$dest" || die "nexus-glob: cannot write $dest" 73
+  rm -f "$tmp"
+}
+
+capture_step() {
+  [ "$1" = --out ] && [ $# -ge 4 ] && [ "$3" = -- ] || die 'nexus-capture: --out <file> -- <argv>...'
+  out_path "$2"; dest=$OUT_PATH; shift 3
+  "$@" > "$dest"
+}
+
+collect_step() {
+  [ "$1" = --from ] && [ "$3" = --to ] && [ $# -eq 4 ] || die 'nexus-collect: --from <rel> --to <path>'
+  rel_ok "$2" && [ "$2" != . ] || die "nexus-collect: the build folder is not a plain relative path: $2"
+  out_path "$4"; dest=$OUT_PATH
+  [ -d "$2" ] || die "nexus-collect: the build wrote no $2 folder" 66
+  mkdir -p "$dest" || die "nexus-collect: cannot create $4" 73
+  cp -R -P "$2/." "$dest/"
+}
+
+node_test_step() {
+  [ "$1" = --out-dir ] && [ $# -ge 3 ] && [ "$3" = -- ] || die 'nexus-node-test: --out-dir <dir> -- <file>...'
+  out_path "$2"; dir=$OUT_PATH; shift 3
+  mkdir -p "$dir" || die "nexus-node-test: cannot create $dir" 73
+  for f in "$@"; do rel_ok "$f" && [ "$f" != . ] || die "nexus-node-test: not a plain relative test file: $f"; done
+  i=0; rc=0
+  for f in "$@"; do
+    i=$((i + 1))
+    report=$(printf '%s/%04d.xml' "$dir" "$i")
+    node --test --test-reporter=spec --test-reporter-destination=stdout \
+      --test-reporter=junit "--test-reporter-destination=$report" "$f"
+    c=$?
+    [ "$rc" -eq 0 ] && [ "$c" -ne 0 ] && rc=$c
+  done
+  return "$rc"
+}
+
+run_one() {
+  case "$1" in
+    nexus-glob) shift; glob_step "$@" ;;
+    nexus-capture) shift; capture_step "$@" ;;
+    nexus-collect) shift; collect_step "$@" ;;
+    nexus-node-test) shift; node_test_step "$@" ;;
+    *) "$@" ;;
+  esac
+}
+
+# Runs the first $1 arguments of the rest as one step (positional parameters only, never eval).
+first_step() {
+  n=$1; shift
+  total=$#; i=0
+  for a in "$@"; do
+    [ "$i" -lt "$n" ] && set -- "$@" "$a"
+    i=$((i + 1))
+  done
+  shift "$total"
+  run_one "$@"
+}
+
+run_steps() {
+  while [ $# -gt 0 ]; do
+    n=0
+    for a in "$@"; do [ "$a" = "$SEP" ] && break; n=$((n + 1)); done
+    [ "$n" -gt 0 ] || die 'an empty step'
+    if [ "$n" -eq $# ]; then
+      case "$1" in nexus-glob|nexus-capture|nexus-collect|nexus-node-test) run_one "$@"; return $? ;; esac
+      exec "$@"
+    fi
+    ( first_step "$n" "$@" ) || return $?
+    shift $((n + 1))
+    [ $# -gt 0 ] || die 'a step separator ends the command'
+  done
+}
+
+if [ "${NEXUS_ENTRY_STAGE:-}" != run ]; then
+  case "${NEXUS_WALL_SECONDS:-}" in ''|*[!0-9]*) die 'NEXUS_WALL_SECONDS is not a whole number of seconds' ;; esac
+  [ "${#NEXUS_WALL_SECONDS}" -le 6 ] && [ "$NEXUS_WALL_SECONDS" -ge 1 ] && [ "$NEXUS_WALL_SECONDS" -le 604800 ] \
+    || die 'NEXUS_WALL_SECONDS is out of range (1 to 604800)'
+  [ $# -gt 0 ] || die 'no command'
+  if [ -f "$R/in/src.tar" ]; then
+    tar -xf "$R/in/src.tar" -C "$R/workspace" --no-same-owner --no-same-permissions || die 'the source archive could not be extracted' 65
+  fi
+  if [ -d "$R/in/dist" ]; then
+    mkdir -p "$R/workspace/dist" && cp -R -P "$R/in/dist/." "$R/workspace/dist/" || die 'the build files could not be staged' 65
+  fi
+  cd "$R/workspace" || die 'there is no /workspace' 70
+  NEXUS_ENTRY_STAGE=run
+  export NEXUS_ENTRY_STAGE
+  exec timeout -s TERM -k 10 "$NEXUS_WALL_SECONDS" "$0" "$@"
+fi
+unset NEXUS_ENTRY_STAGE
+run_steps "$@"

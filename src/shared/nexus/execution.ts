@@ -132,7 +132,15 @@ export interface ImageStatus {
   sizeBytes?: number;
   imageId?: string;
   contextSha256?: string;
+  /**
+   * The image's `nexus.versions` label (B2a Task 12): the tool versions its build self-test checked, e.g.
+   * `python=3.11.13 pytest=8.4.2`. Recorded in every attempt's environment (constraint 8).
+   */
+  versions?: string;
 }
+
+/** The `nexus.versions` label as it may travel: plain `name=version` words, at most 300 characters. */
+export const IMAGE_VERSIONS_RE = /^[A-Za-z0-9][A-Za-z0-9._+=-]*(?: [A-Za-z0-9][A-Za-z0-9._+=-]*){0,15}$/;
 
 export interface SandboxDriver {
   probe(): Promise<SandboxProbe>;
@@ -204,6 +212,13 @@ export interface ToolPlan extends PlanBase {
    * consumer is another job or attempt (defense in depth; main's plan builder already refuses).
    */
   approval?: { id: string; jobId: string; attemptN: number };
+  /**
+   * node:test runs only (B2a Task 12, A5): node's JUnit reporter names no file, so the Nexus entry runs each discovered
+   * file on its own (`nexus-node-test`), writing `/out/<dir>/<NNNN>.xml` for `files[NNNN - 1]`. After the exit the
+   * runner (Nexus's normalization) merges them into `/out/junit.xml` with every case attributed to its file, from this
+   * main-derived mapping, never from anything the container wrote.
+   */
+  perFileJunit?: { dir: 'junit'; files: string[] };
 }
 
 /** A long-lived app container behind a loopback forwarder (dev deployment). */
@@ -220,11 +235,46 @@ export interface ServicePlan extends PlanBase {
   staging: ToolPlan['staging'];
 }
 
+/**
+ * One byte range of an attempt log a diagnosis reads (B2a Task 12): `logPath` is that attempt's log under the data home
+ * (`logs/jobs/<jobId>/<n>.log`, the runner re-derives and checks it), `offset`/`length` the range (clamped to the file);
+ * `tail`: the last `length` bytes instead (main's row of a live attempt does not know the log's current size).
+ */
+export interface DiagnoseLogRange { attemptId: string; logPath: string; offset: number; length: number; tail: boolean }
+
 /** Work the runner does itself, without a container (async git, `docker inspect`). */
 export type EngineTask =
   | { engine: 'repo.snapshot'; repoPath: string }
   | { engine: 'sde.app.assemble'; repoPath: string; commit: string }
-  | { engine: 'sde.diagnose'; containerIds: string[]; logRanges: { attemptId: string; offset: number; length: number }[] };
+  | { engine: 'sde.diagnose'; target: 'deployment' | 'job'; containerIds: string[]; logRanges: DiagnoseLogRange[] };
+
+/** The most containers and log ranges one diagnosis reads, and the most bytes of one range. */
+export const DIAGNOSE_MAX_CONTAINERS = 4;
+export const DIAGNOSE_MAX_RANGES = 4;
+export const DIAGNOSE_RANGE_MAX_BYTES = 256 * 1024;
+
+/**
+ * What `docker inspect` says about one container, as a diagnosis records it: a fixed set of fields only (never the
+ * environment, the mounts' host paths or the labels' values beyond ownership).
+ */
+export interface DiagnoseContainerFacts {
+  state: 'created' | 'running' | 'exited' | 'restarting' | 'paused' | 'dead' | 'removing' | 'unknown';
+  exitCode: number | null; oomKilled: boolean; restartCount: number;
+  startedAt: string | null; finishedAt: string | null;
+  /** The image's local id, as a digest under a `sha256` key (the redactor's integrity-hash rule; never a bare hex string). */
+  image: { sha256: string } | null;
+  nanoCpus: number | null; memoryBytes: number | null; pidsLimit: number | null;
+  networkMode: string | null; readonlyRootfs: boolean | null; user: string | null; publishedPorts: string[];
+}
+
+/** The runner's diagnosis (parser `diagnostic`): main re-validates it, adds its own probe table and stores the report. */
+export interface DiagnoseResult {
+  target: 'deployment' | 'job';
+  /** `container.sha256`: the container id (64 hex, kept under a `sha256` key so the secret check reads it as a digest). */
+  containers: { container: { sha256: string }; status: 'inspected' | 'missing' | 'not_owned' | 'unavailable'; facts: DiagnoseContainerFacts | null }[];
+  logs: { attemptId: string; status: 'read' | 'missing' | 'refused'; offset: number; length: number; sha256: string | null;
+    frames: number; errorFrames: number; lastText: string | null }[];
+}
 
 export interface EnginePlan extends PlanBase {
   kind: 'engine';

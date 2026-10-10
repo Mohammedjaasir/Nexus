@@ -1,0 +1,236 @@
+{
+  "dockerVersion": "29.7.2",
+  "synthetic": true,
+  "note": "A synthetic stand-in shaped like a Docker Desktop 29.7.2 `docker inspect` of a created sde.test.node container (B2a Task 12, A9). The real capture, test/fixtures/exec/inspect-29.7.2.json, is committed at Verification step 6.",
+  "spec": {
+    "name": "nexus-01k7a0synthet1cattempt0000",
+    "labels": {
+      "nexus.job": "01K7A0SYNTHET1CJ0B00000000",
+      "nexus.attempt": "01K7A0SYNTHET1CATTEMPT0000",
+      "nexus.boot": "01K7A0SYNTHET1CB00T0000000",
+      "nexus.project": "p-synthetic",
+      "nexus.home": "3911f6248fd86b58",
+      "nexus.kind": "tool"
+    },
+    "profile": "sde-node",
+    "image": {
+      "ref": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "entrypoint": [
+      "/opt/nexus/nexus-entry"
+    ],
+    "argv": [
+      "nexus-node-test",
+      "--out-dir",
+      "/out/junit",
+      "--",
+      "test/a.test.js",
+      "test/b.test.js"
+    ],
+    "imageEnv": [
+      "NODE_VERSION",
+      "PATH",
+      "YARN_VERSION"
+    ],
+    "env": {
+      "HOME": "/home/nexus",
+      "CI": "true",
+      "npm_config_cache": "/home/nexus/.npm",
+      "NODE_ENV": "test",
+      "NEXUS_WALL_SECONDS": "900"
+    },
+    "mounts": [
+      {
+        "kind": "input",
+        "hostPath": "C:\\Users\\nexus\\AppData\\Roaming\\nexus-app\\nexus\\work\\01K7A0SYNTHET1CJ0B00000000\\1\\in",
+        "containerPath": "/in",
+        "readOnly": true
+      },
+      {
+        "kind": "out",
+        "hostPath": "C:\\Users\\nexus\\AppData\\Roaming\\nexus-app\\nexus\\work\\01K7A0SYNTHET1CJ0B00000000\\1\\out",
+        "containerPath": "/out",
+        "readOnly": false
+      },
+      {
+        "kind": "workspace",
+        "hostPath": "nexus-ws-01K7A0SYNTHET1CATTEMPT0000",
+        "containerPath": "/workspace",
+        "readOnly": false
+      },
+      {
+        "kind": "deps",
+        "hostPath": "nexus-deps-sde-node-dddddddddddd",
+        "containerPath": "/workspace/node_modules",
+        "readOnly": true
+      }
+    ],
+    "network": {
+      "mode": "none"
+    },
+    "limits": {
+      "cpus": 2,
+      "memoryMb": 2048,
+      "pids": 512,
+      "wallClockMs": 900000,
+      "outputMaxBytes": 67108864,
+      "tmpfsMb": 512
+    },
+    "readOnlyRootfs": true,
+    "capDrop": [
+      "ALL"
+    ],
+    "noNewPrivileges": true
+  },
+  "inspect": [
+    {
+      "Id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "Name": "/nexus-01k7a0synthet1cattempt0000",
+      "Image": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "RestartCount": 0,
+      "State": {
+        "Status": "created",
+        "ExitCode": 0,
+        "OOMKilled": false,
+        "FinishedAt": "0001-01-01T00:00:00Z"
+      },
+      "Config": {
+        "User": "10001:10001",
+        "Labels": {
+          "nexus.job": "01K7A0SYNTHET1CJ0B00000000",
+          "nexus.attempt": "01K7A0SYNTHET1CATTEMPT0000",
+          "nexus.boot": "01K7A0SYNTHET1CB00T0000000",
+          "nexus.project": "p-synthetic",
+          "nexus.home": "3911f6248fd86b58",
+          "nexus.kind": "tool",
+          "org.opencontainers.image.source": "fixture"
+        },
+        "Image": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "Entrypoint": [
+          "/opt/nexus/nexus-entry"
+        ],
+        "Cmd": [
+          "nexus-node-test",
+          "--out-dir",
+          "/out/junit",
+          "--",
+          "test/a.test.js",
+          "test/b.test.js"
+        ],
+        "Env": [
+          "HOME=/home/nexus",
+          "CI=true",
+          "npm_config_cache=/home/nexus/.npm",
+          "NODE_ENV=test",
+          "NEXUS_WALL_SECONDS=900",
+          "NODE_VERSION=/usr/local/bin",
+          "PATH=/usr/local/bin",
+          "YARN_VERSION=/usr/local/bin"
+        ]
+      },
+      "HostConfig": {
+        "NanoCpus": 2000000000,
+        "Memory": 2147483648,
+        "MemorySwap": 2147483648,
+        "PidsLimit": 512,
+        "NetworkMode": "none",
+        "ReadonlyRootfs": true,
+        "CapDrop": [
+          "ALL"
+        ],
+        "CapAdd": null,
+        "Privileged": false,
+        "SecurityOpt": [
+          "no-new-privileges"
+        ],
+        "Tmpfs": {
+          "/tmp": "rw,noexec,nosuid,size=512m,uid=10001",
+          "/home/nexus": "rw,nosuid,size=256m,uid=10001"
+        },
+        "PortBindings": {},
+        "Devices": [],
+        "PidMode": "",
+        "UTSMode": "",
+        "UsernsMode": "",
+        "IpcMode": "private",
+        "CgroupnsMode": "private",
+        "RestartPolicy": {
+          "Name": "no",
+          "MaximumRetryCount": 0
+        },
+        "AutoRemove": false,
+        "Runtime": "runc",
+        "CgroupParent": "",
+        "OomKillDisable": false,
+        "PublishAllPorts": false,
+        "Binds": null,
+        "GroupAdd": null,
+        "Sysctls": null,
+        "Ulimits": null,
+        "VolumesFrom": null,
+        "DeviceRequests": null,
+        "DeviceCgroupRules": null
+      },
+      "Mounts": [
+        {
+          "Type": "bind",
+          "Source": "/run/desktop/mnt/host/c/Users/nexus/AppData/Roaming/nexus-app/nexus/work/01K7A0SYNTHET1CJ0B00000000/1/in",
+          "Destination": "/in",
+          "Mode": "",
+          "RW": false,
+          "Propagation": "rprivate"
+        },
+        {
+          "Type": "bind",
+          "Source": "/run/desktop/mnt/host/c/Users/nexus/AppData/Roaming/nexus-app/nexus/work/01K7A0SYNTHET1CJ0B00000000/1/out",
+          "Destination": "/out",
+          "Mode": "",
+          "RW": true,
+          "Propagation": "rprivate"
+        },
+        {
+          "Type": "volume",
+          "Name": "nexus-ws-01K7A0SYNTHET1CATTEMPT0000",
+          "Source": "/var/lib/docker/volumes/nexus-ws-01K7A0SYNTHET1CATTEMPT0000/_data",
+          "Destination": "/workspace",
+          "Driver": "local",
+          "Mode": "rw",
+          "RW": true,
+          "Propagation": ""
+        },
+        {
+          "Type": "volume",
+          "Name": "nexus-deps-sde-node-dddddddddddd",
+          "Source": "/var/lib/docker/volumes/nexus-deps-sde-node-dddddddddddd/_data",
+          "Destination": "/workspace/node_modules",
+          "Driver": "local",
+          "Mode": "z",
+          "RW": false,
+          "Propagation": ""
+        }
+      ],
+      "NetworkSettings": {
+        "Networks": {
+          "none": {
+            "IPAMConfig": null,
+            "Links": null,
+            "Aliases": null,
+            "MacAddress": "",
+            "DriverOpts": null,
+            "GwPriority": 0,
+            "NetworkID": "",
+            "EndpointID": "",
+            "Gateway": "",
+            "IPAddress": "",
+            "IPPrefixLen": 0,
+            "IPv6Gateway": "",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "DNSNames": null
+          }
+        }
+      }
+    }
+  ]
+}

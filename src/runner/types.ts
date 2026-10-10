@@ -3,7 +3,7 @@
  * operations the runner needs beyond it), its transport, its clock and its file system. Tests inject a fake driver
  * (test/helpers/fakeSandboxDriver.cjs), a fake clock and an in-process MessageChannel.
  */
-import type { ContainerSpec, ExitInfo, SandboxDriver, SandboxProfileId } from '../shared/nexus/execution';
+import type { ContainerSpec, DiagnoseContainerFacts, ExitInfo, SandboxDriver, SandboxProfileId } from '../shared/nexus/execution';
 
 export type ResourceKind = 'container' | 'volume' | 'network';
 
@@ -31,6 +31,8 @@ export interface ImageInfo {
   sizeBytes?: number;
   imageId?: string;
   contextSha256?: string;
+  /** The `nexus.versions` label (the tool versions the image's build self-test checked). */
+  versions?: string;
 }
 
 /** What `docker build` reports while it runs. */
@@ -58,6 +60,11 @@ export interface RunnerDriver extends SandboxDriver {
   streamLogs(containerId: string, onChunk: (stream: 'stdout' | 'stderr', chunk: string) => void, signal: AbortSignal, sinceMs?: number): Promise<void>;
   /** The local image Nexus built for a profile (labelled `nexus.profile`), with its context label. */
   imageInfo(profile: SandboxProfileId): Promise<ImageInfo>;
+  /**
+   * A diagnosis's view of one container (B2a Task 12): its labels (ownership is checked by the caller first) and the
+   * fixed fact set of `docker inspect`; null when it does not exist. Throws when Docker cannot answer.
+   */
+  inspectFacts(containerId: string): Promise<{ labels: Record<string, string>; facts: DiagnoseContainerFacts } | null>;
 }
 
 /** The transport: a MessagePort-like object (node:worker_threads MessagePort in tests, Electron's in the app). */

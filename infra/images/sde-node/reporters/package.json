@@ -1,0 +1,11 @@
+{
+  "name": "nexus-reporters",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JUnit reporters the sde-node image forces on jest and mocha runs (versions and lockfile written by tools/nexus-lock-images.cjs).",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "jest-junit": "17.0.0",
+    "mocha-junit-reporter": "2.2.1"
+  }
+}

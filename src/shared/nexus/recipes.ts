@@ -94,7 +94,8 @@ export const RECIPES: readonly RecipeDef[] = deepFreeze([
   { id: 'sde.diagnose', version: '1', ...engine,
     argvTemplates: ['docker.inspect', 'probe.table', 'log.ranges'], params: NO_PARAMS, retry: { idempotent: true, maxAttempts: 3 },
     wallClockMs: 60_000,
-    outputContract: { required: ['report'], description: 'A report whose every field comes from inspect, a probe or a log range.' },
+    outputContract: { required: ['target', 'containers', 'logs'],
+      description: 'Facts: the inspected containers and the hashed log ranges; main adds its own probe table and stores a report whose every field comes from inspect, a probe or a log range.' },
     parsers: ['diagnostic'], produces: ['diagnostic_report'], subPhase: 'B2a' }
 ]);
 

@@ -1,0 +1,9 @@
+{
+  "name": "node-test-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "B2a Task 12 fixture: zero dependencies, node:test, a build and an HTTP app with /health.",
+  "scripts": {
+    "build": "node build.js"
+  }
+}

@@ -41,7 +41,12 @@ export const REGISTRY_TABLES: RegistryTables = deepFreeze({
   platformFlows: PLATFORM_FLOWS
 });
 
-/** What B2a implements. Task 13 pins main's recipe runners, validators and the Folio viewers to these. */
+/**
+ * What B2a implements. Task 13 pins main's recipe runners, validators and the Folio viewers to these. `e2eTests` (B2a
+ * Task 12): the end-to-end test of every REAL step, each a test title in test/nexus-platform-exec-recipes.test.cjs (the
+ * fake sandbox driver, run by test:db) or test/nexus-exec-recipes.test.cjs (real Docker, behind the test:exec gate); a
+ * REAL step whose id is not listed here fails the registry check, and the registry test checks each is a title.
+ */
 export const B2A_IMPL: RegistryImpl = deepFreeze({
   recipes: ['repo.snapshot', 'sde.deps.node', 'sde.deps.python', 'sde.test.discover', 'sde.test.node', 'sde.test.pytest',
     'sde.build.node', 'sde.build.python', 'sde.app.assemble', 'sde.preview.start', 'sde.diagnose'],
@@ -49,7 +54,8 @@ export const B2A_IMPL: RegistryImpl = deepFreeze({
     'build.manifest_present', 'build.output_hashed', 'blob.integrity', 'app.manifest_schema', 'app.preview_health', 'diag.schema'],
   viewers: ['viewer.git_commit', 'viewer.text_file', 'viewer.handoff_receipt', 'viewer.repository', 'viewer.requirement',
     'viewer.problem_statement', 'viewer.test_suite', 'viewer.build', 'viewer.application', 'viewer.diagnostic_report'],
-  e2eTests: null
+  e2eTests: ['e2e.sde.requirement', 'e2e.sde.project', 'e2e.sde.repository', 'e2e.sde.code', 'e2e.sde.tests', 'e2e.sde.build',
+    'e2e.sde.application', 'e2e.sde.dev-deployment', 'e2e.sde.diagnostics', 'e2e.data.business-question', 'e2e.ml.problem', 'e2e.dl.problem']
 });
 
 /** An end-to-end test id: `e2e.<domain>.<step>`. */

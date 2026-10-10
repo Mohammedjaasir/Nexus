@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "generatedBy": "tools/nexus-lock-images.cjs",
+  "platform": "linux/amd64",
+  "profiles": {
+    "sde-node": {
+      "base": {
+        "ref": "docker.io/library/node:20-bookworm-slim",
+        "repository": "docker.io/library/node",
+        "digest": "sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0",
+        "platformDigest": "sha256:3d0f05455dea2c82e2f76e7e2543964c30f6b7d673fc1a83286736d44fe4c41c"
+      },
+      "baseEnv": [
+        "NODE_VERSION",
+        "PATH",
+        "YARN_VERSION"
+      ],
+      "imageEnv": [
+        "NODE_VERSION",
+        "PATH",
+        "YARN_VERSION"
+      ],
+      "entrypoint": [
+        "/opt/nexus/nexus-entry"
+      ],
+      "lockfiles": {
+        "sde-node/reporters/package.json": "1db0f231f59cae1838e9dbdcb2ad87e09399767b14c29e90351917b30165db6d",
+        "sde-node/reporters/package-lock.json": "69b0449a64159d9db10e0099cae75f40a32999ccbe04a1f76451cedc0e741d8d"
+      },
+      "contextSha256": "671caeb1c622ad35779cdc57f1207d8f47feb4d416f00f60e50635e96ccac9fe",
+      "estimatedBytes": 214520830,
+      "versions": {
+        "node": "20.20.2",
+        "jest-junit": "17.0.0",
+        "mocha-junit-reporter": "2.2.1"
+      }
+    },
+    "sde-python": {
+      "base": {
+        "ref": "docker.io/library/python:3.11-slim-bookworm",
+        "repository": "docker.io/library/python",
+        "digest": "sha256:0a310eeecf4e1f5a0743f9a6520c90c88d089c903ca5fd283f501e3a805f5f89",
+        "platformDigest": "sha256:8a00ecb83ed9d0864dfd102a1bdb2067fda907ceb30bb86d09da9ee558b19590"
+      },
+      "baseEnv": [
+        "GPG_KEY",
+        "LANG",
+        "PATH",
+        "PYTHON_SHA256",
+        "PYTHON_VERSION"
+      ],
+      "imageEnv": [
+        "GPG_KEY",
+        "LANG",
+        "PATH",
+        "PYTHON_SHA256",
+        "PYTHON_VERSION"
+      ],
+      "entrypoint": [
+        "/opt/nexus/nexus-entry"
+      ],
+      "lockfiles": {
+        "sde-python/requirements.lock": "38380b9ea9e5cd9706ba21d1a79567801373bdc59afba9ca58379349a215fc11"
+      },
+      "contextSha256": "cce6e16fb0a2b1558a3a9fa2924b7cc0f39f81d5e9f35bc0e00bd030eea8c134",
+      "estimatedBytes": 157786191,
+      "versions": {
+        "python": "3.11.17",
+        "pytest": "9.1.1",
+        "build": "1.6.1",
+        "wheel": "0.48.0",
+        "setuptools": "84.0.0"
+      }
+    },
+    "nexus-fwd": {
+      "base": {
+        "ref": "docker.io/library/alpine:3.20",
+        "repository": "docker.io/library/alpine",
+        "digest": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+        "platformDigest": "sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e"
+      },
+      "baseEnv": [
+        "PATH"
+      ],
+      "imageEnv": [
+        "PATH"
+      ],
+      "entrypoint": [
+        "/opt/nexus/fwd-entry"
+      ],
+      "lockfiles": {},
+      "contextSha256": "d606a4b27baf2bd68661569d805057b1f4c1e552e1117f0240e177929833e0e8",
+      "estimatedBytes": 12988115,
+      "versions": {
+        "alpine": "3.20",
+        "socat": "1.8.0.0-r0"
+      }
+    }
+  }
+}

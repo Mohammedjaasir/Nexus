@@ -1,0 +1,6 @@
+{
+  "name": "node-test-failing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "B2a Task 12 fixture: one passing and one failing node:test test."
+}

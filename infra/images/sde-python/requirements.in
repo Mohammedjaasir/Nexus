@@ -1,0 +1,8 @@
+# The sde-python image's tools (B2a Task 12). tools/nexus-lock-images.cjs resolves each name and every dependency for
+# CPython 3.11 on Linux x86_64 from the PyPI JSON API (metadata only), and writes requirements.lock: exact versions with
+# the sha256 of each pure-Python wheel (pip --require-hashes --no-deps --only-binary=:all:). Edit this list, then run the
+# lock tool; never edit requirements.lock by hand.
+pytest
+build
+wheel
+setuptools

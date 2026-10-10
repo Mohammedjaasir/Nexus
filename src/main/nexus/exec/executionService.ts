@@ -75,10 +75,15 @@
  *   another boot owns is never started here (`waiting:runner`). A runner-wide fault interrupts running image builds.
  *   With a repository check configured, the snapshot action starts only through RepoService (its REPOSITORY_CHECKED
  *   token); otherwise the core still keeps one live snapshot job per project.
+ * - Diagnosis (B2a Task 12). `sde.diagnose` names a dev deployment or a job of the project by params; it is resolved and
+ *   authorized (`job.read` on the subject's job) at start and recorded in the job's capability. At lease main reads the
+ *   subject's newest container and the tails of its newest attempt logs from its own rows (no project folder); the
+ *   ingest adds main's own probe table and stores the report (`diag.schema`). Every attempt's environment records the
+ *   image's `nexus.versions` label.
  */
 import type Database from 'better-sqlite3';
 import type { ImageStatus, SandboxProfile, SandboxProfileId, StagedOutput, ParsedOutput, ExitInfo, ResourceLimits } from '../../../shared/nexus/execution';
-import { SANDBOX_PROFILE_IDS } from '../../../shared/nexus/execution';
+import { DIAGNOSE_MAX_RANGES, SANDBOX_PROFILE_IDS } from '../../../shared/nexus/execution';
 import type { Job, JobKind, JobState, Principal, ScopeRef } from '../../../shared/nexus/platform';
 import { getUserAction, type UserActionDef } from '../../../shared/nexus/actions';
 import type { ParamsSchema } from '../../../shared/nexus/domainSpec';
@@ -101,7 +106,7 @@ import { canRetry, isJobState, TERMINAL_JOB_STATES } from '../jobs/jobRules';
 import { JOB_KINDS, requireActiveParticipation, storedWorkspace, validateKey, type JobRow, type JobService } from '../jobs/jobService';
 import { attemptRow, HEARTBEAT_GAP_MS, LEASE_MS, heartbeatTx, insertAttemptTx, liveAttemptOf, transitionAttemptTx, type AttemptRow } from './attempts';
 import { appendJobEventTx, toJobEvent, type JobEvent, type JobEventRow } from './events';
-import { buildPlan, imageRef, lockfileSha256Of, sandboxRecord, underDataHome, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
+import { buildPlan, imageRef, lockfileSha256Of, sandboxRecord, underDataHome, type DiagnoseContext, type PlanApproval, type PlanInput, type ServiceContext } from './planBuilder';
 import { homeLabel } from '../../../shared/nexus/homeLabel';
 import type { RunnerPort } from './runnerPort';
 import { backoffMs, DEFAULT_CAPS, leaseGuard, SOLO_MEMORY_SHARE, usableImage, type LiveUse, type ProbeCache, type SchedulerCaps } from './scheduler';
@@ -259,6 +264,11 @@ interface Capability {
   action: string; recipe: string; recipeVersion: string; executor: string; network: string; profile: SandboxProfileId | null;
   /** A dev deployment: the application version it previews (a draft may be previewed; the job's input is its build). */
   subjectVersionId?: string;
+  /**
+   * A diagnosis (B2a Task 12): what it diagnoses, resolved and authorized at start (the subject job's id; for a
+   * deployment, also the application version it previews, the report's lineage source).
+   */
+  diagnose?: { target: 'deployment' | 'job'; targetId: string; jobId: string; subjectVersionId: string | null };
 }
 
 const PLATFORM: ScopeRef = { type: 'platform' };
@@ -266,6 +276,8 @@ const LIVE_JOB_STATES: readonly JobState[] = ['queued', 'leased', 'running', 'aw
 /** Attempt failures an idempotent recipe is retried for (infrastructure, not the work itself). */
 const RETRYABLE = new Set(['docker_resources', 'disk_full', 'container_vanished', 'docker_error', 'io_error', 'ingest_error', 'runner_lost']);
 const CANCEL_GRACE_MS = 10_000;
+/** A diagnosis reads at most this much of the end of each of its subject's newest two attempt logs. */
+export const DIAGNOSE_LOG_TAIL_BYTES = 64 * 1024;
 /** A gap between ticks longer than this is a stall of main (or the machine), not silence of the runner. */
 export const TICK_STALL_MS = 10_000;
 /** A gap this long (machine sleep) is also excluded from wall clocks, up to 1x the attempt's wall clock in all. */
@@ -1325,7 +1337,8 @@ export class ExecutionService {
     const image = usableImage(this.probe, cap.profile);
     const inputs = this.planInputs(j.id);
     // A dev deployment stages the commit its build was made from, beside the build's files.
-    const needsRepo = recipe.executor === 'engine' || recipe.executor === 'service' || inputs.some((i) => i.storage?.kind === 'git');
+    // A diagnosis reads Docker and the data home only: no project folder.
+    const needsRepo = (recipe.executor === 'engine' && recipe.id !== 'sde.diagnose') || recipe.executor === 'service' || inputs.some((i) => i.storage?.kind === 'git');
     const repoPath = needsRepo ? this.repoPathOf(j.project_id) : null;
     const workRel = home.attemptWorkRel(j.id, n);
     const logRel = home.attemptLogPath(j.id, n);
@@ -1351,11 +1364,15 @@ export class ExecutionService {
         } catch (e) { planError = refused(e); }
       }
     }
+    let diagnose: DiagnoseContext | null = null;
+    if (recipe.id === 'sde.diagnose' && !planError) {
+      try { diagnose = this.diagnoseContext(cap); } catch (e) { planError = refused(e); }
+    }
     if (!egress && !planError) {
       try {
         plan = buildPlan({ job: { id: j.id, projectId: j.project_id }, attempt: { id: attemptId, n }, bootId: this.bootId!, recipe,
           profile, imageId: (image?.imageId as `sha256:${string}` | undefined) ?? null, dataHomeRoot: home.root, workRel, logRel, inputs, repoPath,
-          approval: null, service });
+          approval: null, service, diagnose });
       } catch (e) {
         planError = refused(e);
       }
@@ -1365,6 +1382,8 @@ export class ExecutionService {
       // The reference the container is created from (a built image's local id; planBuilder.imageRef), and its base.
       imageRef: profile && image?.imageId ? imageRef(profile, image.imageId as `sha256:${string}`) : null, imageId: image?.imageId ?? null,
       baseDigest: profile?.image.digest ?? null, contextSha256: image?.contextSha256 ?? null,
+      // The image's own record of its tool versions (its `nexus.versions` label, checked by its build self-test; constraint 8).
+      imageVersions: image?.versions ?? null,
       dockerVersion: this.probe?.probe.version ?? null, runnerBootId: this.bootId, nexusVersion: this.deps.appVersion ?? null,
       lockfileSha256: lockfileSha256Of(inputs)
     };
@@ -1574,13 +1593,16 @@ export class ExecutionService {
 
   /**
    * The images as the runner reported them, judged against the image builds (A10): an image whose context label differs
-   * from the latest succeeded build of its profile does not match (`image_mismatch`), whatever its digest says.
+   * from the latest succeeded build of its profile does not match (`image_mismatch`), whatever its digest says. B2a Task 12
+   * (A2): with a succeeded build recorded, the image a container is created from is that build's local id: an image of
+   * the profile with another id (built elsewhere, or older) does not match either.
    */
   private judgeImages(images: readonly ImageStatus[]): ImageStatus[] {
     return images.map((i) => {
       if (i.present !== true || i.digestMatches !== true) return i;
       const b = latestSucceededBuild(this.db, i.profile);
-      return !b || i.contextSha256 === b.contextSha256 ? i : { ...i, digestMatches: false };
+      const same = !b || (i.contextSha256 === b.contextSha256 && (b.imageId === null || i.imageId === b.imageId));
+      return same ? i : { ...i, digestMatches: false };
     });
   }
 
@@ -1849,10 +1871,12 @@ export class ExecutionService {
     const profile = this.profileFor(o.projectId, facts);
     const recipe = recipes.find((rc) => rc.executor === 'engine' || rc.profiles.includes(profile)) ?? null;
     if (!recipe) return invalid('no_recipe', 'no recipe of this action fits the repository');
-    if (recipe.executor === 'service' || recipe.id === 'sde.diagnose') return invalid('not_in_this_build', 'this action arrives with dev deployments');
+    if (recipe.executor === 'service') return invalid('not_in_this_build', 'this action arrives with dev deployments');
+    // A diagnosis names its subject by params; it is resolved in this project and authorized (job.read) now.
+    const diagnose = recipe.id === 'sde.diagnose' ? this.diagnoseSubject(p, o.projectId, o.params) : undefined;
     if (recipe.network === 'egress-approved' && !this.deps.approvals) return invalid('approvals_unavailable', 'network approvals are not available in this build');
     const cap: Capability = { action: o.action.id, recipe: recipe.id, recipeVersion: recipe.version, executor: recipe.executor, network: recipe.network,
-      profile: recipe.executor === 'engine' ? null : profile };
+      profile: recipe.executor === 'engine' ? null : profile, ...(diagnose ? { diagnose } : {}) };
     const limits = recipe.limits
       ? { cpus: recipe.limits.cpus, memoryMb: recipe.limits.memoryMb, pids: 512, wallClockMs: recipe.wallClockMs, outputMaxBytes: recipe.limits.outputMaxBytes, tmpfsMb: 512 }
       : { wallClockMs: recipe.wallClockMs };
@@ -1949,6 +1973,42 @@ export class ExecutionService {
     const langs = isPlainObject(meta) && Array.isArray(meta.detectedLanguages) ? meta.detectedLanguages.map((x) => String(x).toLowerCase()) : [];
     if (langs.includes('python') && !langs.some((l) => l === 'javascript' || l === 'typescript')) return 'sde-python';
     return 'sde-node';
+  }
+
+  /**
+   * The subject of a diagnosis (B2a Task 12): a dev deployment or a job of THIS project, which the caller may read
+   * (`job.read` on the subject's job, audited when denied). Anything else is `input_not_allowed`.
+   */
+  private diagnoseSubject(p: Principal, projectId: string, params: Record<string, unknown>): NonNullable<Capability['diagnose']> {
+    const target = params.target === 'deployment' ? 'deployment' : params.target === 'job' ? 'job' : null;
+    const targetId = typeof params.targetId === 'string' ? params.targetId : null;
+    if (!target || !targetId) return invalid('bad_params', 'a diagnosis names a deployment or a job');
+    if (target === 'deployment') {
+      const d = this.db.prepare('SELECT id, job_id, subject_version_id FROM deployments WHERE id = ? AND project_id = ?').get(targetId, projectId) as
+        { id: string; job_id: string; subject_version_id: string } | undefined;
+      if (!d) return invalid('input_not_allowed', 'the deployment to diagnose is not in this project');
+      this.load(p, d.job_id, 'job.read');
+      return { target, targetId, jobId: d.job_id, subjectVersionId: d.subject_version_id };
+    }
+    const j = this.row(targetId);
+    if (!j || j.project_id !== projectId) return invalid('input_not_allowed', 'the job to diagnose is not in this project');
+    this.load(p, j.id, 'job.read');
+    return { target, targetId, jobId: j.id, subjectVersionId: null };
+  }
+
+  /**
+   * What a diagnosis reads, from main's own rows at lease: the subject job's newest attempt container (a dev deployment's
+   * app container, or a job's container while it exists), and the tail of its newest attempts' logs.
+   */
+  private diagnoseContext(cap: Capability): DiagnoseContext {
+    const d = cap.diagnose;
+    if (!d) throw new PlatformError('invalid', 'a diagnosis needs its subject', { reason: 'bad_input' });
+    const attempts = this.db.prepare(`SELECT id, n, container_id, log_path FROM job_attempts WHERE job_id = ? ORDER BY n DESC LIMIT ?`)
+      .all(d.jobId, DIAGNOSE_MAX_RANGES) as { id: string; n: number; container_id: string | null; log_path: string | null }[];
+    const withContainer = attempts.find((a) => a.container_id !== null);
+    const logRanges = attempts.filter((a) => a.log_path !== null).slice(0, 2)
+      .map((a) => ({ attemptId: a.id, logRel: a.log_path!, offset: 0, length: DIAGNOSE_LOG_TAIL_BYTES, tail: true }));
+    return { target: d.target, containerIds: withContainer ? [withContainer.container_id!] : [], logRanges };
   }
 
   cancel(p: Principal, jobId: string): ExecJob {

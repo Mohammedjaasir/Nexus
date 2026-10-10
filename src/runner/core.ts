@@ -8,8 +8,12 @@
  * labels; then the container) -> preflight (`docker inspect` + the pure comparator; a failure removes the never-started
  * container and reports `provisioned { preflight.ok: false }`) -> start -> `provisioned` -> running (log stream, the
  * wall-clock backstop, the size guard; a dev deployment's probe loop) -> exit -> collect (`exit.json` beside `/out`
- * first, then `/out` hashed into the object store, then the parsers) -> `attempt.exited` -> wait for `attempt.release`
+ * first; for node:test the per-file JUnit reports merged into `junit.xml`, each case attributed to its file from the plan:
+ * junitMerge.ts; then `/out` hashed into the object store, then the parsers) -> `attempt.exited` -> wait for `attempt.release`
  * -> cleanup (containers, the workspace volume and the attempt's networks; never the work folder, the log or a deps cache).
+ *
+ * Engine attempts (no container): `repo.snapshot` and `sde.app.assemble` (async git), and `sde.diagnose` (B2a Task 12:
+ * `docker inspect` of this install's containers only, hashed attempt log ranges: diagnose.ts).
  *
  * Heartbeats start when `attempt.start` (or `attempt.adopt`) arrives and continue through staging, create and preflight,
  * every 15 s, until release. A heartbeat of an attempt being finalized after a restart says `exited`, never `missing`.
@@ -26,7 +30,7 @@
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import {
-  type AttemptPlan, type ContainerSpec, type EnginePlan, type ExitInfo, type OutputErrorCode, type ParsedOutput, type SandboxProfile,
+  IMAGE_VERSIONS_RE, type AttemptPlan, type ContainerSpec, type EnginePlan, type ExitInfo, type OutputErrorCode, type ParsedOutput, type SandboxProfile,
   type SandboxProbe, type ServicePlan, type StagedOutput, type ToolPlan
 } from '../shared/nexus/execution';
 import {
@@ -35,8 +39,10 @@ import {
 import { expectedNetworkName } from '../shared/nexus/preflightCheck';
 import { leaseFloorBytes } from '../shared/nexus/resourceGate';
 import { containsSecret, redactSecretText } from '../main/nexus/activity/redact';
+import { diagnose, diagnoseTaskProblem } from './diagnose';
 import { appManifestArgv, COMMIT_RE, GitRunner } from './git';
 import { ImageBuilder } from './imageBuilder';
+import { mergePerFileJunit } from './junitMerge';
 import { LogWriter } from './logs';
 import { ObjectStore } from './objectStore';
 import { collectOut, outBytes, showEntry } from './outputs';
@@ -276,12 +282,13 @@ export class RunnerCore {
     try { probe = await this.driver.probe(); } catch { probe = { docker: 'stopped', gpu }; }
     const images = [];
     for (const p of this.profiles) {
-      let info: { present: boolean; digestMatches: boolean; sizeBytes?: number; imageId?: string; contextSha256?: string } = { present: false, digestMatches: false };
+      let info: { present: boolean; digestMatches: boolean; sizeBytes?: number; imageId?: string; contextSha256?: string; versions?: string } = { present: false, digestMatches: false };
       if (probe.docker === 'running') { try { info = await this.driver.imageInfo(p.id); } catch { /* not present */ } }
       images.push({ profile: p.id, present: info.present, digestMatches: info.digestMatches,
         ...(info.sizeBytes !== undefined ? { sizeBytes: info.sizeBytes } : {}),
         ...(info.imageId && /^sha256:[0-9a-f]{64}$/.test(info.imageId) ? { imageId: info.imageId } : {}),
-        ...(info.contextSha256 && SHA_RE.test(info.contextSha256) ? { contextSha256: info.contextSha256 } : {}) });
+        ...(info.contextSha256 && SHA_RE.test(info.contextSha256) ? { contextSha256: info.contextSha256 } : {}),
+        ...(typeof info.versions === 'string' && info.versions.length <= 300 && IMAGE_VERSIONS_RE.test(info.versions) ? { versions: info.versions } : {}) });
     }
     const free = this.paths ? await this.freeBytes(this.paths.root) : null;
     this.post({ op: 'probe.result', probe, images, freeBytes: free !== null && Number.isSafeInteger(Math.floor(free)) && free >= 0 ? Math.floor(free) : null, runtimes: [] });
@@ -447,8 +454,16 @@ export class RunnerCore {
     if (!ID_RE.test(plan.jobId) || !Number.isSafeInteger(plan.attemptN) || plan.attemptN < 1) return 'the plan ids are malformed';
     if (!this.paths.same(plan.workDir, this.paths.workDir(plan.jobId, plan.attemptN))) return 'the work folder is not this attempt\'s';
     if (!this.paths.same(plan.logPath, this.paths.logPath(plan.jobId, plan.attemptN))) return 'the log path is not this attempt\'s';
-    if (plan.kind === 'engine') return null;
+    if (plan.kind === 'engine') return plan.task?.engine === 'sde.diagnose' ? diagnoseTaskProblem(plan.task) : null;
     if (!this.home) return 'this install has no label';
+    if (plan.kind === 'tool' && plan.perFileJunit !== undefined) {
+      const pf = plan.perFileJunit;
+      const argv = plan.container.argv;
+      const sep = argv.indexOf('--');
+      if (!pf || pf.dir !== 'junit' || !Array.isArray(pf.files) || argv[0] !== 'nexus-node-test' || sep < 0) return 'the per-file report plan is malformed';
+      const tail = argv.slice(sep + 1);
+      if (tail.length !== pf.files.length || tail.some((x, i) => x !== pf.files[i])) return 'the per-file report mapping is not the files the plan runs';
+    }
     if (plan.staging.depsVolume && !DEPS_VOLUME_RE.test(plan.staging.depsVolume.name)) return 'the deps volume is not a dependency cache volume';
     const rl = plan.resourceLabels;
     if (!rl || rl['nexus.home'] !== this.home || rl['nexus.attempt'] !== attemptId || rl['nexus.job'] !== plan.jobId) return 'the resource labels are not this attempt\'s';
@@ -680,6 +695,14 @@ export class RunnerCore {
     let outputs: StagedOutput[] = []; let parsed: ParsedOutput[] = [];
     let outputError: OutputErrorCode | undefined = rec.guard; let entry: string | undefined;
     if (!rec.reason && !outputError && plan && this.store) {
+      // node:test: the per-file reports are merged into junit.xml first, every case attributed to its file (A5).
+      if (plan.perFileJunit && this.paths) {
+        try {
+          const m = await mergePerFileJunit(this.fs, this.paths.root, path.join(a.workDir, 'out'), plan.perFileJunit.files);
+          for (const n of m.notes.slice(0, 20)) a.log?.nexus(n);
+          if (m.merged) a.log?.nexus(`the per-file reports were merged: ${m.cases} test case(s) attributed to ${plan.perFileJunit.files.length} file(s)`);
+        } catch (e) { a.log?.nexus(`the per-file reports were not merged: ${msgOf(e)}`); }
+      }
       this.event(a, 'hashing');
       const c = await collectOut(this.fs, this.store, path.join(a.workDir, 'out'),
         { maxFiles: plan.outputContract.maxFiles, maxBytes: plan.container.limits.outputMaxBytes });
@@ -873,9 +896,14 @@ export class RunnerCore {
           if (!m.ok) { code = 1; a.log?.nexus(`nexus.app.json was refused: ${m.reason}`); }
           else parsed.push({ parser: 'app-manifest', sourceSha256: m.sha256, normalized: { manifest: m.manifest } });
         }
+      } else if (t.engine === 'sde.diagnose') {
+        // A1: docker inspect of the subject's containers (this install's only) and hashed log ranges; main adds its probes.
+        const r = await diagnose({ driver: this.driver, fs: this.fs, paths: this.paths!, home: this.home }, t, a.abort.signal);
+        parsed.push({ parser: 'diagnostic', sourceSha256: createHash('sha256').update(JSON.stringify(r)).digest('hex'), normalized: r });
+        a.log?.nexus(`diagnosed ${r.containers.length} container(s) and ${r.logs.length} log range(s)`);
       } else {
         code = 1;
-        a.log?.nexus(`${t.engine} is not in this build`);
+        a.log?.nexus(`${(t as { engine: string }).engine} is not in this build`);
       }
     } catch (e) {
       code = 1;

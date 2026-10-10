@@ -5,7 +5,7 @@
 // Anything that does not parse is dropped. Pure; no I/O.
 
 import {
-  OUTPUT_ERROR_CODES, PARSER_IDS, SANDBOX_PROFILE_IDS,
+  IMAGE_VERSIONS_RE, OUTPUT_ERROR_CODES, PARSER_IDS, SANDBOX_PROFILE_IDS,
   type AttemptPlan, type ExitInfo, type ImageStatus, type OutputErrorCode, type ParsedOutput, type PreflightObserved,
   type SandboxProbe, type SandboxProfile, type SandboxProfileId, type StagedOutput
 } from './execution';
@@ -310,7 +310,8 @@ const probe = obj<SandboxProbe>(
   { version: text, os: text, wsl2: bool, cpus: count, memoryBytes: count });
 
 const imageStatus = obj<ImageStatus>({ profile: oneOf(SANDBOX_PROFILE_IDS), present: bool, digestMatches: bool },
-  { sizeBytes: count, imageId: str({ re: DIGEST_RE }), contextSha256: sha256 });
+  { sizeBytes: count, imageId: str({ re: DIGEST_RE }), contextSha256: sha256,
+    versions: (x) => (typeof x === 'string' && x.length <= 300 ? str({ re: IMAGE_VERSIONS_RE })(x) : NO) });
 
 const observed = obj<Partial<PreflightObserved>>({}, {
   nanoCpus: count, memory: intIn(-1, Number.MAX_SAFE_INTEGER), memorySwap: intIn(-1, Number.MAX_SAFE_INTEGER),

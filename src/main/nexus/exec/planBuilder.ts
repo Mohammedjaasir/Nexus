@@ -19,7 +19,11 @@
  * - labels, limits (`--pids-limit 512`, the recipe's CPUs, memory and output cap, a 512 MiB
  *   `/tmp`), read-only root, `--cap-drop ALL`, no-new-privileges: fixed.
  * - Engine recipes (`repo.snapshot`, `sde.app.assemble`) get an `EnginePlan` whose repository
- *   folder is the one main accepted from the `projects` row (`acceptFsRoot`), never a param.
+ *   folder is the one main accepted from the `projects` row (`acceptFsRoot`), never a param. `sde.diagnose` (B2a Task 12)
+ *   gets one naming the subject's containers and attempt log ranges, all read by main from its own rows (no folder).
+ * - The Nexus entry (infra/images/common/nexus-entry) receives the container's wall clock in `NEXUS_WALL_SECONDS` (main's
+ *   number) and bounds the whole run with its own `timeout`; node:test runs one file at a time (`nexus-node-test`) with a
+ *   `perFileJunit` mapping the runner merges and attributes (A5).
  * - The service recipe (`sde.preview.start`, B2a Task 9) gets a `ServicePlan`: the app container runs the
  *   application manifest's validated `run` argv (an array, never a shell string) on the internal network
  *   `nexus-svc-<jobId>` only (no egress); the `nexus-fwd` forwarder joins it and `nexus-pub-<jobId>` and publishes
@@ -32,6 +36,7 @@
  */
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
+import { DIAGNOSE_MAX_CONTAINERS, DIAGNOSE_MAX_RANGES, DIAGNOSE_RANGE_MAX_BYTES } from '../../../shared/nexus/execution';
 import type {
   AttemptPlan, ContainerSpec, EnginePlan, MountSpec, NetworkMode, ResourceLabels, ResourceLimits, SandboxProfile, ServicePlan, ToolPlan
 } from '../../../shared/nexus/execution';
@@ -43,8 +48,15 @@ import { PlatformError } from '../errors';
 
 /** The environment names a container may receive from main (values are main's, never the host's). */
 export const ALLOWED_ENV_NAMES: readonly string[] = Object.freeze([
-  'HOME', 'CI', 'NODE_ENV', 'PYTHONPATH', 'JEST_JUNIT_OUTPUT_FILE', 'PIP_NO_INPUT', 'npm_config_cache', 'PYTHONDONTWRITEBYTECODE'
+  'HOME', 'CI', 'NODE_ENV', 'PYTHONPATH', 'JEST_JUNIT_OUTPUT_FILE', 'PIP_NO_INPUT', 'npm_config_cache', 'PYTHONDONTWRITEBYTECODE',
+  // B2a Task 12: the container's wall clock in whole seconds, for the Nexus entry's own `timeout` (main's number, never the job's).
+  'NEXUS_WALL_SECONDS'
 ]);
+/** The entry's own wall clock (whole seconds, at least 1) for a plan wall clock in milliseconds. */
+export function wallSeconds(ms: number): string {
+  if (!Number.isSafeInteger(ms) || ms <= 0) return refuse('bad_input', 'a container needs a wall clock');
+  return String(Math.max(1, Math.ceil(ms / 1000)));
+}
 export const PIDS_LIMIT = 512;
 export const TMPFS_MB = 512;
 /** The Nexus entry splits a multi-step recipe's argv on this token (the entry script is Task 12). */
@@ -65,7 +77,8 @@ export const ARGV_TEMPLATES: Readonly<Record<string, readonly string[]>> = Objec
   'mocha.dry-run': ['nexus-capture', '--out', '/out/ids.txt', '--', './node_modules/.bin/mocha', '--dry-run', '--reporter', 'json'],
   'pytest.collect-only': ['nexus-capture', '--out', '/out/ids.txt', '--', 'python', '-m', 'pytest', '--collect-only', '-q',
     '-p', 'no:cacheprovider'],
-  'node-test.junit': ['node', '--test', '--test-reporter=junit', '--test-reporter-destination=/out/junit.xml'],
+  // node:test runs each discovered file on its own (per-file JUnit, merged and attributed by the runner: A5).
+  'node-test.junit': ['nexus-node-test', '--out-dir', '/out/junit', '--'],
   'jest.junit': ['./node_modules/.bin/jest', '--ci', '--reporters=/opt/nexus/reporters/node_modules/jest-junit'],
   'vitest.junit': ['./node_modules/.bin/vitest', 'run', '--reporter=junit', '--outputFile=/out/junit.xml'],
   'mocha.junit': ['./node_modules/.bin/mocha', '--reporter', '/opt/nexus/reporters/node_modules/mocha-junit-reporter',
@@ -133,6 +146,18 @@ export interface PlanContext {
   approval?: PlanApproval | null;
   /** The service recipe only (a dev deployment). */
   service?: ServiceContext | null;
+  /** `sde.diagnose` only (B2a Task 12): what main read from its own rows about the subject. */
+  diagnose?: DiagnoseContext | null;
+}
+
+/**
+ * What a diagnosis reads (main derives every value from its rows: the subject deployment's or job's attempts): the
+ * subject's containers, and byte ranges of its attempts' logs (`logRel` as stored on the attempt row).
+ */
+export interface DiagnoseContext {
+  target: 'deployment' | 'job';
+  containerIds: readonly string[];
+  logRanges: readonly { attemptId: string; logRel: string; offset: number; length: number; tail: boolean }[];
 }
 
 const refuse = (reason: string, message: string): never => { throw new PlatformError('invalid', message, { reason }); };
@@ -317,7 +342,7 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
     entrypoint: [...profile.entrypoint],
     argv: expandArgv(recipe, framework, ctx.inputs),
     imageEnv: [...profile.imageEnv],
-    env: envFor(recipe, profile.id, framework),
+    env: checkEnv({ ...envFor(recipe, profile.id, framework), NEXUS_WALL_SECONDS: wallSeconds(recipe.wallClockMs) }),
     mounts,
     network: networkFor(recipe, job, attempt, ctx.approval),
     limits: limitsFor(recipe),
@@ -335,6 +360,7 @@ export function buildPlan(ctx: PlanContext): AttemptPlan {
       blobs: [],
       ...(deps ? { depsVolume: { name: deps, readOnly: !egress } } : {})
     },
+    ...(framework === 'node-test' && recipe.id === 'sde.test.node' ? { perFileJunit: { dir: 'junit' as const, files: discoveredFiles(ctx.inputs) } } : {}),
     outputContract: { required: [...recipe.outputContract.required], maxFiles: 10_000 },
     parse: recipe.parsers.map((p) => ({ parser: p, relPath: p === 'junit' ? 'junit.xml' : p === 'discovery' ? 'ids.txt' : '' }))
       .filter((x) => x.relPath !== '')
@@ -398,7 +424,8 @@ function buildServicePlan(ctx: PlanContext, base: ServiceBase): ServicePlan {
   const app: ContainerSpec = {
     name: `nexus-${attempt.id.toLowerCase()}-app`, labels: labels('service'), profile: profile.id,
     image: { ref: imageRef(profile, ctx.imageId), id: ctx.imageId },
-    entrypoint: [...profile.entrypoint], argv, imageEnv: [...profile.imageEnv], env: envFor(recipe, profile.id, null), mounts, network,
+    entrypoint: [...profile.entrypoint], argv, imageEnv: [...profile.imageEnv],
+    env: checkEnv({ ...envFor(recipe, profile.id, null), NEXUS_WALL_SECONDS: wallSeconds(lifetime) }), mounts, network,
     limits: { ...limitsFor(recipe), wallClockMs: lifetime }, readOnlyRootfs: true, capDrop: ['ALL'], noNewPrivileges: true,
     service: { containerPort: port, healthPath }
   };
@@ -406,7 +433,7 @@ function buildServicePlan(ctx: PlanContext, base: ServiceBase): ServicePlan {
     name: `nexus-${attempt.id.toLowerCase()}-fwd`, labels: labels('forwarder'), profile: 'nexus-fwd',
     image: { ref: imageRef(fwd, s.forwarderImageId), id: s.forwarderImageId },
     entrypoint: [...fwd.entrypoint], argv: [...ARGV_TEMPLATES['fwd.socat-loopback'], `TCP:app:${port}`], imageEnv: [...fwd.imageEnv],
-    env: checkEnv({ HOME: '/home/nexus' }), mounts: [], network,
+    env: checkEnv({ HOME: '/home/nexus', NEXUS_WALL_SECONDS: wallSeconds(lifetime) }), mounts: [], network,
     limits: { cpus: FORWARDER_LIMITS.cpus, memoryMb: FORWARDER_LIMITS.memoryMb, pids: PIDS_LIMIT, wallClockMs: lifetime,
       outputMaxBytes: FORWARDER_LIMITS.outputMaxBytes, tmpfsMb: FORWARDER_LIMITS.tmpfsMb },
     readOnlyRootfs: true, capDrop: ['ALL'], noNewPrivileges: true,
@@ -424,7 +451,31 @@ function buildServicePlan(ctx: PlanContext, base: ServiceBase): ServicePlan {
   };
 }
 
+const LOG_REL_RE = /^logs\/jobs\/[0-9A-Za-z_-]{1,64}\/[1-9][0-9]{0,6}\.log$/;
+const ULID_PLAN_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+
+function buildDiagnosePlan(ctx: PlanContext, base: Omit<EnginePlan, 'kind' | 'task' | 'wallClockMs'>): EnginePlan {
+  const d = ctx.diagnose;
+  if (!d || (d.target !== 'deployment' && d.target !== 'job')) return refuse('bad_input', 'a diagnosis needs its subject');
+  if (!Array.isArray(d.containerIds) || d.containerIds.length > DIAGNOSE_MAX_CONTAINERS
+    || !d.containerIds.every((c) => typeof c === 'string' && /^[0-9a-f]{64}$/.test(c))) return refuse('bad_input', 'the diagnosed containers are not container ids');
+  if (!Array.isArray(d.logRanges) || d.logRanges.length > DIAGNOSE_MAX_RANGES) return refuse('bad_input', 'too many log ranges');
+  const logRanges = d.logRanges.map((r) => {
+    if (typeof r?.attemptId !== 'string' || !ULID_PLAN_RE.test(r.attemptId) || typeof r.logRel !== 'string' || !LOG_REL_RE.test(r.logRel)
+      || !Number.isSafeInteger(r.offset) || r.offset < 0 || !Number.isSafeInteger(r.length) || r.length < 0 || r.length > DIAGNOSE_RANGE_MAX_BYTES
+      || typeof r.tail !== 'boolean') {
+      return refuse('bad_input', 'a log range is not an attempt log range');
+    }
+    return { attemptId: r.attemptId, logPath: underDataHome(ctx.dataHomeRoot, r.logRel), offset: r.offset, length: r.length, tail: r.tail };
+  });
+  if (d.containerIds.length === 0 && logRanges.length === 0) return refuse('bad_input', 'the subject has nothing to diagnose yet');
+  return { ...base, kind: 'engine', task: { engine: 'sde.diagnose', target: d.target, containerIds: [...d.containerIds], logRanges },
+    wallClockMs: ctx.recipe.wallClockMs };
+}
+
 function buildEnginePlan(ctx: PlanContext, base: Omit<EnginePlan, 'kind' | 'task' | 'wallClockMs'>): EnginePlan {
+  // A diagnosis reads Docker and the data home only: it needs no project folder.
+  if (ctx.recipe.id === 'sde.diagnose') return buildDiagnosePlan(ctx, base);
   const repoPath = ctx.repoPath;
   if (!repoPath) return refuse('project_folder_unavailable', 'the project folder is not available');
   if (ctx.recipe.id === 'repo.snapshot') return { ...base, kind: 'engine', task: { engine: 'repo.snapshot', repoPath }, wallClockMs: ctx.recipe.wallClockMs };
@@ -433,12 +484,16 @@ function buildEnginePlan(ctx: PlanContext, base: Omit<EnginePlan, 'kind' | 'task
     if (!src) return refuse('bad_input', 'assembly needs the commit of its build');
     return { ...base, kind: 'engine', task: { engine: 'sde.app.assemble', repoPath, commit: src.commit }, wallClockMs: ctx.recipe.wallClockMs };
   }
-  return refuse('not_in_this_build', `${ctx.recipe.id} arrives with dev deployments`);
+  return refuse('not_in_this_build', `${ctx.recipe.id} is not an engine task of this build`);
 }
 
 /** What `job_attempts.sandbox_json` records of a plan: argv, env NAMES, mounts without host paths, network, limits. */
 export function sandboxRecord(plan: AttemptPlan): Record<string, unknown> {
-  if (plan.kind === 'engine') return { executor: 'engine', engine: plan.task.engine, network: 'not-applicable', wallClockMs: plan.wallClockMs };
+  if (plan.kind === 'engine') {
+    const t = plan.task;
+    return { executor: 'engine', engine: t.engine, network: 'not-applicable', wallClockMs: plan.wallClockMs,
+      ...(t.engine === 'sde.diagnose' ? { target: t.target, containers: t.containerIds.length, logRanges: t.logRanges.map((r) => ({ offset: r.offset, length: r.length })) } : {}) };
+  }
   if (plan.kind === 'service') {
     const rec = (c: ContainerSpec): Record<string, unknown> => ({
       name: c.name, profile: c.profile, image: c.image, entrypoint: c.entrypoint, argv: c.argv.slice(0, MAX_RUN_ARGS).map((x) => x.slice(0, 200)),

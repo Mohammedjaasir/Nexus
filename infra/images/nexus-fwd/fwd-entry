@@ -1,0 +1,10 @@
+#!/bin/sh
+# fwd-entry: the Nexus-owned entry of the nexus-fwd image (B2a Task 12). It runs exactly one program, socat, with the
+# argv main wrote (`socat TCP-LISTEN:8080,fork,reuseaddr TCP:app:<port>`, planBuilder.ts), as positional parameters
+# (never evaluated as shell text), under the dev deployment's lifetime (NEXUS_WALL_SECONDS, whole seconds) so the
+# forwarder ends itself even when the runner is gone.
+die() { printf 'fwd-entry: %s\n' "$1" >&2; exit 64; }
+[ "$1" = socat ] || die 'only socat runs in the forwarder'
+case "${NEXUS_WALL_SECONDS:-}" in ''|*[!0-9]*) die 'NEXUS_WALL_SECONDS is not a whole number of seconds' ;; esac
+[ "${#NEXUS_WALL_SECONDS}" -le 6 ] && [ "$NEXUS_WALL_SECONDS" -ge 1 ] || die 'NEXUS_WALL_SECONDS is out of range'
+exec timeout -s TERM -k 10 "$NEXUS_WALL_SECONDS" "$@"

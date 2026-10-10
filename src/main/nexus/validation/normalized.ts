@@ -185,3 +185,70 @@ export function checkHealthFacts(x: unknown): Checked<HealthFacts> {
   if (!isText(x.bindAddress, 64)) return bad('the bind address is not text');
   return { ok: true, value: { path: x.path, startedAt: x.startedAt, probes, container: x.container, bindAddress: x.bindAddress } };
 }
+
+// ---------- diagnosis (sde.diagnose, B2a Task 12) ----------
+
+export const DIAG_FACT_STATES = ['created', 'running', 'exited', 'restarting', 'paused', 'dead', 'removing', 'unknown'] as const;
+export interface DiagFacts {
+  state: (typeof DIAG_FACT_STATES)[number]; exitCode: number | null; oomKilled: boolean; restartCount: number;
+  startedAt: string | null; finishedAt: string | null; image: { sha256: string } | null;
+  nanoCpus: number | null; memoryBytes: number | null; pidsLimit: number | null;
+  networkMode: string | null; readonlyRootfs: boolean | null; user: string | null; publishedPorts: string[];
+}
+export interface NormalizedDiagnosis {
+  target: 'deployment' | 'job';
+  containers: { container: { sha256: string }; status: 'inspected' | 'missing' | 'not_owned' | 'unavailable'; facts: DiagFacts | null }[];
+  logs: { attemptId: string; status: 'read' | 'missing' | 'refused'; offset: number; length: number; sha256: string | null;
+    frames: number; errorFrames: number; lastText: string | null }[];
+}
+const DIAG_MAX_CONTAINERS = 4;
+const DIAG_MAX_RANGES = 4;
+const DIAG_RANGE_MAX = 256 * 1024;
+const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
+const optText = (v: unknown, max: number): boolean => v === null || isText(v, max);
+
+/**
+ * The runner's diagnosis: `{ target, containers: [{ container: { sha256 }, status, facts }], logs: [{ attemptId, status,
+ * offset, length, sha256, frames, errorFrames, lastText }] }`, every bound re-checked (a fresh copy is returned).
+ */
+export function checkDiagnosis(x: unknown): Checked<NormalizedDiagnosis> {
+  if (!isObj(x)) return bad('the diagnosis is not an object');
+  if (x.target !== 'deployment' && x.target !== 'job') return bad('the diagnosis target is unknown');
+  if (!Array.isArray(x.containers) || x.containers.length > DIAG_MAX_CONTAINERS) return bad('the diagnosed containers are not a bounded list');
+  if (!Array.isArray(x.logs) || x.logs.length > DIAG_MAX_RANGES) return bad('the log ranges are not a bounded list');
+  const containers: NormalizedDiagnosis['containers'] = [];
+  for (const c of x.containers as unknown[]) {
+    if (!isObj(c) || !isObj(c.container) || typeof c.container.sha256 !== 'string' || !SHA256_RE.test(c.container.sha256)) return bad('a container has no id');
+    if (!['inspected', 'missing', 'not_owned', 'unavailable'].includes(String(c.status))) return bad('a container status is unknown');
+    let facts: DiagFacts | null = null;
+    if (c.status === 'inspected') {
+      const f = c.facts;
+      if (!isObj(f) || !(DIAG_FACT_STATES as readonly string[]).includes(String(f.state))) return bad('inspected facts are missing');
+      if (!(f.exitCode === null || isInt(f.exitCode)) || typeof f.oomKilled !== 'boolean' || !isCount(f.restartCount)) return bad('the exit facts are malformed');
+      if (!optText(f.startedAt, 64) || !optText(f.finishedAt, 64) || !optText(f.networkMode, 128) || !optText(f.user, 64)) return bad('a text fact is malformed');
+      if (!(f.image === null || (isObj(f.image) && typeof f.image.sha256 === 'string' && SHA256_RE.test(f.image.sha256)))) return bad('the image fact is malformed');
+      for (const k of ['nanoCpus', 'memoryBytes', 'pidsLimit'] as const) if (!(f[k] === null || isInt(f[k]))) return bad(`the ${k} fact is malformed`);
+      if (!(f.readonlyRootfs === null || typeof f.readonlyRootfs === 'boolean')) return bad('the read-only fact is malformed');
+      if (!Array.isArray(f.publishedPorts) || f.publishedPorts.length > 8 || !f.publishedPorts.every((p) => isText(p, 80))) return bad('the published ports are malformed');
+      facts = { state: f.state as DiagFacts['state'], exitCode: f.exitCode as number | null, oomKilled: f.oomKilled, restartCount: f.restartCount as number,
+        startedAt: f.startedAt as string | null, finishedAt: f.finishedAt as string | null,
+        image: f.image === null ? null : { sha256: (f.image as { sha256: string }).sha256 },
+        nanoCpus: f.nanoCpus as number | null, memoryBytes: f.memoryBytes as number | null, pidsLimit: f.pidsLimit as number | null,
+        networkMode: f.networkMode as string | null, readonlyRootfs: f.readonlyRootfs as boolean | null, user: f.user as string | null,
+        publishedPorts: [...(f.publishedPorts as string[])] };
+    } else if (c.facts !== null) return bad('only an inspected container carries facts');
+    containers.push({ container: { sha256: c.container.sha256 }, status: c.status as NormalizedDiagnosis['containers'][number]['status'], facts });
+  }
+  const logs: NormalizedDiagnosis['logs'] = [];
+  for (const l of x.logs as unknown[]) {
+    if (!isObj(l) || !isText(l.attemptId, 64) || l.attemptId.length === 0) return bad('a log range names no attempt');
+    if (!['read', 'missing', 'refused'].includes(String(l.status))) return bad('a log range status is unknown');
+    if (!isCount(l.offset) || !isCount(l.length) || (l.length as number) > DIAG_RANGE_MAX) return bad('a log range is out of bounds');
+    if (!isCount(l.frames) || !isCount(l.errorFrames) || (l.errorFrames as number) > (l.frames as number)) return bad('the frame counts are malformed');
+    if (l.status === 'read' ? (typeof l.sha256 !== 'string' || !SHA256_RE.test(l.sha256)) : l.sha256 !== null) return bad('a log range hash is malformed');
+    if (!optText(l.lastText, 200)) return bad('the last line is malformed');
+    logs.push({ attemptId: l.attemptId, status: l.status as NormalizedDiagnosis['logs'][number]['status'], offset: l.offset as number, length: l.length as number,
+      sha256: l.sha256 as string | null, frames: l.frames as number, errorFrames: l.errorFrames as number, lastText: l.lastText as string | null });
+  }
+  return { ok: true, value: { target: x.target, containers, logs } };
+}

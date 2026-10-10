@@ -22,7 +22,8 @@
 import { StringDecoder } from 'node:string_decoder';
 import {
   HOME_TMPFS_MB, HOME_TMPFS_PATH, SANDBOX_UID, SANDBOX_USER, TMP_TMPFS_PATH,
-  type ContainerLabels, type ContainerSpec, type ExitInfo, type PreflightReport, type SandboxProbe, type SandboxProfileId
+  IMAGE_VERSIONS_RE, type ContainerLabels, type ContainerSpec, type DiagnoseContainerFacts, type ExitInfo, type PreflightReport, type SandboxProbe,
+  type SandboxProfileId
 } from '../../shared/nexus/execution';
 import { comparePreflight, expectedNetworkName, isPinnedImageRef, publishNetworkName } from '../../shared/nexus/preflightCheck';
 import { redactSecretText } from '../../main/nexus/activity/redact';
@@ -148,6 +149,39 @@ function labelsOf(v: unknown): Record<string, string> {
   return out;
 }
 
+const FACT_STATES: readonly DiagnoseContainerFacts['state'][] = ['created', 'running', 'exited', 'restarting', 'paused', 'dead', 'removing'];
+const factText = (v: unknown, max = 128): string | null => (typeof v === 'string' && v.length > 0 ? redactSecretText(v).replace(/[\r\n\0]/g, ' ').slice(0, max) : null);
+const factInt = (v: unknown): number | null => (typeof v === 'number' && Number.isSafeInteger(v) ? v : null);
+
+/**
+ * The fixed fact set a diagnosis records from one `docker inspect` record (pure; exported for tests). Never the
+ * environment, the command, the mounts' host paths or the labels: only state, exit, restarts, times, the image id, the
+ * applied limits, the network mode, the user and the published ports.
+ */
+export function containerFacts(rec: Record<string, unknown>): DiagnoseContainerFacts {
+  const st = isObj(rec.State) ? rec.State : {};
+  const hc = isObj(rec.HostConfig) ? rec.HostConfig : {};
+  const cfg = isObj(rec.Config) ? rec.Config : {};
+  const status = String(st.Status ?? '');
+  const ports: string[] = [];
+  const pb = isObj(hc.PortBindings) ? hc.PortBindings : {};
+  for (const k of Object.keys(pb).sort()) {
+    const list = Array.isArray(pb[k]) ? pb[k] as unknown[] : [];
+    for (const b of list) if (isObj(b)) ports.push(`${String(b.HostIp ?? '')}:${String(b.HostPort ?? '')}->${k}`.slice(0, 80));
+    if (ports.length >= 8) break;
+  }
+  const time = (v: unknown): string | null => (typeof v === 'string' && !v.startsWith('0001-') ? factText(v, 40) : null);
+  return {
+    state: (FACT_STATES as readonly string[]).includes(status) ? status as DiagnoseContainerFacts['state'] : 'unknown',
+    exitCode: factInt(st.ExitCode), oomKilled: st.OOMKilled === true, restartCount: factInt(rec.RestartCount) ?? 0,
+    startedAt: time(st.StartedAt), finishedAt: time(st.FinishedAt),
+    image: typeof rec.Image === 'string' && /^sha256:[0-9a-f]{64}$/.test(rec.Image) ? { sha256: rec.Image.slice(7) } : null,
+    nanoCpus: factInt(hc.NanoCpus), memoryBytes: factInt(hc.Memory), pidsLimit: factInt(hc.PidsLimit),
+    networkMode: factText(hc.NetworkMode, 128), readonlyRootfs: typeof hc.ReadonlyRootfs === 'boolean' ? hc.ReadonlyRootfs : null,
+    user: factText(cfg.User, 64), publishedPorts: ports.slice(0, 8)
+  };
+}
+
 export class DockerDriver implements RunnerDriver {
   constructor(private readonly cli: DockerRunner, private readonly o: { now: () => number }) {}
 
@@ -200,9 +234,11 @@ export class DockerDriver implements RunnerDriver {
     if (!img) return none;
     const labels = labelsOf(isObj(img.Config) ? img.Config.Labels : null);
     const ctx = labels['nexus.context-sha256'];
+    const versions = labels['nexus.versions'];
     return { present: true, digestMatches: true, imageId: id,
       ...(Number.isSafeInteger(img.Size) ? { sizeBytes: img.Size as number } : {}),
-      ...(typeof ctx === 'string' && /^[0-9a-f]{64}$/.test(ctx) ? { contextSha256: ctx } : {}) };
+      ...(typeof ctx === 'string' && /^[0-9a-f]{64}$/.test(ctx) ? { contextSha256: ctx } : {}),
+      ...(typeof versions === 'string' && versions.length <= 300 && IMAGE_VERSIONS_RE.test(versions) ? { versions } : {}) };
   }
 
   async imageStatus(profile: SandboxProfileId): Promise<{ present: boolean; digestMatches: boolean; sizeBytes?: number }> {
@@ -283,6 +319,13 @@ export class DockerDriver implements RunnerDriver {
     if (st === 'created') return { state: 'created', restartCount };
     if (st === 'exited' || st === 'dead') return { state: 'exited', exit: this.exitOf(rec.State), restartCount };
     return { state: 'running', restartCount };
+  }
+
+  async inspectFacts(containerId: string): Promise<{ labels: Record<string, string>; facts: DiagnoseContainerFacts } | null> {
+    if (!CONTAINER_ID_RE.test(containerId)) return null;
+    const rec = await this.inspectRaw(containerId);
+    if (!rec) return null;
+    return { labels: labelsOf(isObj(rec.Config) ? rec.Config.Labels : null), facts: containerFacts(rec) };
   }
 
   async stop(containerId: string, graceMs: number): Promise<void> {

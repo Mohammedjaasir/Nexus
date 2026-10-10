@@ -20,9 +20,11 @@ const { CAPABILITIES } = loadTs('src/shared/nexus/capabilities.ts');
 const { PLATFORM_WORKSPACE_IDS, LEGACY_DOMAIN_TO_WORKSPACE } = loadTs('src/shared/nexus/workspaceCatalog.ts');
 const { WORKSPACES } = loadTs('src/renderer/src/nexus/workspaces/registry.ts');
 
-// The e2e titles are written by Task 12. Until then DR2 checks the id format only; Task 12 sets this to true.
-const E2E_ENFORCED = false;
-const E2E_FILES = ['test/nexus-platform-b2a-flows.test.cjs', 'test/nexus-exec-recipes.test.cjs'];
+// The e2e titles are written by Task 12 (enforced from it): every REAL step's e2e id is listed in B2A_IMPL.e2eTests and
+// is part of a test TITLE in one of these files (the fake-driver recipes file runs under test:db; the real-Docker one
+// behind the test:exec gate). Task 13 adds test/nexus-platform-b2a-flows.test.cjs to this list when it exists.
+const E2E_ENFORCED = true;
+const E2E_FILES = ['test/nexus-platform-exec-recipes.test.cjs', 'test/nexus-exec-recipes.test.cjs'];
 
 /** A deep, mutable copy of the registry for negative fixtures. */
 const clone = () => JSON.parse(JSON.stringify(DOMAINS));
@@ -74,6 +76,10 @@ test('DR2 checkRegistry(DOMAINS, B2A_IMPL) is clean; every REAL step names a wel
   if (E2E_ENFORCED) {
     const text = E2E_FILES.map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n');
     for (const id of all) assert.ok(text.includes(id), `${id} is a test title`);
+    // Stronger than a mention: the id is a word of a test('...') title, and B2A_IMPL lists exactly these ids.
+    const titles = [...text.matchAll(/\btest\(\s*(['"`])((?:(?!\1).)*)\1/g)].map((m) => m[2]);
+    for (const id of all) assert.ok(titles.some((t) => t.split(/\s+/).includes(id)), `${id} is part of a test title`);
+    assert.deepEqual([...B2A_IMPL.e2eTests].sort(), [...all].sort(), 'B2A_IMPL.e2eTests lists exactly the REAL steps\' e2e ids');
   }
   // A REAL step whose implementation is not registered fails.
   const noRecipe = { ...B2A_IMPL, recipes: B2A_IMPL.recipes.filter((r) => r !== 'sde.build.node') };

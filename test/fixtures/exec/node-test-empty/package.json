@@ -1,0 +1,6 @@
+{
+  "name": "node-test-empty",
+  "version": "1.0.0",
+  "private": true,
+  "description": "B2a Task 12 fixture: a test file that declares no test (node reports the file itself as one passing test; Nexus does not count it)."
+}

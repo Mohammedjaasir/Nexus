@@ -1,0 +1,3 @@
+# Image build contexts are hashed byte for byte (imageBuilder.contextSha256) and shell scripts must keep LF endings:
+# no end-of-line conversion for anything under infra/images, on any platform.
+* -text

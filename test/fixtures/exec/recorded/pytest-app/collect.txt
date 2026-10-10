@@ -1,0 +1,5 @@
+tests/test_add.py::test_add
+tests/test_add.py::test_add_negative
+tests/test_greet.py::test_greet
+
+3 tests collected in 0.01s
