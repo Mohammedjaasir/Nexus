@@ -77,7 +77,7 @@ function configuredFilters(dir) {
   return [...new Set(r.stdout.split('\n').filter(Boolean).map((k) => k.slice('filter.'.length, k.lastIndexOf('.'))))];
 }
 const { FILTER_CONFIG_ARGV } = loadTs('src/main/gitBinary.ts');
-const { ARCHIVE_EOL_CONFIG } = loadTs('src/runner/git.ts');
+const { ARCHIVE_EOL_CONFIG, inertSignatureArgs } = loadTs('src/runner/git.ts');
 
 const GIB = 2 ** 30;
 const NOW = 1_780_000_000_000;
@@ -434,8 +434,10 @@ test('D11 staging: git archive argv exact, run in the plan\'s project folder; a 
   await start(w, plan);
   const git = SPAWNED.slice(before).filter((s) => isGitBinary(s.cmd));
   // B1: the configured filter drivers are read first (read-only), then the archive switches every one of them off and
-  // keeps the committed line endings (core.autocrlf=false, core.eol=lf).
-  assert.deepEqual(git.map((s) => gitSub(s, w, r.dir)), [[...FILTER_CONFIG_ARGV], [...ARCHIVE_EOL_CONFIG, 'archive', '--format=tar', r.commit]]);
+  // keeps the committed line endings (core.autocrlf=false, core.eol=lf). B2a stabilization (security review): every
+  // signature program is the resolved git binary itself, so an export-subst %G placeholder runs nothing of the repository's.
+  assert.deepEqual(git.map((s) => gitSub(s, w, r.dir)), [[...FILTER_CONFIG_ARGV],
+    [...inertSignatureArgs(git[1].cmd), ...ARCHIVE_EOL_CONFIG, 'archive', '--format=tar', r.commit]]);
   assert.deepEqual(gitSub(git[1], w, r.dir).filters, configuredFilters(r.dir), 'every configured filter driver is switched off');
   assert.equal(git[1].env.GIT_LFS_SKIP_SMUDGE, '1');
   assert.equal(git[0].shell, false); assert.equal(git[0].windowsHide, true);
@@ -534,7 +536,7 @@ test('D14 repo.snapshot: git argv exact; the dirty flag from the status output l
   // looked up by its fixed names (this repository has none, so nothing more is read).
   const spawned = SPAWNED.slice(before).filter((s) => isGitBinary(s.cmd));
   assert.deepEqual(spawned.map((s) => gitSub(s, w, r.dir)),
-    [['rev-parse', '--verify', 'HEAD^{commit}'], ['symbolic-ref', '--short', '-q', 'HEAD'], [...FILTER_CONFIG_ARGV], ['status', '--porcelain=v1', '-z'],
+    [['rev-parse', '--verify', 'HEAD^{commit}'], ['symbolic-ref', '--short', '-q', 'HEAD'], [...FILTER_CONFIG_ARGV], ['status', '--porcelain=v1', '-z', '--ignore-submodules=all'],
       ['rev-parse', 'HEAD^{tree}'], ['cat-file', '-s', `${r.commit}:package-lock.json`], ['cat-file', '-s', `${r.commit}:requirements.txt`]]);
   assert.deepEqual(gitSub(spawned[3], w, r.dir).filters, configuredFilters(r.dir), 'status switches every configured filter driver off');
   assert.deepEqual(w.one('attempt.provisioned', attemptId), { op: 'attempt.provisioned', attemptId });

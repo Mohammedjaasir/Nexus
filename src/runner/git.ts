@@ -16,6 +16,15 @@
  * committed line endings (a Windows default of autocrlf would rewrite them), so a lockfile hashes in the container as it
  * hashes at the commit.
  *
+ * Repository config that starts programs (B2a stabilization security review, verified with git 2.55):
+ * - `archive` expands `export-subst` files, and a `$Format:%G?$` placeholder there verifies the commit's signature by
+ *   running `gpg.program` (or `gpg.ssh.program` / `gpg.x509.program`) from the repository's own config. Every archive
+ *   therefore names all three as the resolved git binary itself (`inertSignatureArgs`): git refuses gpg's options and
+ *   exits, the placeholder expands to `N`, and no program of the repository's choosing runs.
+ * - `status` recurses into submodules, and a submodule's OWN config can name a filter driver the superproject's
+ *   neutralisation never saw (its names are read from the superproject). The snapshot's status therefore runs with
+ *   `--ignore-submodules=all` (the staged archive never contains submodule content anyway).
+ *
  * The snapshot also records the lockfile at the commit (final batch item 1): the first of `LOCKFILE_PATHS` present as a
  * blob, streamed with `cat-file blob` (raw bytes, no filter, no textconv) and hashed here; only `{ path, sha256 }` leaves.
  */
@@ -35,7 +44,7 @@ const SMALL = 64 * 1024;
 export const SNAPSHOT_ARGV = Object.freeze({
   commit: Object.freeze(['rev-parse', '--verify', 'HEAD^{commit}']),
   branch: Object.freeze(['symbolic-ref', '--short', '-q', 'HEAD']),
-  status: Object.freeze(['status', '--porcelain=v1', '-z']),
+  status: Object.freeze(['status', '--porcelain=v1', '-z', '--ignore-submodules=all']),
   tree: Object.freeze(['rev-parse', 'HEAD^{tree}'])
 });
 export const APP_MANIFEST_PATH = 'nexus.app.json';
@@ -78,6 +87,15 @@ export function lockfileArgv(commit: string, rel: (typeof LOCKFILE_PATHS)[number
   return { size: ['cat-file', '-s', `${commit}:${rel}`], blob: ['cat-file', 'blob', `${commit}:${rel}`] };
 }
 
+/**
+ * `-c gpg.program=<git> -c gpg.ssh.program=<git> -c gpg.x509.program=<git>`: a signature check git might run (an
+ * `export-subst` `%G` placeholder during `archive`) runs the resolved git binary, which refuses gpg's options, instead
+ * of a program named by the repository's config.
+ */
+export function inertSignatureArgs(gitBin: string): string[] {
+  return ['-c', `gpg.program=${gitBin}`, '-c', `gpg.ssh.program=${gitBin}`, '-c', `gpg.x509.program=${gitBin}`];
+}
+
 /** The options every runner git call starts with (before the subcommand). */
 export function gitPrefix(repoPath: string, hooksDir: string): string[] {
   return ['-C', repoPath, ...SAFE_GIT_CONFIG, '-c', `core.hooksPath=${hooksDir}`];
@@ -109,7 +127,7 @@ export class GitRunner {
   }
 
   private async exec(repoPath: string, argv: readonly string[], o: { signal?: AbortSignal; maxStdout?: number; timeoutMs?: number;
-    onStdout?: (b: Buffer) => void | Promise<unknown>; filters?: boolean } = {}): Promise<RunResult> {
+    onStdout?: (b: Buffer) => void | Promise<unknown>; filters?: boolean; inertSignatures?: boolean } = {}): Promise<RunResult> {
     if (typeof repoPath !== 'string' || !path.isAbsolute(repoPath) || repoPath.includes('\0')) throw new GitError('the project folder is not an absolute path');
     const bin = await this.binary();
     if (!bin || !isGitBinary(bin)) throw new GitError('git is not installed', 'git_missing');
@@ -123,6 +141,7 @@ export class GitRunner {
       if (names === null) throw new GitError('the configured filter drivers could not be read; refused', 'refused');
       neutral = neutralizeFilterArgs(names);
     }
+    if (o.inertSignatures === true) neutral = [...neutral, ...inertSignatureArgs(bin)];
     const r = await runGit(bin, [...gitPrefix(repoPath, this.hooksDir), ...neutral, ...argv], { cwd: this.o.cwd, env: toolEnv(),
       timeoutMs: o.timeoutMs ?? GIT_TIMEOUT_MS, maxStdout: o.maxStdout ?? SMALL, maxStderr: 4096, signal: o.signal, onStdout: o.onStdout });
     if (r.error === 'ENOENT') {
@@ -148,6 +167,7 @@ export class GitRunner {
     let r: RunResult;
     try {
       r = await this.exec(repoPath, [...ARCHIVE_EOL_CONFIG, ...argv], { signal: o.signal, maxStdout: 0, timeoutMs: 10 * GIT_TIMEOUT_MS, filters: true,
+        inertSignatures: true,
         onStdout: (chunk) => {
           if (overflow) return;
           bytes += chunk.length;

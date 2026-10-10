@@ -574,7 +574,9 @@ export async function resolveCommit(cwd: string, sha: string): Promise<ResolvedC
   if (!parsed.ok) return classify();
   const full = parsed.stdout.trim().toLowerCase();
   if (!FULL_SHA.test(full)) return { error: 'not_a_commit' };
-  const shown = await runGit(cwd, ['show', '-s', '--format=%H%x00%ct%x00%s', full]);
+  // --no-show-signature (B2a stabilization security review): a repository's `log.showSignature=true` would otherwise
+  // make `show` verify a signed commit by running the `gpg.program` its own config names (verified with git 2.55).
+  const shown = await runGit(cwd, ['show', '-s', '--no-show-signature', '--format=%H%x00%ct%x00%s', full]);
   if (!shown.ok) return { error: 'not_a_commit' };
   const [h, ct, ...rest] = shown.stdout.replace(/\r?\n$/, '').split('\0');
   if ((h ?? '').trim().toLowerCase() !== full) return { error: 'not_a_commit' };

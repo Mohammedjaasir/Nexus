@@ -921,6 +921,8 @@ To check a restore without launching the app: open the restored `harness.db` wit
     - How Windows sees a symlink made inside a container in a bind-mounted `/out` is a Verification item.
 34. **textconv and external diff drivers are not neutralised in the legacy diffs** of `src/main/git.ts` (they need repository config; git ships no system default like `filter.lfs`). This is the behaviour from before B2a; only `status` and `archive` neutralise filter drivers.
     **Legacy `src/main/hive.ts` still runs git by name.** It calls `spawnSync('git', …, { cwd: root })`, so a planted `git` in that folder could run. This predates B2a and is out of its scope. All B2a and B1 git calls go through the resolved absolute binary (`src/main/gitBinary.ts`).
+    **Neither is reachable from B2a** (stabilization review; guarded by GC4 in `test/nexus-platform-exec-git-config.test.cjs`). B2a code imports from `src/main/git.ts` only `resolveCommit`, and `index.ts` injects `repositoryCheck`; neither produces a diff. No B2a module imports `hive.ts`, whose `root` is `<harness home>/hive`, never a project folder. The legacy `git:*` channels can still be pointed at a project folder by the user; with git 2.55 their current argv shapes ran no textconv or external diff driver, but `git:log` and `git:graph` run `git log`, which honours a repository's `log.showSignature` and `gpg.program`.
+    **Fixed on the B2a path in the same review** (each proven live by a control in GC1 to GC3): the runner's `git archive` names every signature program as the resolved git binary, because an `export-subst` `%G?` placeholder would run the repository's `gpg.program`; the snapshot's `git status` runs with `--ignore-submodules=all`, because a submodule's own config can name a filter driver; `resolveCommit` runs `git show --no-show-signature`.
 35. **A checkout is one commit, archived.**
     - `git archive` leaves out submodules and `export-ignore` paths.
     - **LFS files stage as their pointers** (final review B1): no filter driver runs, so a file tracked by Git LFS reaches the container as its small pointer text, never its content. A repository whose tests need LFS content cannot run them in B2a.
@@ -3693,7 +3695,7 @@ The B2a limitations are items 25 to 47 of [section 16](#16-known-limitations-and
 | 31 | The socat pin is unverified |
 | 32 | The real-Docker suites have not run (the disk is below the 30 GiB gate) |
 | 33 | Windows has no `O_NOFOLLOW`; an identity re-check stands in |
-| 34 | Legacy `src/main/hive.ts` still runs git by name |
+| 34 | Legacy `src/main/hive.ts` still runs git by name, and the legacy diffs do not neutralise textconv or external diff drivers; neither is reachable from B2a |
 | 35 to 47 | What a checkout includes (LFS files as pointers); node:test attribution; dev deployment limits; the fixed data home; no GPU; no disk quota; log caps; the entry's timeout and host sleep; the v9 triggers on a file with v9 off; older builds on v9; image build deadlines; what an install proves; the data home after a restore |
 
 ---
