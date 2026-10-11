@@ -86,6 +86,15 @@ async function deploy(w, applicationVersionId) {
   return { jobId: j.id, deployment: w.deploymentOf(j.id) };
 }
 
+/** Why a dev deployment is where it is (for a failure message): its status and stop reason, its job, attempts and events. */
+function deploymentWhy(w, jobId) {
+  const d = w.deploymentOf(jobId); const j = w.job(jobId);
+  const tries = w.attemptsOf(jobId).map((a) => `${a.n}:${a.state}/${a.outcome}/${a.error_json}`);
+  const events = w.db.prepare('SELECT type, summary FROM job_events WHERE job_id = ? ORDER BY seq').all(jobId).map((e) => `${e.type}: ${e.summary}`);
+  return [`deployment ${d?.status} (${d?.stop_reason}) health ${d?.health_json}; job ${j.state} ${j.outcome} ${j.error_json}; attempts ${tries.join(' ')}`,
+    ...events].join('\n  ');
+}
+
 async function stop(w, deploymentId, jobId) {
   w.nx.deployments.stop(w.me, deploymentId);
   const j = await jobEnds(w, jobId, 3 * MIN);
@@ -285,7 +294,7 @@ const flows = {
     const a = await assemble(w, b.version.id);
     assert.deepEqual(JSON.parse(a.version.storage_ref_json).json.run, ['node', 'src/server.js', evil]);
     const d = await deploy(w, a.version.id);
-    assert.equal(d.deployment.status, 'healthy', 'the argument reached the app as data, and the app still serves');
+    assert.equal(d.deployment.status, 'healthy', `the argument reached the app as data, and the app still serves\n${deploymentWhy(w, d.jobId)}`);
     const sandbox = JSON.parse(w.db.prepare('SELECT sandbox_json FROM job_attempts WHERE job_id = ? ORDER BY n DESC LIMIT 1').get(d.jobId).sandbox_json);
     assert.deepEqual(sandbox.app.argv, ['node', 'src/server.js', evil], 'one element, exactly as written');
     const argv = await w.containerArgv(d.jobId);
