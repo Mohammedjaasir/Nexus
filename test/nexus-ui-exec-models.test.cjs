@@ -159,7 +159,7 @@ test('U-E1 (fix round 1) the headline reads blocking rows only; unchecked kinds 
   assert.equal(EV.evidenceView([val({ status: null })], { status: 'draft' }).headline, 'Checking…');
   assert.equal(EV.evidenceView([val({ status: 'skipped' }), val({ validatorId: 'x', status: 'skipped' })], { status: 'active' }).headline, 'No checks ran');
   assert.equal(EV.evidenceView([val({ status: 'skipped' }), val({ validatorId: 'x', status: 'passed' })], { status: 'active' }).headline, 'Checks passed');
-  assert.match(src('project/ArtifactPassport.tsx'), /<EvidenceSection key=\{shownVersion\.id\} version=\{shownVersion\} checked=\{kindIsChecked\(artifact\.kind\)\} \/>/);
+  assert.match(src('project/ArtifactPassport.tsx'), /<EvidenceSection key=\{shownVersion\.id\} version=\{shownVersion\} kind=\{artifact\.kind\} checked=\{kindIsChecked\(artifact\.kind\)\} \/>/);
   assert.match(src('project/EvidenceSection.tsx'), /useValidations\(checked \? version\.id : null\)/);
 });
 
@@ -783,8 +783,8 @@ test('S8 an application\'s health check state comes from its deployments and che
   const P = (status, validators, deployments) => EV.applicationPreview({ status, validators, deployments });
   const MANIFEST = { 'app.manifest_schema': 'passed', 'app.preview_health': null };
   const dep = (status, startedAt = 1) => ({ status, startedAt });
-  assert.deepEqual(P('draft', MANIFEST, []), { state: 'not_checked', word: 'Not checked yet: start a dev deployment to check it' });
-  assert.deepEqual(P('draft', MANIFEST, [dep('stopped')]), { state: 'not_checked', word: 'Not checked yet: start a dev deployment to check it' });
+  assert.deepEqual(P('draft', MANIFEST, []), { state: 'not_checked', word: 'Ready to check — start a preview' });
+  assert.deepEqual(P('draft', MANIFEST, [dep('stopped')]), { state: 'not_checked', word: 'Ready to check — start a preview' });
   assert.deepEqual(P('draft', MANIFEST, [dep('starting')]), { state: 'checking', word: 'Checking: the dev deployment is starting' });
   assert.deepEqual(P('draft', MANIFEST, [dep('healthy')]).state, 'checking', 'healthy, its check not recorded yet');
   assert.deepEqual(P('draft', { ...MANIFEST, 'app.preview_health': 'passed' }, [dep('healthy')]), { state: 'healthy', word: 'Answered its health check' });
@@ -798,12 +798,12 @@ test('S8 an application\'s health check state comes from its deployments and che
   // The evidence headline of a draft application never reads "Checking…" before a deployment.
   const results = [val({ validatorId: 'app.manifest_schema', status: 'passed' }), val({ validatorId: 'app.preview_health', status: null })];
   assert.equal(EV.evidenceView(results, { status: 'draft' }).headline, 'Checking…', 'without the application context: unchanged');
-  assert.equal(EV.evidenceView(results, { status: 'draft' }, true, { deployments: [] }).headline, 'Not checked yet: start a dev deployment to check it');
-  assert.equal(EV.evidenceView(results, { status: 'draft' }, true, { deployments: [dep('starting')] }).headline, 'Checking: the dev deployment is starting');
-  assert.equal(EV.evidenceView(results, { status: 'draft' }, true, { deployments: null }).headline, 'Some checks have not run');
+  assert.equal(EV.evidenceView(results, { status: 'draft' }, true, { kind: 'application', deployments: [] }).headline, 'Manifest check passed; preview check not run yet — start a preview');
+  assert.equal(EV.evidenceView(results, { status: 'draft' }, true, { kind: 'application', deployments: [dep('starting')] }).headline, 'Checking: the dev deployment is starting');
+  assert.equal(EV.evidenceView(results, { status: 'draft' }, true, { kind: 'application', deployments: null }).headline, 'Some checks have not run');
   // The version row and the Spine word.
   assert.equal(EV.applicationChecksWord({ status: 'draft', validationState: 'pending', validators: null, deployments: [] }), null);
-  assert.equal(EV.applicationChecksWord({ status: 'draft', validationState: 'pending', validators: MANIFEST, deployments: [] }), 'Not checked yet: start a dev deployment to check it');
+  assert.equal(EV.applicationChecksWord({ status: 'draft', validationState: 'pending', validators: MANIFEST, deployments: [] }), 'Ready to check — start a preview');
   assert.equal(EV.applicationChecksWord({ status: 'candidate', validationState: 'passed', validators: null, deployments: null }), 'Checks passed');
   const SM = loadTs('src/renderer/src/nexus/project/spineModel.ts');
   const app = (id, status) => ({ artifact: { id, kind: 'application', status: 'active', ownerWorkspaceId: 'sde', ownerParticipationId: 'pp', name: id, createdAt: 1 },
@@ -811,12 +811,12 @@ test('S8 an application\'s health check state comes from its deployments and che
   const words = new Map([['artifact:a1', 'Checking…'], ['artifact:a2', 'Checking…'], ['artifact:a3', 'Checks passed']]);
   const out = SM.withApplicationWords(words, [app('a1', 'draft'), app('a2', 'draft'), app('a3', 'candidate')],
     new Map([['v-a1', MANIFEST], ['v-a2', MANIFEST]]), [{ subjectVersionId: 'v-a2', status: 'starting', startedAt: 1 }]);
-  assert.equal(out.get('artifact:a1'), 'Not checked yet: start a dev deployment to check it');
+  assert.equal(out.get('artifact:a1'), 'Ready to check — start a preview');
   assert.equal(out.get('artifact:a2'), 'Checking: the dev deployment is starting');
   assert.equal(out.get('artifact:a3'), 'Checks passed');
   assert.equal(SM.withApplicationWords(words, [app('a1', 'draft')], null, null).has('artifact:a1'), false, 'unread: no word, never "Checking…"');
   const passport = src('project/ArtifactPassport.tsx');
-  assert.match(passport, /\{shownVersion && isApp && <EvidenceSection key=\{shownVersion\.id\} version=\{shownVersion\} checked preview=\{\{ deployments: deploymentsOf\(shownVersion\.id\) \}\} \/>\}/);
+  assert.match(passport, /\{shownVersion && isApp && <EvidenceSection key=\{shownVersion\.id\} version=\{shownVersion\} kind=\{artifact\.kind\} checked preview=\{\{ deployments: deploymentsOf\(shownVersion\.id\) \}\} \/>\}/);
   assert.match(src('project/ProjectBench.tsx'), /withApplicationWords\(versionChecks\.words, artifacts, versionChecks\.validators, projectDeployments\.data\)/);
 });
 
@@ -848,4 +848,101 @@ test('S9 before the first probe the setup sheet reads "not checked yet" (the Hea
   const m = sheetOf(view);
   assert.deepEqual([m.a.kind, m.lead, m.checked], ['unknown', X.NOT_CHECKED, 'This computer has not been checked yet.']);
   assert.notEqual(m.lead, 'Jobs can run on this computer.');
+});
+
+// ---------- B2a stabilization, click-through 2 (workstream B) ----------
+
+test('S10 the Assemble job\'s Runs row reads "Ready to check — start a preview" while its output waits only for a preview (the awaiting_check rule)', () => {
+  assert.deepEqual(R.expectedChecksFor('sde.app.assemble'), ['app.manifest_schema', 'app.preview_health']);
+  assert.deepEqual(R.DEPLOYMENT_ACTIONS, ['sde.preview.start', 'sde.preview.stop']);
+  const row = (validatorId, status) => ({ validatorId, blocking: true, status });
+  const expected = R.expectedChecksFor('sde.app.assemble');
+  // #32 lists only validators that have a row: the draft has its manifest result and no preview result.
+  assert.equal(R.awaitingUserCheck({ expected, outputs: [[row('app.manifest_schema', 'passed')]], liveDeployments: 0 }), true);
+  assert.equal(R.awaitingUserCheck({ expected, outputs: [[row('app.manifest_schema', 'passed')]], liveDeployments: 1 }), false, 'a live preview can be checking it');
+  assert.equal(R.awaitingUserCheck({ expected, outputs: [[row('app.manifest_schema', 'passed'), row('app.preview_health', 'failed')]], liveDeployments: 0 }), false);
+  assert.equal(R.awaitingUserCheck({ expected, outputs: [[]], liveDeployments: 0 }), false, 'the manifest check (main) is still owed');
+  assert.equal(R.awaitingUserCheck({ expected, outputs: [], liveDeployments: 0 }), false, 'no output read: no claim');
+  assert.equal(R.awaitingUserCheck({ expected: R.expectedChecksFor('sde.build.run'), outputs: [[row('build.exit_zero', 'passed')]], liveDeployments: 0 }), false,
+    'a runner re-hash is a live check, never the user\'s');
+  // What could run the check: a live deployment of the version, or a live job starting one on it.
+  const deps = [{ subjectVersionId: 'V1', status: 'starting' }, { subjectVersionId: 'V1', status: 'stopped' }, { subjectVersionId: 'V2', status: 'healthy' }];
+  assert.equal(R.liveDeploymentChecks(['V1'], deps, []), 1);
+  assert.equal(R.liveDeploymentChecks(['V3'], deps, [job({ state: 'queued', actionId: 'sde.preview.start', inputs: [{ versionId: 'V3', slot: 'application', contentHash: 'h' }] })]), 1);
+  assert.equal(R.liveDeploymentChecks(['V3'], deps, [job({ state: 'completed', actionId: 'sde.preview.start', inputs: [{ versionId: 'V3', slot: 'application', contentHash: 'h' }] })]), 0);
+  // The row: main's headline is `validating`; the renderer's records say nothing is checking.
+  const assemble = job({ actionId: 'sde.app.assemble', recipeId: 'sde.app.assemble', state: 'completed', headline: 'validating', startedAt: NOW });
+  const waiting = R.jobRun(assemble, { awaitingCheck: true });
+  assert.equal(waiting.headline, 'The application was assembled; ready to check — start a preview');
+  assert.equal(waiting.word, 'Ready to check');
+  const st = waiting.stages.find((s) => s.id === 'validating');
+  assert.deepEqual([st.state, R.STAGE_STATE_TEXT[st.state]], ['waiting', 'waiting']);
+  assert.ok(!waiting.stages.some((s) => s.state === 'active'), 'no stage reads "in progress"');
+  assert.equal(R.jobRun(assemble).headline, 'The application was assembled; checking the results', 'unread or live: unchanged');
+  assert.equal(R.jobRun({ ...assemble, headline: 'checks_passed' }, { awaitingCheck: true }).headline, 'The application was assembled; checks passed');
+  const runs = src('runs/ProjectRuns.tsx');
+  assert.match(runs, /const awaitingCheck = useAwaitingCheck\(job, jobs, deployments\);\n\s*const run = jobRun\(job, \{ reason, awaitingCheck \}\);/);
+  assert.match(runs, /liveDeployments: liveDeploymentChecks\(outputs\.map\(\(o\) => o\.versionId\), deployments, jobs\)/);
+  assert.match(runs, /<JobRow job=\{j\} explain=\{i < 5\} jobs=\{jobs\.data \?\? \[\]\} deployments=\{deployments\.data\} \/>/);
+});
+
+test('S11 the evidence headline never says passed while a blocking check has no result; it says what passed and what waits', () => {
+  // A draft application as #32 answers it: the manifest row only (app.preview_health has no row yet).
+  const manifestOnly = [val({ validatorId: 'app.manifest_schema', status: 'passed', summary: 'The manifest is valid.' })];
+  assert.equal(EV.evidenceView(manifestOnly, { status: 'draft' }).headline, 'Checks passed', 'without the kind nothing more is known (the old reading)');
+  const v = EV.evidenceView(manifestOnly, { status: 'draft' }, true, { kind: 'application', deployments: [] });
+  assert.equal(v.headline, 'Manifest check passed; preview check not run yet — start a preview');
+  const pending = v.rows.find((r) => r.validatorId === 'app.preview_health');
+  assert.deepEqual([pending.word, pending.status, pending.blocking, pending.summary], ['Not run yet', null, true, 'It runs on a dev deployment: start a preview to run it.']);
+  assert.equal(EV.evidenceView(manifestOnly, { status: 'draft' }, true, { kind: 'application', deployments: [{ status: 'starting', startedAt: 1 }] }).headline,
+    'Checking: the dev deployment is starting');
+  assert.equal(EV.evidenceView(manifestOnly, { status: 'draft' }, true, { kind: 'application', deployments: null }).headline, 'Some checks have not run');
+  // Every checked kind: with any blocking check missing, never "Checks passed".
+  const { VALIDATORS } = loadTs('src/shared/nexus/validators.ts');
+  const kinds = [...new Set(VALIDATORS.filter((x) => x.blocking).flatMap((x) => x.kinds))];
+  for (const kind of kinds) {
+    const ids = VALIDATORS.filter((x) => x.blocking && x.kinds.includes(kind) && (x.stage === 'register' || x.stage === 'candidate')).map((x) => x.id);
+    if (ids.length < 2) continue;
+    const partial = ids.slice(0, -1).map((id) => val({ validatorId: id, status: 'passed' }));
+    for (const status of ['draft', 'candidate']) {
+      const h = EV.evidenceView(partial, { status }, true, { kind }).headline;
+      assert.notEqual(h, 'Checks passed', `${kind} ${status}: ${h}`);
+    }
+    assert.equal(EV.evidenceView(ids.map((id) => val({ validatorId: id, status: 'passed' })), { status: 'candidate' }, true, { kind }).headline, 'Checks passed', kind);
+  }
+  const sec = src('project/EvidenceSection.tsx');
+  assert.match(sec, /evidenceView\(v\.data \?\? \[\], version, checked, \{ kind, \.\.\.\(preview \? \{ deployments: preview\.deployments \} : \{\}\) \}\)/);
+});
+
+test('S12 reason codes ("(tests_failed)") never reach visible text in Runs or the Folio; a title attribute keeps them', () => {
+  assert.deepEqual(EV.plainSentence('1 of 2 executed test(s) failed. (tests_failed)'), { text: '1 of 2 executed test(s) failed.', codes: ['tests_failed'] });
+  assert.deepEqual(EV.plainSentence('No JUnit (junit_missing) report (exit_code_mismatch).'), { text: 'No JUnit report.', codes: ['junit_missing', 'exit_code_mismatch'] });
+  assert.deepEqual(EV.plainSentence('test(s) ran (in 2 s)'), { text: 'test(s) ran (in 2 s)', codes: [] }, 'plain parentheses stay');
+  const ev = EV.evidenceView([val({ status: 'failed', summary: '1 of 2 executed test(s) failed. (tests_failed)' }),
+    val({ validatorId: 'x.y', status: 'error', summary: 'The runner was lost. (runner_lost)' })], { status: 'draft' });
+  assert.deepEqual([ev.rows[0].summary, ev.rows[0].codes], ['1 of 2 executed test(s) failed.', ['tests_failed']]);
+  assert.deepEqual([ev.rows[1].summary, ev.rows[1].codes], ['Checks could not run: The runner was lost.', ['runner_lost']]);
+  const failed = R.jobRun(job({ actionId: 'sde.tests.discover', recipeId: 'sde.test.discover', headline: 'checks_failed', state: 'completed' }),
+    { reason: '1 of 2 executed test(s) failed. (tests_failed)' });
+  assert.equal(failed.headline, 'Tests were listed; checks failed: 1 of 2 executed test(s) failed');
+  assert.deepEqual(failed.codes, ['tests_failed']);
+  const err = R.jobRun(job({ headline: 'failed', state: 'failed', error: { code: 'x', message: 'The container exited (oom_killed).' } }));
+  assert.equal(err.headline, 'Failed: the container exited');
+  assert.doesNotMatch(`${failed.headline} ${err.headline} ${ev.rows.map((r) => r.summary).join(' ')}`, /\([a-z]+_[a-z_]+\)/);
+  assert.match(src('project/EvidenceSection.tsx'), /<p className="nx-xe__text" title=\{r\.codes\.length \? r\.codes\.join\(', '\) : undefined\}>\{r\.summary\}<\/p>/);
+  assert.match(src('runs/ProjectRuns.tsx'), /<span className="nx-run__headline" aria-live="polite" title=\{run\.codes\.length \? run\.codes\.join\(', '\) : undefined\}>\{run\.headline\}<\/span>/);
+});
+
+test('S13 the rail, the Folio and Runs use the same words for a draft waiting on a preview', () => {
+  const L = loadTs('src/renderer/src/nexus/workspaces/lifecycleModel.ts');
+  const views = L.bundledDomainViews();
+  const rail = L.railFor(views.find((x) => x.id === 'sde'), { versions: [{ kind: 'build', status: 'candidate', validators: {} },
+    { kind: 'application', status: 'draft', validators: { 'app.manifest_schema': 'passed' } }], liveActions: [], participation: true, deploymentHealthy: false, liveDeployments: 0 });
+  const word = rail.steps.find((s) => s.id === 'application').word;
+  assert.equal(word, 'Ready to check — start a preview');
+  assert.equal(EV.applicationPreview({ status: 'draft', validators: { 'app.manifest_schema': 'passed' }, deployments: [] }).word, word, 'the Spine node and version rows');
+  assert.equal(R.READY_TO_CHECK, word, 'the Runs row');
+  for (const f of ['project/evidenceModel.ts', 'project/spineModel.ts', 'project/ArtifactPassport.tsx', 'runs/jobRunModel.ts']) {
+    assert.doesNotMatch(src(f), /Not checked yet: start a dev deployment/, f);
+  }
 });

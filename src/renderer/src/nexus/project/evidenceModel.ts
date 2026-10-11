@@ -3,7 +3,8 @@
 // hash, an HTTP probe, a git check, an exit code, a docker inspect field, a log
 // range. Nothing is summarised into a number the records do not hold.
 import type { ValidationResultView, VersionView } from '@shared/nexus/ipc';
-import { getValidator } from '@shared/nexus/validators';
+import { blockingValidatorsFor, getValidator } from '@shared/nexus/validators';
+import { runsOnUserAction } from '@shared/nexus/stepState';
 
 export type CheckStatus = ValidationResultView['status'];
 export type ChecksHeadline = 'Checks passed' | 'Checks failed' | 'Checks could not run' | 'Checking…' | 'No checks recorded'
@@ -23,8 +24,11 @@ export interface EvidenceRow {
   /** The newest run result of an advisory row (never the status). */
   latestRun: { word: string; summary: string } | null;
   history: number;
+  /** Reason codes cut out of the summary (`tests_failed`): never shown as text, kept for a title attribute. */
+  codes: string[];
 }
-export interface EvidenceView { headline: ChecksHeadline | PreviewWord; rows: EvidenceRow[]; revalidate: boolean }
+/** The headline is a ChecksHeadline, an application's preview word, or what passed and what still waits for a preview. */
+export interface EvidenceView { headline: string; rows: EvidenceRow[]; revalidate: boolean }
 
 export const STATUS_WORD: Readonly<Record<string, string>> = Object.freeze({
   passed: 'Passed', failed: 'Failed', error: 'Could not run', skipped: 'Skipped'
@@ -47,6 +51,23 @@ const VALIDATOR_LABEL: Readonly<Record<string, string>> = Object.freeze({
   'sde.deps.lock_matches': 'The installed dependencies match the lockfile'
 });
 export const validatorLabel = (id: string): string => VALIDATOR_LABEL[id] ?? (getValidator(id) ? id : `Check ${id}`);
+
+/**
+ * A sentence from a record with its reason codes cut out: "1 of 2 executed test(s) failed. (tests_failed)" reads
+ * "1 of 2 executed test(s) failed." and `codes` keeps `tests_failed` (for a title attribute, never visible text).
+ */
+export function plainSentence(text: string | null | undefined): { text: string; codes: string[] } {
+  const codes: string[] = [];
+  const out = String(text ?? '').replace(/\s*\(([a-z][a-z0-9]*(?:_[a-z0-9]+)+)\)/g, (_m, code: string) => { codes.push(code); return ''; })
+    .replace(/\s{2,}/g, ' ').trim();
+  return { text: out, codes };
+}
+
+/** Short names of the checks an application's headline lists. */
+const CHECK_SHORT: Readonly<Record<string, string>> = Object.freeze({ 'app.manifest_schema': 'manifest check', 'app.preview_health': 'preview check' });
+const shortName = (id: string): string => CHECK_SHORT[id] ?? validatorLabel(id).replace(/^\w/, (c) => c.toLowerCase());
+const listOf = (xs: string[]): string => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+const cap = (t: string): string => (t ? t[0].toUpperCase() + t.slice(1) : t);
 
 /** A hash as 12 hex characters (`sha256:` kept when present); anything else unchanged. */
 export function shortHash(v: string): string {
@@ -81,16 +102,32 @@ export function factOf(e: ValidationResultView['evidence'][number], validatorId:
  * as runs). `checked` is false for a kind no check ever gates: it never reads "Checking…". Revalidate is offered only
  * for a draft whose blocking checks could not run.
  */
-export function evidenceView(results: readonly ValidationResultView[], version: Pick<VersionView, 'status'> | null, checked = true,
-  /** For an application: its dev deployments (null while unread), so a draft never reads "Checking…" while nothing checks it. */
-  preview?: { deployments: readonly PreviewDeployment[] | null }): EvidenceView {
-  const rows: EvidenceRow[] = results.map((r) => ({
-    validatorId: r.validatorId, label: validatorLabel(r.validatorId), word: statusWord(r.status), status: r.status, blocking: r.blocking,
-    summary: r.status === 'error' ? `Checks could not run: ${(r.summary ?? 'no reason was recorded').replace(/\.+$/, '')}.` : r.summary,
-    facts: r.evidence.map((e) => factOf(e, r.validatorId)).filter((f): f is EvidenceFact => f !== null),
-    latestRun: r.latestRun ? { word: statusWord(r.latestRun.status), summary: r.latestRun.summary } : null,
-    history: r.history
-  }));
+export function evidenceView(given: readonly ValidationResultView[], version: Pick<VersionView, 'status'> | null, checked = true,
+  /**
+   * `kind`: the artifact's kind, so every blocking check it has is listed, with "Not run yet" when #32 has no result
+   * for it (the headline never says passed while one has none). `deployments` (an application's, of this version; null
+   * while unread): a draft never reads "Checking…" while nothing checks it.
+   */
+  ctx: { kind?: string; deployments?: readonly PreviewDeployment[] | null } = {}): EvidenceView {
+  const have = new Set(given.filter((r) => r.blocking).map((r) => r.validatorId));
+  const missing: ValidationResultView[] = (checked && ctx.kind ? blockingValidatorsFor(ctx.kind) : []).filter((d) => !have.has(d.id))
+    .map((d) => ({ validatorId: d.id, blocking: true, status: null,
+      summary: runsOnUserAction(d.id) ? 'It runs on a dev deployment: start a preview to run it.' : null,
+      finishedAt: null, evidence: [], latestRun: null, history: 0 }));
+  const results = [...given, ...missing];
+  const rows: EvidenceRow[] = results.map((r) => {
+    const plain = plainSentence(r.summary);
+    const latest = r.latestRun ? plainSentence(r.latestRun.summary) : null;
+    return {
+      validatorId: r.validatorId, label: validatorLabel(r.validatorId), word: statusWord(r.status), status: r.status, blocking: r.blocking,
+      summary: r.status === 'error' ? `Checks could not run: ${(plain.text || 'no reason was recorded').replace(/\.+$/, '')}.`
+        : r.summary === null ? null : plain.text,
+      facts: r.evidence.map((e) => factOf(e, r.validatorId)).filter((f): f is EvidenceFact => f !== null),
+      latestRun: r.latestRun && latest ? { word: statusWord(r.latestRun.status), summary: latest.text } : null,
+      history: r.history,
+      codes: [...plain.codes, ...(latest?.codes ?? [])]
+    };
+  });
   const draft = version?.status === 'draft';
   const blocking = results.filter((r) => r.blocking);
   let headline: ChecksHeadline;
@@ -103,10 +140,17 @@ export function evidenceView(results: readonly ValidationResultView[], version: 
   else if (blocking.every((r) => r.status === 'skipped')) headline = 'No checks ran';
   else headline = 'Checks passed';
   const revalidate = checked && draft && blocking.some((r) => r.status === 'error');
-  if (preview && headline === 'Checking…' && version) {
+  if (ctx.kind === 'application' && ctx.deployments !== undefined && headline === 'Checking…' && version) {
     const validators: Record<string, CheckStatus> = {};
     for (const r of blocking) validators[r.validatorId] = r.status;
-    const p = applicationPreview({ status: version.status, validators, deployments: preview.deployments });
+    const p = applicationPreview({ status: version.status, validators, deployments: ctx.deployments });
+    if (p && p.state === 'not_checked') {
+      // What passed and what still waits for a preview, in plain words.
+      const passed = blocking.filter((r) => r.status === 'passed').map((r) => shortName(r.validatorId));
+      const waiting = blocking.filter((r) => r.status === null).map((r) => shortName(r.validatorId));
+      const lead = passed.length ? `${cap(listOf(passed))} passed; ${listOf(waiting)}` : cap(listOf(waiting));
+      return { headline: `${lead} not run yet — start a preview`, rows, revalidate };
+    }
     // A draft nothing can be said about (its deployments unread) claims no checking either.
     if (p) return { headline: p.state === 'draft' ? 'Some checks have not run' : p.word, rows, revalidate };
   }
@@ -116,7 +160,7 @@ export function evidenceView(results: readonly ValidationResultView[], version: 
 // ---------- an application's dev deployment check (B2a stabilization) ----------
 
 export type PreviewState = 'draft' | 'not_checked' | 'checking' | 'healthy' | 'failed';
-export type PreviewWord = 'Draft' | 'Not checked yet: start a dev deployment to check it' | 'Checking: the dev deployment is starting'
+export type PreviewWord = 'Draft' | 'Ready to check — start a preview' | 'Checking: the dev deployment is starting'
   | 'Checking: waiting for the dev deployment to answer' | 'Answered its health check' | 'Failed its health check'
   | 'The health check could not run' | 'Checks failed' | 'The dev deployment failed';
 export interface PreviewView { state: PreviewState; word: PreviewWord }
@@ -151,7 +195,8 @@ export function applicationPreview(i: { status: VersionView['status']; validator
     if (latest && latest.status === 'failed') return { state: 'failed', word: 'The dev deployment failed' };
   }
   if (i.status !== 'draft') return null;
-  if (i.validators && i.deployments && manifest === 'passed') return { state: 'not_checked', word: 'Not checked yet: start a dev deployment to check it' };
+  // The rail's words for the same state (stepState `awaiting_check`).
+  if (i.validators && i.deployments && manifest === 'passed') return { state: 'not_checked', word: 'Ready to check — start a preview' };
   return { state: 'draft', word: 'Draft' };
 }
 

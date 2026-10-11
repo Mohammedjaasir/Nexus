@@ -9,7 +9,9 @@ import { evidenceView, type PreviewDeployment } from './evidenceModel';
 /** The Folio's evidence page for one version: the headline ("Checks passed", "Checks failed", "Checks could not
  *  run", "Checking…"), then each check with its word, its sentence and its sourced facts. Revalidate is offered
  *  only for a draft whose checks could not run. Nothing renders while execution is off (the notice says why). */
-export function EvidenceSection({ version, checked = true, preview }: { version: VersionView; checked?: boolean;
+export function EvidenceSection({ version, kind, checked = true, preview }: { version: VersionView; checked?: boolean;
+  /** The artifact's kind: every blocking check it has is listed, "Not run yet" while it has no result. */
+  kind?: string;
   /** An application's dev deployments of this version (null while unread): its health check runs only on one. */
   preview?: { deployments: readonly PreviewDeployment[] | null } }) {
   // A kind no check ever gates is not read at all: it says so, and never "Checking…".
@@ -22,7 +24,7 @@ export function EvidenceSection({ version, checked = true, preview }: { version:
     return <section><h2>Checks</h2><p className="nx-muted" role="status">{c.text}</p></section>;
   }
   if (!v.loaded) return <section><h2>Checks</h2><p className="nx-muted" role="status">Reading checks…</p></section>;
-  const view = evidenceView(v.data ?? [], version, checked, preview);
+  const view = evidenceView(v.data ?? [], version, checked, { kind, ...(preview ? { deployments: preview.deployments } : {}) });
   const revalidate = async () => {
     if (busy) return;
     setBusy(true); setNote(null);
@@ -40,7 +42,7 @@ export function EvidenceSection({ version, checked = true, preview }: { version:
           {view.rows.map((r) => (
             <li key={r.validatorId} className="nx-xe__row">
               <p className="nx-xe__head"><span>{r.label}</span> <span className="nx-xe__word">{r.word}{r.blocking ? '' : ' (run result)'}</span></p>
-              {r.summary && <p className="nx-xe__text">{r.summary}</p>}
+              {r.summary && <p className="nx-xe__text" title={r.codes.length ? r.codes.join(', ') : undefined}>{r.summary}</p>}
               {r.latestRun && <p className="nx-muted">Latest run: {r.latestRun.word}. {r.latestRun.summary}</p>}
               {r.facts.length > 0 && (
                 <dl className="nx-xe__facts">

@@ -162,7 +162,7 @@ export function spineChecks(reads: readonly { nodeId: string; validationState: '
 
 /**
  * The checks words with each draft application node said from its records (B2a stabilization): its health check runs
- * only on a dev deployment, so a draft with none reads "Not checked yet…", one whose deployment is starting reads
+ * only on a dev deployment, so a draft with none reads "Ready to check — start a preview", one whose deployment is starting reads
  * "Checking: …", and one nothing can be said about (checks or deployments unread) has no word, never "Checking…".
  */
 export function withApplicationWords(words: ReadonlyMap<string, string>, artifacts: readonly ArtifactSummary[],

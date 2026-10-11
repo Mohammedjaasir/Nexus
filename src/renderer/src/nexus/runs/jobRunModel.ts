@@ -5,6 +5,10 @@
 import type { JobHeadline, JobView } from '@shared/nexus/ipc';
 import type { JobState } from '@shared/nexus/platform';
 import { getUserAction } from '@shared/nexus/actions';
+import { DOMAINS } from '@shared/nexus/domains';
+import { blockingValidatorsFor } from '@shared/nexus/validators';
+import { waitsOnUserAction } from '@shared/nexus/stepState';
+import { plainSentence } from '../project/evidenceModel';
 
 export type JobStageId = 'queued' | 'provisioning' | 'running' | 'collecting' | 'validating' | 'result';
 export type JobStageState = 'done' | 'active' | 'waiting' | 'pending' | 'stopped';
@@ -25,6 +29,8 @@ export interface JobRunView {
   canRetry: boolean;
   /** True while the job waits for the person (an approval). */
   needsYou: boolean;
+  /** Reason codes cut out of the headline (`tests_failed`): never visible text, kept for a title attribute. */
+  codes: string[];
 }
 
 const STAGES: { id: JobStageId; label: string }[] = [
@@ -82,12 +88,59 @@ export const CODE_WORDS: Readonly<Record<string, string>> = Object.freeze({
   start_window_unobserved: 'The app was closed or stalled while it started; start it again'
 });
 
-/** A reason from a record (a check summary, an error message): lower-cased first letter, no trailing full stop. */
-function clause(reason: string | null | undefined): string {
-  const t = (reason ?? '').trim().replace(/\.+$/, '');
+/** A reason from a record (a check summary, an error message): lower-cased first letter, no trailing full stop, and
+ *  no reason code ("(tests_failed)" is cut out and kept in `codes`). */
+function clause(reason: string | null | undefined, codes: string[] = []): string {
+  const plain = plainSentence(reason);
+  codes.push(...plain.codes);
+  const t = plain.text.replace(/\.+$/, '');
   if (!t) return '';
   return `: ${t[0].toLowerCase()}${t.slice(1)}`;
 }
+
+/** The checks that gate leaving draft for what an action produces (the kinds of the step whose `via` names it). */
+export function expectedChecksFor(actionId: string | null): string[] {
+  if (!actionId) return [];
+  const kinds = new Set<string>();
+  for (const d of DOMAINS) for (const s of d.lifecycle) if (s.via.some((v) => 'userAction' in v && v.userAction === actionId)) s.produces.forEach((k) => kinds.add(k));
+  return [...new Set([...kinds].flatMap((k) => blockingValidatorsFor(k).map((v) => v.id)))];
+}
+
+/**
+ * The same rule as the rail's `awaiting_check` (stepState), for a job whose outputs are still being checked: true when
+ * every check its draft outputs still lack runs only on something the user starts (a dev deployment), none failed,
+ * and nothing that could run it is live (a dev deployment of those versions, or a job starting one).
+ */
+export function awaitingUserCheck(i: {
+  expected: readonly string[];
+  /** Per draft output version: its blocking results (#32), only validators that have a row. */
+  outputs: readonly (readonly { validatorId: string; blocking: boolean; status: 'passed' | 'failed' | 'error' | 'skipped' | null }[])[];
+  liveDeployments: number;
+}): boolean {
+  if (i.outputs.length === 0 || i.liveDeployments > 0) return false;
+  return i.outputs.every((rows) => {
+    const status = (id: string) => rows.find((r) => r.blocking && r.validatorId === id)?.status ?? null;
+    if (i.expected.some((id) => status(id) === 'failed' || status(id) === 'error')) return false;
+    return waitsOnUserAction(i.expected.filter((id) => status(id) !== 'passed'));
+  });
+}
+
+/** The actions that start a dev deployment (the via of a step done by a healthy deployment record). */
+export const DEPLOYMENT_ACTIONS: readonly string[] = Object.freeze(DOMAINS.flatMap((d) => d.lifecycle
+  .filter((s) => 'record' in s.doneWhen && s.doneWhen.record === 'deployment_healthy')
+  .flatMap((s) => s.via.flatMap((v) => ('userAction' in v ? [v.userAction] : [])))));
+
+/** What could run a deployment check on these versions now: their live dev deployments and live jobs starting one. */
+export function liveDeploymentChecks(versionIds: readonly string[], deployments: readonly { subjectVersionId: string; status: string }[],
+  jobs: readonly Pick<JobView, 'state' | 'actionId' | 'inputs'>[]): number {
+  const live = new Set(['starting', 'healthy', 'unhealthy']);
+  return deployments.filter((d) => live.has(d.status) && versionIds.includes(d.subjectVersionId)).length
+    + jobs.filter((j) => LIVE_STATES.includes(j.state) && j.actionId !== null && DEPLOYMENT_ACTIONS.includes(j.actionId)
+      && j.inputs.some((x) => versionIds.includes(x.versionId))).length;
+}
+
+/** The rail's words for a draft that waits for a preview. */
+export const READY_TO_CHECK = 'Ready to check — start a preview';
 
 /** The title: the action's words from the registry, else the check or the job kind. */
 export function jobTitle(j: Pick<JobView, 'actionId' | 'recipeId' | 'kind'>): string {
@@ -136,33 +189,39 @@ const RESULT_WORD: Record<Exclude<JobResult, null>, string> = {
  * The run view of a job. `reason` is a sourced sentence when the caller has one (the first failed check's summary of
  * an output, or the job's own error); without it the headline stops at what the headline itself knows.
  */
-export function jobRun(j: JobView, o: { reason?: string | null } = {}): JobRunView {
+export function jobRun(j: JobView, o: { reason?: string | null; awaitingCheck?: boolean } = {}): JobRunView {
   const h = j.headline;
   const f = flavourOf(j);
   const reason = o.reason ?? (j.error ? CODE_WORDS[j.error.code] ?? j.error.message : null);
-  const { stages, result } = stagesFor(h, j.startedAt !== null);
+  const codes: string[] = [];
+  // Its outputs wait only for a check the user starts (awaitingUserCheck): nothing is checking, it waits for a preview.
+  const awaiting = h === 'validating' && o.awaitingCheck === true;
+  const base = stagesFor(h, j.startedAt !== null);
+  const stages = awaiting ? base.stages.map((s) => (s.id === 'validating' ? { ...s, state: 'waiting' as const } : s)) : base.stages;
+  const result = base.result;
   let headline: string;
   if (WAITING[h]) headline = WAITING[h]!;
   else if (h === 'waiting_for_approval') headline = f === 'deps' ? 'Waiting for your approval to download dependencies' : 'Waiting for your approval';
   else if (h === 'provisioning') headline = 'Preparing the sandbox';
   else if (h === 'running') headline = j.cancelRequested ? 'Stopping: cancel requested' : 'Running';
   else if (h === 'collecting') headline = 'Collecting the outputs';
+  else if (awaiting) headline = `${RAN[f]}; ${READY_TO_CHECK[0].toLowerCase()}${READY_TO_CHECK.slice(1)}`;
   else if (h === 'validating') headline = `${RAN[f]}; checking the results`;
   else if (h === 'checks_passed') headline = `${RAN[f]}; checks passed`;
-  else if (h === 'checks_failed') headline = `${RAN[f]}; checks failed${clause(o.reason)}`;
-  else if (h === 'checks_could_not_run') headline = `${RAN[f]}; checks could not run${clause(o.reason)}`;
+  else if (h === 'checks_failed') headline = `${RAN[f]}; checks failed${clause(o.reason, codes)}`;
+  else if (h === 'checks_could_not_run') headline = `${RAN[f]}; checks could not run${clause(o.reason, codes)}`;
   else if (h === 'cancelled') headline = 'Cancelled';
-  else if (h === 'timed_out') headline = `Stopped: it ran past its time limit${clause(reason)}`;
+  else if (h === 'timed_out') headline = `Stopped: it ran past its time limit${clause(reason, codes)}`;
   else if (h === 'interrupted') headline = 'Interrupted: the app stopped while it ran';
-  else if (h === 'failed') headline = `Failed${clause(reason)}`;
+  else if (h === 'failed') headline = `Failed${clause(reason, codes)}`;
   // A headline this build does not know (a newer main): neutral words, never a verdict.
   else headline = `Status: ${String(j.state).replace(/_/g, ' ')}`;
   const live = LIVE_STATES.includes(j.state);
   const known = KNOWN.has(h);
-  const word = result ? RESULT_WORD[result] : h === 'waiting_for_approval' ? 'Waiting for you' : h === 'validating' ? 'Checking'
+  const word = result ? RESULT_WORD[result] : h === 'waiting_for_approval' ? 'Waiting for you' : awaiting ? 'Ready to check' : h === 'validating' ? 'Checking'
     : !known ? 'Status unknown' : live ? (h.startsWith('waiting') || h === 'queued' ? 'Waiting' : 'In progress') : 'Ended';
   return {
     id: j.id, title: jobTitle(j), headline, word, stages, result, live,
-    canCancel: canCancelJob(j), canRetry: canRetryJob(j), needsYou: h === 'waiting_for_approval'
+    canCancel: canCancelJob(j), canRetry: canRetryJob(j), needsYou: h === 'waiting_for_approval', codes
   };
 }

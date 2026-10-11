@@ -1,15 +1,44 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import type { JobView } from '@shared/nexus/ipc';
+import type { DeploymentView, JobView, ValidationResultView } from '@shared/nexus/ipc';
 import { useAssistant } from '../assistant/useAssistant';
 import { useNexusUi } from '../state/uiStore';
 import { nexusClient } from '../data/nexusClient';
 import { errorCopy, execFailText } from '../data/errorCopy';
-import { useJobs, useExecStore, withIntent } from '../data/useExecution';
+import { useDeployments, useJobs, useExecStore, withIntent } from '../data/useExecution';
 import { useExecutionUi } from '../project/execContext';
 import { Button } from '../ui/Button';
 import { RunStrip } from './RunStrip';
 import { useRuns } from './useRuns';
-import { STAGE_STATE_TEXT, jobRun } from './jobRunModel';
+import { STAGE_STATE_TEXT, awaitingUserCheck, expectedChecksFor, jobRun, liveDeploymentChecks } from './jobRunModel';
+
+/**
+ * For a job whose outputs are still being checked (headline `validating`): true when they wait only for a check the
+ * user starts (a preview) and nothing that could run it is live: the rail's `awaiting_check` rule, from the job's
+ * outputs (#27), their checks (#32), the dev deployments (#36) and the project's jobs. False while anything is unread.
+ */
+function useAwaitingCheck(job: JobView, jobs: readonly JobView[], deployments: readonly DeploymentView[] | null): boolean {
+  const enabled = job.headline === 'validating' && deployments !== null && expectedChecksFor(job.actionId).length > 0;
+  const tick = useExecStore((s) => s.ticks.validations);
+  const [outputs, setOutputs] = useState<{ versionId: string; rows: ValidationResultView[] }[] | null>(null);
+  useEffect(() => {
+    if (!enabled) { setOutputs(null); return; }
+    let alive = true;
+    void (async () => {
+      const d = await nexusClient.jobGet(job.id);
+      if (!d.ok) { if (alive) setOutputs(null); return; }
+      const drafts = d.data.outputs.filter((o) => o.status === 'draft').slice(0, 4);
+      const reads = await Promise.all(drafts.map((o) => nexusClient.versionValidations(o.versionId)));
+      if (!alive) return;
+      const rows: { versionId: string; rows: ValidationResultView[] }[] = [];
+      for (let i = 0; i < drafts.length; i++) { const r = reads[i]; if (!r.ok) { setOutputs(null); return; } rows.push({ versionId: drafts[i].versionId, rows: r.data }); }
+      setOutputs(rows);
+    })();
+    return () => { alive = false; };
+  }, [job.id, job.updatedAt, enabled, tick]);
+  if (!enabled || !outputs || !deployments) return false;
+  return awaitingUserCheck({ expected: expectedChecksFor(job.actionId), outputs: outputs.map((o) => o.rows),
+    liveDeployments: liveDeploymentChecks(outputs.map((o) => o.versionId), deployments, jobs) });
+}
 
 /** The first failed (or not run) check summary of what a finished job made: the sourced reason of its headline. */
 function useCheckReason(job: JobView, enabled: boolean): string | null {
@@ -32,11 +61,12 @@ function useCheckReason(job: JobView, enabled: boolean): string | null {
   return reason;
 }
 
-function JobRow({ job, explain }: { job: JobView; explain: boolean }) {
+function JobRow({ job, explain, jobs, deployments }: { job: JobView; explain: boolean; jobs: readonly JobView[]; deployments: readonly DeploymentView[] | null }) {
   const titleId = useId();
   const ui = useExecutionUi();
   const reason = useCheckReason(job, explain && (job.headline === 'checks_failed' || job.headline === 'checks_could_not_run'));
-  const run = jobRun(job, { reason });
+  const awaitingCheck = useAwaitingCheck(job, jobs, deployments);
+  const run = jobRun(job, { reason, awaitingCheck });
   const [busy, setBusy] = useState<'cancel' | 'retry' | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const alive = useRef(true);
@@ -54,7 +84,7 @@ function JobRow({ job, explain }: { job: JobView; explain: boolean }) {
     <article className={`nx-run${run.needsYou ? ' nx-run--needs-input' : ''}`} aria-labelledby={titleId}>
       <header className="nx-run__head">
         <h3 id={titleId} className="nx-run__title">{run.title}</h3>
-        <span className="nx-run__headline" aria-live="polite">{run.headline}</span>
+        <span className="nx-run__headline" aria-live="polite" title={run.codes.length ? run.codes.join(', ') : undefined}>{run.headline}</span>
       </header>
       <ol className="nx-run__stages" aria-label="Stages">
         {run.stages.map((s) => (
@@ -78,6 +108,7 @@ function JobRow({ job, explain }: { job: JobView; explain: boolean }) {
 /** Jobs of this project, persisted (nexus:jobs:list), newest first. */
 function JobsSection({ projectId }: { projectId: string }) {
   const jobs = useJobs(projectId);
+  const deployments = useDeployments(projectId);
   const ui = useExecutionUi();
   const off = jobs.fail ? errorCopy(jobs.fail.code, jobs.fail.reason, jobs.fail.subReason) : null;
   return (
@@ -95,7 +126,7 @@ function JobsSection({ projectId }: { projectId: string }) {
       {jobs.loaded && !off && (jobs.data ?? []).length === 0 && <p className="nx-muted">No jobs have run for this project.</p>}
       {(jobs.data ?? []).length > 0 && (
         <ul className="nx-runs">
-          {(jobs.data ?? []).map((j, i) => <li key={j.id}><JobRow job={j} explain={i < 5} /></li>)}
+          {(jobs.data ?? []).map((j, i) => <li key={j.id}><JobRow job={j} explain={i < 5} jobs={jobs.data ?? []} deployments={deployments.data} /></li>)}
         </ul>
       )}
     </section>

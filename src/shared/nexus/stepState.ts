@@ -31,7 +31,15 @@ export interface StepRecords {
 }
 
 /** True when a validator runs only on something the user starts (a dev deployment), never by itself. */
-const runsOnUserAction = (id: string): boolean => getValidator(id)?.executes === 'deployment';
+export const runsOnUserAction = (id: string): boolean => getValidator(id)?.executes === 'deployment';
+
+/**
+ * True when every outstanding check (blocking validators without a passed result) runs only on something the user
+ * starts. The caller still has to know that nothing of that kind is live (the same rule as `awaiting_check`).
+ */
+export function waitsOnUserAction(pending: readonly string[]): boolean {
+  return pending.length > 0 && pending.every(runsOnUserAction);
+}
 
 export function stepStateFrom(step: LifecycleStep, r: StepRecords, at: SubPhase = CURRENT_SUB_PHASE): StepState {
   if (step.status === 'FUTURE' || !isAtOrBefore(step.subPhase, at)) return 'unavailable';
@@ -50,7 +58,7 @@ export function stepStateFrom(step: LifecycleStep, r: StepRecords, at: SubPhase 
   if (drafts.length > 0) {
     const waitsOnUser = (v: StepRecords['versions'][number]): boolean => {
       const pending = done.validators.filter((id) => v.validators[id] !== 'passed');
-      return pending.length > 0 && pending.every(runsOnUserAction);
+      return waitsOnUserAction(pending);
     };
     if (r.liveDeployments === 0 && drafts.every(waitsOnUser)) return 'awaiting_check';
     return 'in_progress';
