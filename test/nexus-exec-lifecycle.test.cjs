@@ -72,11 +72,16 @@ if (realDockerOrSkip()) {
     const x = await world();
     const repo = await buildable(x, 600, { tag: 'L2' });
     const j = startBuild(x, repo);
+    // The 3 s wall clock is set once the container RUNS (B2a stabilization): it counts from the lease, and on a loaded
+    // machine provisioning alone can outlast 3 s; a wall clock that runs out while the job is still `leased` ends it
+    // `failed` with outcome timed_out by design (the job state table has no leased -> timed_out). This test is about a
+    // running container's timeout.
+    await x.until(() => x.job(j.id).state === 'running' && !!x.attemptsOf(j.id).pop()?.container_id, 'the build runs', 3 * MIN);
     // A test-only wall clock of 3 s for this job (main's timeout reads the job's limits).
     const lim = JSON.parse(x.job(j.id).limits_json);
     x.db.prepare('UPDATE jobs SET limits_json = ? WHERE id = ?').run(JSON.stringify({ ...lim, wallClockMs: 3000 }), j.id);
     const ended = await jobEnds(x, j.id, 3 * MIN);
-    assert.equal(ended.state, 'timed_out');
+    assert.equal(ended.state, 'timed_out', `${ended.outcome} ${ended.error_json}`);
     const a = x.attemptsOf(j.id).pop(); attemptIds.push(a.id);
     await x.until(() => gone(x, a.id), 'the timed-out container is removed', 60_000);
   });

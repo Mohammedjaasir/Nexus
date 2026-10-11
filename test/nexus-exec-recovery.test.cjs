@@ -56,7 +56,13 @@ if (realDockerOrSkip()) {
       const probes = JSON.parse(x.deploymentRow(d.deployment.id).health_json).length;
       x.killRunner();
       await x.until(() => x.handle.host.state() === 'ready' && JSON.parse(x.deploymentRow(d.deployment.id).health_json).length > probes + 1,
-        'probes resume after the restart', 2 * MIN);
+        'probes resume after the restart', 2 * MIN).catch((e) => {
+        // B2a stabilization: say what became of the deployment's job and attempts (the restart's log lines alone do not).
+        const jj = x.job(d.jobId);
+        const tries = x.attemptsOf(d.jobId).map((t) => [t.n, t.state, t.outcome, t.error_json, `lease ${t.lease_expires_at - Date.now()} ms`]);
+        e.message += `\njob ${jj.state} ${jj.outcome} ${jj.error_json}; attempts ${JSON.stringify(tries)}; deployment ${x.deploymentRow(d.deployment.id).status}`;
+        throw e;
+      });
       assert.equal(x.deploymentRow(d.deployment.id).status, 'healthy');
       assert.equal(x.job(d.jobId).state, 'running');
       assert.equal(await x.httpGet(d.deployment.host_port, '/health'), 200);
@@ -116,7 +122,9 @@ if (realDockerOrSkip()) {
       const ended = await jobEnds(b, j.id, 5 * MIN);
       assert.equal(ended.state, 'completed', `${ended.outcome} ${ended.error_json}`);
       assert.deepEqual(b.attemptsOf(j.id).map((x) => x.state), ['succeeded'], 'adopted by the new boot');
-      assert.equal(JSON.parse(docker(['inspect', cid]).stdout || '[]').length, 0, 'released and removed after ingest');
+      // The release follows the ingest's commit (main sends attempt.release after the job completes; the runner then
+      // removes the container): waited for, like the orphan below (B2a stabilization: an immediate inspect raced it).
+      await b.until(() => JSON.parse(docker(['inspect', cid]).stdout || '[]').length === 0, 'released and removed after ingest', MIN);
       await b.until(() => docker(['inspect', orphan]).code !== 0, 'the old labelled orphan is removed', 2 * MIN);
       assert.equal(docker(['inspect', stranger]).code, 0, 'the unlabelled nexus-x container is untouched');
       assert.equal(labelled(b.home, { 'nexus.attempt': oldAttempt.id }).containers.length, 0);
