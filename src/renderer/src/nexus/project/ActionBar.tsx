@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { getUserAction } from '@shared/nexus/actions';
 import { nexusClient } from '../data/nexusClient';
 import { errorCopy, execFailText } from '../data/errorCopy';
-import { useActions, useExecStore, useHealth, withIntent } from '../data/useExecution';
+import { useActions, useDeployments, useExecStore, useHealth, useJobs, withIntent } from '../data/useExecution';
 import { useParticipationIndex } from '../data/useParticipations';
 import { viewOf } from '../workspaces/participation';
 import { Button } from '../ui/Button';
 import { useExecutionUi } from './execContext';
-import { actionBar, startedNote } from './actionModel';
+import { actionBar, liveDeploymentOf, startedNote } from './actionModel';
 
 /** The actions of one workspace here: available ones as buttons, the others as sentences that say why (with "How to
  *  set up" when the fix is on this computer). With a version, only actions that take it as an input. Actions of
@@ -19,6 +19,10 @@ export function ActionBar({ projectId, workspaceId, version, title }: {
   const ui = useExecutionUi();
   const { availability } = useHealth();
   const list = useActions(projectId, workspaceId, version?.id ?? null);
+  // A dev deployment of this version already live (or starting): no second start from here (main would allow one).
+  const deployments = useDeployments(projectId);
+  const jobs = useJobs(projectId);
+  const liveDeployment = version ? liveDeploymentOf(version.id, deployments.data ?? [], jobs.data ?? []) : null;
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ text: string; alert: boolean } | null>(null);
   // The job this bar just started, while it can still be stopped from here (Runs offers Cancel too).
@@ -37,7 +41,7 @@ export function ActionBar({ projectId, workspaceId, version, title }: {
     );
   }
   if (!list.data) return null;
-  const view = actionBar(list.data, { workspaceId, availability, version: version ? { kind: version.kind, status: version.status } : null });
+  const view = actionBar(list.data, { workspaceId, availability, version: version ? { kind: version.kind, status: version.status } : null, liveDeployment });
   if (view.buttons.length === 0 && view.sentences.length === 0) return null;
 
   const start = async (actionId: string, slot: string | null) => {

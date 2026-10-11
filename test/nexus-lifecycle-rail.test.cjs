@@ -287,9 +287,9 @@ test('S8b the Application step: draft, not checked ("Ready to check — start a 
   assert.deepEqual([waiting.state, waiting.word], ['awaiting_check', 'Ready to check — start a preview']);
   assert.equal(stepStateFrom(step, { versions: [{ status: 'draft', validators: MANIFEST }], liveJobs: 0, inputsAvailable: true, liveDeployments: 0 }), 'awaiting_check');
   // Checking: a dev deployment is live, or the job starting one is (it belongs to the dev deployment step's actions).
-  assert.equal(appStep([app('draft', MANIFEST)], { liveDeployments: 1 }).state, 'in_progress');
+  assert.equal(appStep([app('draft', MANIFEST)], { liveDeployments: 1 }).state, 'checking');
   const starting = appStep([app('draft', MANIFEST)], { liveDeployments: 0, liveActions: ['sde.preview.start'] });
-  assert.deepEqual([starting.state, starting.word], ['in_progress', 'In progress']);
+  assert.deepEqual([starting.state, starting.word], ['checking', 'Checking — the preview is starting']);
   assert.equal(appStep([app('draft', MANIFEST)], { liveDeployments: 0, liveActions: ['sde.app.assemble'] }).state, 'in_progress', 'its own job is live');
   // Draft whose manifest has no result yet: being validated by main (not waiting on the user).
   assert.equal(appStep([app('draft', {})], { liveDeployments: 0 }).state, 'in_progress');
@@ -309,6 +309,41 @@ test('S8b the Application step: draft, not checked ("Ready to check — start a 
   assert.doesNotMatch(L.railSummary(r), /in progress/);
   // The bench passes the live dev deployments it read (the rail's records stay those of railRecordsFor).
   const bench = src('project/ProjectBench.tsx');
-  assert.match(bench, /const liveDeployments = \(deployments\.data \?\? \[\]\)\.filter\(\(d\) => d\.status === 'starting' \|\| d\.status === 'healthy' \|\| d\.status === 'unhealthy'\)\.length;/);
-  assert.match(bench, /m\.set\(g\.workspaceId, railFor\(view, records \? \{ \.\.\.records, liveDeployments \} : null\)\);/);
+  assert.match(bench, /const live = \(deployments\.data \?\? \[\]\)\.filter\(\(d\) => d\.status === 'starting' \|\| d\.status === 'healthy' \|\| d\.status === 'unhealthy'\);\n\s*const liveDeployments = live\.length;/);
+  assert.match(bench, /m\.set\(g\.workspaceId, railFor\(view, records \? \{ \.\.\.records, liveDeployments, liveDeploymentStatuses \} : null\)\);/);
+});
+
+test('S14 while a preview starts or is probed the rail reads "Checking — <reason>" (as the Spine and Folio do) and the summary counts it as checking', () => {
+  const { stepStateFrom } = loadTs('src/shared/nexus/stepState.ts');
+  const sde = DOMAINS.find((d) => d.id === 'sde');
+  const appS = sde.lifecycle.find((s) => s.id === 'application');
+  const devS = sde.lifecycle.find((s) => s.id === 'dev-deployment');
+  const MANIFEST = { 'app.manifest_schema': 'passed' };
+  const draft = [{ status: 'draft', validators: MANIFEST }];
+  // stepState: the only live work is the deployment check.
+  assert.equal(stepStateFrom(appS, { versions: draft, liveJobs: 0, inputsAvailable: true, liveDeployments: 1 }), 'checking');
+  assert.equal(stepStateFrom(appS, { versions: draft, liveJobs: 1, inputsAvailable: true, liveDeployments: 1 }), 'in_progress', 'its own job runs');
+  assert.equal(stepStateFrom(appS, { versions: draft, liveJobs: 0, inputsAvailable: true, liveDeployments: 0 }), 'awaiting_check');
+  assert.equal(stepStateFrom(appS, { versions: draft, liveJobs: 0, inputsAvailable: true }), 'in_progress', 'deployments unread: as before');
+  assert.equal(stepStateFrom(devS, { versions: [], liveJobs: 1, inputsAvailable: true, recordPresent: false, liveDeployments: 1 }), 'checking');
+  assert.equal(stepStateFrom(devS, { versions: [], liveJobs: 1, inputsAvailable: true, recordPresent: false }), 'in_progress', 'unread: as before');
+  assert.equal(stepStateFrom(devS, { versions: [], liveJobs: 1, inputsAvailable: true, recordPresent: true, liveDeployments: 1 }), 'done', 'healthy');
+  // The rail as the click-through saw it: a deployment of the draft starting.
+  const recs = (statuses) => rec({ versions: [{ kind: 'build', status: 'candidate', validators: {} }, { kind: 'application', status: 'draft', validators: MANIFEST }],
+    liveActions: ['sde.preview.start'], liveDeployments: statuses.length, liveDeploymentStatuses: statuses });
+  const r = L.railFor(view('sde'), recs(['starting']));
+  const word = (id) => r.steps.find((s) => s.id === id).word;
+  assert.equal(word('application'), 'Checking — the preview is starting');
+  assert.equal(word('dev-deployment'), 'Checking — the preview is starting');
+  assert.match(L.railSummary(r), /; 2 checking/);
+  assert.doesNotMatch(L.railSummary(r), /in progress/);
+  // Up but not recorded as answering yet.
+  const up = L.railFor(view('sde'), recs(['unhealthy']));
+  assert.equal(up.steps.find((s) => s.id === 'application').word, 'Checking — waiting for the preview to answer');
+  assert.equal(L.checkingReason({ liveDeploymentStatuses: [] }), 'the preview is starting', 'a job starting one, before its row exists');
+  // The bench passes the statuses it read; the rail styles a checking step like a moving one, always with its word.
+  assert.match(src('project/ProjectBench.tsx'), /railFor\(view, records \? \{ \.\.\.records, liveDeployments, liveDeploymentStatuses \} : null\)/);
+  const css = src('styles/execution.css');
+  assert.match(css, /\.nx-lrail__step\[data-state="checking"\]::before \{ border-color: var\(--nx-ink\); \}/);
+  assert.match(css, /\.nx-lrail__bar li\[data-state="checking"\] \{ background: var\(--nx-line-strong\); \}/);
 });

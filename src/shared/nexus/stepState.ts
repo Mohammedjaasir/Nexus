@@ -10,9 +10,11 @@ import { getValidator } from './validators';
 /**
  * `awaiting_check`: a draft whose only outstanding checks run on something the user starts (a dev deployment for
  * `app.preview_health`), with nothing live: nothing is working on the step, it waits for that action.
+ * `checking`: the step's only live work is such a check running: a dev deployment starting or being probed (for that
+ * draft, or for the step a healthy deployment completes).
  */
-export type StepState = 'unavailable' | 'blocked' | 'ready' | 'in_progress' | 'awaiting_check' | 'done' | 'failed';
-export const STEP_STATES: readonly StepState[] = ['unavailable', 'blocked', 'ready', 'in_progress', 'awaiting_check', 'done', 'failed'];
+export type StepState = 'unavailable' | 'blocked' | 'ready' | 'in_progress' | 'awaiting_check' | 'checking' | 'done' | 'failed';
+export const STEP_STATES: readonly StepState[] = ['unavailable', 'blocked', 'ready', 'in_progress', 'awaiting_check', 'checking', 'done', 'failed'];
 
 export interface StepRecords {
   /** Versions of the step's produced kind, each with the latest status per validator. */
@@ -45,7 +47,12 @@ export function stepStateFrom(step: LifecycleStep, r: StepRecords, at: SubPhase 
   if (step.status === 'FUTURE' || !isAtOrBefore(step.subPhase, at)) return 'unavailable';
   const waiting = (): StepState => (r.liveJobs > 0 ? 'in_progress' : r.inputsAvailable ? 'ready' : 'blocked');
   const done = step.doneWhen;
-  if ('record' in done) return r.recordPresent ? 'done' : waiting();
+  if ('record' in done) {
+    if (r.recordPresent) return 'done';
+    // A dev deployment that is starting or not answering yet: the health probe is the live work.
+    if (done.record === 'deployment_healthy' && (r.liveDeployments ?? 0) > 0) return 'checking';
+    return waiting();
+  }
   const allowed = done.statuses as readonly string[];
   if (r.versions.some((v) => allowed.includes(v.status) && done.validators.every((id) => v.validators[id] === 'passed'))) return 'done';
   if (r.liveJobs > 0) return 'in_progress';
@@ -60,7 +67,7 @@ export function stepStateFrom(step: LifecycleStep, r: StepRecords, at: SubPhase 
       const pending = done.validators.filter((id) => v.validators[id] !== 'passed');
       return waitsOnUserAction(pending);
     };
-    if (r.liveDeployments === 0 && drafts.every(waitsOnUser)) return 'awaiting_check';
+    if (r.liveDeployments !== undefined && drafts.every(waitsOnUser)) return r.liveDeployments > 0 ? 'checking' : 'awaiting_check';
     return 'in_progress';
   }
   if (r.versions.some((v) => v.status === 'failed' || done.validators.some((id) => v.validators[id] === 'failed'))) return 'failed';

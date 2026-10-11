@@ -36,6 +36,11 @@ export interface ActionContext {
    * cannot start (an available one is offered on its input version instead).
    */
   version: { kind: string; status: string } | null;
+  /**
+   * A dev deployment of this version that is live now (or the job starting one): `starting` or `running`. Main does
+   * not refuse a second start, so the bar offers no second "Start a dev deployment" while one is live.
+   */
+  liveDeployment?: 'starting' | 'running' | null;
 }
 
 function stepLabel(workspaceId: string, stepId: string): string {
@@ -88,6 +93,13 @@ export function actionBar(list: readonly ActionAvailabilityView[], ctx: ActionCo
       sentences.push({ actionId: a.actionId, text: `${a.label}: this computer is not ready to run it yet.`, setup: true });
       continue;
     }
+    // The step a healthy dev deployment completes: one live deployment per version is enough (no double start).
+    if (fit && ctx.liveDeployment && 'record' in step.doneWhen && step.doneWhen.record === 'deployment_healthy') {
+      sentences.push({ actionId: a.actionId, setup: false, text: ctx.liveDeployment === 'starting'
+        ? `${a.label}: one is starting for this version. Follow it under Dev deployments.`
+        : `${a.label}: one is running for this version. Stop it to start another.` });
+      continue;
+    }
     if (fit) {
       const preview = a.actionId === 'sde.preview.start';
       const st = ctx.version!.status;
@@ -117,6 +129,20 @@ export function workspacesActingOn(kind: string, workspaceIds: readonly string[]
     const d = getDomain(w);
     return !!d && USER_ACTIONS.some((a) => d.actions.includes(a.id) && a.inputs.some((s) => s.kinds.includes(kind)));
   });
+}
+
+/**
+ * Whether a dev deployment of this version is live: `starting` while a deployment row is starting or a live job is
+ * starting one on it (before its row exists), `running` while one is up (answering or not yet), else null.
+ */
+export function liveDeploymentOf(versionId: string, deployments: readonly Pick<DeploymentView, 'subjectVersionId' | 'status'>[],
+  jobs: readonly { state: string; actionId: string | null; inputs: readonly { versionId: string }[] }[]): 'starting' | 'running' | null {
+  const mine = deployments.filter((d) => d.subjectVersionId === versionId);
+  if (mine.some((d) => d.status === 'healthy' || d.status === 'unhealthy')) return 'running';
+  if (mine.some((d) => d.status === 'starting')) return 'starting';
+  const liveJob = jobs.some((j) => ['queued', 'leased', 'running', 'awaiting_approval', 'retry_scheduled'].includes(j.state)
+    && j.actionId === 'sde.preview.start' && j.inputs.some((x) => x.versionId === versionId));
+  return liveJob ? 'starting' : null;
 }
 
 // ---------- approvals ----------

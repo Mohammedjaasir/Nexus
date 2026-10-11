@@ -946,3 +946,31 @@ test('S13 the rail, the Folio and Runs use the same words for a draft waiting on
     assert.doesNotMatch(src(f), /Not checked yet: start a dev deployment/, f);
   }
 });
+
+test('S15 no second "Start a dev deployment" while one of that version is starting or running (main would allow a second)', () => {
+  const def = getUserAction('sde.preview.start');
+  const answer = [{ actionId: def.id, label: def.label, stepId: null, available: true, reason: null, needsApproval: false, inputs: def.inputs.map((s) => ({ ...s })) }];
+  const ctx = (liveDeployment) => ({ workspaceId: 'sde', availability: READY, version: { kind: 'application', status: 'draft' }, liveDeployment });
+  assert.deepEqual(AM.actionBar(answer, ctx(null)).buttons.map((b) => b.actionId), ['sde.preview.start']);
+  const starting = AM.actionBar(answer, ctx('starting'));
+  assert.equal(starting.buttons.length, 0);
+  assert.deepEqual(starting.sentences, [{ actionId: 'sde.preview.start', setup: false, text: 'Start a dev deployment: one is starting for this version. Follow it under Dev deployments.' }]);
+  assert.equal(AM.actionBar(answer, ctx('running')).sentences[0].text, 'Start a dev deployment: one is running for this version. Stop it to start another.');
+  // Which deployment is live, from the records: a deployment row of the version, or a live job starting one before its row exists.
+  const dep = (subjectVersionId, status) => ({ subjectVersionId, status });
+  const j = (state, versionId) => ({ state, actionId: 'sde.preview.start', inputs: [{ versionId }] });
+  assert.equal(AM.liveDeploymentOf('V1', [dep('V1', 'starting')], []), 'starting');
+  assert.equal(AM.liveDeploymentOf('V1', [dep('V1', 'healthy')], []), 'running');
+  assert.equal(AM.liveDeploymentOf('V1', [dep('V1', 'unhealthy')], []), 'running');
+  assert.equal(AM.liveDeploymentOf('V1', [dep('V1', 'stopped'), dep('V2', 'starting')], []), null, 'another version, or a stopped one');
+  assert.equal(AM.liveDeploymentOf('V1', [], [j('queued', 'V1')]), 'starting');
+  assert.equal(AM.liveDeploymentOf('V1', [], [j('completed', 'V1')]), null);
+  // Main's own rule (unchanged): #24 does not refuse a second preview start, so the guard is the bar's.
+  const q = fs.readFileSync(path.join(ROOT, 'src', 'main', 'nexus', 'exec', 'execQueries.ts'), 'utf8');
+  assert.match(q, /const statuses: VersionStatus\[\] = preview \? \['draft', 'candidate', 'active'\] : \['candidate', 'active'\];/);
+  const bar = src('project/ActionBar.tsx');
+  assert.match(bar, /const liveDeployment = version \? liveDeploymentOf\(version\.id, deployments\.data \?\? \[\], jobs\.data \?\? \[\]\) : null;/);
+  assert.match(bar, /version: version \? \{ kind: version\.kind, status: version\.status \} : null, liveDeployment \}\);/);
+  // Two clicks before main answers start one job: the busy guard, and one intent per request.
+  assert.match(bar, /if \(!def \|\| busy\) return;/);
+});

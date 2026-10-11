@@ -42,7 +42,7 @@ export const NOT_SUPPORTED = 'Not yet a supported workflow';
 const STATE_WORD: Record<StepState, string> = {
   unavailable: 'Not in this release', blocked: 'Needs an earlier step', ready: 'Ready to start', in_progress: 'In progress',
   // Only a check that runs on a dev deployment waits for the user (stepState): its word says which action.
-  awaiting_check: 'Ready to check — start a preview', done: 'Done', failed: 'Needs attention'
+  awaiting_check: 'Ready to check — start a preview', checking: 'Checking', done: 'Done', failed: 'Needs attention'
 };
 const STATUS_WORD: Record<StepStatus, string> = { REAL: 'In this release', PARTIAL: 'In this release, with limits', FUTURE: 'Not in this release' };
 
@@ -60,6 +60,8 @@ export interface RailRecords {
    * waiting on a deployment-run check then reads in progress, never "Ready to check".
    */
   liveDeployments?: number;
+  /** The statuses of the live dev deployments (`starting`, `healthy`, `unhealthy`): the reason a "Checking" step gives. */
+  liveDeploymentStatuses?: readonly string[];
 }
 
 export interface RailStep {
@@ -123,7 +125,7 @@ export function railFor(view: DomainSpecView, records: RailRecords | null = null
     }
     return {
       n: i + 1, id: s.id, label: s.label, status: s.status, subPhase: s.subPhase, future, state,
-      word: future ? STATUS_WORD.FUTURE : state ? STATE_WORD[state] : STATUS_WORD[s.status],
+      word: future ? STATUS_WORD.FUTURE : state === 'checking' && records ? `Checking — ${checkingReason(records)}` : state ? STATE_WORD[state] : STATUS_WORD[s.status],
       note: future ? futureLine(s.subPhase) : s.scopeNote,
       when: supported && availability !== null ? `Available from ${s.subPhase}` : null
     };
@@ -153,6 +155,16 @@ export function domainOnlyLead(view: DomainSpecView): string {
     : `${when} ${runs} of its ${view.lifecycle.length} steps run in this release.`;
 }
 
+/**
+ * Why a "Checking" step is checking, from the live dev deployments: one starting (or a job starting one, before its
+ * row exists) reads "the preview is starting"; one that is up and not recorded as answering yet reads "waiting for
+ * the preview to answer". The same reason the Spine node and the Folio give ("Checking: the dev deployment is ...").
+ */
+export function checkingReason(r: Pick<RailRecords, 'liveDeploymentStatuses'>): string {
+  const st = r.liveDeploymentStatuses ?? [];
+  return st.length === 0 || st.includes('starting') ? 'the preview is starting' : 'waiting for the preview to answer';
+}
+
 /** The compact line under a Spine group: counts of the rail's own steps (no other number). */
 export function railSummary(r: RailView): string {
   if (r.availability) return r.availability;
@@ -161,9 +173,11 @@ export function railSummary(r: RailView): string {
   const later = r.steps.length - inRelease.length;
   const attention = inRelease.filter((s) => s.state === 'failed').length;
   const moving = inRelease.filter((s) => s.state === 'in_progress').length;
+  const checking = inRelease.filter((s) => s.state === 'checking').length;
   const parts = [`${done} of ${inRelease.length} steps in this release done`];
   if (attention > 0) parts.push(`${attention} need${attention === 1 ? 's' : ''} attention`);
   if (moving > 0) parts.push(`${moving} in progress`);
+  if (checking > 0) parts.push(`${checking} checking`);
   const checkable = inRelease.filter((s) => s.state === 'awaiting_check').length;
   if (checkable > 0) parts.push(`${checkable} ready to check`);
   if (later > 0) parts.push(`${later} not in this release`);
