@@ -36,7 +36,8 @@ import { ApprovalsSection } from './ApprovalsSection';
 import { RequirementSheet } from './RequirementSheet';
 import { ExecutionUiContext, type ExecutionUi } from './execContext';
 import type { LogRange } from './evidenceModel';
-import { checkedVersionIds, railRecordsFor, spineChecks, versionsToRead, withApplicationWords, type SpineGroup, type ValidatorStatuses } from './spineModel';
+import { applicationDrafts, checkedVersionIds, railRecordsFor, spineChecks, versionsToRead, withApplicationWords, type SpineGroup, type ValidatorStatuses } from './spineModel';
+import { livePreviewsOf } from '../runs/jobRunModel';
 import type { VersionStatus } from '@shared/nexus/platform';
 import type { ArtifactSummary } from './spineModel';
 
@@ -89,8 +90,36 @@ function useVersionChecks(artifacts: ArtifactSummary[]): { words: Map<string, st
   }, [wanted, version]);
 }
 
+/**
+ * The build each shown application draft was assembled from (its assembled_from source, nexus:lineage:get): a preview
+ * job's input is that build, so a job not yet leased (no deployment row naming the version) counts for its own version.
+ */
+function useDraftBuilds(artifacts: ArtifactSummary[]): Map<string, string> {
+  const rev = usePlatform((s) => s.rev);
+  const ids = useMemo(() => applicationDrafts(artifacts), [artifacts]);
+  const key = ids.join(',');
+  const [builds, setBuilds] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    let alive = true;
+    if (!key) { setBuilds(new Map()); return; }
+    void Promise.all(key.split(',').map(async (id) => {
+      const r = await nexusClient.lineageGet(id, { direction: 'up', depth: 1 });
+      const b = r.ok ? r.data.nodes.find((n) => n.relation === 'assembled_from' && n.kind === 'build') : undefined;
+      return [id, b?.versionId ?? null] as const;
+    })).then((rs) => {
+      if (!alive) return;
+      const m = new Map<string, string>();
+      for (const [id, b] of rs) if (b) m.set(id, b);
+      setBuilds(m);
+    });
+    return () => { alive = false; };
+  }, [key, rev]);
+  return builds;
+}
+
 /** Each active group's lifecycle rail, from records only (versions and their checks, live jobs, dev deployments). */
-function useGroupRails(projectId: string, groups: SpineGroup[], artifacts: ArtifactSummary[], checks: Map<string, ValidatorStatuses> | null): Map<string, RailView> {
+function useGroupRails(projectId: string, groups: SpineGroup[], artifacts: ArtifactSummary[], checks: Map<string, ValidatorStatuses> | null,
+  builds: ReadonlyMap<string, string>): Map<string, RailView> {
   const domains = useDomains().list;
   const jobs = useJobs(projectId);
   const deployments = useDeployments(projectId);
@@ -102,6 +131,10 @@ function useGroupRails(projectId: string, groups: SpineGroup[], artifacts: Artif
     const live = (deployments.data ?? []).filter((d) => d.status === 'starting' || d.status === 'healthy' || d.status === 'unhealthy');
     const liveDeployments = live.length;
     const liveDeploymentStatuses = live.map((d) => d.status);
+    // Per version: the live previews of the shown application draft(s) only (a deployment row naming the version, or a
+    // not-yet-leased preview job of its build); another version's live preview never counts for this draft.
+    const draftPreviews = applicationDrafts(artifacts).flatMap((versionId) =>
+      livePreviewsOf({ versionId, buildVersionId: builds.get(versionId) ?? null }, deployments.data ?? [], jobs.data ?? []).map((p) => p.status));
     for (const g of groups) {
       if (g.muted) continue;
       const view = domains.find((d) => d.id === g.workspaceId);
@@ -109,10 +142,10 @@ function useGroupRails(projectId: string, groups: SpineGroup[], artifacts: Artif
       // Jobs or deployments unread (execution off): no state is claimed, only the steps and their status in this release.
       const records = jobs.data && deployments.data
         ? railRecordsFor({ workspaceId: g.workspaceId, artifacts, checks, liveActions, deploymentHealthy: healthy, participating: true }) : null;
-      m.set(g.workspaceId, railFor(view, records ? { ...records, liveDeployments, liveDeploymentStatuses } : null));
+      m.set(g.workspaceId, railFor(view, records ? { ...records, liveDeployments, liveDeploymentStatuses, draftPreviews } : null));
     }
     return m;
-  }, [groups, domains, checks, jobs.data, deployments.data, artifacts]);
+  }, [groups, domains, checks, jobs.data, deployments.data, artifacts, builds]);
 }
 
 /** The project route: opens the project, then shows the Spine workbench. */
@@ -264,9 +297,12 @@ function Workbench({ project, tool }: { project: Project; tool: ProjectTool }) {
   const { availability } = useHealth();
   const versionChecks = useVersionChecks(artifacts);
   const projectDeployments = useDeployments(project.id);
-  const checks = useMemo(() => withApplicationWords(versionChecks.words, artifacts, versionChecks.validators, projectDeployments.data),
-    [versionChecks.words, versionChecks.validators, artifacts, projectDeployments.data]);
-  const rails = useGroupRails(project.id, groups, artifacts, versionChecks.validators);
+  const projectJobs = useJobs(project.id);
+  const draftBuilds = useDraftBuilds(artifacts);
+  const checks = useMemo(() => withApplicationWords(versionChecks.words, artifacts, versionChecks.validators, projectDeployments.data,
+    projectJobs.data ? { jobs: projectJobs.data, builds: draftBuilds } : null),
+  [versionChecks.words, versionChecks.validators, artifacts, projectDeployments.data, projectJobs.data, draftBuilds]);
+  const rails = useGroupRails(project.id, groups, artifacts, versionChecks.validators, draftBuilds);
   const [setupOpen, setSetupOpen] = useState(false);
   const [write, setWrite] = useState<{ workspaceId: string; kind: 'requirement' | 'problem_statement' } | null>(null);
   const [log, setLog] = useState<{ jobId: string; range?: LogRange | null } | null>(null);

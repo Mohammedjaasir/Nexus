@@ -451,6 +451,25 @@ function probe(w, r, a, status, container = 'running') {
   w.exec.tick(w.now());
 }
 
+/**
+ * `n` application versions that can each run a dev deployment at the same time (main allows one live deployment per
+ * version): each but the last is made a candidate through a healthy preview that is then stopped and exits; the last
+ * is a fresh draft. The previews it runs have ended, so they hold no service slot and no port.
+ */
+async function previewableApps(w, r, first, n) {
+  const apps = [first];
+  for (let i = 1; i < n; i++) {
+    const j = preview(w, apps[i - 1]); w.exec.tick(w.now());
+    const a = provisionService(w, r, j.id, 49400 + i, String.fromCharCode(97 + i));
+    probe(w, r, a, 200);
+    w.nx.deployments.stop(w.me, dep(w, j.id).id);
+    r.report({ op: 'attempt.exited', attemptId: a.id, exit: { code: 0, oomKilled: false, finishedAt: w.now() }, outputs: [], parsed: [], logBytes: 10 });
+    assert.equal(w.jobState(j.id), 'completed');
+    apps.push((await appDraft(w, MANIFEST, `v${i}`)).app);
+  }
+  return apps;
+}
+
 test('D1 preview of a draft application: the job runs the build, the deployment previews the draft; a 200 makes it healthy and the draft a candidate', async () => {
   const { w, r, app, build } = await deployWorld();
   const j = preview(w, app);
@@ -588,9 +607,52 @@ test('D4 a user stop: stopped (user); the runner is told; the job completes stop
   healthy(w); w.close();
 });
 
+test('D4b (B2a stabilization) one live dev deployment per application version: a second start is refused deployment_live and writes nothing; another version still starts', async () => {
+  const { w, r, app } = await deployWorld();
+  const written = () => [count(w, 'jobs'), count(w, 'deployments'), count(w, 'job_events'), count(w, 'activity'), count(w, 'job_inputs')];
+  const startReq = w.req('sde.preview.start', { inputs: [{ versionId: app, slot: 'application' }] });
+  const j = w.exec.start(w.me, startReq).job;
+  // (1) The first job is queued and has no deployment row yet: its live preview job already holds the version.
+  let before = written();
+  assert.throws(() => preview(w, app), code('conflict', 'deployment_live'));
+  assert.deepEqual(written(), before, 'nothing is written by the refusal');
+  // The same intent repeated still answers its own job (never a conflict).
+  const again = w.exec.start(w.me, startReq);
+  assert.deepEqual([again.job.id, again.created], [j.id, false]);
+  // (2) Starting, then (3) healthy: refused each time, nothing written.
+  w.exec.tick(w.now());
+  assert.equal(dep(w, j.id).status, 'starting');
+  before = written();
+  assert.throws(() => preview(w, app), code('conflict', 'deployment_live'));
+  assert.deepEqual(written(), before);
+  const a = provisionService(w, r, j.id, 49230);
+  probe(w, r, a, 200);
+  assert.equal(dep(w, j.id).status, 'healthy');
+  before = written();
+  assert.throws(() => preview(w, app), code('conflict', 'deployment_live'));
+  assert.deepEqual(written(), before);
+  // A viewer is refused by authorization first (denied), never told about the live deployment.
+  const viewer = w.addUser('user:viewer2', 'project', 'p-ledger', 'viewer');
+  assert.throws(() => w.exec.start(viewer, w.req('sde.preview.start', { inputs: [{ versionId: app, slot: 'application' }] })), code('denied'));
+  // (4) Another application version still starts its own dev deployment.
+  const { app: app2 } = await appDraft(w, MANIFEST, 'b');
+  const j2 = preview(w, app2);
+  assert.equal(w.jobState(j2.id), 'queued');
+  // (5) Once the first deployment is stopped and its job has ended, its version can start again.
+  w.nx.deployments.stop(w.me, dep(w, j.id).id);
+  assert.throws(() => preview(w, app), code('conflict', 'deployment_live'), 'its job still runs until the app exits');
+  r.report({ op: 'attempt.exited', attemptId: a.id, exit: { code: 0, oomKilled: false, finishedAt: w.now() }, outputs: [], parsed: [], logBytes: 10 });
+  assert.equal(w.jobState(j.id), 'completed');
+  const j3 = preview(w, app);
+  assert.equal(w.jobState(j3.id), 'queued');
+  w.close();
+});
+
 test('D5 the service cap is 2: a third preview waits waiting:slots and starts when a slot frees', async () => {
   const { w, r, app } = await deployWorld();
-  const jobs = [0, 1, 2].map(() => preview(w, app)); w.exec.tick(w.now());
+  // One live dev deployment per application version (B2a stabilization): concurrent previews need their own versions.
+  const apps = await previewableApps(w, r, app, 3);
+  const jobs = apps.map((x) => preview(w, x)); w.exec.tick(w.now());
   assert.equal(w.jobState(jobs[0].id), 'leased'); assert.equal(w.jobState(jobs[1].id), 'leased');
   assert.equal(w.jobState(jobs[2].id), 'queued'); assert.equal(w.job(jobs[2].id).phase, 'waiting:slots');
   assert.equal(dep(w, jobs[2].id), undefined, 'no deployment row before its lease');
@@ -602,7 +664,9 @@ test('D5 the service cap is 2: a third preview waits waiting:slots and starts wh
 
 test('D6 two live deployments never share a port: the core refuses a held port and the unique index is the backstop', async () => {
   const { w, r, app } = await deployWorld();
-  const j1 = preview(w, app); const j2 = preview(w, app); w.exec.tick(w.now());
+  // One live dev deployment per application version (B2a stabilization): concurrent previews need their own versions.
+  const [v1, v2, v3] = await previewableApps(w, r, app, 3);
+  const j1 = preview(w, v1); const j2 = preview(w, v2); w.exec.tick(w.now());
   provisionService(w, r, j1.id, 49207);
   const a2 = provisionService(w, r, j2.id, 49207, 'f');
   assert.equal(dep(w, j1.id).host_port, 49207); assert.equal(dep(w, j2.id).host_port, null);
@@ -610,7 +674,7 @@ test('D6 two live deployments never share a port: the core refuses a held port a
   assert.equal(dep(w, j2.id).status, 'failed'); assert.equal(dep(w, j2.id).stop_reason, 'preflight_failed', 'the true cause on the row');
   assert.ok(r.sentOf('attempt.release').some((m) => m.attemptId === a2.id));
   // The index: a live deployment cannot take a port another live one holds; a finished one frees it.
-  const j3 = preview(w, app); w.exec.tick(w.now());
+  const j3 = preview(w, v3); w.exec.tick(w.now());
   assert.throws(() => w.db.prepare('UPDATE deployments SET host_port = 49207 WHERE job_id = ?').run(j3.id), /UNIQUE/);
   w.nx.deployments.stop(w.me, dep(w, j1.id).id);
   provisionService(w, r, j3.id, 49207, 'a');
@@ -654,7 +718,9 @@ test('D7 a manifest that names environment variables cannot start: secrets for d
 
 test('D8 app quit stops every live deployment (app_quit) in one bounded pass and tells the runner', async () => {
   const { w, r, app } = await deployWorld();
-  const j1 = preview(w, app); const j2 = preview(w, app); w.exec.tick(w.now());
+  // One live dev deployment per application version (B2a stabilization): concurrent previews need their own versions.
+  const [v1, v2] = await previewableApps(w, r, app, 2);
+  const j1 = preview(w, v1); const j2 = preview(w, v2); w.exec.tick(w.now());
   const a1 = provisionService(w, r, j1.id, 49210); probe(w, r, a1, 200);
   const a2 = w.liveAttempt(j2.id);
   const t = performance.now();
@@ -668,7 +734,9 @@ test('D8 app quit stops every live deployment (app_quit) in one bounded pass and
 
 test('D9 the fixed 2 h lifetime stops a healthy deployment (idle); a cancelled preview job stops its deployment (cancel)', async () => {
   const { w, r, app } = await deployWorld();
-  const j = preview(w, app); w.exec.tick(w.now());
+  // One live dev deployment per application version (B2a stabilization): concurrent previews need their own versions.
+  const [v1, v2] = await previewableApps(w, r, app, 2);
+  const j = preview(w, v1); w.exec.tick(w.now());
   const a = provisionService(w, r, j.id, 49211); probe(w, r, a, 200);
   for (let i = 0; i < 24 * 5; i++) probe(w, r, a, 200);       // 10 min of probes
   w.run(r, 2 * 60 * MIN - 11 * MIN);
@@ -677,7 +745,7 @@ test('D9 the fixed 2 h lifetime stops a healthy deployment (idle); a cancelled p
   assert.equal(dep(w, j.id).status, 'stopped'); assert.equal(dep(w, j.id).stop_reason, 'idle');
   assert.equal(w.job(j.id).phase, 'stopping');
   assert.ok(r.sentOf('attempt.cancel').some((m) => m.attemptId === a.id && m.reason === 'timeout'));
-  const j2 = preview(w, app); w.exec.tick(w.now());
+  const j2 = preview(w, v2); w.exec.tick(w.now());
   w.exec.cancel(w.me, j2.id);
   assert.equal(dep(w, j2.id).status, 'stopped'); assert.equal(dep(w, j2.id).stop_reason, 'cancel'); assert.equal(dep(w, j2.id).stopped_by, w.me.id);
   healthy(w); w.close();
@@ -941,6 +1009,9 @@ test('AR1 dev deployments write deployment.start, deployment.transition and depl
   assert.equal(stop.actor_kind, 'user'); assert.equal(stop.actor_id, w.me.id);
   assert.deepEqual(JSON.parse(stop.details_json), { deploymentId: d.id, from: 'unhealthy', to: 'stopped', reason: 'user', job: 'completes_on_exit', hostPort: 49300 });
   assert.equal(ACT.activityText(actView(stop), ACT_CTX), 'Dev deployment stopped; its job finishes when the app has exited');
+  // One live dev deployment per version (B2a stabilization): the stopped app exits, so its job ends, before the next.
+  r.report({ op: 'attempt.exited', attemptId: a.id, exit: { code: 0, oomKilled: false, finishedAt: w.now() }, outputs: [], parsed: [], logBytes: 10 });
+  assert.equal(w.jobState(j.id), 'completed');
   // A failure in words: the start window passes without a 200.
   const j2 = preview(w, app); w.exec.tick(w.now());
   const a2 = provisionService(w, r, j2.id, 49301, 'f');
@@ -1031,19 +1102,21 @@ test('M1 only a user stops a dev deployment: the system and an agent with a proj
 test('M2 a dev deployment ends with its true cause: a refused preflight, a runner refusal, the app quitting', async () => {
   const { w, r, app } = await deployWorld();
   const reasonOf = (j) => JSON.parse(acts(w, 'deployment.transition', dep(w, j.id).id).pop().details_json).reason;
+  // One live dev deployment per application version (B2a stabilization): concurrent previews need their own versions.
+  const [v1, v2, v3, v4] = await previewableApps(w, r, app, 4);
   // A port conflict at preflight.
-  const j1 = preview(w, app); const j2 = preview(w, app); w.exec.tick(w.now());
+  const j1 = preview(w, v1); const j2 = preview(w, v2); w.exec.tick(w.now());
   provisionService(w, r, j1.id, 49320); provisionService(w, r, j2.id, 49320, 'f');
   assert.equal(reasonOf(j2), 'preflight_failed'); assert.equal(dep(w, j2.id).stop_reason, 'preflight_failed', 'the true cause on the row');
   assert.equal(ACT.activityText(actView(acts(w, 'deployment.transition', dep(w, j2.id).id).pop()), ACT_CTX),
     'Dev deployment failed: its sandbox did not pass the safety checks');
   // A runner refusal.
-  const j3 = preview(w, app); w.exec.tick(w.now());
+  const j3 = preview(w, v3); w.exec.tick(w.now());
   r.report({ op: 'attempt.refused', attemptId: w.liveAttempt(j3.id).id, reason: 'docker_stopped' });
   assert.equal(reasonOf(j3), 'refused'); assert.equal(dep(w, j3.id).stop_reason, 'refused');
   // The app quits: a deployment that never passed its check ends its job cancelled (app_quit), not "exited".
   w.nx.deployments.stop(w.me, dep(w, j1.id).id);
-  const j4 = preview(w, app); w.exec.tick(w.now());
+  const j4 = preview(w, v4); w.exec.tick(w.now());
   const a4 = provisionService(w, r, j4.id, 49321, 'a');
   w.nx.deployments.stopAllForQuit();
   r.report({ op: 'attempt.exited', attemptId: a4.id, exit: { code: 143, oomKilled: false, finishedAt: w.now() }, outputs: [], parsed: [], logBytes: 1 });
@@ -1079,7 +1152,9 @@ test('M4 with a repository check configured a snapshot starts only through the s
 
 test('M5 a stopped deployment whose exit is never reported frees its slot: the job fails exit_not_reported after the bound', async () => {
   const { w, r, app } = await deployWorld();
-  const j = preview(w, app); w.exec.tick(w.now());
+  // One live dev deployment per application version (B2a stabilization): concurrent previews need their own versions.
+  const [v1, v2] = await previewableApps(w, r, app, 2);
+  const j = preview(w, v1); w.exec.tick(w.now());
   const a = provisionService(w, r, j.id, 49330); probe(w, r, a, 200);
   w.nx.deployments.stop(w.me, dep(w, j.id).id);
   assert.equal(w.job(j.id).phase, 'stopping');
@@ -1090,7 +1165,7 @@ test('M5 a stopped deployment whose exit is never reported frees its slot: the j
   assert.equal(w.attempt(a.id).state, 'failed');
   assert.equal(r.sentOf('attempt.cancel').filter((m) => m.attemptId === a.id).length, 2, 'told again');
   // The slot is free: two new previews both lease.
-  const k = [preview(w, app), preview(w, app)]; w.exec.tick(w.now());
+  const k = [preview(w, v1), preview(w, v2)]; w.exec.tick(w.now());
   assert.deepEqual(k.map((x) => w.jobState(x.id)), ['leased', 'leased']);
   healthy(w); w.close();
 });

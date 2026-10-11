@@ -62,6 +62,12 @@ export interface RailRecords {
   liveDeployments?: number;
   /** The statuses of the live dev deployments (`starting`, `healthy`, `unhealthy`): the reason a "Checking" step gives. */
   liveDeploymentStatuses?: readonly string[];
+  /**
+   * Per version (never the project's): the live previews of the shown application draft(s) only, with their statuses.
+   * A step done on a kind (Application) counts these; the Dev deployment step (a healthy deployment record) counts the
+   * project's. Undefined: not read, and the project's count stands.
+   */
+  draftPreviews?: readonly string[];
 }
 
 export interface RailStep {
@@ -117,15 +123,19 @@ export function railFor(view: DomainSpecView, records: RailRecords | null = null
         versions: 'kind' in done ? records.versions.filter((v) => v.kind === done.kind).map((v) => ({ status: v.status, validators: v.validators })) : [],
         liveJobs: records.liveActions.filter((a) => s.actions.includes(a)).length,
         inputsAvailable: s.consumes.every((k) => records.versions.some((v) => v.kind === k && (v.status === 'candidate' || v.status === 'active'))),
-        // A preview job still starting counts as live too (it belongs to the dev deployment step's actions).
+        // A Dev deployment step counts the project's live previews (a preview job still starting counts too); a step
+        // done on a version (Application) counts only the previews of that version (draftPreviews), never another's.
         liveDeployments: records.liveDeployments === undefined ? undefined
-          : records.liveDeployments + records.liveActions.filter((a) => deploymentActions.includes(a)).length,
+          : 'kind' in done && records.draftPreviews !== undefined ? records.draftPreviews.length
+            : records.liveDeployments + records.liveActions.filter((a) => deploymentActions.includes(a)).length,
         recordPresent: 'record' in done ? (done.record === 'participation' ? records.participation : done.record === 'deployment_healthy' ? records.deploymentHealthy : false) : undefined
       }, view.currentSubPhase);
     }
     return {
       n: i + 1, id: s.id, label: s.label, status: s.status, subPhase: s.subPhase, future, state,
-      word: future ? STATUS_WORD.FUTURE : state === 'checking' && records ? `Checking — ${checkingReason(records)}` : state ? STATE_WORD[state] : STATUS_WORD[s.status],
+      word: future ? STATUS_WORD.FUTURE : state === 'checking' && records
+        ? `Checking — ${checkingReason(full && 'kind' in full.doneWhen && records.draftPreviews !== undefined ? { liveDeploymentStatuses: records.draftPreviews } : records)}`
+        : state ? STATE_WORD[state] : STATUS_WORD[s.status],
       note: future ? futureLine(s.subPhase) : s.scopeNote,
       when: supported && availability !== null ? `Available from ${s.subPhase}` : null
     };

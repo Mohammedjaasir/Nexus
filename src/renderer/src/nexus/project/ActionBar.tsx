@@ -14,7 +14,8 @@ import { actionBar, liveDeploymentOf, startedNote } from './actionModel';
  *  steps not in this release are not listed. */
 export function ActionBar({ projectId, workspaceId, version, title }: {
   projectId: string; workspaceId: string; title: string;
-  version: { id: string; kind: string; status: string } | null;
+  /** `buildId`: an application version's build (its assembled_from source), so a preview job not yet leased counts. */
+  version: { id: string; kind: string; status: string; buildId?: string | null } | null;
 }) {
   const ui = useExecutionUi();
   const { availability } = useHealth();
@@ -22,7 +23,7 @@ export function ActionBar({ projectId, workspaceId, version, title }: {
   // A dev deployment of this version already live (or starting): no second start from here (main would allow one).
   const deployments = useDeployments(projectId);
   const jobs = useJobs(projectId);
-  const liveDeployment = version ? liveDeploymentOf(version.id, deployments.data ?? [], jobs.data ?? []) : null;
+  const liveDeployment = version ? liveDeploymentOf({ versionId: version.id, buildVersionId: version.buildId ?? null }, deployments.data ?? [], jobs.data ?? []) : null;
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ text: string; alert: boolean } | null>(null);
   // The job this bar just started, while it can still be stopped from here (Runs offers Cancel too).

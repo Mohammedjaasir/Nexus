@@ -16,7 +16,8 @@ import { DeploymentsSection } from './DeploymentsSection';
 import { EvidenceSection } from './EvidenceSection';
 import { KindViewer } from './kindViewers';
 import { applicationChecksWord, checksWord, type CheckStatus, type PreviewDeployment } from './evidenceModel';
-import { useDeployments, useValidations } from '../data/useExecution';
+import { useDeployments, useJobs, useValidations } from '../data/useExecution';
+import { livePreviewsOf } from '../runs/jobRunModel';
 import { workspacesActingOn } from './actionModel';
 import {
   IDLE_ACTIONS, LINK_CANDIDATE_ARTIFACTS, actionDoneText, actionsFor, actionPendingText, actionFailed, actionFailureText, actionLabel, actionSucceeded, artifactPassportView,
@@ -177,8 +178,19 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
   const deployments = useDeployments(project.id);
   const shownForChecks = loaded ? loaded.detail.versions.find((v) => v.versionNo === node.versionNo) ?? null : null;
   const shownValidations = useValidations(isApp && shownForChecks ? shownForChecks.id : null);
-  const deploymentsOf = (versionId: string): PreviewDeployment[] | null =>
-    deployments.data ? deployments.data.filter((d) => d.subjectVersionId === versionId).map((d) => ({ status: d.status, startedAt: d.startedAt })) : null;
+  const jobs = useJobs(project.id);
+  // The shown version's build (its assembled_from source, read with the Passport's lineage): a preview job of it that
+  // has no deployment row yet still counts for this version, and only for it.
+  const shownBuildId = isApp ? loaded?.up?.nodes.find((n) => n.relation === 'assembled_from' && n.kind === 'build')?.versionId ?? null : null;
+  const deploymentsOf = (versionId: string): PreviewDeployment[] | null => {
+    if (!deployments.data) return null;
+    const rows = deployments.data.filter((d) => d.subjectVersionId === versionId).map((d) => ({ status: d.status, startedAt: d.startedAt }));
+    // Live rows are already in `rows`; add the version's not-yet-leased preview jobs (per version, never the project's).
+    const pending = versionId === shownForChecks?.id && jobs.data
+      ? livePreviewsOf({ versionId, buildVersionId: shownBuildId }, deployments.data, jobs.data).filter((p) => !rows.some((r) => r.startedAt === p.startedAt && r.status === p.status))
+      : [];
+    return [...rows, ...pending];
+  };
   const validatorsOf = (versionId: string): Record<string, CheckStatus> | null => {
     if (!shownForChecks || versionId !== shownForChecks.id || !shownValidations.data) return null;
     const m: Record<string, CheckStatus> = {};
@@ -344,7 +356,7 @@ export function ArtifactPassport({ project, node, artifacts, onSpine = true, onH
       {shownVersion && isApp && <EvidenceSection key={shownVersion.id} version={shownVersion} kind={artifact.kind} checked preview={{ deployments: deploymentsOf(shownVersion.id) }} />}
       {shownVersion && artifact.ownerWorkspaceId && ownerActive && artifact.status === 'active' && (
         <ActionBar projectId={project.id} workspaceId={artifact.ownerWorkspaceId} title="Actions"
-          version={{ id: shownVersion.id, kind: artifact.kind, status: shownVersion.status }} />
+          version={{ id: shownVersion.id, kind: artifact.kind, status: shownVersion.status, buildId: shownBuildId }} />
       )}
       {shownVersion && projectOwned(artifact) && artifact.status === 'active' && workspacesActingOn(artifact.kind, activeWorkspaces).map((w) => (
         <ActionBar key={w} projectId={project.id} workspaceId={w} title={`${viewOf(w).label} actions`}

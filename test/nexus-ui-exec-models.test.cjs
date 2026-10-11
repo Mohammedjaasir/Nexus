@@ -817,7 +817,7 @@ test('S8 an application\'s health check state comes from its deployments and che
   assert.equal(SM.withApplicationWords(words, [app('a1', 'draft')], null, null).has('artifact:a1'), false, 'unread: no word, never "Checking…"');
   const passport = src('project/ArtifactPassport.tsx');
   assert.match(passport, /\{shownVersion && isApp && <EvidenceSection key=\{shownVersion\.id\} version=\{shownVersion\} kind=\{artifact\.kind\} checked preview=\{\{ deployments: deploymentsOf\(shownVersion\.id\) \}\} \/>\}/);
-  assert.match(src('project/ProjectBench.tsx'), /withApplicationWords\(versionChecks\.words, artifacts, versionChecks\.validators, projectDeployments\.data\)/);
+  assert.match(src('project/ProjectBench.tsx'), /withApplicationWords\(versionChecks\.words, artifacts, versionChecks\.validators, projectDeployments\.data,\n\s*projectJobs\.data \? \{ jobs: projectJobs\.data, builds: draftBuilds \} : null\)/);
 });
 
 test('S9 before the first probe the setup sheet reads "not checked yet" (the HealthView main produces, and main\'s own health())', () => {
@@ -865,11 +865,16 @@ test('S10 the Assemble job\'s Runs row reads "Ready to check — start a preview
   assert.equal(R.awaitingUserCheck({ expected, outputs: [], liveDeployments: 0 }), false, 'no output read: no claim');
   assert.equal(R.awaitingUserCheck({ expected: R.expectedChecksFor('sde.build.run'), outputs: [[row('build.exit_zero', 'passed')]], liveDeployments: 0 }), false,
     'a runner re-hash is a live check, never the user\'s');
-  // What could run the check: a live deployment of the version, or a live job starting one on it.
-  const deps = [{ subjectVersionId: 'V1', status: 'starting' }, { subjectVersionId: 'V1', status: 'stopped' }, { subjectVersionId: 'V2', status: 'healthy' }];
-  assert.equal(R.liveDeploymentChecks(['V1'], deps, []), 1);
-  assert.equal(R.liveDeploymentChecks(['V3'], deps, [job({ state: 'queued', actionId: 'sde.preview.start', inputs: [{ versionId: 'V3', slot: 'application', contentHash: 'h' }] })]), 1);
-  assert.equal(R.liveDeploymentChecks(['V3'], deps, [job({ state: 'completed', actionId: 'sde.preview.start', inputs: [{ versionId: 'V3', slot: 'application', contentHash: 'h' }] })]), 0);
+  // What could run the check, per version: a live deployment row of the version, or a live preview job of its build
+  // (a preview job's input is the build) that has no deployment row yet.
+  const deps = [{ jobId: 'JA', subjectVersionId: 'V1', status: 'starting', startedAt: 1 }, { jobId: 'JB', subjectVersionId: 'V1', status: 'stopped', startedAt: 1 },
+    { jobId: 'JC', subjectVersionId: 'V2', status: 'healthy', startedAt: 1 }];
+  const pj = (id, state, build) => job({ id, state, actionId: 'sde.preview.start', recipeId: 'sde.preview.start', inputs: [{ versionId: build, slot: 'build', contentHash: 'h' }] });
+  assert.deepEqual(R.livePreviewsOf({ versionId: 'V1', buildVersionId: 'B1' }, deps, []), [{ status: 'starting', startedAt: 1 }]);
+  assert.equal(R.livePreviewsOf({ versionId: 'V3', buildVersionId: 'B3' }, deps, [pj('JQ', 'queued', 'B3')]).length, 1, 'not leased yet: its build');
+  assert.equal(R.livePreviewsOf({ versionId: 'V3', buildVersionId: 'B3' }, deps, [pj('JQ', 'completed', 'B3')]).length, 0);
+  assert.equal(R.livePreviewsOf({ versionId: 'V3', buildVersionId: null }, deps, [pj('JQ', 'queued', 'B3')]).length, 0, 'build unknown: no claim');
+  assert.equal(R.livePreviewsOf({ versionId: 'V3', buildVersionId: 'B2' }, deps, [pj('JC', 'running', 'B2')]).length, 0, 'its row names V2');
   // The row: main's headline is `validating`; the renderer's records say nothing is checking.
   const assemble = job({ actionId: 'sde.app.assemble', recipeId: 'sde.app.assemble', state: 'completed', headline: 'validating', startedAt: NOW });
   const waiting = R.jobRun(assemble, { awaitingCheck: true });
@@ -882,7 +887,8 @@ test('S10 the Assemble job\'s Runs row reads "Ready to check — start a preview
   assert.equal(R.jobRun({ ...assemble, headline: 'checks_passed' }, { awaitingCheck: true }).headline, 'The application was assembled; checks passed');
   const runs = src('runs/ProjectRuns.tsx');
   assert.match(runs, /const awaitingCheck = useAwaitingCheck\(job, jobs, deployments\);\n\s*const run = jobRun\(job, \{ reason, awaitingCheck \}\);/);
-  assert.match(runs, /liveDeployments: liveDeploymentChecks\(outputs\.map\(\(o\) => o\.versionId\), deployments, jobs\)/);
+  assert.match(runs, /const buildVersionId = job\.inputs\.find\(\(x\) => x\.slot === 'build'\)\?\.versionId \?\? null;/);
+  assert.match(runs, /livePreviewsOf\(\{ versionId: o\.versionId, buildVersionId \}, deployments, jobs\)\.length/);
   assert.match(runs, /<JobRow job=\{j\} explain=\{i < 5\} jobs=\{jobs\.data \?\? \[\]\} deployments=\{deployments\.data\} \/>/);
 });
 
@@ -947,7 +953,7 @@ test('S13 the rail, the Folio and Runs use the same words for a draft waiting on
   }
 });
 
-test('S15 no second "Start a dev deployment" while one of that version is starting or running (main would allow a second)', () => {
+test('S15 no second "Start a dev deployment" while one of that version is starting or running (main refuses one: deployment_live)', () => {
   const def = getUserAction('sde.preview.start');
   const answer = [{ actionId: def.id, label: def.label, stepId: null, available: true, reason: null, needsApproval: false, inputs: def.inputs.map((s) => ({ ...s })) }];
   const ctx = (liveDeployment) => ({ workspaceId: 'sde', availability: READY, version: { kind: 'application', status: 'draft' }, liveDeployment });
@@ -957,20 +963,25 @@ test('S15 no second "Start a dev deployment" while one of that version is starti
   assert.deepEqual(starting.sentences, [{ actionId: 'sde.preview.start', setup: false, text: 'Start a dev deployment: one is starting for this version. Follow it under Dev deployments.' }]);
   assert.equal(AM.actionBar(answer, ctx('running')).sentences[0].text, 'Start a dev deployment: one is running for this version. Stop it to start another.');
   // Which deployment is live, from the records: a deployment row of the version, or a live job starting one before its row exists.
-  const dep = (subjectVersionId, status) => ({ subjectVersionId, status });
-  const j = (state, versionId) => ({ state, actionId: 'sde.preview.start', inputs: [{ versionId }] });
-  assert.equal(AM.liveDeploymentOf('V1', [dep('V1', 'starting')], []), 'starting');
-  assert.equal(AM.liveDeploymentOf('V1', [dep('V1', 'healthy')], []), 'running');
-  assert.equal(AM.liveDeploymentOf('V1', [dep('V1', 'unhealthy')], []), 'running');
-  assert.equal(AM.liveDeploymentOf('V1', [dep('V1', 'stopped'), dep('V2', 'starting')], []), null, 'another version, or a stopped one');
-  assert.equal(AM.liveDeploymentOf('V1', [], [j('queued', 'V1')]), 'starting');
-  assert.equal(AM.liveDeploymentOf('V1', [], [j('completed', 'V1')]), null);
-  // Main's own rule (unchanged): #24 does not refuse a second preview start, so the guard is the bar's.
-  const q = fs.readFileSync(path.join(ROOT, 'src', 'main', 'nexus', 'exec', 'execQueries.ts'), 'utf8');
-  assert.match(q, /const statuses: VersionStatus\[\] = preview \? \['draft', 'candidate', 'active'\] : \['candidate', 'active'\];/);
+  const dep = (subjectVersionId, status, jobId = 'JX') => ({ jobId, subjectVersionId, status, startedAt: 1 });
+  const j = (state, build, id = 'JQ') => ({ id, state, actionId: 'sde.preview.start', inputs: [{ versionId: build }], createdAt: 1 });
+  const V1 = { versionId: 'V1', buildVersionId: 'B1' };
+  assert.equal(AM.liveDeploymentOf(V1, [dep('V1', 'starting')], []), 'starting');
+  assert.equal(AM.liveDeploymentOf(V1, [dep('V1', 'healthy')], []), 'running');
+  assert.equal(AM.liveDeploymentOf(V1, [dep('V1', 'unhealthy')], []), 'running');
+  assert.equal(AM.liveDeploymentOf(V1, [dep('V1', 'stopped'), dep('V2', 'starting')], []), null, 'another version, or a stopped one');
+  assert.equal(AM.liveDeploymentOf(V1, [], [j('queued', 'B1')]), 'starting', 'a preview job of its build, not leased yet');
+  assert.equal(AM.liveDeploymentOf(V1, [], [j('completed', 'B1')]), null);
+  assert.equal(AM.liveDeploymentOf(V1, [], [j('queued', 'B2')]), null, 'another version\'s build');
+  // Main's own rule now: a second start for a version with a live deployment or preview job is refused (deployment_live).
+  const svc = fs.readFileSync(path.join(ROOT, 'src', 'main', 'nexus', 'exec', 'executionService.ts'), 'utf8');
+  assert.match(svc, /if \(!hasPrior && this\.previewLive\(recipe\.id, appIn\.versionId\)\) \{\r?\n\s*throw new PlatformError\('conflict', 'a dev deployment of this application version is already live', \{ reason: 'deployment_live' \}\);/);
+  assert.equal(E.execFailText({ code: 'conflict', reason: 'deployment_live' }),
+    'A dev deployment of this application version is already starting or running. Stop it before you start another.');
   const bar = src('project/ActionBar.tsx');
-  assert.match(bar, /const liveDeployment = version \? liveDeploymentOf\(version\.id, deployments\.data \?\? \[\], jobs\.data \?\? \[\]\) : null;/);
+  assert.match(bar, /const liveDeployment = version \? liveDeploymentOf\(\{ versionId: version\.id, buildVersionId: version\.buildId \?\? null \}, deployments\.data \?\? \[\], jobs\.data \?\? \[\]\) : null;/);
   assert.match(bar, /version: version \? \{ kind: version\.kind, status: version\.status \} : null, liveDeployment \}\);/);
+  assert.match(src('project/ArtifactPassport.tsx'), /version=\{\{ id: shownVersion\.id, kind: artifact\.kind, status: shownVersion\.status, buildId: shownBuildId \}\} \/>/);
   // Two clicks before main answers start one job: the busy guard, and one intent per request.
   assert.match(bar, /if \(!def \|\| busy\) return;/);
 });

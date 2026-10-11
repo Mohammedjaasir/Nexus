@@ -2112,6 +2112,12 @@ export class ExecutionService {
     readable(edge.id);
     const build = this.db.prepare('SELECT status FROM artifact_versions WHERE id = ?').get(edge.id) as { status: string };
     if (build.status !== 'candidate' && build.status !== 'active') return invalid('input_not_allowed', 'the build of this application is not a candidate');
+    // One live dev deployment per application version: while one is starting, healthy or not answering yet, or a
+    // preview job for it is still live, a second start is refused before anything is written (a repeated intent still
+    // answers its own job). Main runs this check and the insert below in one synchronous call, so nothing slips between.
+    if (!hasPrior && this.previewLive(recipe.id, appIn.versionId)) {
+      throw new PlatformError('conflict', 'a dev deployment of this application version is already live', { reason: 'deployment_live' });
+    }
     const cap: Capability = { action: o.action.id, recipe: recipe.id, recipeVersion: recipe.version, executor: recipe.executor, network: recipe.network,
       profile: manifest.profile, subjectVersionId: appIn.versionId };
     const l = recipe.limits!;
@@ -2124,6 +2130,13 @@ export class ExecutionService {
       retry: { idempotent: false, maxAttempts: 1, backoffMs: [] }
     };
     return this.insertExecJob(p, o, recipe, cap, limits, create, hasPrior);
+  }
+
+  /** Whether this application version has a live dev deployment, or a live preview job whose subject it is. */
+  private previewLive(recipeId: string, versionId: string): boolean {
+    if (this.db.prepare(`SELECT 1 FROM deployments WHERE subject_version_id = ? AND status IN ('starting','healthy','unhealthy') LIMIT 1`).get(versionId)) return true;
+    return !!this.db.prepare(`SELECT 1 FROM jobs WHERE recipe_id = ? AND state IN (${LIVE_JOB_STATES.map(() => '?').join(', ')})
+      AND (CASE WHEN json_valid(capabilities_json) THEN json_extract(capabilities_json, '$[0].subjectVersionId') END) = ? LIMIT 1`).get(recipeId, ...LIVE_JOB_STATES, versionId);
   }
 
   private requireQueueRoom(projectId: string): void {

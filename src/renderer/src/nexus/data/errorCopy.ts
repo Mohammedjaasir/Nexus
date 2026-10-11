@@ -147,7 +147,8 @@ export const EXEC_REASON_TEXT: Readonly<Record<string, string>> = Object.freeze(
   bad_content: 'Some fields are missing or too long. Check them and save again.',
   kind_not_in_domain: 'This workspace does not write that kind of artifact.',
   unknown_action: 'That action does not exist in this release.',
-  action_not_in_domain: 'That action does not belong to this workspace.'
+  action_not_in_domain: 'That action does not belong to this workspace.',
+  deployment_live: 'A dev deployment of this application version is already starting or running. Stop it before you start another.'
 });
 
 /** The sentence for a setup:* reason (or the generic unavailable sentence). */

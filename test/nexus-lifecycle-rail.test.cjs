@@ -310,7 +310,7 @@ test('S8b the Application step: draft, not checked ("Ready to check — start a 
   // The bench passes the live dev deployments it read (the rail's records stay those of railRecordsFor).
   const bench = src('project/ProjectBench.tsx');
   assert.match(bench, /const live = \(deployments\.data \?\? \[\]\)\.filter\(\(d\) => d\.status === 'starting' \|\| d\.status === 'healthy' \|\| d\.status === 'unhealthy'\);\n\s*const liveDeployments = live\.length;/);
-  assert.match(bench, /m\.set\(g\.workspaceId, railFor\(view, records \? \{ \.\.\.records, liveDeployments, liveDeploymentStatuses \} : null\)\);/);
+  assert.match(bench, /m\.set\(g\.workspaceId, railFor\(view, records \? \{ \.\.\.records, liveDeployments, liveDeploymentStatuses, draftPreviews \} : null\)\);/);
 });
 
 test('S14 while a preview starts or is probed the rail reads "Checking — <reason>" (as the Spine and Folio do) and the summary counts it as checking', () => {
@@ -342,8 +342,53 @@ test('S14 while a preview starts or is probed the rail reads "Checking — <reas
   assert.equal(up.steps.find((s) => s.id === 'application').word, 'Checking — waiting for the preview to answer');
   assert.equal(L.checkingReason({ liveDeploymentStatuses: [] }), 'the preview is starting', 'a job starting one, before its row exists');
   // The bench passes the statuses it read; the rail styles a checking step like a moving one, always with its word.
-  assert.match(src('project/ProjectBench.tsx'), /railFor\(view, records \? \{ \.\.\.records, liveDeployments, liveDeploymentStatuses \} : null\)/);
+  assert.match(src('project/ProjectBench.tsx'), /railFor\(view, records \? \{ \.\.\.records, liveDeployments, liveDeploymentStatuses, draftPreviews \} : null\)/);
   const css = src('styles/execution.css');
   assert.match(css, /\.nx-lrail__step\[data-state="checking"\]::before \{ border-color: var\(--nx-ink\); \}/);
   assert.match(css, /\.nx-lrail__bar li\[data-state="checking"\] \{ background: var\(--nx-line-strong\); \}/);
+});
+
+test('S16 per version: with two application versions and a live preview of only one, only that one reads "Checking" (rail, Spine node, Folio, Runs)', () => {
+  const R = loadTs('src/renderer/src/nexus/runs/jobRunModel.ts');
+  const EV = loadTs('src/renderer/src/nexus/project/evidenceModel.ts');
+  const MANIFEST = { 'app.manifest_schema': 'passed' };
+  // V1 is a candidate whose preview is live (healthy); V2 is the draft, assembled from build B2, with no preview of its own.
+  const deployments = [{ jobId: 'J1', subjectVersionId: 'V1', status: 'healthy', startedAt: 1 }];
+  const jobs = [{ id: 'J1', state: 'running', actionId: 'sde.preview.start', inputs: [{ versionId: 'B1', slot: 'build', contentHash: 'h' }], createdAt: 1 }];
+  const draftPreviews = R.livePreviewsOf({ versionId: 'V2', buildVersionId: 'B2' }, deployments, jobs).map((p) => p.status);
+  assert.deepEqual(draftPreviews, [], 'V1\'s live preview is not V2\'s');
+  // The rail: the Application step (V2 draft) waits for its own preview; the Dev deployment step sees the project's.
+  const base = { versions: [{ kind: 'build', status: 'candidate', validators: {} }, { kind: 'application', status: 'draft', validators: MANIFEST }],
+    liveActions: ['sde.preview.start'], participation: true, deploymentHealthy: false, liveDeployments: 1, liveDeploymentStatuses: ['healthy'] };
+  const r = L.railFor(view('sde'), { ...base, draftPreviews });
+  assert.deepEqual([r.steps.find((s) => s.id === 'application').state, r.steps.find((s) => s.id === 'application').word], ['awaiting_check', 'Ready to check — start a preview']);
+  assert.equal(r.steps.find((s) => s.id === 'dev-deployment').state, 'checking', 'the project has a live preview (V1)');
+  // The same draft once ITS preview is starting (a job of build B2 not leased yet): Checking, with its own reason.
+  const own = R.livePreviewsOf({ versionId: 'V2', buildVersionId: 'B2' }, deployments,
+    [...jobs, { id: 'J2', state: 'queued', actionId: 'sde.preview.start', inputs: [{ versionId: 'B2', slot: 'build', contentHash: 'h' }], createdAt: 2 }]).map((p) => p.status);
+  assert.deepEqual(own, ['starting']);
+  const r2 = L.railFor(view('sde'), { ...base, draftPreviews: own });
+  assert.equal(r2.steps.find((s) => s.id === 'application').word, 'Checking — the preview is starting');
+  // The Spine node: V2's word ignores V1's live deployment.
+  const SM2 = loadTs('src/renderer/src/nexus/project/spineModel.ts');
+  const app = (id, status) => ({ artifact: { id, kind: 'application', status: 'active', ownerWorkspaceId: 'sde', ownerParticipationId: 'pp', name: id, createdAt: 1 },
+    versionCount: 1, current: null, latest: { id, versionNo: 1, status } });
+  const words = SM2.withApplicationWords(new Map([['artifact:V2', 'Checking…']]), [app('V2', 'draft')], new Map([['V2', MANIFEST]]), deployments,
+    { jobs, builds: new Map([['V2', 'B2']]) });
+  assert.equal(words.get('artifact:V2'), 'Ready to check — start a preview');
+  const words2 = SM2.withApplicationWords(new Map(), [app('V2', 'draft')], new Map([['V2', MANIFEST]]), deployments,
+    { jobs: [...jobs, { id: 'J2', state: 'queued', actionId: 'sde.preview.start', inputs: [{ versionId: 'B2', slot: 'build', contentHash: 'h' }], createdAt: 2 }], builds: new Map([['V2', 'B2']]) });
+  assert.equal(words2.get('artifact:V2'), 'Checking: the dev deployment is starting');
+  // The Folio reads deployments of its own version only (and the not-yet-leased preview of its own build).
+  assert.equal(EV.applicationPreview({ status: 'draft', validators: MANIFEST, deployments: [] }).state, 'not_checked');
+  const passport = src('project/ArtifactPassport.tsx');
+  assert.match(passport, /const rows = deployments\.data\.filter\(\(d\) => d\.subjectVersionId === versionId\)/);
+  assert.match(passport, /livePreviewsOf\(\{ versionId, buildVersionId: shownBuildId \}, deployments\.data, jobs\.data\)/);
+  // Runs: the assemble job of V2 (input B2) is not held "checking" by V1's preview.
+  const live = R.livePreviewsOf({ versionId: 'V2', buildVersionId: 'B2' }, deployments, jobs).length;
+  assert.equal(R.awaitingUserCheck({ expected: R.expectedChecksFor('sde.app.assemble'), outputs: [[{ validatorId: 'app.manifest_schema', blocking: true, status: 'passed' }]], liveDeployments: live }), true);
+  // The bench reads each shown draft's build (its assembled_from source) and counts per version.
+  const bench = src('project/ProjectBench.tsx');
+  assert.match(bench, /nexusClient\.lineageGet\(id, \{ direction: 'up', depth: 1 \}\)/);
+  assert.match(bench, /livePreviewsOf\(\{ versionId, buildVersionId: builds\.get\(versionId\) \?\? null \}, deployments\.data \?\? \[\], jobs\.data \?\? \[\]\)/);
 });

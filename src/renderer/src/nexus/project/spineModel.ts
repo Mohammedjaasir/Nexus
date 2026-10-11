@@ -4,6 +4,8 @@ import { UNASSIGNED_LABEL } from '../workspaces/mapping';
 import { viewOf, type ParticipationIndex, type ParticipationRow } from '../workspaces/participation';
 import { kindIsChecked, kindLabel, shownVersionOf, statusLabel } from './artifactModel';
 import { applicationPreview, checksWord, type PreviewDeployment } from './evidenceModel';
+import { livePreviewsOf } from '../runs/jobRunModel';
+import type { JobView } from '@shared/nexus/ipc';
 import type { RailRecords } from '../workspaces/lifecycleModel';
 
 export type ChangeKind = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked';
@@ -167,15 +169,22 @@ export function spineChecks(reads: readonly { nodeId: string; validationState: '
  */
 export function withApplicationWords(words: ReadonlyMap<string, string>, artifacts: readonly ArtifactSummary[],
   validators: ReadonlyMap<string, ValidatorStatuses> | null,
-  deployments: readonly (PreviewDeployment & { subjectVersionId: string })[] | null): Map<string, string> {
+  deployments: readonly (PreviewDeployment & { subjectVersionId: string; jobId?: string })[] | null,
+  /** Live jobs and each application version's build: a preview job not yet leased counts for its own version only. */
+  pending: { jobs: readonly Pick<JobView, 'id' | 'state' | 'actionId' | 'inputs' | 'createdAt'>[]; builds: ReadonlyMap<string, string> } | null = null): Map<string, string> {
   const out = new Map(words);
   for (const s of artifacts) {
     if (s.artifact.status !== 'active' || s.artifact.kind !== 'application') continue;
     const v = shownVersionOf(s);
     if (!v || v.status !== 'draft') continue;
     const nodeId = `artifact:${s.artifact.id}`;
-    const p = applicationPreview({ status: v.status, validators: validators?.get(v.id) ?? null,
-      deployments: deployments ? deployments.filter((d) => d.subjectVersionId === v.id) : null });
+    const own = deployments ? deployments.filter((d) => d.subjectVersionId === v.id).map((d) => ({ status: d.status, startedAt: d.startedAt })) : null;
+    const notLeased = own && deployments && pending && pending.builds.get(v.id)
+      ? livePreviewsOf({ versionId: v.id, buildVersionId: pending.builds.get(v.id)! },
+        deployments.map((d) => ({ jobId: d.jobId ?? '', subjectVersionId: d.subjectVersionId, status: d.status, startedAt: d.startedAt })), pending.jobs)
+        .filter((x) => !own.some((o) => o.status === x.status && o.startedAt === x.startedAt))
+      : [];
+    const p = applicationPreview({ status: v.status, validators: validators?.get(v.id) ?? null, deployments: own ? [...own, ...notLeased] : null });
     if (p && p.state !== 'draft') out.set(nodeId, p.word);
     else if (out.get(nodeId) === 'Checking…') out.delete(nodeId);
   }
@@ -185,6 +194,17 @@ export function withApplicationWords(words: ReadonlyMap<string, string>, artifac
 // ---------- B2a Task 15: the records behind each group's lifecycle rail ----------
 
 export type ValidatorStatuses = Readonly<Record<string, 'passed' | 'failed' | 'error' | 'skipped'>>;
+
+/** The shown application draft versions (the ones whose preview state the rail and the Spine read), at most `cap`. */
+export function applicationDrafts(artifacts: readonly ArtifactSummary[], cap = 4): string[] {
+  const out: string[] = [];
+  for (const s of artifacts) {
+    if (s.artifact.status !== 'active' || s.artifact.kind !== 'application') continue;
+    const v = shownVersionOf(s);
+    if (v && v.status === 'draft') out.push(v.id);
+  }
+  return out.slice(0, cap);
+}
 
 /** A project-owned artifact (a repository snapshot): no participation owns it, so it is a record of every group's rail. */
 export const projectOwned = (a: Pick<ArtifactSummary['artifact'], 'ownerWorkspaceId' | 'ownerParticipationId'>): boolean =>

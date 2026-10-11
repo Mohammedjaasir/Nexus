@@ -9,7 +9,7 @@ import { useExecutionUi } from '../project/execContext';
 import { Button } from '../ui/Button';
 import { RunStrip } from './RunStrip';
 import { useRuns } from './useRuns';
-import { STAGE_STATE_TEXT, awaitingUserCheck, expectedChecksFor, jobRun, liveDeploymentChecks } from './jobRunModel';
+import { STAGE_STATE_TEXT, awaitingUserCheck, expectedChecksFor, jobRun, livePreviewsOf } from './jobRunModel';
 
 /**
  * For a job whose outputs are still being checked (headline `validating`): true when they wait only for a check the
@@ -36,8 +36,10 @@ function useAwaitingCheck(job: JobView, jobs: readonly JobView[], deployments: r
     return () => { alive = false; };
   }, [job.id, job.updatedAt, enabled, tick]);
   if (!enabled || !outputs || !deployments) return false;
-  return awaitingUserCheck({ expected: expectedChecksFor(job.actionId), outputs: outputs.map((o) => o.rows),
-    liveDeployments: liveDeploymentChecks(outputs.map((o) => o.versionId), deployments, jobs) });
+  // Per version: the outputs were assembled from this job's own build input, which a preview job of them runs.
+  const buildVersionId = job.inputs.find((x) => x.slot === 'build')?.versionId ?? null;
+  const live = outputs.reduce((n, o) => n + livePreviewsOf({ versionId: o.versionId, buildVersionId }, deployments, jobs).length, 0);
+  return awaitingUserCheck({ expected: expectedChecksFor(job.actionId), outputs: outputs.map((o) => o.rows), liveDeployments: live });
 }
 
 /** The first failed (or not run) check summary of what a finished job made: the sourced reason of its headline. */

@@ -10,6 +10,7 @@ import { getDomain } from '@shared/nexus/domains';
 import { isAtOrBefore } from '@shared/nexus/domainSpec';
 import { setupText } from '../data/errorCopy';
 import { gb, type ExecAvailability } from '../data/executionModel';
+import { livePreviewsOf, type PreviewSubject } from '../runs/jobRunModel';
 
 /** Actions with their own place: Stop and Diagnose live on the dev deployment row. A run row does not offer
  *  Diagnose in this release. */
@@ -37,8 +38,8 @@ export interface ActionContext {
    */
   version: { kind: string; status: string } | null;
   /**
-   * A dev deployment of this version that is live now (or the job starting one): `starting` or `running`. Main does
-   * not refuse a second start, so the bar offers no second "Start a dev deployment" while one is live.
+   * A dev deployment of this version that is live now (or the job starting one): `starting` or `running`. Main refuses
+   * a second start (`deployment_live`), so the bar offers no second "Start a dev deployment" while one is live.
    */
   liveDeployment?: 'starting' | 'running' | null;
 }
@@ -132,17 +133,15 @@ export function workspacesActingOn(kind: string, workspaceIds: readonly string[]
 }
 
 /**
- * Whether a dev deployment of this version is live: `starting` while a deployment row is starting or a live job is
- * starting one on it (before its row exists), `running` while one is up (answering or not yet), else null.
+ * Whether a dev deployment of THIS version is live (livePreviewsOf, per version): `running` while one is up (answering
+ * or not yet), `starting` while one starts or a live preview job of its build has no row yet, else null. Main refuses
+ * a second start (`deployment_live`); the bar shows why instead of a button that would be refused.
  */
-export function liveDeploymentOf(versionId: string, deployments: readonly Pick<DeploymentView, 'subjectVersionId' | 'status'>[],
-  jobs: readonly { state: string; actionId: string | null; inputs: readonly { versionId: string }[] }[]): 'starting' | 'running' | null {
-  const mine = deployments.filter((d) => d.subjectVersionId === versionId);
-  if (mine.some((d) => d.status === 'healthy' || d.status === 'unhealthy')) return 'running';
-  if (mine.some((d) => d.status === 'starting')) return 'starting';
-  const liveJob = jobs.some((j) => ['queued', 'leased', 'running', 'awaiting_approval', 'retry_scheduled'].includes(j.state)
-    && j.actionId === 'sde.preview.start' && j.inputs.some((x) => x.versionId === versionId));
-  return liveJob ? 'starting' : null;
+export function liveDeploymentOf(subject: PreviewSubject, deployments: Parameters<typeof livePreviewsOf>[1],
+  jobs: Parameters<typeof livePreviewsOf>[2]): 'starting' | 'running' | null {
+  const live = livePreviewsOf(subject, deployments, jobs);
+  if (live.some((d) => d.status === 'healthy' || d.status === 'unhealthy')) return 'running';
+  return live.length > 0 ? 'starting' : null;
 }
 
 // ---------- approvals ----------

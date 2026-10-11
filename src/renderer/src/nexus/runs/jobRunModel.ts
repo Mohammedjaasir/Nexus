@@ -130,13 +130,32 @@ export const DEPLOYMENT_ACTIONS: readonly string[] = Object.freeze(DOMAINS.flatM
   .filter((s) => 'record' in s.doneWhen && s.doneWhen.record === 'deployment_healthy')
   .flatMap((s) => s.via.flatMap((v) => ('userAction' in v ? [v.userAction] : [])))));
 
-/** What could run a deployment check on these versions now: their live dev deployments and live jobs starting one. */
-export function liveDeploymentChecks(versionIds: readonly string[], deployments: readonly { subjectVersionId: string; status: string }[],
-  jobs: readonly Pick<JobView, 'state' | 'actionId' | 'inputs'>[]): number {
-  const live = new Set(['starting', 'healthy', 'unhealthy']);
-  return deployments.filter((d) => live.has(d.status) && versionIds.includes(d.subjectVersionId)).length
-    + jobs.filter((j) => LIVE_STATES.includes(j.state) && j.actionId !== null && DEPLOYMENT_ACTIONS.includes(j.actionId)
-      && j.inputs.some((x) => versionIds.includes(x.versionId))).length;
+/** One application version, and the build it was assembled from (its `assembled_from` source; null when not read). */
+export interface PreviewSubject { versionId: string; buildVersionId: string | null }
+export interface LivePreview { status: 'starting' | 'healthy' | 'unhealthy'; startedAt: number }
+
+const LIVE_DEPLOYMENT_STATUSES = new Set(['starting', 'healthy', 'unhealthy']);
+
+/**
+ * The live dev deployments of ONE application version, counted per version (never the project's): its own live
+ * deployment rows, plus each live preview job that has no deployment row yet and runs that version's build (a preview
+ * job's input is the build; its deployment row, which names the version, exists only once it is leased). Such a job
+ * reads "starting". A deployment of another version, or a job whose row names another version, is never counted.
+ */
+export function livePreviewsOf(subject: PreviewSubject,
+  deployments: readonly { jobId: string; subjectVersionId: string; status: string; startedAt: number }[],
+  jobs: readonly Pick<JobView, 'id' | 'state' | 'actionId' | 'inputs' | 'createdAt'>[]): LivePreview[] {
+  const out: LivePreview[] = deployments
+    .filter((d) => d.subjectVersionId === subject.versionId && LIVE_DEPLOYMENT_STATUSES.has(d.status))
+    .map((d) => ({ status: d.status as LivePreview['status'], startedAt: d.startedAt }));
+  if (subject.buildVersionId) {
+    const withRow = new Set(deployments.map((d) => d.jobId));
+    for (const j of jobs) {
+      if (!LIVE_STATES.includes(j.state) || j.actionId === null || !DEPLOYMENT_ACTIONS.includes(j.actionId) || withRow.has(j.id)) continue;
+      if (j.inputs.some((x) => x.versionId === subject.buildVersionId)) out.push({ status: 'starting', startedAt: j.createdAt });
+    }
+  }
+  return out;
 }
 
 /** The rail's words for a draft that waits for a preview. */
