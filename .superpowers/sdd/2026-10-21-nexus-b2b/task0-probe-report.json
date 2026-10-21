@@ -1,0 +1,266 @@
+{
+  "cliVersion": "2.1.295",
+  "helpFlags": {
+    "-p": true,
+    "--output-format": true,
+    "--verbose": true,
+    "--input-format": true,
+    "--restricted": true,
+    "--safe-mode": true,
+    "--strict-mcp-config": true,
+    "--mcp-config": true,
+    "--settings": true,
+    "--setting-sources": true,
+    "--tools": true,
+    "--allowedTools": true,
+    "--disallowedTools": true,
+    "--permission-mode": true,
+    "--permission-prompts": true,
+    "--no-session-persistence": true,
+    "--disable-slash-commands": true,
+    "--no-chrome": true,
+    "--max-budget-usd": true,
+    "--append-system-prompt": true,
+    "--append-system-prompt-file": true
+  },
+  "checks": [
+    {
+      "id": "P0",
+      "result": "pass",
+      "detail": "--version printed \"2.1.295 (Claude Code)\" (exit 0); expected ^2\\.1\\.\\d+"
+    },
+    {
+      "id": "P1",
+      "result": "pass",
+      "detail": "all 20 pinned flags listed; --append-system-prompt-file named in --help (in the --bare text: \"--append-system-prompt[-file]\"; not a separate option line)"
+    },
+    {
+      "id": "P2",
+      "result": "fail",
+      "detail": "with --safe-mode: exit 0, system/init mcp_servers=[], MCP recorder saw [], mock tool list lacks mcp__nexus__context_get. Same argv without --safe-mode: mcp_servers=[{\"name\":\"nexus\",\"status\":\"connected\",\"source\":\"dynamic\"}], recorder saw [\"server/discover\",\"initialize\",\"notifications/initialized\",\"tools/list\"], tool present"
+    },
+    {
+      "id": "P3",
+      "result": "pass",
+      "detail": "with the deny rule: tool_result is_error=true \"<tool_use_error>File is in a directory that is denied by your permission settings.</tool_use_error>\", secret not sent. Control without the rule: is_error=false, secret read (so the deny rule is what refused it)"
+    },
+    {
+      "id": "P4",
+      "result": "pass",
+      "detail": "skills-file canary in the system prompt; stdin preamble canary in the first user message (not the system prompt: stdin is the user turn); home/worktree canaries in any request: none"
+    },
+    {
+      "id": "P10",
+      "result": "pass",
+      "detail": "2 file(s) written to the fake home in one turn: .claude.json (added), .claude/backups/.claude.json.backup.1792560091708 (added)"
+    },
+    {
+      "id": "P5",
+      "result": "fail",
+      "detail": "system/init tools=[\"Edit\",\"Glob\",\"Grep\",\"Read\",\"Write\"]; Edit succeeded (file changed); MCP context_get failed: <tool_use_error>Error: No such tool available: mcp__nexus__context_get</tool_use_error> (never reached the recorder); Bash/WebFetch/... offered: none"
+    },
+    {
+      "id": "P6",
+      "result": "n/a",
+      "detail": "Authorization header from ${NEXUS_MCP_TOKEN}: no-initialize; token in argv: no; token in fake-home files: none; token in CLI output: no (the MCP server was never contacted under the pinned argv, see P2)"
+    },
+    {
+      "id": "P8",
+      "result": "pass",
+      "detail": "argv 644 bytes (limit 8192); a 204800-byte context on stdin reached the mock intact"
+    },
+    {
+      "id": "P7",
+      "result": "fail",
+      "detail": "no ANTHROPIC_BASE_URL (unset), fake key, HTTPS_PROXY=recorder, NO_PROXY=127.0.0.1: 19 CONNECT(s) to [\"api.anthropic.com:443\"] within 30 s (stopped at the 30 s window); plain proxy requests: 0; MCP recorder reached directly: no ([]); CLI said: \"5 api_retry event(s), last attempt 5/10, error=unknown, status=null\". Without --safe-mode: 19 CONNECT(s) to [\"api.anthropic.com:443\"], MCP reached directly: yes"
+    },
+    {
+      "id": "P9",
+      "result": "n/a",
+      "detail": "controller only (P-C reads the real home); not run by the task agent"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "P0",
+      "branch": "pinned-2.1.x"
+    },
+    {
+      "id": "P1",
+      "branch": "all-pinned-flags"
+    },
+    {
+      "id": "P2",
+      "branch": "STOP:S2"
+    },
+    {
+      "id": "P3",
+      "branch": "safe-mode-keeps-settings"
+    },
+    {
+      "id": "P4",
+      "branch": "isolated"
+    },
+    {
+      "id": "skillsDelivery",
+      "branch": "append-system-prompt-file"
+    },
+    {
+      "id": "P10",
+      "branch": "recorded"
+    },
+    {
+      "id": "P5",
+      "branch": "STOP:S5 (consequence of S2: the MCP server is absent under --safe-mode; Edit and the tool list are as pinned)"
+    },
+    {
+      "id": "toolNames",
+      "branch": "pinned:{\"allowed\":[\"Edit\",\"Glob\",\"Grep\",\"Read\",\"Write\"],\"disallowedObserved\":[\"Bash\",\"WebFetch\",\"WebSearch\",\"NotebookEdit\",\"Task\"],\"subagentToolName\":\"Task\",\"plannedNamesNotInThisBuild\":[\"PowerShell\",\"Agent\"]}"
+    },
+    {
+      "id": "mcpHeaderForm",
+      "branch": "pending:S2 (without --safe-mode: env-expansion)"
+    },
+    {
+      "id": "P8",
+      "branch": "stdin-context"
+    },
+    {
+      "id": "settingSourcesForm",
+      "branch": "\"\""
+    },
+    {
+      "id": "P7",
+      "branch": "proxy-honoured; MCP reach pending:S2"
+    },
+    {
+      "id": "P9",
+      "branch": "pending:controller"
+    }
+  ],
+  "meta": {
+    "generatedAt": "2026-10-21T05:22:40.396Z",
+    "parts": [
+      "A",
+      "B"
+    ],
+    "platform": "win32",
+    "node": "v22.23.3"
+  },
+  "observed": {
+    "p0p1ProxyHosts": [],
+    "homeWrites": [
+      {
+        "rel": ".claude.json",
+        "size": 719,
+        "mtimeMs": 1792560092096,
+        "change": "added"
+      },
+      {
+        "rel": ".claude/backups/.claude.json.backup.1792560091708",
+        "size": 84,
+        "mtimeMs": 1792560091696,
+        "change": "added"
+      }
+    ],
+    "builtinToolsDefault": [
+      "Task",
+      "Bash",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "Edit",
+      "EnterWorktree",
+      "ExitWorktree",
+      "Glob",
+      "Grep",
+      "ListAgents",
+      "NotebookEdit",
+      "Read",
+      "ReportFindings",
+      "ScheduleWakeup",
+      "SendMessage",
+      "Skill",
+      "TaskStop",
+      "WebFetch",
+      "WebSearch",
+      "Workflow",
+      "Write"
+    ],
+    "builtinToolsPinned": [
+      "Edit",
+      "Glob",
+      "Grep",
+      "Read",
+      "Write"
+    ],
+    "withoutSafeMode": {
+      "note": "Informational for the S2 question only; not a decision. Pinned argv with --safe-mode removed (--restricted, --setting-sources, --strict-mcp-config kept).",
+      "initTools": [
+        "Edit",
+        "Glob",
+        "Grep",
+        "Read",
+        "Write",
+        "mcp__nexus__changeset_register",
+        "mcp__nexus__context_get"
+      ],
+      "editOk": true,
+      "mcpOk": true,
+      "mcpHeader": "expanded",
+      "tokenInArgv": false,
+      "tokenInHomeFiles": [],
+      "tokenInCliOutput": false,
+      "offered": [
+        "Edit",
+        "Glob",
+        "Grep",
+        "Read",
+        "Write",
+        "mcp__nexus__changeset_register",
+        "mcp__nexus__context_get"
+      ],
+      "canaryLeaks": [],
+      "skillsInSystem": true,
+      "preambleInUser": true,
+      "homeWrites": [
+        ".claude.json",
+        ".claude/backups/.claude.json.backup.1792560098639",
+        "AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-LPWAeo-wt/mcp-logs-nexus/2026-10-21T05-21-39-014Z.jsonl"
+      ]
+    },
+    "p7": {
+      "withSafeMode": {
+        "code": null,
+        "killedAtWindow": true,
+        "ms": 30058,
+        "hosts": [
+          "api.anthropic.com:443"
+        ],
+        "connects": 19,
+        "plainRequests": 0,
+        "mcpMethods": [],
+        "error": "5 api_retry event(s), last attempt 5/10, error=unknown, status=null",
+        "hasBaseUrl": false
+      },
+      "withoutSafeMode": {
+        "code": null,
+        "killedAtWindow": true,
+        "ms": 30065,
+        "hosts": [
+          "api.anthropic.com:443"
+        ],
+        "connects": 19,
+        "plainRequests": 0,
+        "mcpMethods": [
+          "server/discover",
+          "initialize",
+          "notifications/initialized",
+          "tools/list"
+        ],
+        "error": "5 api_retry event(s), last attempt 5/10, error=unknown, status=null",
+        "hasBaseUrl": false
+      }
+    }
+  }
+}

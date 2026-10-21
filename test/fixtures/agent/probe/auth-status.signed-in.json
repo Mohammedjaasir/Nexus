@@ -1,0 +1,12 @@
+{
+  "loggedIn": true,
+  "authMethod": "claude.ai",
+  "apiProvider": "firstParty",
+  "email": "probe-fixture-person@example.invalid",
+  "orgId": "00000000-0000-4000-8000-000000000000",
+  "orgName": "Probe Fixture Org",
+  "subscriptionType": "max",
+  "analyticsDisabled": true,
+  "projectsDirectory": "C:\\tmp\\nxh-fixture\\home\\.claude\\projects",
+  "configDirectory": "C:\\tmp\\nxh-fixture\\home\\.claude"
+}
