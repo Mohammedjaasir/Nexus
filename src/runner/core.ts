@@ -282,7 +282,8 @@ export class RunnerCore {
     // git runs from the data home (never from a repository folder), the repository named with -C.
     this.git = this.paths ? new GitRunner({ cwd: this.paths.root, resolve: this.deps.resolveGit }) : null;
     this.stopped = false;
-    this.post({ op: 'ready', bootId: m.bootId });
+    // No loopback MCP endpoint yet (B2b Task 6 starts it here and reports its URL): agent turns stay unavailable.
+    this.post({ op: 'ready', bootId: m.bootId, mcpUrl: null });
   }
 
   private async onProbe(): Promise<void> {
@@ -440,6 +441,7 @@ export class RunnerCore {
       if (bad) return await this.refuse(a, 'bad_plan', bad);
       if (plan.kind === 'engine') return await this.runEngine(a, plan);
       if (plan.kind === 'service') return await this.runService(a, plan);
+      if (plan.kind === 'agent') return await this.refuse(a, 'bad_plan', 'agent turns are not run by this runner yet');
       return await this.runTool(a, plan);
     } catch (e) {
       if (e instanceof Stop) return this.stopped ? undefined : await this.finishStopped(a);
@@ -464,6 +466,8 @@ export class RunnerCore {
     if (!this.paths.same(plan.workDir, this.paths.workDir(plan.jobId, plan.attemptN))) return 'the work folder is not this attempt\'s';
     if (!this.paths.same(plan.logPath, this.paths.logPath(plan.jobId, plan.attemptN))) return 'the log path is not this attempt\'s';
     if (plan.kind === 'engine') return plan.task?.engine === 'sde.diagnose' ? diagnoseTaskProblem(plan.task) : null;
+    // B2b: an agent turn's plan is refused until this runner runs turns (Task 11).
+    if (plan.kind === 'agent') return 'agent turns are not run by this runner yet';
     if (!this.home) return 'this install has no label';
     if (plan.kind === 'tool' && plan.perFileJunit !== undefined) {
       const pf = plan.perFileJunit;

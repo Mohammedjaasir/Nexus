@@ -2,17 +2,29 @@
 // An action is an id with input slots and a parameter schema: never a command,
 // a path, a network, an image or an identity. Main picks the recipe from the
 // action's list (by the repository's profile), resolves every path and builds
-// the container spec. Only steps that are REAL in this build have actions.
+// the container spec. Only steps that are REAL in this build have actions. The B2b
+// agent flows run through their own channels (#42, #47, #48, #50), never as a job start.
 
 import type { KindId, ParamsSchema, PlatformFlowId, PrerequisiteId, RecipeId, SubPhase, UserActionId } from './domainSpec';
 import { NO_PARAMS } from './recipes';
 import { deepFreeze } from './freeze';
 
-/** One recipe job (main picks among `recipes`), an inline save of a user-authored kind, or a control on a live record. */
+/**
+ * B2b flows: work with its own channel and service, not a recipe job: an agent turn (#42), a review decision (#47),
+ * accepting a change (#48) and merging accepted work (#50). Each needs the agents part of the platform (schema v10).
+ */
+export type AgentFlowId = 'agent.turn' | 'review.decide' | 'changeset.accept' | 'repo.merge_accepted';
+export const AGENT_FLOW_IDS: readonly AgentFlowId[] = deepFreeze(['agent.turn', 'review.decide', 'changeset.accept', 'repo.merge_accepted']);
+
+/**
+ * One recipe job (main picks among `recipes`), an inline save of a user-authored kind, a control on a live record, or
+ * (B2b) an agent flow.
+ */
 export type ActionRun =
   | { recipes: RecipeId[] }
   | { inlineKind: KindId }
-  | { control: 'deployment.stop' };
+  | { control: 'deployment.stop' }
+  | { flow: AgentFlowId };
 
 export interface InputSlot { slot: string; kinds: KindId[]; min: number; max: number }
 
@@ -38,6 +50,8 @@ const one = (slot: string, kind: KindId): InputSlot => ({ slot, kinds: [kind], m
 const a = (id: UserActionId, domain: string, label: string, run: ActionRun, inputs: InputSlot[],
   prerequisites: PrerequisiteId[], params: ParamsSchema = NO_PARAMS): UserActionDef =>
   ({ id, domain, labelKey: `action.${id}`, label, run, inputs, params, prerequisites, subPhase: 'B2a' });
+const b2b = (id: UserActionId, label: string, run: ActionRun, inputs: InputSlot[], prerequisites: PrerequisiteId[]): UserActionDef =>
+  ({ id, domain: 'sde', labelKey: `action.${id}`, label, run, inputs, params: NO_PARAMS, prerequisites, subPhase: 'B2b' });
 
 export const USER_ACTIONS: readonly UserActionDef[] = deepFreeze([
   a('sde.requirement.write', 'sde', 'Write a requirement', { inlineKind: 'requirement' }, [], []),
@@ -62,7 +76,12 @@ export const USER_ACTIONS: readonly UserActionDef[] = deepFreeze([
       targetId: { type: 'string', maxLength: 64, pattern: ID } }, required: ['target', 'targetId'], additionalProperties: false }),
   a('data.problem.write', 'data', 'Write a business question', { inlineKind: 'problem_statement' }, [], []),
   a('ml.problem.write', 'ml', 'Write a problem statement', { inlineKind: 'problem_statement' }, [], []),
-  a('dl.problem.write', 'dl', 'Write a problem statement', { inlineKind: 'problem_statement' }, [], [])
+  a('dl.problem.write', 'dl', 'Write a problem statement', { inlineKind: 'problem_statement' }, [], []),
+  // B2b: the agent flows of SDE. #24 answers them unavailable (`agents_unavailable`) while the agents part is off.
+  b2b('sde.agent.turn', 'Ask the agent', { flow: 'agent.turn' }, [], ['git', 'docker', 'disk:5GiB', 'runtime:agent']),
+  b2b('sde.changeset.review', 'Review the change', { flow: 'review.decide' }, [one('change', 'change_set')], ['git']),
+  b2b('sde.changeset.accept', 'Accept the change', { flow: 'changeset.accept' }, [one('change', 'change_set')], ['git']),
+  b2b('sde.repo.merge', 'Merge accepted work', { flow: 'repo.merge_accepted' }, [], ['git'])
 ]);
 
 export const USER_ACTION_IDS: readonly UserActionId[] = deepFreeze(USER_ACTIONS.map((x) => x.id));

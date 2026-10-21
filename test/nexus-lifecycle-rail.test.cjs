@@ -22,19 +22,19 @@ test('the bundled projection is exactly what main sends over #22 (dto.ts domainV
   for (const d of DOMAINS) assert.deepEqual(L.domainViewOf(d), domainView(d), d.id);
 });
 
-test('LR1 SDE at B2a: nine steps in this release, three not ("Not in this release: arrives with AI-assisted changes")', () => {
+// B2b Task 1 (the registry flip): AI-assisted implementation, review and iteration are REAL in B2b, so all twelve SDE
+// steps are in this release; the FUTURE wording is still pinned for the other domains (the next test).
+test('LR1 SDE at B2b: all twelve steps in this release, the three B2b steps among them', () => {
   const r = rail('sde');
   assert.equal(r.steps.length, 12);
   const now = r.steps.filter((s) => !s.future);
   const later = r.steps.filter((s) => s.future);
-  assert.equal(now.length, 9);
+  assert.equal(now.length, 12);
+  assert.deepEqual(later, []);
   assert.ok(now.every((s) => s.status === 'REAL' && s.word === 'In this release'));
-  assert.deepEqual(later.map((s) => s.id), ['ai-implementation', 'review', 'iteration']);
-  for (const s of later) {
-    assert.equal(s.note, 'Not in this release: arrives with AI-assisted changes');
-    assert.equal(s.word, 'Not in this release');
-    assert.equal(s.subPhase, 'B2b');
-  }
+  const b2b = now.filter((s) => s.subPhase === 'B2b');
+  assert.deepEqual(b2b.map((s) => s.id), ['ai-implementation', 'review', 'iteration']);
+  for (const s of b2b) assert.ok(s.note && !/^Not in this release/.test(s.note), `${s.id}: a scope note, never a FUTURE note`);
   assert.equal(r.availability, null);
   assert.equal(r.supported, true);
 });
@@ -80,7 +80,9 @@ test('LR1 modules in the domain\'s words: delivered now, or the sub-phase they a
   const da = rail('data');
   assert.deepEqual(da.modules.find((m) => m.id === 'questions'), { id: 'questions', label: 'Questions', delivered: true, note: null });
   assert.equal(da.modules.find((m) => m.id === 'queries').note, 'arrives in B3');
-  assert.equal(rail('sde').modules.find((m) => m.id === 'changes').note, 'arrives in B2b');
+  // B2b Task 1: the SDE Changes module is delivered in B2b; a QA module still names the sub-phase it arrives in.
+  assert.deepEqual(rail('sde').modules.find((m) => m.id === 'changes'), { id: 'changes', label: 'Changes', delivered: true, note: null });
+  assert.equal(rail('qa').modules.find((m) => m.id === 'defects').note, 'arrives in B2c');
 });
 
 // ---------- LR2 ----------
@@ -108,20 +110,29 @@ test('LR2 a candidate test suite with its checks passed (suite.discovered and sd
   assert.equal(stepOf('sde', 'project', rec()).state, 'done');
   assert.equal(stepOf('sde', 'dev-deployment', rec({ versions: [{ kind: 'application', status: 'candidate', validators: {} }] })).state, 'ready');
   assert.equal(stepOf('sde', 'dev-deployment', rec({ deploymentHealthy: true })).state, 'done');
-  // A FUTURE step is unavailable whatever the records say.
-  assert.equal(stepOf('sde', 'ai-implementation', rec({ versions: [{ kind: 'change_set', status: 'active', validators: {} }] })).state, 'unavailable');
+  // A FUTURE step is unavailable whatever the records say (B2b Task 1: SDE has none left, so a QA step is the case).
+  assert.equal(stepOf('qa', 'test-plan', rec({ versions: [{ kind: 'test_plan', status: 'active', validators: {} }] })).state, 'unavailable');
+  // B2b: a change set is done only with every blocking change-set check passed, never on its status alone.
+  const CS_OK = { 'git.diff_nonempty': 'passed', 'git.paths_in_scope': 'passed', 'sec.secret_scan': 'passed', 'cs.tests_pass': 'passed',
+    'git.applies_cleanly': 'passed' };
+  assert.notEqual(stepOf('sde', 'ai-implementation', rec({ versions: [{ kind: 'change_set', status: 'active', validators: {} }] })).state, 'done');
+  assert.equal(stepOf('sde', 'ai-implementation', rec({ versions: [{ kind: 'change_set', status: 'candidate', validators: CS_OK }] })).state, 'done');
+  assert.equal(stepOf('sde', 'ai-implementation', rec({ versions: [{ kind: 'change_set', status: 'candidate',
+    validators: { ...CS_OK, 'cs.tests_pass': 'failed' } }] })).state, 'failed');
   // Without records (a workspace page, or checks that could not be read): no state is claimed.
   assert.ok(rail('sde').steps.every((s) => s.state === null));
 });
 
 test('LR2 the compact summary counts only the rail\'s own steps', () => {
   const r = L.railFor(view('sde'), rec({ versions: [{ kind: 'test_suite', status: 'candidate', validators: PASSED }] }));
-  assert.equal(L.railSummary(r), '2 of 9 steps in this release done; 3 not in this release');
+  // B2b Task 1: all twelve SDE steps are in this release, so the summary has no "not in this release" part for SDE.
+  assert.equal(L.railSummary(r), '2 of 12 steps in this release done');
+  assert.match(L.railSummary(rail('qa', rec())), /not in this release$/, 'a domain with FUTURE steps still says so');
   assert.equal(L.railSummary(rail('data-scientist')), 'Available from B4; it cannot be added to a project yet');
   // Steps that need attention or are moving are counted too (fix round 1).
   const busy = L.railFor(view('sde'), rec({ versions: [{ kind: 'test_suite', status: 'candidate', validators: { 'suite.discovered': 'passed', 'sde.tests_pass': 'failed' } },
     { kind: 'repository', status: 'active', validators: { 'git.head_resolves': 'passed' } }], liveActions: ['sde.build.run'] }));
-  assert.equal(L.railSummary(busy), '2 of 9 steps in this release done; 1 needs attention; 1 in progress; 3 not in this release');
+  assert.equal(L.railSummary(busy), '2 of 12 steps in this release done; 1 needs attention; 1 in progress');
   assert.deepEqual(rail('sde').steps.map((s) => s.n), Array.from({ length: 12 }, (_, i) => i + 1));
   assert.deepEqual(L.liveActionsOf([{ state: 'running', actionId: 'a' }, { state: 'completed', actionId: 'b' }, { state: 'queued', actionId: null }]), ['a']);
 });
@@ -185,7 +196,7 @@ test('C6b (final review) a version past the Spine read cap claims no state, neve
   const plain = S.railRecordsFor({ workspaceId: 'sde', artifacts: [art(7, 'git_commit', 'candidate')], checks: new Map(), liveActions: [], deploymentHealthy: false, participating: true });
   assert.equal(plain.versions[0].unread, undefined);
   // The summary counts only steps with a state (requirement, and project from the participation record).
-  assert.match(L.railSummary(r), /^2 of 9 steps in this release done/, 'requirement and project; the unread step is not counted as moving');
+  assert.match(L.railSummary(r), /^2 of 12 steps in this release done/, 'requirement and project; the unread step is not counted as moving');
   assert.doesNotMatch(L.railSummary(r), /in progress/);
 });
 

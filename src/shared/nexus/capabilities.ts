@@ -1,6 +1,6 @@
 // Capabilities an agent token can be granted (tokens arrive in B2b). A domain's
-// spec lists its ceiling; nothing in B2a grants any of them. `availableFrom: null`
-// means not planned in B2–B6. Host execution is never a capability.
+// spec lists its ceiling; a token never exceeds it. `availableFrom: null` means
+// not planned in B2–B6. Host execution is never a capability.
 
 import type { CapabilityId, SkillId, SubPhase } from './domainSpec';
 import { deepFreeze } from './freeze';
@@ -40,6 +40,16 @@ export const CAPABILITIES: readonly CapabilityDef[] = deepFreeze([
 
 export const CAPABILITY_IDS: readonly CapabilityId[] = deepFreeze(CAPABILITIES.map((c) => c.id));
 
-/** Agent skills arrive in B2b; none is registered in B2a, so no spec can name one. */
-export interface SkillDef { id: SkillId; label: string; availableFrom: SubPhase }
-export const SKILLS: readonly SkillDef[] = deepFreeze([]);
+/**
+ * Agent skills (B2b): Nexus-owned SKILL.md bundles under `resources/skills/<id>/`, hashed and given to a turn as text.
+ * Skills teach; they never grant (a capability comes only from the token).
+ */
+export interface SkillDef { id: SkillId; label: string; version: string; domain: string; availableFrom: SubPhase }
+/** The folder a skill's SKILL.md lives in, relative to the app's resources. */
+export const skillDir = (id: SkillId): string => `skills/${id}`;
+export const SKILLS: readonly SkillDef[] = deepFreeze([
+  { id: 'nexus-sde-change', label: 'Make a change in the session worktree', version: '1', domain: 'sde', availableFrom: 'B2b' },
+  { id: 'nexus-sde-tests-first', label: 'Write or update tests first', version: '1', domain: 'sde', availableFrom: 'B2b' },
+  { id: 'nexus-sde-requirement-draft', label: 'Draft a requirement', version: '1', domain: 'sde', availableFrom: 'B2b' },
+  { id: 'nexus-sde-app-manifest', label: 'Draft the application manifest', version: '1', domain: 'sde', availableFrom: 'B2b' }
+]);

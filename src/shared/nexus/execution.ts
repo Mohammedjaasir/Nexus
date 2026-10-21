@@ -3,6 +3,8 @@
 // constant tables only; no I/O. Main builds every value of these types; the
 // renderer never supplies a path, a command, a network or a limit.
 
+import type { RunRequest, RuntimeKind } from './runtime';
+
 /** The sandbox profiles. Each maps to one pinned image. */
 export type SandboxProfileId = 'sde-node' | 'sde-python' | 'qa-web' | 'data-python' | 'ml-python' | 'dl-cpu' | 'nexus-fwd';
 export const SANDBOX_PROFILE_IDS: readonly SandboxProfileId[] =
@@ -53,7 +55,8 @@ export type NetworkMode =
   | { mode: 'test-internal'; network: string };                                  // joins a preview's internal network
 
 export interface MountSpec {
-  kind: 'input' | 'workspace' | 'out' | 'deps' | 'log';
+  /** `worktree` (B2b): an agent turn's session worktree, bind-mounted read-write at `/workspace`. */
+  kind: 'input' | 'workspace' | 'out' | 'deps' | 'log' | 'worktree';
   /** An absolute host path (a bind mount) or a named volume (`nexus-ws-<attemptId>`, `nexus-deps-…`). */
   hostPath: string;
   containerPath: string;
@@ -254,11 +257,42 @@ export interface ServicePlan extends PlanBase {
  */
 export interface DiagnoseLogRange { attemptId: string; logPath: string; offset: number; length: number; tail: boolean }
 
-/** Work the runner does itself, without a container (async git, `docker inspect`). */
+/**
+ * Work the runner does itself, without a container (async git, `docker inspect`). The B2b git writes run as system
+ * child jobs; every ref they write is under `refs/nexus/*` (D-B13), and none touches the user's branch, index or files
+ * except `repo.ff`, the dialog-confirmed fast-forward of "Merge accepted work".
+ */
 export type EngineTask =
   | { engine: 'repo.snapshot'; repoPath: string }
   | { engine: 'sde.app.assemble'; repoPath: string; commit: string }
-  | { engine: 'sde.diagnose'; target: 'deployment' | 'job'; containerIds: string[]; logRanges: DiagnoseLogRange[] };
+  | { engine: 'sde.diagnose'; target: 'deployment' | 'job'; containerIds: string[]; logRanges: DiagnoseLogRange[] }
+  /**
+   * Initialises `integrationRef` at the branch head when it is absent (a compare-and-swap on absence), creates `ref` at
+   * the integration head, then runs `worktree add --detach` and `worktree lock`.
+   */
+  | { engine: 'repo.worktree'; repoPath: string; worktreePath: string; ref: string; integrationRef: string; branch: string }
+  /** Commits the worktree's changes within `scope` on `ref` (sizes capped); refuses links, nested repositories and gitlinks. */
+  | { engine: 'changeset.collect'; repoPath: string; worktreePath: string; gitDir: string; ref: string; integrationRef: string;
+      scope: string[]; message: string; maxFileBytes: number; maxTotalBytes: number }
+  /** `merge-tree --write-tree` of `head` onto the integration head: whether it applies cleanly. Writes no ref. */
+  | { engine: 'changeset.merge_check'; repoPath: string; integrationRef: string; head: string }
+  /**
+   * Merges `head` into the integration ref with a compare-and-swap `update-ref` from `expectedOld`. Before the
+   * `update-ref` it reports a durable `accept.prepared { old, new }` progress event.
+   */
+  | { engine: 'changeset.accept'; repoPath: string; integrationRef: string; expectedOld: string; head: string; message: string }
+  /** Moves the integration ref back from `from` to `to` (compare-and-swap): an accept whose database part failed. */
+  | { engine: 'changeset.accept_rollback'; repoPath: string; integrationRef: string; from: string; to: string }
+  /** `merge --ff-only <sha>` on the user's checked-out `branch`; refuses a dirty tree or a non-fast-forward. */
+  | { engine: 'repo.ff'; repoPath: string; branch: string; sha: string };
+
+/** The most bytes of each side a diff read returns (1 MiB). */
+export const GIT_DIFF_MAX_BYTES_PER_SIDE = 1_048_576;
+
+/** A bounded git read (B2b): it writes nothing and runs as no job (the runner answers `git.read.result`). */
+export type GitReadTask =
+  | { read: 'status'; repoPath: string; branch: string; integrationRef: string }
+  | { read: 'diff'; repoPath: string; base: string; head: string; maxBytesPerSide: typeof GIT_DIFF_MAX_BYTES_PER_SIDE };
 
 /**
  * The token the Nexus entry (infra/images/common/nexus-entry) splits a multi-step command on. No job value (a manifest
@@ -309,4 +343,21 @@ export interface EnginePlan extends PlanBase {
   wallClockMs: number;
 }
 
-export type AttemptPlan = ToolPlan | ServicePlan | EnginePlan;
+/**
+ * One agent turn (B2b): the runtime runs on the host under the runner, its file tools confined to the session worktree
+ * by policy; every command it runs goes through `sandbox_exec` into `container` (network `none`, the worktree bound at
+ * `/workspace`). `runtime.token` is the turn's capability token: it travels only over the MessagePort, never in argv, a
+ * file, a log or a database row. `egress.allow`: the hosts the agent process itself may reach through the runner's
+ * loopback proxy (the live consent's hosts). `caps`: the turn's limits, already clamped to the consent.
+ */
+export interface AgentPlan extends PlanBase {
+  kind: 'agent';
+  container: ContainerSpec;
+  worktree: { hostPath: string; gitDir: string; ref: string; base: string; editable: string[] };
+  runtime: { kind: RuntimeKind; request: RunRequest; token: string };
+  egress: { allow: { host: string; port: number }[] };
+  caps: { turnTokens: number; turnUsdCents: number; dayRemainingUsdCents: number; toolCalls: number };
+  resourceLabels: ResourceLabels;
+}
+
+export type AttemptPlan = ToolPlan | ServicePlan | EnginePlan | AgentPlan;

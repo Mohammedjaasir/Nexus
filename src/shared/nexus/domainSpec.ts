@@ -1,4 +1,4 @@
-// The domain registry contract (DomainSpec v3, B2a). Types, the sub-phase order
+// The domain registry contract (DomainSpec v3, B2a; this build is B2b). Types, the sub-phase order
 // and a few pure helpers only. A domain is data: its lifecycle steps, the kinds
 // it produces and accepts, its capability ceiling, recipes, actions, handoff
 // routes and modules. Every id it names must resolve (registryCheck.ts), and a
@@ -18,7 +18,7 @@ export type SubPhase = 'B1' | 'B2a' | 'B2b' | 'B2c' | 'B3' | 'B4' | 'B5' | 'B6';
 /** In delivery order. */
 export const SUB_PHASES: readonly SubPhase[] = ['B1', 'B2a', 'B2b', 'B2c', 'B3', 'B4', 'B5', 'B6'];
 /** The sub-phase this build implements. */
-export const CURRENT_SUB_PHASE: SubPhase = 'B2a';
+export const CURRENT_SUB_PHASE: SubPhase = 'B2b';
 
 export function isSubPhase(v: unknown): v is SubPhase {
   return typeof v === 'string' && (SUB_PHASES as readonly string[]).includes(v);

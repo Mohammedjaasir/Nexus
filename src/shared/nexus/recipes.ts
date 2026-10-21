@@ -1,4 +1,4 @@
-// The B2a recipes as data. A recipe names argv *templates* by id; main builds the
+// The B2a and B2b recipes as data. A recipe names argv *templates* by id; main builds the
 // actual argv array (never a string) from the template, the pinned profile and
 // main-resolved inputs. The renderer never supplies any part of it. Engine-side
 // recipes run in the runner process itself (async git, `docker inspect`) and
@@ -9,6 +9,13 @@ import type { KindId, ParamsSchema, RecipeId, SubPhase } from './domainSpec';
 import { deepFreeze } from './freeze';
 
 export type RecipeExecutor = 'engine' | 'tool' | 'service';
+/**
+ * What restart recovery does with an attempt that was running (B2b engine git recipes state it): `requeue` runs it
+ * again (idempotent work), `interrupted` ends it interrupted (work that must not repeat blind; `changeset.accept` is
+ * then reconciled from its durable `accept.prepared` event and rolled back, never merged later). When absent (B2a),
+ * recovery follows `retry.idempotent`.
+ */
+export type RecipeRecovery = 'requeue' | 'interrupted';
 /** `not-applicable`: an engine-side recipe runs no container. Egress happens only behind approval A1. */
 export type RecipeNetwork = 'none' | 'egress-approved' | 'service-internal' | 'not-applicable';
 
@@ -32,6 +39,7 @@ export interface RecipeDef {
   parsers: ParserId[];
   produces: KindId[];
   subPhase: SubPhase;
+  recovery?: RecipeRecovery;
 }
 
 export const NO_PARAMS: ParamsSchema = deepFreeze({ type: 'object', properties: {}, required: [], additionalProperties: false });
@@ -96,7 +104,43 @@ export const RECIPES: readonly RecipeDef[] = deepFreeze([
     wallClockMs: 60_000,
     outputContract: { required: ['target', 'containers', 'logs'],
       description: 'Facts: the inspected containers and the hashed log ranges; main adds its own probe table and stores a report whose every field comes from inspect, a probe or a log range.' },
-    parsers: ['diagnostic'], produces: ['diagnostic_report'], subPhase: 'B2a' }
+    parsers: ['diagnostic'], produces: ['diagnostic_report'], subPhase: 'B2a' },
+  // ----- B2b: the git writes of agent changes, each a system child job. Every ref is under refs/nexus/* (D-B13); only
+  // repo.ff touches the user's branch, and only after the user confirmed it in a dialog. -----
+  { id: 'repo.worktree', version: '1', ...engine,
+    argvTemplates: ['git.update-ref-create-integration', 'git.update-ref-create-job', 'git.worktree-add-detach', 'git.worktree-lock'],
+    params: NO_PARAMS, retry: { idempotent: true, maxAttempts: 2 }, wallClockMs: 60_000, recovery: 'requeue',
+    outputContract: { required: ['integrationHead', 'ref', 'worktree'],
+      description: 'Facts: the integration ref (created at the branch head when absent), the session ref at the integration head, and a locked detached worktree under the data home.' },
+    parsers: [], produces: [], subPhase: 'B2b' },
+  { id: 'changeset.collect', version: '1', ...engine,
+    argvTemplates: ['git.status-porcelain-z', 'git.add-scope', 'git.write-tree', 'git.commit-tree-agent', 'git.update-ref-job'],
+    params: NO_PARAMS, retry: { idempotent: false, maxAttempts: 1 }, wallClockMs: 120_000, recovery: 'interrupted',
+    outputContract: { required: ['base', 'head', 'diffstat'],
+      description: 'Facts: the merge base with the integration ref, the commit Nexus wrote on the session ref from the paths in scope, and its diffstat. Links, nested repositories and oversized files are refused.' },
+    parsers: [], produces: ['change_set'], subPhase: 'B2b' },
+  { id: 'changeset.merge_check', version: '1', ...engine,
+    argvTemplates: ['git.merge-tree-write-tree'], params: NO_PARAMS, retry: { idempotent: true, maxAttempts: 2 }, wallClockMs: 60_000,
+    recovery: 'requeue',
+    outputContract: { required: ['clean', 'tree'], description: 'Facts: whether the change merges onto the integration head without a conflict, and the merged tree. Writes no ref.' },
+    parsers: [], produces: [], subPhase: 'B2b' },
+  { id: 'changeset.accept', version: '1', ...engine,
+    argvTemplates: ['git.merge-tree-write-tree', 'git.commit-tree-accept', 'git.update-ref-cas'],
+    params: NO_PARAMS, retry: { idempotent: false, maxAttempts: 1 }, wallClockMs: 120_000, recovery: 'interrupted',
+    outputContract: { required: ['old', 'new', 'mergeCommit'],
+      description: 'Facts: the integration ref moved from the expected head to the merge commit by compare-and-swap, reported as prepared before the move. An unfinished accept is rolled back, never merged later.' },
+    parsers: [], produces: [], subPhase: 'B2b' },
+  { id: 'changeset.accept_rollback', version: '1', ...engine,
+    argvTemplates: ['git.update-ref-cas'], params: NO_PARAMS, retry: { idempotent: true, maxAttempts: 3 }, wallClockMs: 60_000,
+    recovery: 'requeue',
+    outputContract: { required: ['from', 'to'], description: 'Facts: the integration ref moved back by compare-and-swap (or already back).' },
+    parsers: [], produces: [], subPhase: 'B2b' },
+  { id: 'repo.ff', version: '1', ...engine,
+    argvTemplates: ['git.symbolic-ref-short', 'git.status-porcelain-z', 'git.merge-ff-only'],
+    params: NO_PARAMS, retry: { idempotent: false, maxAttempts: 1 }, wallClockMs: 60_000, recovery: 'interrupted',
+    outputContract: { required: ['before', 'after'],
+      description: 'Facts: the checked-out branch of the user fast-forwarded to the confirmed commit; a dirty tree, another branch or a non-fast-forward is refused and nothing changes.' },
+    parsers: [], produces: [], subPhase: 'B2b' }
 ]);
 
 /** How long an idle dev deployment lives before it is stopped. */

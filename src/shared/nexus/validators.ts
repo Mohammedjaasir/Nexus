@@ -1,4 +1,4 @@
-// The B2a validators as data. Implementations live in main
+// The B2a and B2b validators as data. Implementations live in main
 // (src/main/nexus/validation/validators/*). A version reaches candidate only when
 // every blocking register and candidate validator of its kind has a latest
 // `passed` row; a step is done only on that validated evidence.
@@ -27,6 +27,10 @@ export interface ValidatorDef {
 const v = (id: ValidatorId, kinds: KindId[], stage: ValidatorStage, executes: ValidatorExecutor, evidence: EvidenceType[],
   failsWhen: string, recipes?: RecipeId[]): ValidatorDef =>
   ({ id, version: 1, kinds, stage, executes, ...(recipes ? { recipes } : {}), blocking: true, evidence, failsWhen, subPhase: 'B2a' });
+/** A B2b validator: every one judges a change set; `blocking: false` is advisory (it never gates anything). */
+const vB2b = (id: ValidatorId, stage: ValidatorStage, executes: ValidatorExecutor, blocking: boolean, evidence: EvidenceType[],
+  failsWhen: string, recipes?: RecipeId[]): ValidatorDef =>
+  ({ id, version: 1, kinds: ['change_set'], stage, executes, ...(recipes ? { recipes } : {}), blocking, evidence, failsWhen, subPhase: 'B2b' });
 
 export const VALIDATORS: readonly ValidatorDef[] = deepFreeze([
   v('git.head_resolves', ['repository'], 'register', 'main', ['git'],
@@ -56,7 +60,21 @@ export const VALIDATORS: readonly ValidatorDef[] = deepFreeze([
   { id: 'sde.deps.lock_matches', version: 1, kinds: ['repository'], stage: 'candidate', executes: 'main', blocking: false,
     evidence: ['hash', 'exit'], subPhase: 'B2a',
     failsWhen: 'The exit is not 0, lock.sha256 is missing or is not the only output, it does not hold 64 lowercase hex characters, '
-      + 'or it differs from the repository version\'s lockfile hash or from the lockfile hash of the approval this attempt consumed.' }
+      + 'or it differs from the repository version\'s lockfile hash or from the lockfile hash of the approval this attempt consumed.' },
+  // ----- B2b: change sets -----
+  vB2b('git.diff_nonempty', 'register', 'main', true, ['git', 'number'],
+    'The change has no file change between its base and its head.'),
+  vB2b('git.paths_in_scope', 'register', 'main', true, ['git'],
+    'A changed path is outside the path scope, is not a plain relative path, or has a sensitive name (.git, .env, a key or a credentials file).'),
+  vB2b('sec.secret_scan', 'register', 'main', true, ['location', 'number'],
+    'An added line holds a provider key or a private-key header. The evidence names the path and line only.'),
+  vB2b('sec.entropy_notes', 'register', 'main', false, ['location', 'number'],
+    'Advisory: an added line outside a lockfile holds a long high-entropy string. It never gates the change.'),
+  vB2b('cs.tests_pass', 'candidate', 'child-job', true, ['junit', 'hash', 'number'],
+    'The test suite discovered at the head of the change did not pass: no test ran, a test failed or errored, or the run could not be judged.',
+    ['sde.test.discover', 'sde.test.node', 'sde.test.pytest']),
+  vB2b('git.applies_cleanly', 'candidate', 'child-job', true, ['git'],
+    'The change does not merge onto the current integration head without a conflict.', ['changeset.merge_check'])
 ]);
 
 export const VALIDATOR_IDS: readonly ValidatorId[] = deepFreeze(VALIDATORS.map((x) => x.id));

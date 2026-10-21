@@ -14,10 +14,23 @@ const ROOT = path.resolve(__dirname, '..');
 const VENDOR = /claude|anthropic|hermes|sonnet|opus|haiku|openai|gpt-/i;
 const REQUIRED = ['src/shared/nexus/execution.ts', 'src/shared/nexus/runnerProtocol.ts', 'src/shared/nexus/evidence.ts',
   'src/shared/nexus/resourceGate.ts', 'src/shared/nexus/preflightCheck.ts', 'src/shared/nexus/secretShape.ts', 'src/shared/nexus/ipc.ts'];
-const LATER = ['src/main/nexus/db/schemaV9.ts'];
+const LATER = ['src/main/nexus/db/schemaV9.ts', 'src/main/nexus/db/schemaV10.ts'];
 /** Every file under src/shared/nexus (fix round 1 of B2a Task 2): new contract files are scanned without editing this list. */
-const walkShared = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
-  e.isDirectory() ? walkShared(dir + '/' + e.name) : /\.(ts|cjs|js)$/.test(e.name) ? [dir + '/' + e.name] : []);
+const walkShared = (dir, re = /\.(ts|cjs|js)$/) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
+  e.isDirectory() ? walkShared(dir + '/' + e.name, re) : re.test(e.name) ? [dir + '/' + e.name] : []);
+/**
+ * B2b Task 1, the named edit (Global Constraints, "Vendor-neutral scan"): the scan also covers the agent, repository and
+ * review code of main, the renderer's agent panel (each walked once it exists) and the Nexus-owned skills. The skills
+ * are `resources/skills/nexus-*` only: the other folders under resources/skills are the legacy app's bundled skills,
+ * which are not Nexus code. Engine names may appear only in src/runner/runtimes/cliAgent/**, the agent harness, the
+ * runtime tests, the probe tool and their fixtures.
+ */
+const B2B_DIRS = ['src/main/nexus/agents', 'src/main/nexus/repo', 'src/main/nexus/review', 'src/renderer/src/nexus/agent'];
+const SKILLS_ROOT = 'resources/skills';
+const nexusSkills = () => fs.readdirSync(path.join(ROOT, SKILLS_ROOT), { withFileTypes: true })
+  .filter((e) => e.isDirectory() && e.name.startsWith('nexus-')).flatMap((e) => walkShared(`${SKILLS_ROOT}/${e.name}`, /./));
+const b2bScanned = () => [...B2B_DIRS.filter((d) => fs.existsSync(path.join(ROOT, d))).flatMap((d) => walkShared(d, /\.(ts|tsx|cjs|js)$/)),
+  ...nexusSkills()];
 const RUNTIME = 'src/shared/nexus/runtime.ts';
 
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -38,7 +51,11 @@ test('V1 no engine or vendor name anywhere in the shared execution contracts (co
   // runtime.ts may name engines in comments only; V2 scans its code. Everything else is scanned whole.
   const shared = walkShared('src/shared/nexus').filter((rel) => rel !== RUNTIME);
   assert.ok(shared.length >= REQUIRED.length + 10, 'the walk sees the shared contracts');
-  const scanned = [...new Set([...REQUIRED, ...shared, ...LATER.filter((rel) => fs.existsSync(path.join(ROOT, rel)))])];
+  const scanned = [...new Set([...REQUIRED, ...shared, ...LATER.filter((rel) => fs.existsSync(path.join(ROOT, rel))), ...b2bScanned()])];
+  // The widened scan sees the four Nexus skills (B2b Task 1).
+  const skills = nexusSkills();
+  for (const id of ['nexus-sde-change', 'nexus-sde-tests-first', 'nexus-sde-requirement-draft', 'nexus-sde-app-manifest'])
+    assert.ok(skills.includes(`${SKILLS_ROOT}/${id}/SKILL.md`), `the scan covers ${id}`);
   const found = scanned.flatMap((rel) => hits(read(rel)).map(([n, l]) => `${rel}:${n}: ${l.trim()}`));
   assert.deepEqual(found, []);
 });

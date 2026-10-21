@@ -107,7 +107,9 @@ const RECORDS = [null, { versions: [], liveActions: [], participation: true, dep
 
 test('HA1 no domain is ever called complete; FUTURE steps never carry a state', () => {
   for (const v of L.bundledDomainViews()) {
-    assert.equal(v.executableEndToEnd, false, `${v.id} is not executable end to end in B2a`);
+    // B2b Task 1 (the registry flip): every SDE step is in this release, so the registry projects SDE as executable end to
+    // end at B2b; no other domain ever is (constraint 3). The flag is never shown as text (the scan below).
+    assert.equal(v.executableEndToEnd, v.id === 'sde', `${v.id}: executable end to end only for SDE at B2b`);
     for (const records of RECORDS) {
       const r = L.railFor(v, records);
       for (const t of railTexts(r)) assert.doesNotMatch(t, /\bcomplete(d)?\b|finished|end to end/i, `${v.id}: ${t}`);
@@ -226,6 +228,45 @@ test('HA1 no number without a source: rail numbers are sub-phase names or counts
   const missing = X.setupSheet(health({ images: [{ profile: 'sde-node', present: false, matches: false }],
     disk: { dataHomeFreeBytes: 18 * GIB, requiredBytes: 30 * GIB, recommendedBytes: 40 * GIB, leaseFloorBytes: 5 * GIB, gate: 'below_required' } }));
   assert.equal(missing.find((r) => r.id === 'image:sde-node').prepare, null, 'below the gate no image can be prepared');
+});
+
+// ---------- HA-B2b ----------
+
+test('HA-B2b the agent flow actions answer agents_unavailable while the agents part is off, and are never a button then', () => {
+  const { ExecQueries } = loadTs('src/main/nexus/exec/execQueries.ts');
+  const sde = DOMAINS.find((d) => d.id === 'sde');
+  const flows = USER_ACTIONS.filter((a) => 'flow' in a.run);
+  assert.deepEqual(flows.map((a) => a.id), ['sde.agent.turn', 'sde.changeset.review', 'sde.changeset.accept', 'sde.repo.merge']);
+  // main's #24 reason for each flow action (ExecQueries.reasonFor, with every other check passing).
+  const reason = (a, deps, versionKind = null) => {
+    const step = sde.lifecycle.find((s) => s.via.some((v) => v.userAction === a.id));
+    return ExecQueries.prototype.reasonFor.call({ deps, db: null }, a, step, versionKind, () => true, () => true, (k) => k, 'P', 'active');
+  };
+  for (const a of flows) {
+    assert.ok(sde.actions.includes(a.id), `${a.id} is an SDE action`);
+    for (const deps of [{}, { agentsAvailable: () => false }, { agentsAvailable: () => { throw new Error('x'); } }, { agentsAvailable: () => 'yes' }])
+      assert.equal(reason(a, deps), 'agents_unavailable', `${a.id} with the agents part off`);
+    // A version of a kind the action does not take is not applicable (it is never listed on that bar).
+    assert.equal(reason(a, {}, 'requirement'), 'not_applicable', a.id);
+    // Only once the agents part is on does it fall through to the permission check.
+    assert.equal(reason(a, { agentsAvailable: () => true }), null, a.id);
+  }
+  // The renderer, given that answer, shows a sentence and never a button, in every state and on every bar.
+  const answer = flows.map((a) => ({ actionId: a.id, label: a.label, available: false, reason: 'agents_unavailable', needsApproval: false,
+    inputs: a.inputs.map((s) => ({ ...s })), stepId: null }));
+  let sentences = 0;
+  for (const [state, availability] of Object.entries(STATES)) {
+    for (const version of [null, ...['change_set', 'requirement'].flatMap((kind) => ['draft', 'candidate', 'active'].map((status) => ({ kind, status })))]) {
+      const bar = AM.actionBar(answer, { workspaceId: 'sde', availability, version });
+      assert.deepEqual(bar.buttons, [], `${state} / ${version ? `${version.kind}:${version.status}` : 'project'}`);
+      for (const s of bar.sentences) {
+        sentences++;
+        assert.match(s.text, /: not available right now\.$/, s.text);
+        assert.doesNotMatch(s.text, /agents_unavailable/, 'never a raw code');
+      }
+    }
+  }
+  assert.ok(sentences > 0, 'the flows are explained as sentences (the audit is not vacuous)');
 });
 
 // ---------- HA2 ----------

@@ -2,9 +2,8 @@
 // the caller passes the specs, the ids this build implements and (optionally)
 // the tables, and gets back a list of problems (empty = sound). It never throws;
 // a malformed input is a problem, not an exception. The unit test runs it on
-// every change. Main does not call it yet: Task 13 wires the startup check, the
-// state served for an invalid registry, and a test that B2A_IMPL equals main's
-// registered recipe, validator and viewer maps.
+// every change. Main runs it at startup (src/main/nexus/registryImpl.ts) with
+// B2B_IMPL; any problem keeps execution off (`registry_invalid`).
 
 import {
   CURRENT_SUB_PHASE, HANDOFF_ACTIONS, STEP_STATUSES, isAtOrBefore, isSubPhase,
@@ -57,6 +56,40 @@ export const B2A_IMPL: RegistryImpl = deepFreeze({
     'viewer.problem_statement', 'viewer.test_suite', 'viewer.build', 'viewer.application', 'viewer.diagnostic_report'],
   e2eTests: ['e2e.sde.requirement', 'e2e.sde.project', 'e2e.sde.repository', 'e2e.sde.code', 'e2e.sde.tests', 'e2e.sde.build',
     'e2e.sde.application', 'e2e.sde.dev-deployment', 'e2e.sde.diagnostics', 'e2e.data.business-question', 'e2e.ml.problem', 'e2e.dl.problem']
+});
+
+/**
+ * The end-to-end ids of the SDE steps B2b makes REAL, in lifecycle order (implementation, review, iteration). A stub:
+ * B2b Task 16 writes them as test titles (test/nexus-platform-b2b-flows-*.test.cjs, and the real-Docker
+ * test/nexus-exec-agent.test.cjs for the Docker-dependent ones); until then the registry test exempts exactly these
+ * from its title check, and Task 16 empties this list.
+ */
+export const B2B_E2E_STUB: readonly string[] = deepFreeze(['e2e.sde.ai-implementation', 'e2e.sde.review', 'e2e.sde.iteration']);
+
+/**
+ * What B2b implements: B2a plus the six engine git recipes, the six change-set validators and the change-set viewer.
+ * Main's startup check pins its registered maps to these (src/main/nexus/registryImpl.ts), with the ids B2b's later
+ * tasks have not implemented yet listed there as pending until they land.
+ */
+export const B2B_IMPL: RegistryImpl = deepFreeze({
+  recipes: [...B2A_IMPL.recipes, 'repo.worktree', 'changeset.collect', 'changeset.merge_check', 'changeset.accept',
+    'changeset.accept_rollback', 'repo.ff'],
+  validators: [...B2A_IMPL.validators, 'git.diff_nonempty', 'git.paths_in_scope', 'sec.secret_scan', 'sec.entropy_notes',
+    'cs.tests_pass', 'git.applies_cleanly'],
+  viewers: [...B2A_IMPL.viewers, 'viewer.change_set'],
+  e2eTests: [...(B2A_IMPL.e2eTests ?? []), ...B2B_E2E_STUB]
+});
+
+/**
+ * The ids B2B_IMPL declares that main does not implement yet: B2b Task 7 (the git engine recipes), Task 8 (the
+ * register validators and cs.tests_pass) and Task 9 (git.applies_cleanly) each remove what they land, and Task 16
+ * asserts this empty. Main's startup check leaves exactly these out of its comparison and reports one that main does
+ * implement while it is still listed here (src/main/nexus/registryImpl.ts). The agent flows stay unavailable
+ * (`agents_unavailable`) while the agents part is off, so nothing pending can be started.
+ */
+export const B2B_PENDING: { recipes: readonly string[]; validators: readonly string[] } = deepFreeze({
+  recipes: ['repo.worktree', 'changeset.collect', 'changeset.merge_check', 'changeset.accept', 'changeset.accept_rollback', 'repo.ff'],
+  validators: ['git.diff_nonempty', 'git.paths_in_scope', 'sec.secret_scan', 'sec.entropy_notes', 'cs.tests_pass', 'git.applies_cleanly']
 });
 
 /** An end-to-end test id: `e2e.<domain>.<step>`. */

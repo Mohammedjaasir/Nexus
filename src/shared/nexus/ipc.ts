@@ -5,8 +5,9 @@
 // Identity never crosses this boundary from the renderer: no request shape names a
 // principal, an actor, a role or a folder. Main resolves the principal on every call.
 import type {
-  ActivityStatus, ApprovalStatus, ArtifactId, DeploymentStatus, HandoffId, HandoffStatus, JobId, JobKind, JobState, LineageRelation,
-  ParticipationId, ParticipationStatus, PlatformErrorCode, PrincipalKind, ProjectId, VersionId, VersionStatus, WorkspaceId
+  ActivityStatus, AgentSessionStatus, ApprovalStatus, ArtifactId, DeploymentStatus, HandoffId, HandoffStatus, JobId, JobKind, JobState,
+  LineageRelation, ParticipationId, ParticipationStatus, PlatformErrorCode, PrincipalKind, ProjectId, SessionId, VersionId, VersionStatus,
+  WorkspaceId
 } from './platform';
 import type { DomainTier, StepStatus, SubPhase } from './domainSpec';
 
@@ -171,7 +172,8 @@ export interface HealthView {
  * An action as the user may see it now. `reason` when not available: `planned` (a later sub-phase), `future` (its
  * step is FUTURE), `setup:<id>` (this machine: Docker, an image, the disk gate, the runner), `permission`,
  * `blocked_by_step:<stepId>` (an input the step produces is missing), `not_applicable` (the version given is not an
- * input it takes, or there is nothing for it to act on).
+ * input it takes, or there is nothing for it to act on), `agents_unavailable` (B2b: an agent flow while the agents part
+ * of the platform is off).
  */
 export interface ActionAvailabilityView {
   actionId: string; label: string; stepId: string | null; available: boolean; reason: string | null;
@@ -267,6 +269,89 @@ export interface BlobGcView {
   candidates: number; bytes: number; candidatesHash: string; removed: number;
   /** Object files that could not be removed (reported, never retried blind). */
   fileDeleteFailed: number;
+}
+
+// ---------- B2b agent views (channels #42-#51) ----------
+// Built field by field in main, like the B2a views. No view carries a host, a model id, a token, a path (no worktree,
+// config folder or repository folder), a pid, a container id or a principal id. Display text is redacted and capped.
+// The engine's display name appears only in AgentSetupView.label (the setup row, D-B9); every other view says "the
+// agent". Usage and cost are what the runtime reported, or `estimated` when Nexus charged the cap.
+
+/** One turn's usage as reported by the agent runtime (cost in US cents; null when it reported none). */
+export interface AgentUsageView {
+  inputTokens: number; outputTokens: number; cacheCreationTokens: number; cacheReadTokens: number;
+  costUsdCents: number | null; toolCalls: number;
+  /** True when the cost is Nexus's charge at the turn cap (the runtime reported none). */
+  estimated: boolean;
+}
+export interface SessionView {
+  id: SessionId; projectId: ProjectId; workspaceId: WorkspaceId; status: AgentSessionStatus;
+  turns: number;
+  /** The turn job running now, if any. */
+  liveJobId: JobId | null;
+  createdAt: number; updatedAt: number;
+}
+export interface SessionTurnView {
+  jobId: JobId; state: JobState; headline: JobHeadline; outcome: string | null; error: { code: string; message: string } | null;
+  usage: AgentUsageView | null;
+  createdAt: number; startedAt: number | null; finishedAt: number | null;
+}
+/** A message of the session log: display only, never evidence. */
+export interface SessionMessageView { seq: number; ts: number; from: 'user' | 'agent'; text: string; displayOnly: true }
+/** A tool call of a turn: its name and result size, never its arguments or result text. */
+export interface SessionToolCallView { seq: number; ts: number; jobId: JobId; tool: string; ok: boolean | null; resultBytes: number | null }
+export interface SessionDetailView extends SessionView {
+  turnHistory: SessionTurnView[];
+  messages: SessionMessageView[];
+  toolCalls: SessionToolCallView[];
+  /** The versions the session's turns registered. */
+  versions: { versionId: VersionId; kind: string; status: VersionStatus }[];
+  approvals: { id: string; status: ApprovalStatus; reason: string; expiresAt: number }[];
+}
+export type ReviewDecision = 'approve' | 'request_changes' | 'reject';
+export interface ReviewView {
+  id: string; versionId: VersionId; decision: ReviewDecision;
+  /** The reviewer's comment (redacted); required for request_changes and reject. */
+  comment: string | null;
+  /** Reviews are made by people only. */
+  reviewerKind: 'user';
+  createdAt: number;
+  /** The agent turn a request_changes started, if any. */
+  jobId: JobId | null;
+}
+/** A change merged into the integration ref (`refs/nexus/accepted/<branch>`): commits and a ref name, never a folder. */
+export interface ChangeSetAcceptView {
+  versionId: VersionId; integrationRef: string; refBefore: string; refAfter: string; mergeCommit: string; acceptedAt: number;
+}
+export interface RepoStatusView {
+  projectId: ProjectId;
+  /** The checked-out branch, its head and whether the working tree has uncommitted changes (null when unknown). */
+  branch: string | null; head: string | null; dirty: boolean | null;
+  integrationRef: string | null; acceptedHead: string | null;
+  /** Accepted commits not yet on the branch. */
+  acceptedNotMerged: number;
+  /** True when "Merge accepted work" can fast-forward now. */
+  canFastForward: boolean;
+  /** Why it cannot (`tree_dirty`, `branch_mismatch`, `not_fast_forward`, `nothing_to_merge`, `git_missing`, ...), or null. */
+  reason: string | null;
+  checkedAt: number | null;
+}
+export interface MergeView { projectId: ProjectId; branch: string; before: string; after: string; mergedAt: number }
+export type AgentSetupState = 'ready' | 'not_installed' | 'not_signed_in' | 'version_unsupported' | 'unavailable' | 'unknown';
+/** The agent setup row (#23's `agent` and #51). */
+export interface AgentSetupView {
+  state: AgentSetupState;
+  /** The engine's display name: shown on the setup row only. */
+  label: string | null;
+  version: string | null;
+  signedIn: 'yes' | 'no' | 'unknown';
+  /** False when a flag Nexus pins is missing from the installed version (it then reads as unsupported). */
+  flagsOk: boolean | null;
+  /** The live network permission: its caps and how many destinations it grants (the destinations are not in a view). */
+  consent: { live: boolean; caps: { turnUsdCents: number; dayUsdCents: number; turnsPerHour: number; concurrentTurns: number;
+    turnTokens: number; toolCalls: number; wallClockMs: number; childJobs: number } | null; hostsCount: number; grantedAt: number | null };
+  /** Today's usage: cost in US cents (reported, or estimated at the cap where none was reported) and turns started. */
+  usageToday: { usdCents: number; turns: number; estimated: boolean };
 }
 
 // ---------- requests (what the renderer sends: ids and small values only) ----------

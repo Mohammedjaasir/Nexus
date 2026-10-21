@@ -20,7 +20,7 @@ const { registerNexusIpc, NEXUS_CHANNELS, NEXUS_EXEC_CHANNELS, NEXUS_ALL_CHANNEL
   loadTs('src/main/nexusIpc/registerNexusIpc.ts');
 const { BUSY_MESSAGE, EXECUTION_SUB_REASONS } = loadTs('src/main/nexusIpc/envelope.ts');
 const { startExecution, hintCoalescer, HINT_MIN_INTERVAL_MS, execIpcPort } = loadTs('src/main/nexusExec/execWiring.ts');
-const { B2A_IMPL, checkRegistry } = loadTs('src/shared/nexus/registryCheck.ts');
+const { B2A_IMPL, B2B_IMPL, B2B_PENDING, checkRegistry } = loadTs('src/shared/nexus/registryCheck.ts');
 const { DOMAINS } = loadTs('src/shared/nexus/domains/index.ts');
 const { mainImplementation, implementationProblems, registryProblems } = loadTs('src/main/nexus/registryImpl.ts');
 const { REQUIRED_FREE_BYTES, RECOMMENDED_FREE_BYTES } = loadTs('src/shared/nexus/resourceGate.ts');
@@ -157,6 +157,10 @@ test('I-E4 an invalid registry at startup is a state: execution stays off (regis
 test('I-E5 B2A_IMPL equals main\'s registered recipe, validator and ingest maps exactly (and a drift on either side is a startup problem)', () => {
   const m = mainImplementation();
   const sorted = (xs) => [...xs].sort();
+  // B2b Task 1 (the registry flip): main checks the registry against B2B_IMPL; the B2b ids its later tasks land
+  // (B2B_PENDING) are left out of the comparison, so main's maps still equal exactly B2B_IMPL less B2B_PENDING = B2a.
+  assert.deepEqual(sorted(B2B_IMPL.recipes.filter((r) => !B2B_PENDING.recipes.includes(r))), sorted(B2A_IMPL.recipes), 'B2B_IMPL less pending is B2a');
+  assert.deepEqual(sorted(B2B_IMPL.validators.filter((v) => !B2B_PENDING.validators.includes(v))), sorted(B2A_IMPL.validators));
   assert.deepEqual(sorted(m.recipes), sorted(B2A_IMPL.recipes), 'recipes main can plan');
   assert.deepEqual(sorted(m.validators), sorted(B2A_IMPL.validators), 'validators main runs');
   assert.deepEqual(sorted([...m.ingest, ...m.notIngested]), sorted(B2A_IMPL.recipes), 'every recipe is ingested or named as never ingested');
@@ -166,7 +170,16 @@ test('I-E5 B2A_IMPL equals main\'s registered recipe, validator and ingest maps 
   assert.ok(m.ingest.includes('sde.deps.node') && m.ingest.includes('sde.deps.python'));
   assert.ok(m.validators.includes('sde.deps.lock_matches'));
   assert.deepEqual(implementationProblems(), []);
-  assert.deepEqual(checkRegistry(DOMAINS, B2A_IMPL), []);
+  assert.deepEqual(checkRegistry(DOMAINS, B2B_IMPL), []);
+  // The pending list hides exactly the B2b ids, and only while main has none of them (it can only shrink).
+  const unpended = implementationProblems(B2B_IMPL, { recipes: [], validators: [] });
+  assert.deepEqual(sorted(unpended), sorted([...B2B_PENDING.recipes.map((r) => `recipe: ${r} is declared implemented but main has none`),
+    ...B2B_PENDING.validators.map((v) => `validator: ${v} is declared implemented but main has none`),
+    ...B2B_PENDING.recipes.map((r) => `ingest: ${r} is declared implemented but main has none`)]));
+  assert.ok(implementationProblems(B2B_IMPL, { recipes: [...B2B_PENDING.recipes, 'sde.diagnose'], validators: B2B_PENDING.validators })
+    .some((p) => /recipe: sde\.diagnose is implemented but still listed as pending/.test(p)));
+  assert.ok(implementationProblems(B2B_IMPL, { recipes: B2B_PENDING.recipes, validators: [...B2B_PENDING.validators, 'req.schema'] })
+    .some((p) => /validator: req\.schema is implemented but still listed as pending/.test(p)));
   // Drift either way is found.
   assert.ok(implementationProblems({ ...B2A_IMPL, recipes: B2A_IMPL.recipes.filter((r) => r !== 'sde.diagnose') })
     .some((p) => /main has sde\.diagnose but the registry does not declare it/.test(p)));
@@ -187,7 +200,9 @@ test('I-E5b the dispatched validators are derived from the dispatch tables the c
   const by = (ex) => VALIDATORS.filter((v) => v.executes === ex).map((v) => v.id).sort();
   assert.deepEqual([...RUNNER_VALIDATORS].sort(), by('runner'));
   assert.deepEqual([...DEPLOYMENT_VALIDATORS].sort(), by('deployment'));
-  assert.deepEqual(Object.keys(INGEST_RECORDED_VALIDATORS).sort(), by('child-job'));
+  // B2b Task 1: the change-set child-job validators (cs.tests_pass, git.applies_cleanly) are pending until B2b Tasks 8 and 9.
+  assert.deepEqual(Object.keys(INGEST_RECORDED_VALIDATORS).sort(), by('child-job').filter((id) => !B2B_PENDING.validators.includes(id)));
+  assert.deepEqual(by('child-job').filter((id) => B2B_PENDING.validators.includes(id)), ['cs.tests_pass', 'git.applies_cleanly']);
   // registryImpl holds no validator id of its own; the dispatch code reads the tables it exports.
   const impl = read('src/main/nexus/registryImpl.ts');
   for (const v of VALIDATORS) assert.ok(!impl.includes(`'${v.id}'`), `registryImpl names ${v.id}`);

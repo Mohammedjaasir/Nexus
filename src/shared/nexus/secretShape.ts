@@ -37,6 +37,17 @@ export function hasProviderKey(text: string): boolean {
   return typeof text === 'string' && PREFIXED.some((re) => re.test(text));
 }
 
+/** A private-key header (PEM, OpenSSH, PKCS#8, an encrypted key). */
+export const PRIVATE_KEY_HEADER = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/;
+
+/**
+ * The blocking rule of a change set's secret scan (D-B14), applied to each added line: a provider-key shape or a
+ * private-key header. High-entropy strings are not blocking: they stay in `looksSecret` (the advisory entropy notes).
+ */
+export function diffLineSecret(line: string): boolean {
+  return typeof line === 'string' && (hasProviderKey(line) || PRIVATE_KEY_HEADER.test(line));
+}
+
 /**
  * True when the text contains a known key prefix, or a long run of token
  * characters (32+) with high entropy that mixes letters and digits. Plain hex

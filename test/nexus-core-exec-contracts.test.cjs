@@ -194,7 +194,13 @@ test('G8 boundaries: exactly 30 GiB meets the requirement, exactly 40 GiB is ok;
 const SHA = 'a'.repeat(64);
 const exit = { code: 0, oomKilled: false, finishedAt: 1700000000000 };
 const SAMPLES = {
-  'ready': { op: 'ready', bootId: ULID },
+  // B2b Task 1: `ready` reports the runner's loopback MCP endpoint (null while it serves none), and four ops are added
+  // (their bounds are pinned in test/nexus-core-agent-contracts.test.cjs, SC1).
+  'ready': { op: 'ready', bootId: ULID, mcpUrl: 'http://127.0.0.1:51234/mcp' },
+  'mcp.call': { op: 'mcp.call', callId: 'c-1', bearer: 'A'.repeat(22) + '.' + 'b'.repeat(43), tool: 'context_get', args: {} },
+  'agent.exec.done': { op: 'agent.exec.done', attemptId: ULID, execId: 'e-1', exit, stdoutBytes: 1, stderrBytes: 0, stdoutSha256: SHA, truncated: false },
+  'attempt.runtime': { op: 'attempt.runtime', attemptId: ULID, seq: 1, event: { t: 'run.cancelled', at: 5 } },
+  'git.read.result': { op: 'git.read.result', reqId: 'r-1', result: { ok: false, code: 'git_missing', message: 'git is not installed' } },
   'probe.result': { op: 'probe.result', probe: { ...probe, version: '29.7.2' },
     images: [{ profile: 'sde-node', present: true, digestMatches: true, sizeBytes: 1, imageId: 'sha256:' + SHA }],
     freeBytes: 18e9, runtimes: [] },

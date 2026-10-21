@@ -1,11 +1,17 @@
-// Software Development Engineer. In B2a nine of twelve steps run for real,
+// Software Development Engineer. B2a: nine of twelve steps run for real,
 // triggered by the user: requirements, repository snapshots, tests, builds,
-// applications, dev deployments on 127.0.0.1 and diagnostics. AI-assisted
-// implementation, review and iteration arrive in B2b.
+// applications, dev deployments on 127.0.0.1 and diagnostics. B2b: AI-assisted
+// implementation, review and iteration (the agent works in a Nexus worktree;
+// the user reviews, accepts into refs/nexus/accepted/<branch> and merges).
 
 import type { DomainSpec } from '../domainSpec';
 
 const CONTAINER_RUN = ['docker', 'disk:5GiB'] as const;
+/** A change set reaches candidate only when every blocking change-set validator passed (sec.entropy_notes is advisory). */
+const CHANGE_SET_VALIDATORS = ['git.diff_nonempty', 'git.paths_in_scope', 'sec.secret_scan', 'cs.tests_pass', 'git.applies_cleanly'];
+const AGENT_RUN = ['git', 'docker', 'image:sde-node', 'runtime:agent', 'credential:agent'] as const;
+const AGENT_SCOPE = 'The agent edits files in a Nexus worktree and runs every command in its own container without network access. '
+  + 'Its file tools are kept to the worktree by policy, not by the operating system.';
 
 export const SDE: DomainSpec = {
   specVersion: 3,
@@ -13,7 +19,7 @@ export const SDE: DomainSpec = {
   description: 'Turn a requirement into tested, built and running code, with every claim backed by commits, test reports, build manifests and health checks.',
   tier: 'first-class', hueSlot: 0, icon: 'sde', order: 1,
   participationFromSubPhase: 'B1',
-  statusNote: 'Requirements, repository snapshots, tests, builds, applications, dev deployments and diagnostics run in this release. AI-assisted implementation, review and iteration arrive in B2b.',
+  statusNote: 'Requirements, repository snapshots, tests, builds, applications, dev deployments and diagnostics run in this release. The agent drafts requirements and implements changes in its own worktree; you review, accept and merge them.',
   legacyDomainIds: ['software-engineering', 'web-app-dev', 'mobile-dev', 'game-dev', 'embedded-systems', 'robotics-iot', 'blockchain-web3', 'automation-rpa'],
   vocabulary: {
     requirement: { singular: 'Requirement', plural: 'Requirements' },
@@ -35,16 +41,18 @@ export const SDE: DomainSpec = {
     { id: 'test.run' }, { id: 'build.request' }, { id: 'preview.request' }
   ],
   recipes: ['repo.snapshot', 'sde.deps.node', 'sde.deps.python', 'sde.test.discover', 'sde.test.node', 'sde.test.pytest',
-    'sde.build.node', 'sde.build.python', 'sde.app.assemble', 'sde.preview.start', 'sde.diagnose'],
-  skills: [],
+    'sde.build.node', 'sde.build.python', 'sde.app.assemble', 'sde.preview.start', 'sde.diagnose',
+    'repo.worktree', 'changeset.collect', 'changeset.merge_check', 'changeset.accept', 'changeset.accept_rollback', 'repo.ff'],
+  skills: ['nexus-sde-change', 'nexus-sde-tests-first', 'nexus-sde-requirement-draft', 'nexus-sde-app-manifest'],
   actions: ['sde.requirement.write', 'sde.repository.snapshot', 'sde.deps.install', 'sde.tests.discover', 'sde.tests.run',
-    'sde.build.run', 'sde.app.assemble', 'sde.preview.start', 'sde.preview.stop', 'sde.diagnose'],
+    'sde.build.run', 'sde.app.assemble', 'sde.preview.start', 'sde.preview.stop', 'sde.diagnose',
+    'sde.agent.turn', 'sde.changeset.review', 'sde.changeset.accept', 'sde.repo.merge'],
   lifecycle: [
     { id: 'requirement', label: 'Requirement', consumes: [], produces: ['requirement'],
-      via: [{ userAction: 'sde.requirement.write' }],
+      via: [{ userAction: 'sde.requirement.write' }, { skill: 'nexus-sde-requirement-draft' }],
       doneWhen: { kind: 'requirement', statuses: ['candidate', 'active'], validators: ['req.schema'] },
       status: 'REAL', subPhase: 'B2a', prerequisites: [], e2eTestId: 'e2e.sde.requirement',
-      scopeNote: 'You write it in Nexus. Agent drafts arrive in B2b.' },
+      scopeNote: 'You write it in Nexus, or the agent drafts it for you to review.' },
     { id: 'project', label: 'Project', consumes: [], produces: [],
       via: [{ platform: 'project.import' }, { platform: 'project.attach' }],
       doneWhen: { record: 'participation' },
@@ -59,17 +67,20 @@ export const SDE: DomainSpec = {
       status: 'REAL', subPhase: 'B2a', prerequisites: ['git'], e2eTestId: 'e2e.sde.code',
       scopeNote: 'Jobs run on a committed snapshot; uncommitted changes are not included.' },
     { id: 'ai-implementation', label: 'AI-assisted implementation', consumes: ['requirement', 'repository'], produces: ['change_set'],
-      via: [], doneWhen: { kind: 'change_set', statuses: ['candidate', 'active'], validators: [] },
-      status: 'FUTURE', subPhase: 'B2b', prerequisites: ['git', 'docker', 'image:sde-node', 'runtime:agent', 'credential:agent'],
-      scopeNote: 'Agent runs arrive in B2b.' },
+      via: [{ userAction: 'sde.agent.turn' }, { skill: 'nexus-sde-change' }, { skill: 'nexus-sde-tests-first' }],
+      doneWhen: { kind: 'change_set', statuses: ['candidate', 'active'], validators: CHANGE_SET_VALIDATORS },
+      status: 'REAL', subPhase: 'B2b', prerequisites: [...AGENT_RUN], e2eTestId: 'e2e.sde.ai-implementation',
+      scopeNote: AGENT_SCOPE },
     { id: 'tests', label: 'Tests', consumes: ['repository'], produces: ['test_suite'],
       via: [{ userAction: 'sde.tests.discover' }, { userAction: 'sde.deps.install' }, { userAction: 'sde.tests.run' }],
       doneWhen: { kind: 'test_suite', statuses: ['candidate', 'active'], validators: ['suite.discovered', 'sde.tests_pass'] },
       status: 'REAL', subPhase: 'B2a', prerequisites: ['git', ...CONTAINER_RUN], e2eTestId: 'e2e.sde.tests',
       scopeNote: 'Supported runners: node:test, jest, vitest, mocha and pytest. Tests run on a commit; uncommitted changes are not included.' },
     { id: 'review', label: 'Review', consumes: ['change_set'], produces: [],
-      via: [], doneWhen: { record: 'review' },
-      status: 'FUTURE', subPhase: 'B2b', prerequisites: ['git'], scopeNote: 'Reviewing and accepting changes arrives in B2b.' },
+      via: [{ userAction: 'sde.changeset.review' }, { userAction: 'sde.changeset.accept' }, { userAction: 'sde.repo.merge' }],
+      doneWhen: { record: 'review' },
+      status: 'REAL', subPhase: 'B2b', prerequisites: ['git'], e2eTestId: 'e2e.sde.review',
+      scopeNote: 'Accepting merges the change into a Nexus ref, never into your branch or files. Merging accepted work is a fast-forward you confirm.' },
     { id: 'build', label: 'Build', consumes: ['repository'], produces: ['build'],
       via: [{ userAction: 'sde.build.run' }],
       doneWhen: { kind: 'build', statuses: ['candidate', 'active'],
@@ -90,9 +101,10 @@ export const SDE: DomainSpec = {
       doneWhen: { kind: 'diagnostic_report', statuses: ['candidate', 'active'], validators: ['diag.schema'] },
       status: 'REAL', subPhase: 'B2a', prerequisites: ['docker'], e2eTestId: 'e2e.sde.diagnostics' },
     { id: 'iteration', label: 'Iteration', consumes: ['change_set', 'diagnostic_report'], produces: ['change_set'],
-      via: [], doneWhen: { kind: 'change_set', statuses: ['candidate', 'active'], validators: [] },
-      status: 'FUTURE', subPhase: 'B2b', prerequisites: ['git', 'docker', 'image:sde-node', 'runtime:agent', 'credential:agent'],
-      scopeNote: 'Agent iterations arrive in B2b.' }
+      via: [{ userAction: 'sde.agent.turn' }, { skill: 'nexus-sde-change' }],
+      doneWhen: { kind: 'change_set', statuses: ['candidate', 'active'], validators: CHANGE_SET_VALIDATORS },
+      status: 'REAL', subPhase: 'B2b', prerequisites: [...AGENT_RUN], e2eTestId: 'e2e.sde.iteration',
+      scopeNote: AGENT_SCOPE }
   ],
   handoffRoutes: [
     { to: 'qa', kinds: ['application', 'build', 'requirement', 'test_suite'], action: 'test', subPhase: 'B2c' },

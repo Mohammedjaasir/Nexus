@@ -11,7 +11,7 @@ const guard = require('./helpers/identityGuard.cjs');
 const ROOT = path.resolve(__dirname, '..');
 const spec = loadTs('src/shared/nexus/domainSpec.ts');
 const { DOMAINS, getDomain } = loadTs('src/shared/nexus/domains/index.ts');
-const { checkRegistry, projectWorkspaceCatalog, B2A_IMPL, BANNED_PARAM_FIELD, E2E_TEST_ID_RE } = loadTs('src/shared/nexus/registryCheck.ts');
+const { checkRegistry, projectWorkspaceCatalog, B2B_IMPL, B2B_E2E_STUB, BANNED_PARAM_FIELD, E2E_TEST_ID_RE } = loadTs('src/shared/nexus/registryCheck.ts');
 const { KINDS } = loadTs('src/shared/nexus/kinds.ts');
 const { RECIPES } = loadTs('src/shared/nexus/recipes.ts');
 const { VALIDATORS } = loadTs('src/shared/nexus/validators.ts');
@@ -20,10 +20,14 @@ const { CAPABILITIES } = loadTs('src/shared/nexus/capabilities.ts');
 const { PLATFORM_WORKSPACE_IDS, LEGACY_DOMAIN_TO_WORKSPACE } = loadTs('src/shared/nexus/workspaceCatalog.ts');
 const { WORKSPACES } = loadTs('src/renderer/src/nexus/workspaces/registry.ts');
 
-// The e2e titles are written by Task 12 (enforced from it): every REAL step's e2e id is listed in B2A_IMPL.e2eTests and
+// The e2e titles are written by Task 12 (enforced from it): every REAL step's e2e id is listed in B2B_IMPL.e2eTests and
 // is part of a test TITLE in one of these files (the fake-driver recipes file runs under test:db; the real-Docker one
 // behind the test:exec gate). Task 13 added test/nexus-platform-b2a-flows.test.cjs (the flows through the IPC handlers).
+// B2b Task 1 (the registry flip): the build is B2b and the registry is checked against B2B_IMPL. The e2e ids of the three
+// steps B2b makes REAL are a stub (B2B_E2E_STUB) until B2b Task 16 writes them as titles: exactly those are exempt from
+// the title checks below, and a pin records them in lifecycle order.
 const E2E_ENFORCED = true;
+const E2E_PENDING = new Set(B2B_E2E_STUB);
 const E2E_FILES = ['test/nexus-platform-exec-recipes.test.cjs', 'test/nexus-exec-recipes.test.cjs', 'test/nexus-platform-b2a-flows.test.cjs'];
 /** The real-Docker recipes file (test:exec gate): a Docker-dependent step's e2e id must be a title there too (fix round 1). */
 const REAL_DOCKER_E2E_FILE = 'test/nexus-exec-recipes.test.cjs';
@@ -34,8 +38,8 @@ const byId = (specs, id) => specs.find((d) => d.id === id);
 const step = (d, id) => d.lifecycle.find((s) => s.id === id);
 const FIRST_CLASS = ['sde', 'qa', 'data', 'data-scientist', 'ml', 'dl'];
 
-test('DR0 the registry holds six first-class domains and three registry-only entries; the build is B2a', () => {
-  assert.equal(spec.CURRENT_SUB_PHASE, 'B2a');
+test('DR0 the registry holds six first-class domains and three registry-only entries; the build is B2b', () => {
+  assert.equal(spec.CURRENT_SUB_PHASE, 'B2b');
   assert.deepEqual(DOMAINS.filter((d) => d.tier === 'first-class').map((d) => d.id).sort(), [...FIRST_CLASS].sort());
   assert.deepEqual(DOMAINS.filter((d) => d.tier === 'registry-only').map((d) => d.id).sort(), ['devops', 'research', 'uiux']);
   for (const d of DOMAINS) assert.equal(d.specVersion, 3, d.id);
@@ -60,8 +64,8 @@ test('DR1 ids unique; hue slots unique and equal to the renderer registry for th
   assert.equal(getDomain('data-scientist').participationFromSubPhase, 'B4');
 });
 
-test('DR2 checkRegistry(DOMAINS, B2A_IMPL) is clean; every REAL step names a well-formed e2e test id', () => {
-  assert.deepEqual(checkRegistry(DOMAINS, B2A_IMPL), []);
+test('DR2 checkRegistry(DOMAINS, B2B_IMPL) is clean; every REAL step names a well-formed e2e test id', () => {
+  assert.deepEqual(checkRegistry(DOMAINS, B2B_IMPL), []);
   const real = DOMAINS.flatMap((d) => d.lifecycle.filter((s) => s.status !== 'FUTURE').map((s) => ({ d: d.id, s })));
   assert.ok(real.length > 0);
   for (const { d, s } of real) assert.match(s.e2eTestId ?? '', E2E_TEST_ID_RE, `${d}/${s.id}`);
@@ -69,51 +73,63 @@ test('DR2 checkRegistry(DOMAINS, B2A_IMPL) is clean; every REAL step names a wel
   assert.equal(new Set(all).size, all.length, 'e2e ids are unique');
   // A missing id or a malformed one fails the boot check.
   const a = clone(); delete step(byId(a, 'sde'), 'tests').e2eTestId;
-  assert.ok(checkRegistry(a, B2A_IMPL).some((p) => /sde\/tests.*e2eTestId/.test(p)));
+  assert.ok(checkRegistry(a, B2B_IMPL).some((p) => /sde\/tests.*e2eTestId/.test(p)));
   const b = clone(); step(byId(b, 'sde'), 'tests').e2eTestId = 'Tests pass';
-  assert.ok(checkRegistry(b, B2A_IMPL).some((p) => /sde\/tests.*e2eTestId/.test(p)));
+  assert.ok(checkRegistry(b, B2B_IMPL).some((p) => /sde\/tests.*e2eTestId/.test(p)));
   // With titles supplied, an id that is not a title fails.
-  const titled = { ...B2A_IMPL, e2eTests: all.filter((id) => id !== step(getDomain('sde'), 'build').e2eTestId) };
+  const titled = { ...B2B_IMPL, e2eTests: all.filter((id) => id !== step(getDomain('sde'), 'build').e2eTestId) };
   assert.ok(checkRegistry(DOMAINS, titled).some((p) => /sde\/build.*no end-to-end test/.test(p)));
   if (E2E_ENFORCED) {
     const text = E2E_FILES.map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n');
-    for (const id of all) assert.ok(text.includes(id), `${id} is a test title`);
-    // Stronger than a mention: the id is a word of a test('...') title, and B2A_IMPL lists exactly these ids.
+    const titled = all.filter((id) => !E2E_PENDING.has(id));
+    for (const id of titled) assert.ok(text.includes(id), `${id} is a test title`);
+    // Stronger than a mention: the id is a word of a test('...') title, and B2B_IMPL lists exactly these ids.
     const titles = [...text.matchAll(/\btest\(\s*(['"`])((?:(?!\1).)*)\1/g)].map((m) => m[2]);
-    for (const id of all) assert.ok(titles.some((t) => t.split(/\s+/).includes(id)), `${id} is part of a test title`);
-    assert.deepEqual([...B2A_IMPL.e2eTests].sort(), [...all].sort(), 'B2A_IMPL.e2eTests lists exactly the REAL steps\' e2e ids');
+    for (const id of titled) assert.ok(titles.some((t) => t.split(/\s+/).includes(id)), `${id} is part of a test title`);
+    assert.deepEqual([...B2B_IMPL.e2eTests].sort(), [...all].sort(), 'B2B_IMPL.e2eTests lists exactly the REAL steps\' e2e ids');
+    // The B2b stub (pin): exactly the three B2b steps, in lifecycle order, none of them a title yet. Task 16 writes the
+    // titles and removes each from B2B_E2E_STUB; a stub id that became a title must leave the stub.
+    assert.deepEqual([...E2E_PENDING], ['e2e.sde.ai-implementation', 'e2e.sde.review', 'e2e.sde.iteration']);
+    assert.deepEqual(all.filter((id) => E2E_PENDING.has(id)), [...E2E_PENDING], 'the stub ids are REAL steps\' ids, in lifecycle order');
+    for (const id of E2E_PENDING) assert.ok(!titles.some((t) => t.split(/\s+/).includes(id)), `${id} is a title now: remove it from B2B_E2E_STUB`);
     // Fix round 1, item 12: a step whose proof needs Docker (its prerequisites name docker or an image) must ALSO be a
     // test title in the real-Docker file; the fake-driver titles alone never satisfy it.
     const dockerSteps = real.filter(({ s }) => (s.prerequisites ?? []).some((p) => p === 'docker' || String(p).startsWith('image:')));
     assert.deepEqual(dockerSteps.map(({ s }) => s.e2eTestId).sort(),
-      ['e2e.sde.application', 'e2e.sde.build', 'e2e.sde.dev-deployment', 'e2e.sde.diagnostics', 'e2e.sde.tests']);
+      ['e2e.sde.ai-implementation', 'e2e.sde.application', 'e2e.sde.build', 'e2e.sde.dev-deployment', 'e2e.sde.diagnostics', 'e2e.sde.iteration',
+        'e2e.sde.tests']);
     const missingFrom = (fileText) => {
       const t = [...fileText.matchAll(/\btest\(\s*(['"`])((?:(?!\1).)*)\1/g)].map((m) => m[2]);
       return dockerSteps.map(({ s }) => s.e2eTestId).filter((id) => !t.some((x) => x.split(/\s+/).includes(id)));
     };
     const realDocker = fs.readFileSync(path.join(ROOT, REAL_DOCKER_E2E_FILE), 'utf8');
-    assert.deepEqual(missingFrom(realDocker), [], 'every Docker-dependent e2e id is a title in the real-Docker recipes file');
+    // Every Docker-dependent e2e id is a title in the real-Docker recipes file, except the two B2b stub ids (Task 16
+    // writes them in its real-Docker agent suite).
+    assert.deepEqual(missingFrom(realDocker), ['e2e.sde.ai-implementation', 'e2e.sde.iteration'],
+      'every Docker-dependent e2e id outside the B2b stub is a title in the real-Docker recipes file');
     // Not vacuous: the real file without its build title fails it, whatever the fake-driver file's titles say.
-    assert.deepEqual(missingFrom(realDocker.replace('X5 e2e.sde.build ', 'X5 ')), ['e2e.sde.build']);
+    assert.deepEqual(missingFrom(realDocker.replace('X5 e2e.sde.build ', 'X5 ')), ['e2e.sde.ai-implementation', 'e2e.sde.build', 'e2e.sde.iteration']);
   }
   // A REAL step whose implementation is not registered fails.
-  const noRecipe = { ...B2A_IMPL, recipes: B2A_IMPL.recipes.filter((r) => r !== 'sde.build.node') };
+  const noRecipe = { ...B2B_IMPL, recipes: B2B_IMPL.recipes.filter((r) => r !== 'sde.build.node') };
   assert.ok(checkRegistry(DOMAINS, noRecipe).some((p) => /sde\.build\.node/.test(p) && /implementation/.test(p)));
-  const noValidator = { ...B2A_IMPL, validators: B2A_IMPL.validators.filter((v) => v !== 'sde.tests_pass') };
+  const noValidator = { ...B2B_IMPL, validators: B2B_IMPL.validators.filter((v) => v !== 'sde.tests_pass') };
   assert.ok(checkRegistry(DOMAINS, noValidator).some((p) => /sde\.tests_pass/.test(p)));
-  const noViewer = { ...B2A_IMPL, viewers: B2A_IMPL.viewers.filter((v) => v !== 'viewer.build') };
+  const noViewer = { ...B2B_IMPL, viewers: B2B_IMPL.viewers.filter((v) => v !== 'viewer.build') };
   assert.ok(checkRegistry(DOMAINS, noViewer).some((p) => /viewer\.build/.test(p)));
 });
 
-test('DR3 a step is REAL only at or after its sub-phase; SDE matches the B2a status table exactly', () => {
+test('DR3 a step is REAL only at or after its sub-phase; SDE matches the B2b status table exactly', () => {
   assert.ok(spec.isAtOrBefore('B2a', 'B2a') && spec.isAtOrBefore('B1', 'B2a') && !spec.isAtOrBefore('B2b', 'B2a'));
+  assert.ok(spec.isAtOrBefore('B2b') && !spec.isAtOrBefore('B2c'), 'this build is B2b');
   const sde = getDomain('sde');
+  // B2b Task 1 (the registry flip): AI-assisted implementation, review and iteration are REAL in B2b.
   assert.deepEqual(sde.lifecycle.map((s) => [s.label, s.status, s.subPhase]), [
     ['Requirement', 'REAL', 'B2a'], ['Project', 'REAL', 'B1'], ['Repository', 'REAL', 'B2a'], ['Code', 'REAL', 'B2a'],
-    ['AI-assisted implementation', 'FUTURE', 'B2b'], ['Tests', 'REAL', 'B2a'], ['Review', 'FUTURE', 'B2b'],
+    ['AI-assisted implementation', 'REAL', 'B2b'], ['Tests', 'REAL', 'B2a'], ['Review', 'REAL', 'B2b'],
     ['Build', 'REAL', 'B2a'], ['Application', 'REAL', 'B2a'], ['Dev deployment', 'REAL', 'B2a'],
-    ['Logs and diagnostics', 'REAL', 'B2a'], ['Iteration', 'FUTURE', 'B2b']]);
-  assert.equal(sde.lifecycle.filter((s) => s.status === 'REAL').length, 9);
+    ['Logs and diagnostics', 'REAL', 'B2a'], ['Iteration', 'REAL', 'B2b']]);
+  assert.equal(sde.lifecycle.filter((s) => s.status === 'REAL').length, 12);
   // DA, ML and DL: only the problem statement step is REAL. QA and DS (no participation before B4) have none.
   const counts = { qa: 11, data: 10, 'data-scientist': 12, ml: 13, dl: 15 };
   for (const [id, n] of Object.entries(counts)) {
@@ -127,23 +143,28 @@ test('DR3 a step is REAL only at or after its sub-phase; SDE matches the B2a sta
       assert.equal(real[0].subPhase, 'B2a');
     }
     for (const s of d.lifecycle.filter((x) => x.status === 'FUTURE'))
-      assert.ok(!spec.isAtOrBefore(s.subPhase, 'B2a'), `${id}/${s.id} FUTURE names a later sub-phase`);
+      assert.ok(!spec.isAtOrBefore(s.subPhase, 'B2b'), `${id}/${s.id} FUTURE names a later sub-phase`);
   }
-  // No domain is executable end to end at B2a.
-  for (const d of DOMAINS) assert.equal(spec.isExecutableEndToEnd(d), false, d.id);
-  // Negative fixture: a B2b step marked REAL fails.
-  const bad = clone(); const s = step(byId(bad, 'sde'), 'ai-implementation');
-  s.status = 'REAL'; s.e2eTestId = 'e2e.sde.ai-implementation';
-  assert.ok(checkRegistry(bad, B2A_IMPL).some((p) => /sde\/ai-implementation.*B2b/.test(p)));
+  // No domain was executable end to end at B2a; at B2b only SDE is (by the registry), never the other five.
+  for (const d of DOMAINS) assert.equal(spec.isExecutableEndToEnd(d, 'B2a'), false, `${d.id} at B2a`);
+  for (const d of DOMAINS) assert.equal(spec.isExecutableEndToEnd(d), d.id === 'sde', `${d.id} at B2b`);
+  // Negative fixture: a step of a later sub-phase (B2c) marked REAL fails.
+  const bad = clone(); const s = step(byId(bad, 'qa'), 'test-plan');
+  s.status = 'REAL'; s.e2eTestId = 'e2e.qa.test-plan';
+  assert.ok(checkRegistry(bad, B2B_IMPL).some((p) => /qa\/test-plan.*B2c/.test(p)));
   // A FUTURE step that names the current sub-phase is a stale label.
-  const stale = clone(); step(byId(stale, 'qa'), 'test-plan').subPhase = 'B2a';
-  assert.ok(checkRegistry(stale, B2A_IMPL).some((p) => /qa\/test-plan/.test(p)));
+  const stale = clone(); step(byId(stale, 'qa'), 'test-plan').subPhase = 'B2b';
+  assert.ok(checkRegistry(stale, B2B_IMPL).some((p) => /qa\/test-plan: FUTURE but names B2b/.test(p)));
   // A completion rule cannot claim the current build while a step is FUTURE.
-  const claim = clone(); byId(claim, 'sde').completionRules[0].subPhase = 'B2a';
-  assert.ok(checkRegistry(claim, B2A_IMPL).some((p) => /completion/.test(p)));
+  const claim = clone(); byId(claim, 'qa').completionRules[0].subPhase = 'B2b';
+  assert.ok(checkRegistry(claim, B2B_IMPL).some((p) => /qa completion/.test(p)));
+  // ... nor can SDE's once one of its steps is FUTURE again.
+  const back = clone(); Object.assign(step(byId(back, 'sde'), 'iteration'), { status: 'FUTURE', subPhase: 'B2c', via: [] });
+  delete step(byId(back, 'sde'), 'iteration').e2eTestId;
+  assert.ok(checkRegistry(back, B2B_IMPL).some((p) => /sde completion sde\.end-to-end: names B2b while iteration are FUTURE/.test(p)));
   // A REAL step cannot produce a kind that arrives later.
-  const later = clone(); step(byId(later, 'sde'), 'build').produces.push('change_set');
-  assert.ok(checkRegistry(later, B2A_IMPL).some((p) => /change_set/.test(p)));
+  const later = clone(); step(byId(later, 'sde'), 'build').produces.push('test_run');
+  assert.ok(checkRegistry(later, B2B_IMPL).some((p) => /test_run, which arrives in B2c/.test(p)));
 });
 
 test('DR4 every referenced kind, recipe, validator, action and capability id resolves; an unknown id fails', () => {
@@ -171,14 +192,14 @@ test('DR4 every referenced kind, recipe, validator, action and capability id res
   ];
   for (const [name, mutate, re] of cases) {
     const a = clone(); mutate(a);
-    const problems = checkRegistry(a, B2A_IMPL);
+    const problems = checkRegistry(a, B2B_IMPL);
     assert.ok(problems.some((p) => re.test(p)), `${name}: ${JSON.stringify(problems)}`);
   }
   // The capability table is the one the domains reference.
   const caps = new Set(CAPABILITIES.map((c) => c.id));
   for (const d of DOMAINS) for (const c of d.capabilities) assert.ok(caps.has(c.id), `${d.id}: ${c.id}`);
   // Implementation ids the build claims must exist in the tables.
-  assert.ok(checkRegistry(DOMAINS, { ...B2A_IMPL, recipes: [...B2A_IMPL.recipes, 'ghost.recipe'] }).some((p) => /ghost\.recipe/.test(p)));
+  assert.ok(checkRegistry(DOMAINS, { ...B2B_IMPL, recipes: [...B2B_IMPL.recipes, 'ghost.recipe'] }).some((p) => /ghost\.recipe/.test(p)));
 });
 
 test('DR5 projectWorkspaceCatalog equals the live workspace catalogue exactly', () => {
@@ -189,7 +210,7 @@ test('DR5 projectWorkspaceCatalog equals the live workspace catalogue exactly', 
   assert.ok(!('deep-learning' in cat.legacyMap), 'deep-learning waits for its phase');
   assert.equal(cat.legacyMap['data-science'], 'data', 'data-science stays with Data Analyst until ruling R1');
   const dup = clone(); byId(dup, 'ml').legacyDomainIds.push('data-analytics');
-  assert.ok(checkRegistry(dup, B2A_IMPL).some((p) => /data-analytics/.test(p)));
+  assert.ok(checkRegistry(dup, B2B_IMPL).some((p) => /data-analytics/.test(p)));
 });
 
 test('DR6 vocabulary covers every produced kind; registry strings are plain words', () => {
@@ -232,8 +253,10 @@ test('DR7 actions: SDE actions map to REAL steps; no action for a FUTURE step; p
   for (const f of ['repoPath', 'command', 'argv', 'network', 'image', 'principalId', 'role', 'workDir', 'url', 'hostPort'])
     assert.match(f, BANNED_PARAM_FIELD, f);
   // Negative fixtures: an action on a FUTURE step, and a params field naming a path.
-  const a = clone(); step(byId(a, 'sde'), 'review').via.push({ userAction: 'sde.build.run' });
-  assert.ok(checkRegistry(a, B2A_IMPL).some((p) => /sde\/review.*action/.test(p)));
+  // (B2b Task 1: SDE's review step is REAL now, so the FUTURE step is SDE's iteration put back into a later sub-phase.)
+  const a = clone(); Object.assign(step(byId(a, 'sde'), 'iteration'), { status: 'FUTURE', subPhase: 'B2c' });
+  delete step(byId(a, 'sde'), 'iteration').e2eTestId;
+  assert.ok(checkRegistry(a, B2B_IMPL).some((p) => /sde\/iteration: a FUTURE step has no user action/.test(p)));
   const actions = loadTs('src/shared/nexus/actions.ts');
   const original = actions.USER_ACTIONS.find((x) => x.id === 'sde.diagnose');
 
@@ -242,9 +265,12 @@ test('DR7 actions: SDE actions map to REAL steps; no action for a FUTURE step; p
   assert.ok(checkActionParams(bad).some((p) => /logPath/.test(p)));
 });
 
-test('DR8 the recipe and validator tables match the B2a plan', () => {
+test('DR8 the recipe and validator tables match the B2a plan and the B2b additions', () => {
+  // B2b Task 1: the six git engine recipes and the six change-set validators follow the B2a rows (their own pins are in
+  // test/nexus-core-agent-contracts.test.cjs, SC8 and SC8b).
   assert.deepEqual(RECIPES.map((r) => r.id), ['repo.snapshot', 'sde.deps.node', 'sde.deps.python', 'sde.test.discover', 'sde.test.node',
-    'sde.test.pytest', 'sde.build.node', 'sde.build.python', 'sde.app.assemble', 'sde.preview.start', 'sde.diagnose']);
+    'sde.test.pytest', 'sde.build.node', 'sde.build.python', 'sde.app.assemble', 'sde.preview.start', 'sde.diagnose',
+    'repo.worktree', 'changeset.collect', 'changeset.merge_check', 'changeset.accept', 'changeset.accept_rollback', 'repo.ff']);
   const r = (id) => RECIPES.find((x) => x.id === id);
   assert.deepEqual([r('sde.deps.node').network, r('sde.deps.python').network], ['egress-approved', 'egress-approved']);
   for (const x of RECIPES.filter((y) => !y.id.startsWith('sde.deps.') && y.id !== 'sde.preview.start'))
@@ -257,11 +283,11 @@ test('DR8 the recipe and validator tables match the B2a plan', () => {
   assert.deepEqual([r('repo.snapshot').retry.maxAttempts, r('sde.test.node').retry.maxAttempts, r('sde.test.node').retry.idempotent], [3, 1, false]);
   assert.deepEqual(r('sde.test.node').outputContract.required, ['junit.xml']);
   // B2a Task 13 fix round 1 (the ruled defect): a dependency install's evidence, sde.deps.lock_matches, is the one ADVISORY
-  // validator; every other validator stays blocking.
+  // validator of B2a; B2b adds exactly one more, sec.entropy_notes (D-B14). Every other validator stays blocking.
   assert.deepEqual(VALIDATORS.map((v) => v.id), ['git.head_resolves', 'req.schema', 'problem.schema', 'suite.discovered', 'sde.tests_pass',
     'build.exit_zero', 'build.manifest_present', 'build.output_hashed', 'blob.integrity', 'app.manifest_schema', 'app.preview_health', 'diag.schema',
-    'sde.deps.lock_matches']);
-  for (const v of VALIDATORS) assert.equal(v.blocking, v.id !== 'sde.deps.lock_matches', v.id);
+    'sde.deps.lock_matches', 'git.diff_nonempty', 'git.paths_in_scope', 'sec.secret_scan', 'sec.entropy_notes', 'cs.tests_pass', 'git.applies_cleanly']);
+  for (const v of VALIDATORS) assert.equal(v.blocking, !['sde.deps.lock_matches', 'sec.entropy_notes'].includes(v.id), v.id);
   const lock = VALIDATORS.find((v) => v.id === 'sde.deps.lock_matches');
   assert.deepEqual([lock.kinds, lock.executes, lock.evidence], [['repository'], 'main', ['hash', 'exit']]);
   assert.ok(!loadTs('src/shared/nexus/validators.ts').blockingValidatorsFor('repository').some((v) => v.id === lock.id), 'it never gates a repository version');
@@ -283,7 +309,7 @@ test('DR9 before a domain takes part (participationFromSubPhase), it has no runn
   Object.assign(step(ds, 'business-problem'), { status: 'REAL', subPhase: 'B2a', via: [{ userAction: 'ml.problem.write' }], e2eTestId: 'e2e.data-scientist.business-problem' });
   ds.actions.push('ml.problem.write');
   ds.modules[0].subPhase = 'B2a';
-  const p = checkRegistry(a, B2A_IMPL);
+  const p = checkRegistry(a, B2B_IMPL);
   assert.ok(has(p, /data-scientist\/business-problem: REAL before projects can take part/), JSON.stringify(p));
   assert.ok(has(p, /data-scientist: action ml\.problem\.write exists before projects can take part/));
   assert.ok(has(p, /data-scientist module problems: B2a is before projects can take part/));
@@ -291,25 +317,25 @@ test('DR9 before a domain takes part (participationFromSubPhase), it has no runn
 
 test('DR10 checkRegistry is total: malformed input is a problem, never an exception', () => {
   const nullSpec = [...clone(), null];
-  assert.doesNotThrow(() => checkRegistry(nullSpec, B2A_IMPL));
-  assert.ok(has(checkRegistry(nullSpec, B2A_IMPL), /spec #9: not an object/));
+  assert.doesNotThrow(() => checkRegistry(nullSpec, B2B_IMPL));
+  assert.ok(has(checkRegistry(nullSpec, B2B_IMPL), /spec #9: not an object/));
   const noLifecycle = clone(); delete byId(noLifecycle, 'ml').lifecycle;
-  assert.ok(has(checkRegistry(noLifecycle, B2A_IMPL), /ml: lifecycle must be a list/));
+  assert.ok(has(checkRegistry(noLifecycle, B2B_IMPL), /ml: lifecycle must be a list/));
   const noVia = clone(); delete step(byId(noVia, 'sde'), 'build').via;
-  assert.ok(has(checkRegistry(noVia, B2A_IMPL), /sde: step build: via must be a list/));
+  assert.ok(has(checkRegistry(noVia, B2B_IMPL), /sde: step build: via must be a list/));
   const badStep = clone(); byId(badStep, 'qa').lifecycle.push(7);
-  assert.ok(has(checkRegistry(badStep, B2A_IMPL), /qa: step #11 is not an object/));
+  assert.ok(has(checkRegistry(badStep, B2B_IMPL), /qa: step #11 is not an object/));
   for (const input of [null, undefined, 'x', {}, [undefined], [{}]])
-    assert.ok(checkRegistry(input, B2A_IMPL).length > 0, String(JSON.stringify(input)));
-  for (const impl of [null, {}, { ...B2A_IMPL, viewers: 'x' }]) assert.ok(has(checkRegistry(DOMAINS, impl), /implementation: malformed/));
-  assert.ok(checkRegistry(DOMAINS, B2A_IMPL, { kinds: null }).length > 0);
+    assert.ok(checkRegistry(input, B2B_IMPL).length > 0, String(JSON.stringify(input)));
+  for (const impl of [null, {}, { ...B2B_IMPL, viewers: 'x' }]) assert.ok(has(checkRegistry(DOMAINS, impl), /implementation: malformed/));
+  assert.ok(checkRegistry(DOMAINS, B2B_IMPL, { kinds: null }).length > 0);
   assert.ok(checkActionParams(null).length > 0);
 });
 
 test('DR11 table integrity: duplicate ids, recipe shape per executor, child-job validators, unknown viewers, duplicate e2e ids', () => {
   for (const name of ['kinds', 'recipes', 'validators', 'actions', 'capabilities']) {
     const t = tablesCopy(); t[name].push({ ...t[name][0] });
-    assert.ok(has(checkRegistry(DOMAINS, B2A_IMPL, { [name]: t[name] }), new RegExp(`table ${name}: duplicate id ${t[name][0].id.replace(/\./g, '\.')}`)), name);
+    assert.ok(has(checkRegistry(DOMAINS, B2B_IMPL, { [name]: t[name] }), new RegExp(`table ${name}: duplicate id ${t[name][0].id.replace(/\./g, '\.')}`)), name);
   }
   const rcases = [
     ['no executor', (r) => { delete r[0].executor; }, /recipe repo\.snapshot: bad or missing executor/],
@@ -322,13 +348,13 @@ test('DR11 table integrity: duplicate ids, recipe shape per executor, child-job 
   ];
   for (const [name, mutate, re] of rcases) {
     const t = tablesCopy(); mutate(t.recipes);
-    assert.ok(has(checkRegistry(DOMAINS, B2A_IMPL, { recipes: t.recipes }), re), name);
+    assert.ok(has(checkRegistry(DOMAINS, B2B_IMPL, { recipes: t.recipes }), re), name);
   }
   const v = tablesCopy(); delete v.validators.find((x) => x.id === 'sde.tests_pass').recipes;
-  assert.ok(has(checkRegistry(DOMAINS, B2A_IMPL, { validators: v.validators }), /sde\.tests_pass: a child-job validator names its recipes/));
-  assert.ok(has(checkRegistry(DOMAINS, { ...B2A_IMPL, viewers: [...B2A_IMPL.viewers, 'viewer.hologram'] }), /unknown viewer viewer\.hologram/));
+  assert.ok(has(checkRegistry(DOMAINS, B2B_IMPL, { validators: v.validators }), /sde\.tests_pass: a child-job validator names its recipes/));
+  assert.ok(has(checkRegistry(DOMAINS, { ...B2B_IMPL, viewers: [...B2B_IMPL.viewers, 'viewer.hologram'] }), /unknown viewer viewer\.hologram/));
   const dup = clone(); step(byId(dup, 'sde'), 'build').e2eTestId = 'e2e.sde.tests';
-  assert.ok(has(checkRegistry(dup, B2A_IMPL), /sde\/build: e2eTestId e2e\.sde\.tests is already used by sde\/tests/));
+  assert.ok(has(checkRegistry(dup, B2B_IMPL), /sde\/build: e2eTestId e2e\.sde\.tests is already used by sde\/tests/));
 });
 
 test('DR12 wording and small rules from review: no over-claiming names, sign-only release decisions, scope notes', () => {

@@ -9,7 +9,9 @@
  * - actionsFor (#24): the domain's user actions with `available` and a reason: `planned`, `future`, `withdrawn` or
  *   `complete` (the participation is not active: fix round 1, never reported as `permission`), `permission`,
  *   `not_applicable`, `blocked_by_step:<id>` (an input kind the step produces has no usable version yet) or the
- *   execution core's `setup:<id>`. Permission is decided without an audit row (a list is not an attempt).
+ *   execution core's `setup:<id>`. Permission is decided without an audit row (a list is not an attempt). B2b: an agent
+ *   flow action (an agent turn, a review, accept, merge accepted work) answers `agents_unavailable` while the agents part
+ *   of the platform is off.
  * - attemptLog (#28): the stored `log_path` of attempt n of a readable job (job.read).
  * - previewSource (#34): what a page of a version reads: its inline JSON, its git facts, its blob, its tree manifest
  *   (version_blobs `file` rows), its discovered tests (metadata) or its latest JUnit table: the counts (failures first),
@@ -63,6 +65,11 @@ export class ExecQueries {
 
   constructor(private readonly db: Database.Database, private readonly deps: {
     auth: AuthService; artifacts: ArtifactService; exec: ExecutionService;
+    /**
+     * B2b: whether the agents part of the platform is on (schema v10, wired by a later B2b task). Absent means off:
+     * every agent flow action then answers `agents_unavailable`.
+     */
+    agentsAvailable?: () => boolean;
   }) {
     this.access = new ProjectAccess(db, { auth: deps.auth });
   }
@@ -116,6 +123,15 @@ export class ExecQueries {
     // The participation is withdrawn or complete: that is why nothing can start, not a missing permission.
     if (participation !== 'active') return participation;
     const run = action.run;
+    // B2b agent flows (an agent turn, a review, accept, merge accepted work) have their own channels, never a job start.
+    // While the agents part is off they answer `agents_unavailable` (a sentence, never a button).
+    if ('flow' in run) {
+      if (versionKind !== null && !action.inputs.some((s) => s.kinds.includes(versionKind))) return 'not_applicable';
+      let agents = false;
+      try { agents = this.deps.agentsAvailable?.() === true; } catch { agents = false; }
+      if (!agents) return 'agents_unavailable';
+      return can('job.create') ? null : 'permission';
+    }
     if ('inlineKind' in run) {
       if (!can('artifact.create')) return 'permission';
       return versionKind !== null && versionKind !== run.inlineKind ? 'not_applicable' : null;

@@ -5,12 +5,14 @@
 // Anything that does not parse is dropped. Pure; no I/O.
 
 import {
-  IMAGE_VERSIONS_RE, OUTPUT_ERROR_CODES, PARSER_IDS, SANDBOX_PROFILE_IDS,
-  type AttemptPlan, type ExitInfo, type ImageStatus, type OutputErrorCode, type ParsedOutput, type PreflightObserved,
+  GIT_DIFF_MAX_BYTES_PER_SIDE, IMAGE_VERSIONS_RE, OUTPUT_ERROR_CODES, PARSER_IDS, SANDBOX_PROFILE_IDS,
+  type AttemptPlan, type ExitInfo, type GitReadTask, type ImageStatus, type OutputErrorCode, type ParsedOutput, type PreflightObserved,
   type SandboxProbe, type SandboxProfile, type SandboxProfileId, type StagedOutput
 } from './execution';
-import type { RuntimeHealth, RuntimeKind } from './runtime';
+import type { RuntimeEvent, RuntimeHealth, RuntimeKind } from './runtime';
 import { EGRESS_HOST_RE, EGRESS_REASONS, type EgressReason } from './egressPolicy';
+import { TOKEN_MAX_BYTES, TOKEN_RE } from './tokens';
+import { SANDBOX_EXEC_MAX_TIMEOUT_MS } from './mcpTools';
 
 // ----- main → runner (main builds these; the runner trusts their origin, not their paths' safety) -----
 
@@ -36,7 +38,23 @@ export type MainToRunner =
    */
   | { op: 'reconcile.remove'; resources: { kind: 'container' | 'volume' | 'network'; id: string }[] }
   /** App quit: the runner stops its dev deployments' containers, leaves tool containers running (adoptable) and exits. */
-  | { op: 'shutdown' };
+  | { op: 'shutdown' }
+  /**
+   * B2b: main's answer to one relayed MCP call (`mcp.call` with the same `callId`). For `sandbox_exec` the value is
+   * `{ grant: SandboxExecGrant }`: the runner runs exactly that argv in the turn's container and returns the redacted,
+   * capped output to the agent only (main gets `agent.exec.done`: counts and a hash, never the text).
+   */
+  | { op: 'mcp.reply'; callId: string; result: McpReplyResult }
+  /** B2b: a bounded git read (status, or a diff between two recorded commits); answered by `git.read.result`. */
+  | { op: 'git.read'; reqId: string; task: GitReadTask }
+  /** B2b: end every live agent process tree this runner started (app quit, a cancel of everything). */
+  | { op: 'agent.shutdownTrees' };
+
+/** One command main granted to an agent turn: run in the turn's own container, never on the host. */
+export interface SandboxExecGrant { execId: string; argv: string[]; cwd: string; timeoutMs: number }
+export type McpReplyResult = { ok: true; value: unknown } | { ok: false; code: string; message: string };
+/** The reply that grants a `sandbox_exec`: the value always carries an argv array. */
+export type SandboxExecReply = { op: 'mcp.reply'; callId: string; result: { ok: true; value: { grant: SandboxExecGrant } } };
 
 // ----- runner → main (reports; parsed by `parseRunnerMessage`) -----
 
@@ -69,7 +87,12 @@ export type ProgressEvent =
    * One decision of an approved install's Nexus egress proxy (B2a stabilization, constraint 5): the host the request
    * named (never a path, query string or header), its port, and why. At most EGRESS_EVENT_MAX per attempt.
    */
-  | { t: 'egress'; decision: 'allowed' | 'refused'; host: string; port: number; reason: EgressReason; at: number };
+  | { t: 'egress'; decision: 'allowed' | 'refused'; host: string; port: number; reason: EgressReason; at: number }
+  /**
+   * B2b: a `changeset.accept` is about to move the integration ref from `old` to `new` (reported, durably recorded by
+   * main, before the `update-ref`): recovery rolls an unfinished accept back from it, never forward.
+   */
+  | { t: 'accept.prepared'; old: string; new: string; at: number };
 
 /** The most egress decisions one attempt reports as events (the rest are in its log only). */
 export const EGRESS_EVENT_MAX = 200;
@@ -86,10 +109,47 @@ export interface LabelledResource { kind: 'container' | 'volume' | 'network'; id
 
 export type ImageBuildOutcome = 'succeeded' | 'failed' | 'cancelled';
 
+/**
+ * What a runtime's probe found about its setup (B2b), parsed inside the adapter: whether the engine's own login is
+ * signed in (never the identity), whether every pinned flag is present, its display label (the setup row only) and
+ * the hosts its process needs.
+ */
+export interface RuntimeSetup {
+  signedIn: 'yes' | 'no' | 'unknown'; flagsOk: boolean; label: string; egressHosts: { host: string; port: number }[];
+}
+
+/** What a bounded git read found. A diff's `patch` is capped at 1 MiB per side (`truncated` when cut). */
+export type GitReadResult =
+  | { ok: true; read: 'status'; branch: string; head: string | null; dirty: boolean; integrationHead: string | null;
+      /** Commits on the integration ref that are not on the branch. */
+      acceptedNotMerged: number;
+      /** True when the branch can fast-forward to the integration head. */
+      fastForward: boolean }
+  | { ok: true; read: 'diff'; base: string; head: string; patch: string; bytes: number; truncated: boolean }
+  | { ok: false; code: GitReadErrorCode; message: string };
+export type GitReadErrorCode = 'git_missing' | 'not_a_repository' | 'unknown_ref' | 'too_large' | 'error';
+export const GIT_READ_ERROR_CODES: readonly GitReadErrorCode[] = ['git_missing', 'not_a_repository', 'unknown_ref', 'too_large', 'error'];
+
 export type RunnerToMain =
-  | { op: 'ready'; bootId: string }
+  /**
+   * `mcpUrl` (B2b): the runner's loopback MCP endpoint, `http://127.0.0.1:<port>/mcp`; null while the runner serves
+   * none (no data home, or before its server started): main then treats agent turns as unavailable.
+   */
+  | { op: 'ready'; bootId: string; mcpUrl: string | null }
   | { op: 'probe.result'; probe: SandboxProbe; images: ImageStatus[]; freeBytes: number | null;
-      runtimes: { kind: RuntimeKind; health: RuntimeHealth }[] }
+      runtimes: { kind: RuntimeKind; health: RuntimeHealth; setup?: RuntimeSetup }[] }
+  /**
+   * B2b: one MCP call of an agent turn, relayed from the loopback server. `bearer` is the token the agent presented
+   * (at most 128 bytes and TOKEN_RE-shaped; never logged); `args` is a bounded deep copy (depth 8, 64 keys, 64 KiB).
+   */
+  | { op: 'mcp.call'; callId: string; bearer: string; tool: string; args: unknown }
+  /** B2b: a granted `sandbox_exec` finished. Counts and a hash only: the output text went to the agent alone. */
+  | { op: 'agent.exec.done'; attemptId: string; execId: string; exit: ExitInfo; stdoutBytes: number; stderrBytes: number;
+      stdoutSha256: string; truncated: boolean }
+  /** B2b: one event of an agent turn's runtime (display text at most 4 KiB per event; longer text is chunked). */
+  | { op: 'attempt.runtime'; attemptId: string; seq: number; event: RuntimeEvent }
+  /** B2b: the answer to `git.read`. */
+  | { op: 'git.read.result'; reqId: string; result: GitReadResult }
   | { op: 'attempt.provisioned'; attemptId: string; containerId?: string; imageDigest?: string; preflight?: ReportedPreflight;
       /** A dev deployment's forwarder: the loopback port the runner chose from the ephemeral range 49152-65535 (only with a container). */
       hostPort?: number }
@@ -237,6 +297,18 @@ function obj<T>(req: { [k: string]: Check<unknown> }, opt: { [k: string]: Check<
 /** ULID: 26 Crockford base32 characters (no I, L, O, U). */
 export const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const SHA256_RE = /^[0-9a-f]{64}$/;
+/** A git object id: SHA-1 (40 hex) or SHA-256 (64 hex). */
+const COMMIT_RE = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
+/** The runner's loopback MCP endpoint. */
+export const MCP_URL_RE = /^http:\/\/127\.0\.0\.1:([1-9][0-9]{0,4})\/mcp$/;
+/** A relay id the runner mints (`callId`, `execId`, `reqId`). */
+const OP_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+/** A tool name as a model may send it (`[a-zA-Z0-9_-]`). */
+const TOOL_NAME_RE = /^[A-Za-z0-9_-]{1,64}$/;
+/** A runtime's own reference (a run, a tool call, an approval). */
+const RUNTIME_REF_RE = /^[A-Za-z0-9_.:-]{1,128}$/;
+/** A container path under `/workspace`: no empty, `.` or `..` segment, no backslash. */
+const WORKSPACE_PATH_RE = /^\/workspace(?:\/(?!\.{1,2}(?:\/|$))[^/\\\u0000]+)*$/;
 const DIGEST_RE = /^sha256:[0-9a-f]{64}$/;
 const CONTAINER_ID_RE = /^[0-9a-f]{64}$/;
 const RESOURCE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,254}$/;
@@ -355,11 +427,149 @@ const progressEvent: Check<ProgressEvent> = (x) => {
   const g = obj<ProgressEvent>({ t: lit('guard'), guard: oneOf(['output_too_large', 'workspace_too_large'] as const),
     bytes: count, limitBytes: count, at: count })(x);
   if (g !== NO) return g;
+  const a = obj<ProgressEvent>({ t: lit('accept.prepared'), old: commit, new: commit, at: count })(x);
+  if (a !== NO) return a;
   const e = obj<Extract<ProgressEvent, { t: 'egress' }>>({ t: lit('egress'), decision: oneOf(['allowed', 'refused'] as const),
     host: str({ re: EGRESS_HOST_RE }), port: intIn(0, 65535), reason: oneOf(EGRESS_REASONS), at: count })(x);
   if (e === NO) return NO;
   return (e.decision === 'allowed') === (e.reason === 'allowed') ? e : NO;
 };
+
+// ----- B2b: agent turns, the MCP relay and git reads -----
+
+/** The bounds of an MCP call's arguments: nesting depth, keys per object, items per list, total serialized bytes. */
+export const MCP_ARGS_MAX_DEPTH = 8;
+export const MCP_ARGS_MAX_KEYS = 64;
+export const MCP_ARGS_MAX_ITEMS = 1024;
+export const MCP_ARGS_MAX_BYTES = 64 * 1024;
+/** The most UTF-8 bytes of display text one `message.delta` carries; longer text is sent as several (chunkText). */
+export const MESSAGE_DELTA_MAX_BYTES = MAX_STRING_BYTES;
+/** The most hosts a runtime's setup names, and the most bytes of a diff read's patch (both sides). */
+export const RUNTIME_SETUP_MAX_HOSTS = 8;
+export const GIT_DIFF_MAX_PATCH_BYTES = 2 * GIT_DIFF_MAX_BYTES_PER_SIDE;
+
+/** UTF-8 length, counting stops once past `limit` (the result is then > limit). */
+function utf8Len(s: string, limit: number): number {
+  let n = 0;
+  for (let i = 0; i < s.length && n <= limit; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) n += 1;
+    else if (c < 0x800) n += 2;
+    else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length && (s.charCodeAt(i + 1) & 0xfc00) === 0xdc00) { n += 4; i++; }
+    else n += 3;
+  }
+  return n;
+}
+
+/**
+ * The bounded deep copy of an MCP call's arguments: JSON-like data only (no function, symbol, NaN or Infinity, class
+ * instance, accessor, hole or `__proto__` key), at most 8 levels of objects and lists, 64 keys per object, 1024 items
+ * per list and 64 KiB in all (counted as serialized JSON, roughly). A fresh copy, or NO.
+ */
+function boundedArgs(x: unknown): unknown | NoT {
+  let bytes = 0;
+  const add = (n: number): boolean => (bytes += n) <= MCP_ARGS_MAX_BYTES;
+  const walk = (v: unknown, depth: number): unknown | NoT => {
+    if (v === null) return add(4) ? null : NO;
+    if (typeof v === 'boolean') return add(5) ? v : NO;
+    if (typeof v === 'number') return Number.isFinite(v) && add(String(v).length) ? v : NO;
+    if (typeof v === 'string') return wellFormed(v) && add(utf8Len(v, MCP_ARGS_MAX_BYTES) + 2) ? v : NO;
+    const d = depth + 1;
+    if (d > MCP_ARGS_MAX_DEPTH) return NO;
+    if (Array.isArray(v)) {
+      const a = plainArray(v); if (!a || a.length > MCP_ARGS_MAX_ITEMS || !add(2 + a.length)) return NO;
+      const out: unknown[] = [];
+      for (const item of a) { const c = walk(item, d); if (c === NO) return NO; out.push(c); }
+      return out;
+    }
+    const keys = plainKeys(v); if (!keys || keys.length > MCP_ARGS_MAX_KEYS || !add(2)) return NO;
+    const out: Record<string, unknown> = {};
+    for (const k of keys) {
+      if (k === '__proto__' || !wellFormed(k) || !add(utf8Len(k, MCP_ARGS_MAX_BYTES) + 4)) return NO;
+      const c = walk((v as Record<string, unknown>)[k], d); if (c === NO) return NO;
+      setProp(out, k, c);
+    }
+    return out;
+  };
+  return walk(x, 0);
+}
+
+const commit = str({ re: COMMIT_RE });
+const opId = str({ re: OP_ID_RE });
+const runtimeRef = str({ re: RUNTIME_REF_RE });
+/** The presented bearer: bounded first (at most 128 bytes), then the token shape. Its value is never logged. */
+const bearer: Check<string> = (x) => (typeof x === 'string' && x.length <= TOKEN_MAX_BYTES && TOKEN_RE.test(x) ? x : NO);
+const mcpUrl: Check<string> = (x) => {
+  const s = str({ re: MCP_URL_RE })(x);
+  if (s === NO) return NO;
+  return Number(MCP_URL_RE.exec(s)![1]) <= 65535 ? s : NO;
+};
+function arrMax<T>(c: Check<T>, max: number, min = 0): Check<T[]> {
+  return (x) => (Array.isArray(x) && x.length <= max && x.length >= min ? arr(c)(x) : NO);
+}
+
+const runtimeSetup = obj<RuntimeSetup>({ signedIn: oneOf(['yes', 'no', 'unknown'] as const), flagsOk: bool,
+  label: str({ min: 1, re: /^[^\x00-\x1f\x7f]{1,64}$/ }),
+  egressHosts: arrMax(obj({ host: str({ re: EGRESS_HOST_RE }), port: intIn(1, 65535) }), RUNTIME_SETUP_MAX_HOSTS) });
+
+const RUNTIME_EVENT_CHECKS: Check<RuntimeEvent>[] = [
+  obj({ t: lit('run.started'), runRef: runtimeRef, at: count }),
+  obj({ t: lit('message.delta'), text: str({ min: 1 }) }),             // at most 4 KiB (MESSAGE_DELTA_MAX_BYTES)
+  obj({ t: lit('tool.started'), callId: runtimeRef, tool: runtimeRef, argsSummary: text }),
+  obj({ t: lit('tool.completed'), callId: runtimeRef, ok: bool, resultBytes: count }),
+  obj({ t: lit('approval.requested'), approvalRef: runtimeRef, summary: text }),
+  obj({ t: lit('usage'), inputTokens: count, outputTokens: count, cacheCreationTokens: count, cacheReadTokens: count,
+    costUsdCents: nullable(count), toolCalls: count, estimated: bool }),
+  obj({ t: lit('run.completed'), at: count, stopReason: nonEmpty }),
+  obj({ t: lit('run.failed'), at: count, code: oneOf(['runtime_error', 'auth', 'limit', 'protocol'] as const), message: text }),
+  obj({ t: lit('run.cancelled'), at: count })
+];
+const runtimeEvent: Check<RuntimeEvent> = (x) => {
+  for (const c of RUNTIME_EVENT_CHECKS) { const v = c(x); if (v !== NO) return v; }
+  return NO;
+};
+
+/** A diff read's patch: well-formed text of at most 2 MiB (UTF-8). */
+const patchText: Check<string> = (x) =>
+  (typeof x === 'string' && x.length <= GIT_DIFF_MAX_PATCH_BYTES && wellFormed(x) && utf8Len(x, GIT_DIFF_MAX_PATCH_BYTES) <= GIT_DIFF_MAX_PATCH_BYTES ? x : NO);
+const gitReadResult: Check<GitReadResult> = (x) => {
+  const s = obj<GitReadResult>({ ok: lit(true), read: lit('status'), branch: nonEmpty, head: nullable(commit), dirty: bool,
+    integrationHead: nullable(commit), acceptedNotMerged: count, fastForward: bool })(x);
+  if (s !== NO) return s;
+  const d = obj<GitReadResult>({ ok: lit(true), read: lit('diff'), base: commit, head: commit, patch: patchText, bytes: count, truncated: bool })(x);
+  if (d !== NO) return d;
+  return obj<GitReadResult>({ ok: lit(false), code: oneOf(GIT_READ_ERROR_CODES), message: text })(x);
+};
+
+const execGrant = obj<SandboxExecGrant>({ execId: opId, argv: arrMax(text, 256, 1), cwd: str({ re: WORKSPACE_PATH_RE }),
+  timeoutMs: intIn(1, SANDBOX_EXEC_MAX_TIMEOUT_MS) });
+
+/**
+ * Checks the value of a `sandbox_exec` reply before the runner runs it (defense in depth: main built it): `{ grant }`
+ * with an id, a non-empty argv array (never a shell string), a cwd under `/workspace` and a bounded timeout. A fresh
+ * copy, or null.
+ */
+export function parseExecGrant(value: unknown): SandboxExecGrant | null {
+  try {
+    const v = obj<{ grant: SandboxExecGrant }>({ grant: execGrant })(value);
+    return v === NO ? null : v.grant;
+  } catch {
+    return null;
+  }
+}
+
+/** Splits display text into pieces of at most `maxBytes` UTF-8 bytes, never inside a character. */
+export function chunkText(textIn: string, maxBytes: number = MESSAGE_DELTA_MAX_BYTES): string[] {
+  const out: string[] = [];
+  let cur = ''; let n = 0;
+  for (const ch of textIn) {
+    const b = utf8Len(ch, 4);
+    if (n + b > maxBytes && cur) { out.push(cur); cur = ''; n = 0; }
+    cur += ch; n += b;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
 
 const reconciled = obj<ReconciledAttempt>({ attemptId: ulid, container: oneOf(['running', 'exited', 'created', 'missing'] as const) },
   { containerId: str({ re: CONTAINER_ID_RE }), exit: exitInfo, staged: arr(stagedOutput) });
@@ -380,9 +590,14 @@ const msg = (req: { [k: string]: Check<unknown> }, opt: { [k: string]: Check<unk
   obj<RunnerToMain>(req, opt);
 
 const PARSERS: Record<RunnerOp, Check<RunnerToMain>> = {
-  'ready': msg({ op: lit('ready'), bootId: ulid }),
+  'ready': msg({ op: lit('ready'), bootId: ulid, mcpUrl: nullable(mcpUrl) }),
   'probe.result': msg({ op: lit('probe.result'), probe, images: arr(imageStatus), freeBytes: nullable(count),
-    runtimes: arr(obj({ kind: runtimeKind, health: runtimeHealth })) }),
+    runtimes: arr(obj({ kind: runtimeKind, health: runtimeHealth }, { setup: runtimeSetup })) }),
+  'mcp.call': msg({ op: lit('mcp.call'), callId: opId, bearer, tool: str({ re: TOOL_NAME_RE }), args: boundedArgs }),
+  'agent.exec.done': msg({ op: lit('agent.exec.done'), attemptId: ulid, execId: opId, exit: exitInfo, stdoutBytes: count,
+    stderrBytes: count, stdoutSha256: sha256, truncated: bool }),
+  'attempt.runtime': msg({ op: lit('attempt.runtime'), attemptId: ulid, seq: count, event: runtimeEvent }),
+  'git.read.result': msg({ op: lit('git.read.result'), reqId: opId, result: gitReadResult }),
   'attempt.provisioned': provisioned,
   'attempt.refused': msg({ op: lit('attempt.refused'), attemptId: ulid, reason: oneOf(REFUSAL_REASONS) }, { detail: text }),
   'attempt.event': msg({ op: lit('attempt.event'), attemptId: ulid, seq: count, event: progressEvent }),
