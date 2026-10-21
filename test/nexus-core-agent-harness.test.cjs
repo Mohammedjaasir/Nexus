@@ -117,14 +117,30 @@ test('HN3: the fake home and the worktree hold every canary; the job files carry
     const read = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
     const inHome = {
       homeMemory: '.claude/CLAUDE.md', homeRules: '.claude/rules/canary.md', homeSkill: '.claude/skills/home-canary/SKILL.md',
-      homeAgent: '.claude/agents/home-canary.md', homeSettings: '.claude/settings.json'
+      homeAgent: '.claude/agents/home-canary.md', homeCommand: '.claude/commands/home-canary.md', homeHook: '.claude/settings.json',
+      homeMcp: '.claude.json', wtLocalMcp: '.claude.json', homePlugin: '.canary-market/home-canary-plugin/.claude-plugin/plugin.json'
     };
     for (const [k, rel] of Object.entries(inHome)) assert.ok(read(h.home.dir, rel).includes(c[k]), `${k} in ${rel}`);
+    assert.ok(read(h.home.dir, '.claude/settings.json').includes(H.modelCanary(c.homeSettings)), 'user settings carry a model canary');
+    for (const rel of ['skills/home-canary-plugin-skill/SKILL.md', 'commands/home-canary-plugin-cmd.md', 'agents/home-canary-plugin-agent.md', 'hooks/hooks.json']) {
+      assert.ok(read(h.home.dir, `.canary-market/home-canary-plugin/${rel}`).includes(c.homePlugin), `plugin ${rel}`);
+    }
+    const installed = JSON.parse(read(h.home.dir, '.claude/plugins/installed_plugins.json'));
+    assert.ok(installed.plugins['home-canary-plugin@nexus-canary-market'] && installed.plugins['wt-canary-plugin@nexus-canary-wt-market']);
     const inWt = {
       wtMemory: 'CLAUDE.md', wtLocalMemory: 'CLAUDE.local.md', wtDotMemory: '.claude/CLAUDE.md', wtSkill: '.claude/skills/wt-canary/SKILL.md',
-      wtAgent: '.claude/agents/wt-canary.md', wtSettings: '.claude/settings.json', wtMcp: '.mcp.json', envSecret: '.env'
+      wtAgent: '.claude/agents/wt-canary.md', wtCommand: '.claude/commands/wt-canary.md', wtHook: '.claude/settings.json',
+      wtMcp: '.mcp.json', envSecret: '.env', wtPlugin: '.canary-market/wt-canary-plugin/.claude-plugin/plugin.json'
     };
     for (const [k, rel] of Object.entries(inWt)) assert.ok(read(h.worktree, rel).includes(c[k]), `${k} in ${rel}`);
+    assert.ok(read(h.worktree, '.claude/settings.json').includes(H.modelCanary(c.wtSettings)));
+    assert.ok(read(h.worktree, '.claude/settings.local.json').includes(H.modelCanary(c.wtLocalSettings)));
+    // every isolation canary is planted somewhere
+    const planted = [h.home.dir, h.worktree].map((d) => fakeHome.snapshot(d).map((f) => fs.readFileSync(path.join(d, f.rel), 'utf8')).join('\n')).join('\n');
+    for (const k of H.ISOLATION_CANARY_KEYS) assert.ok(planted.includes(c[k]), `${k} is planted`);
+    // hooks point at the marker folder, which exists and is empty
+    assert.ok(read(h.home.dir, '.claude/settings.json').includes(h.markerDir.split(path.sep).join('/')));
+    assert.deepEqual(fs.readdirSync(h.markerDir), []);
     assert.equal(new Set(Object.values(c)).size, Object.keys(c).length, 'canaries are distinct');
     const f = h.writeJobFiles({ skillsText: `skills ${c.skills}` });
     const mcp = JSON.parse(fs.readFileSync(f.mcpJson, 'utf8'));
@@ -158,6 +174,10 @@ test('HN4: no real home path appears in env, env is built from nothing, and stop
     assert.ok(!h.argvBase.join(' ').includes(h.token), 'argv holds no token');
     assert.ok(Buffer.byteLength(h.argvBase.join(' ')) < 8 * 1024);
     for (const f of H.PINNED_FLAGS.filter((x) => x !== '--append-system-prompt')) assert.ok(h.argvBase.includes(f), `argvBase carries ${f}`);
+    assert.ok(!h.argvBase.includes('--safe-mode'), 'D-B15: --safe-mode is not passed');
+    const dis = h.argvBase.indexOf('--disallowedTools');
+    assert.deepEqual(h.argvBase.slice(dis + 1, dis + 8).sort(), ['Agent', 'Bash', 'NotebookEdit', 'PowerShell', 'Task', 'WebFetch', 'WebSearch']);
+    assert.equal(h.argvBase[h.argvBase.indexOf('--setting-sources') + 1], '');
     if (!h.underRealHome) assert.ok(!fakeHome.isUnder(h.root, os.homedir()), 'the root is outside the real home');
     // model 'none' drops the base URL but keeps the fake key
     const h2 = await H.start({ home: 'fake', model: 'none', proxy: 'recorder', mcp: 'recorder', bin: null });
@@ -184,7 +204,8 @@ test('HN5: the probe reads --help flags, parses auth status to signedIn only, an
   assert.equal(flags['-p'], true);
   assert.equal(flags['--allowedTools'], true);
   assert.equal(flags['--verbose'], true);
-  assert.equal(flags['--safe-mode'], false);
+  assert.equal(flags['--restricted'], false);
+  assert.equal('--safe-mode' in flags, false, 'D-B15: --safe-mode is not pinned');
   assert.equal(flags['--append-system-prompt-file'], true, 'named in any form');
   assert.equal(probe.helpFlagsOf('  --append-system-prompt <p>   x')['--append-system-prompt-file'], false);
 
@@ -202,4 +223,22 @@ test('HN5: the probe reads --help flags, parses auth status to signedIn only, an
   assert.equal(Buffer.byteLength(ctx), 200 * 1024);
   assert.ok(ctx.includes('CTX-T-START') && ctx.includes('CTX-T-END'));
   assert.equal(probe.userText({ messages: [{ role: 'user', content: [{ type: 'text', text: 'a' }] }, { role: 'assistant', content: 'b' }, { role: 'user', content: 'c' }] }), 'a\nc');
+});
+
+test('HN6: detectPlants sees every kind of sign a plant gives, and nothing on a clean run', async () => {
+  const h = await H.start({ home: 'fake', model: 'mock', proxy: 'deny-all', mcp: 'recorder', bin: null });
+  try {
+    const clean = { events: [{ type: 'system', subtype: 'init', model: 'm', mcp_servers: [{ name: 'nexus', status: 'connected' }], plugins: [{ name: 'builtin-x' }], agents: ['Explore'], skills: [], slash_commands: [] }] };
+    assert.deepEqual(h.detectPlants(clean), []);
+    // canary text and a canary model in a request to the mock
+    await post(`${h.mock.url}/v1/messages`, { model: H.modelCanary(h.canaries.wtLocalSettings), system: `x ${h.canaries.homeMemory}`, messages: [{ role: 'user', content: 'hi' }] });
+    // a hook marker and a stray MCP request
+    fs.writeFileSync(path.join(h.markerDir, 'home-SessionStart.txt'), 'ran');
+    await post(`${h.strayMcpUrl}/home-user`, { jsonrpc: '2.0', id: 1, method: 'initialize' });
+    const run = { events: [{ type: 'system', subtype: 'hook_started' }, { type: 'system', subtype: 'init', model: 'm', mcp_servers: [{ name: 'home-canary', status: 'failed' }], plugins: [{ name: 'home-canary-plugin' }], agents: ['wt-canary'], skills: ['home-canary'], slash_commands: ['wt-canary'] }] };
+    const plants = h.detectPlants(run).map((d) => d.plant);
+    for (const p of ['homeMemory', 'wtLocalSettings', 'hook:home-SessionStart', 'mcp:/stray/home-user', 'mcp:home-canary', 'plugin:home-canary-plugin', 'agent:wt-canary', 'skill:"home-canary"', 'command:wt-canary', 'hook-event:hook_started']) {
+      assert.ok(plants.includes(p), `detects ${p}: ${JSON.stringify(plants)}`);
+    }
+  } finally { await h.stop(); }
 });

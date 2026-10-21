@@ -19,9 +19,12 @@ const mockModel = require('./mockModel.cjs');
 const proxyRecorder = require('./proxyRecorder.cjs');
 const mcpRecorder = require('./mcpRecorder.cjs');
 
-/** The flags the adapter relies on (Task 0, P1). `--append-system-prompt-file` is checked separately. */
+/**
+ * The flags the adapter relies on (Task 0, P1). `--append-system-prompt-file` is checked separately.
+ * `--safe-mode` is not pinned: it drops the job's MCP server (Task 0 STOP S2), and decision D-B15 removed it.
+ */
 const PINNED_FLAGS = Object.freeze([
-  '-p', '--output-format', '--verbose', '--input-format', '--restricted', '--safe-mode', '--strict-mcp-config',
+  '-p', '--output-format', '--verbose', '--input-format', '--restricted', '--strict-mcp-config',
   '--mcp-config', '--settings', '--setting-sources', '--tools', '--allowedTools', '--disallowedTools',
   '--permission-mode', '--permission-prompts', '--no-session-persistence', '--disable-slash-commands',
   '--no-chrome', '--max-budget-usd', '--append-system-prompt'
@@ -30,7 +33,8 @@ const SKILLS_FILE_FLAG = '--append-system-prompt-file';
 const VERSION_RE = /^2\.1\.\d+/;
 
 const BUILTIN_TOOLS = Object.freeze(['Read', 'Edit', 'Write', 'Glob', 'Grep']);
-const DISALLOWED_TOOLS = Object.freeze(['Bash', 'PowerShell', 'WebFetch', 'WebSearch', 'NotebookEdit', 'Agent']);
+/** D-B15: both spellings of the subagent tool (2.1.295 names it `Task`), and PowerShell even where the build lacks it. */
+const DISALLOWED_TOOLS = Object.freeze(['Task', 'Agent', 'PowerShell', 'Bash', 'WebFetch', 'WebSearch', 'NotebookEdit']);
 const MCP_SERVER_NAME = 'nexus';
 const FAKE_KEY = 'sk-ant-api03-FAKE-nexus-harness-key-000000000000000000000000000000000000000000000000000000-AAAAAA';
 /** `--setting-sources` takes a comma list of sources; the adapter loads none of user/project/local. */
@@ -59,14 +63,23 @@ function makeCanaries() {
     homeRules: `HOME-RULES-CANARY-${rand()}`,
     homeSkill: `HOME-SKILL-CANARY-${rand()}`,
     homeAgent: `HOME-AGENT-CANARY-${rand()}`,
+    homeCommand: `HOME-COMMAND-CANARY-${rand()}`,
     homeSettings: `HOME-SETTINGS-CANARY-${rand()}`,
+    homeHook: `HOME-HOOK-CANARY-${rand()}`,
+    homeMcp: `HOME-MCP-CANARY-${rand()}`,
+    homePlugin: `HOME-PLUGIN-CANARY-${rand()}`,
     wtMemory: `WT-MEMORY-CANARY-${rand()}`,
     wtDotMemory: `WT-DOTMEMORY-CANARY-${rand()}`,
     wtLocalMemory: `WT-LOCALMEMORY-CANARY-${rand()}`,
     wtSkill: `WT-SKILL-CANARY-${rand()}`,
     wtAgent: `WT-AGENT-CANARY-${rand()}`,
+    wtCommand: `WT-COMMAND-CANARY-${rand()}`,
     wtSettings: `WT-SETTINGS-CANARY-${rand()}`,
+    wtLocalSettings: `WT-LOCALSETTINGS-CANARY-${rand()}`,
+    wtHook: `WT-HOOK-CANARY-${rand()}`,
     wtMcp: `WT-MCP-CANARY-${rand()}`,
+    wtLocalMcp: `WT-LOCALMCP-CANARY-${rand()}`,
+    wtPlugin: `WT-PLUGIN-CANARY-${rand()}`,
     envSecret: `ENV-SECRET-CANARY-${rand()}`,
     skills: `SKILLS-FILE-CANARY-${rand()}`,
     preamble: `STDIN-PREAMBLE-CANARY-${rand()}`
@@ -74,21 +87,95 @@ function makeCanaries() {
   return c;
 }
 
-function homeFiles(c) {
+/** The canaries that must never reach the model or show any effect (everything but the job's own). */
+const ISOLATION_CANARY_KEYS = Object.freeze([
+  'homeMemory', 'homeRules', 'homeSkill', 'homeAgent', 'homeCommand', 'homeSettings', 'homeHook', 'homeMcp', 'homePlugin',
+  'wtMemory', 'wtDotMemory', 'wtLocalMemory', 'wtSkill', 'wtAgent', 'wtCommand', 'wtSettings', 'wtLocalSettings', 'wtHook',
+  'wtMcp', 'wtLocalMcp', 'wtPlugin'
+]);
+
+/** A settings `model` value that is also a canary: a loaded settings file shows up as the request's model. */
+const modelCanary = (s) => `canary-model-${s.toLowerCase()}`;
+const fwd = (p) => p.split(path.sep).join('/');
+
+/**
+ * A hook that, if it ever runs, prints its canary (hook output can reach the model) and writes a marker file.
+ * `&&` and a quoted forward-slash path work in both cmd and bash.
+ */
+function hookSet(canary, markerDir, tag) {
+  const cmd = (ev) => ({ type: 'command', command: `echo ${canary} && echo ${ev}>"${fwd(path.join(markerDir, `${tag}-${ev}.txt`))}"` });
+  return {
+    SessionStart: [{ hooks: [cmd('SessionStart')] }],
+    UserPromptSubmit: [{ hooks: [cmd('UserPromptSubmit')] }],
+    PreToolUse: [{ matcher: '*', hooks: [cmd('PreToolUse')] }],
+    Stop: [{ hooks: [cmd('Stop')] }]
+  };
+}
+
+/** A local plugin marketplace holding one plugin with a skill, a command, an agent, a hook and an MCP server. */
+function pluginFiles(prefix, name, canary, { markerDir, strayUrl }) {
+  return {
+    [`${prefix}/.claude-plugin/marketplace.json`]: { name: 'nexus-canary-market', owner: { name: 'probe' }, plugins: [{ name, source: `./${name}`, description: canary }] },
+    [`${prefix}/${name}/.claude-plugin/plugin.json`]: {
+      name, version: '1.0.0', description: canary,
+      mcpServers: { [`${name}-mcp`]: { type: 'http', url: strayUrl, headers: { 'X-Canary': canary } } }
+    },
+    [`${prefix}/${name}/skills/${name}-skill/SKILL.md`]: `---\nname: ${name}-skill\ndescription: ${canary}\n---\n${canary}\n`,
+    [`${prefix}/${name}/commands/${name}-cmd.md`]: `---\ndescription: ${canary}\n---\n${canary}\n`,
+    [`${prefix}/${name}/agents/${name}-agent.md`]: `---\nname: ${name}-agent\ndescription: ${canary}\n---\n${canary}\n`,
+    [`${prefix}/${name}/hooks/hooks.json`]: { hooks: hookSet(canary, markerDir, name) }
+  };
+}
+
+/** The fake home's plants: memory, rules, skill, agent, command, user settings (+hooks), user MCP, a plugin. */
+function homeFiles(c, { home, worktree, markerDir, strayUrl }) {
+  const market = path.join(home, '.canary-market');
+  const wtMarket = path.join(worktree, '.canary-market');
+  const pluginName = 'home-canary-plugin';
+  const now = new Date(0).toISOString();
   return {
     '.claude/CLAUDE.md': `# Home memory\n${c.homeMemory}\n`,
     '.claude/rules/canary.md': `# Home rule\n${c.homeRules}\n`,
     '.claude/skills/home-canary/SKILL.md': `---\nname: home-canary\ndescription: ${c.homeSkill}\n---\n${c.homeSkill}\n`,
     '.claude/agents/home-canary.md': `---\nname: home-canary\ndescription: ${c.homeAgent}\n---\n${c.homeAgent}\n`,
+    '.claude/commands/home-canary.md': `---\ndescription: ${c.homeCommand}\n---\n${c.homeCommand}\n`,
     '.claude/settings.json': {
+      model: modelCanary(c.homeSettings),
       env: { NEXUS_HOME_SETTINGS_CANARY: c.homeSettings },
       permissions: { allow: ['Bash(*)', 'WebFetch'] },
-      hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `echo ${c.homeSettings}` }] }] }
+      hooks: hookSet(c.homeHook, markerDir, 'home'),
+      enabledPlugins: { [`${pluginName}@nexus-canary-market`]: true },
+      extraKnownMarketplaces: { 'nexus-canary-market': { source: { source: 'directory', path: market } } }
+    },
+    '.claude/plugins/known_marketplaces.json': {
+      'nexus-canary-market': { source: { source: 'directory', path: market }, installLocation: market, lastUpdated: now },
+      'nexus-canary-wt-market': { source: { source: 'directory', path: wtMarket }, installLocation: wtMarket, lastUpdated: now }
+    },
+    '.claude/plugins/installed_plugins.json': {
+      version: 2,
+      plugins: {
+        [`${pluginName}@nexus-canary-market`]: [{ scope: 'user', installPath: path.join(market, pluginName), version: '1.0.0', installedAt: now, lastUpdated: now }],
+        'wt-canary-plugin@nexus-canary-wt-market': [{ scope: 'project', projectPath: worktree, installPath: path.join(wtMarket, 'wt-canary-plugin'), version: '1.0.0', installedAt: now, lastUpdated: now }]
+      }
+    },
+    ...pluginFiles('.canary-market', pluginName, c.homePlugin, { markerDir, strayUrl: `${strayUrl}/home-plugin` }),
+    '.claude.json': {
+      hasCompletedOnboarding: true,
+      mcpServers: { 'home-canary': { type: 'http', url: `${strayUrl}/home-user`, headers: { 'X-Canary': c.homeMcp } } },
+      projects: {
+        [fwd(worktree)]: {
+          hasTrustDialogAccepted: true,
+          enabledMcpjsonServers: ['wt-canary'],
+          mcpServers: { 'wt-local-canary': { type: 'http', url: `${strayUrl}/wt-local`, headers: { 'X-Canary': c.wtLocalMcp } } }
+        }
+      }
     }
   };
 }
 
-function worktreeFiles(c, strayMcpUrl) {
+/** The worktree's plants: memory files, skill, agent, command, project and local settings (+hooks), .mcp.json, a plugin. */
+function worktreeFiles(c, { worktree, markerDir, strayUrl }) {
+  const pluginName = 'wt-canary-plugin';
   return {
     'README.md': '# probe worktree\n',
     'src/app.txt': 'hello from the worktree\n',
@@ -98,13 +185,53 @@ function worktreeFiles(c, strayMcpUrl) {
     '.claude/CLAUDE.md': `# Worktree dot memory\n${c.wtDotMemory}\n`,
     '.claude/skills/wt-canary/SKILL.md': `---\nname: wt-canary\ndescription: ${c.wtSkill}\n---\n${c.wtSkill}\n`,
     '.claude/agents/wt-canary.md': `---\nname: wt-canary\ndescription: ${c.wtAgent}\n---\n${c.wtAgent}\n`,
+    '.claude/commands/wt-canary.md': `---\ndescription: ${c.wtCommand}\n---\n${c.wtCommand}\n`,
     '.claude/settings.json': {
+      model: modelCanary(c.wtSettings),
       env: { NEXUS_WT_SETTINGS_CANARY: c.wtSettings },
       permissions: { allow: ['Bash(*)', 'WebFetch'] },
-      hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `echo ${c.wtSettings}` }] }] }
+      hooks: hookSet(c.wtHook, markerDir, 'wt'),
+      enableAllProjectMcpServers: true,
+      enabledPlugins: { [`${pluginName}@nexus-canary-wt-market`]: true },
+      extraKnownMarketplaces: { 'nexus-canary-wt-market': { source: { source: 'directory', path: path.join(worktree, '.canary-market') } } }
     },
-    '.mcp.json': { mcpServers: { [`wt-canary`]: { type: 'http', url: strayMcpUrl, headers: { 'X-Canary': c.wtMcp } } } }
+    '.claude/settings.local.json': { model: modelCanary(c.wtLocalSettings), env: { NEXUS_WT_LOCAL_SETTINGS_CANARY: c.wtLocalSettings } },
+    '.mcp.json': { mcpServers: { 'wt-canary': { type: 'http', url: `${strayUrl}/wt-project`, headers: { 'X-Canary': c.wtMcp } } } },
+    ...pluginFiles('.canary-market', pluginName, c.wtPlugin, { markerDir, strayUrl: `${strayUrl}/wt-plugin` })
   };
+}
+
+/**
+ * Every sign that a planted customization loaded or ran, from one run: canary text in any request to the mock,
+ * a canary model in a request, a hook marker file, a stray MCP request, or a planted name in system/init.
+ * Returns [{ plant, via }]; empty means isolated.
+ */
+function detectPlants(h, run, { since = { mock: 0, strays: 0 } } = {}) {
+  const found = [];
+  const c = h.canaries;
+  const reqs = h.mock ? h.mock.requests.slice(since.mock) : [];
+  const raw = reqs.map((q) => q.raw).join('\n');
+  for (const k of ISOLATION_CANARY_KEYS) {
+    if (raw.includes(c[k])) found.push({ plant: k, via: 'request text' });
+    if (raw.toLowerCase().includes(modelCanary(c[k]))) found.push({ plant: k, via: 'request model' });
+  }
+  let markers = [];
+  try { markers = fs.readdirSync(h.markerDir); } catch { /* none */ }
+  for (const m of markers) found.push({ plant: `hook:${m.replace(/\.txt$/, '')}`, via: 'marker file' });
+  for (const s of h.mcp.strays.slice(since.strays)) found.push({ plant: `mcp:${s.path}`, via: `stray MCP ${s.method}` });
+  const init = run?.events?.find((e) => e && e.type === 'system' && e.subtype === 'init');
+  if (init) {
+    for (const s of init.mcp_servers ?? []) if (s?.name !== MCP_SERVER_NAME) found.push({ plant: `mcp:${s.name}`, via: `init.mcp_servers (${s.status})` });
+    for (const p of init.plugins ?? []) if (/canary/i.test(JSON.stringify(p))) found.push({ plant: `plugin:${p.name}`, via: 'init.plugins' });
+    for (const a of init.agents ?? []) if (/canary/i.test(String(a))) found.push({ plant: `agent:${a}`, via: 'init.agents' });
+    for (const s of init.skills ?? []) if (/canary/i.test(JSON.stringify(s))) found.push({ plant: `skill:${JSON.stringify(s)}`, via: 'init.skills' });
+    for (const s of init.slash_commands ?? []) if (/canary/i.test(String(s))) found.push({ plant: `command:${s}`, via: 'init.slash_commands' });
+    if (/canary-model/i.test(String(init.model))) found.push({ plant: `model:${init.model}`, via: 'init.model' });
+  }
+  for (const e of run?.events ?? []) {
+    if (e && e.type === 'system' && /hook/i.test(String(e.subtype))) found.push({ plant: `hook-event:${e.subtype}`, via: 'stream event' });
+  }
+  return found;
 }
 
 /** The adapter's env allow-list, built from nothing. `extra` adds test-seam names (base URL, key). */
@@ -136,7 +263,7 @@ function buildEnv({ home, tmp, proxyUrl, token, systemRoot, extra }) {
 function turnArgv({ jobDir, mcpTools, budgetUsd = 2, settingSources = SETTING_SOURCES_FORM }) {
   return [
     '-p', '--output-format', 'stream-json', '--verbose', '--input-format', 'text',
-    '--restricted', '--safe-mode', '--strict-mcp-config',
+    '--restricted', '--strict-mcp-config',
     '--mcp-config', path.join(jobDir, 'mcp.json'),
     '--settings', path.join(jobDir, 'settings.json'),
     '--setting-sources', settingSources,
@@ -177,7 +304,8 @@ function writeJobFiles({ jobDir, mcpUrl, headerForm = 'env', token, settings, sk
  * start({ home: 'fake', model: 'mock'|'none', proxy: 'deny-all'|'recorder', mcp: 'recorder', script?, sideScript?,
  *         mcpTools?, onCall?, homeFiles?, worktreeFiles? })
  *   -> { env, argvBase, home, mock, proxy, mcp, stop(),
- *        bin, root, worktree, jobDir, tmp, token, canaries, run(args, opts), writeJobFiles(opts), underRealHome }
+ *        bin, root, worktree, jobDir, tmp, token, canaries, markerDir, run(args, opts) (its result carries .writes),
+ *        writeJobFiles(opts), detectPlants(runResult), underRealHome }
  */
 async function start(opts = {}) {
   if ((opts.home ?? 'fake') !== 'fake') throw new Error('agentHarness: only a fake home is allowed');
@@ -193,11 +321,14 @@ async function start(opts = {}) {
     const canaries = makeCanaries();
     const mcp = await mcpRecorder.start({ tools: opts.mcpTools, onCall: opts.onCall });
     started.push(mcp);
-    const strayMcpUrl = mcp.url.replace(/\/mcp$/, '/stray-mcp');
-    const home = fakeHome.create({ root, files: { ...homeFiles(canaries), ...(opts.homeFiles ?? {}) } });
+    const strayMcpUrl = mcp.url.replace(/\/mcp$/, '/stray');
     const worktree = path.join(root, 'wt');
+    const markerDir = path.join(root, 'markers');
+    fs.mkdirSync(markerDir, { recursive: true }); // a hook that runs leaves its marker here
+    const plantCtx = { home: path.join(root, 'home'), worktree, markerDir, strayUrl: strayMcpUrl };
+    const home = fakeHome.create({ root, files: { ...homeFiles(canaries, plantCtx), ...(opts.homeFiles ?? {}) } });
     fs.mkdirSync(worktree, { recursive: true });
-    fakeHome.plant(worktree, { ...worktreeFiles(canaries, strayMcpUrl), ...(opts.worktreeFiles ?? {}) });
+    fakeHome.plant(worktree, { ...worktreeFiles(canaries, plantCtx), ...(opts.worktreeFiles ?? {}) });
     const jobDir = path.join(root, 'job');
     const tmp = path.join(root, 'tmp');
     fs.mkdirSync(jobDir, { recursive: true });
@@ -224,6 +355,7 @@ async function start(opts = {}) {
       for (const k of runOpts.unsetEnv ?? []) delete childEnv[k];
       return new Promise((resolve) => {
         const t0 = Date.now();
+        const before = fakeHome.snapshot(root);
         const child = spawn(bin, args, { cwd: runOpts.cwd ?? worktree, env: childEnv, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
         children.add(child);
         const out = [];
@@ -241,7 +373,9 @@ async function start(opts = {}) {
           resolve({
             code, signal, timedOut, spawnError: spawnError ? String(spawnError.message ?? spawnError) : null,
             ms: Date.now() - t0, stdout, stderr: Buffer.concat(err).toString('utf8'), events: parseEvents(stdout),
-            argvBytes: Buffer.byteLength([bin, ...args].join(' '), 'utf8')
+            argvBytes: Buffer.byteLength([bin, ...args].join(' '), 'utf8'),
+            // every file added or changed anywhere under the harness root in this run (home, worktree, job, tmp)
+            writes: fakeHome.diff(before, fakeHome.snapshot(root))
           });
         };
         child.once('error', (e) => finish(null, null, e));
@@ -249,7 +383,7 @@ async function start(opts = {}) {
       });
     }
 
-    return {
+    const self = {
       env,
       argvBase,
       home,
@@ -265,7 +399,9 @@ async function start(opts = {}) {
       token,
       canaries,
       strayMcpUrl,
+      markerDir,
       mcpToolNames,
+      detectPlants: (r, o) => detectPlants(self, r, o),
       run,
       writeJobFiles: (o = {}) => writeJobFiles({ jobDir, mcpUrl: mcp.url, token, ...o }),
       async stop() {
@@ -276,6 +412,7 @@ async function start(opts = {}) {
         try { fakeHome.removeRoot(root); } catch { /* best effort; reported by the caller's cleanup check */ }
       }
     };
+    return self;
   } catch (e) {
     for (const s of started.reverse()) { try { await s.stop(); } catch {} }
     try { fakeHome.removeRoot(root); } catch {}
@@ -284,6 +421,6 @@ async function start(opts = {}) {
 }
 
 module.exports = {
-  start, resolveCli, buildEnv, turnArgv, parseEvents, writeJobFiles, makeCanaries,
+  start, resolveCli, buildEnv, turnArgv, parseEvents, writeJobFiles, makeCanaries, detectPlants, modelCanary, ISOLATION_CANARY_KEYS,
   PINNED_FLAGS, SKILLS_FILE_FLAG, VERSION_RE, BUILTIN_TOOLS, DISALLOWED_TOOLS, MCP_SERVER_NAME, FAKE_KEY, SETTING_SOURCES_FORM
 };

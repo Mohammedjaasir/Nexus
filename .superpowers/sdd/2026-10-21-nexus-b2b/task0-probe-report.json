@@ -6,7 +6,6 @@
     "--verbose": true,
     "--input-format": true,
     "--restricted": true,
-    "--safe-mode": true,
     "--strict-mcp-config": true,
     "--mcp-config": true,
     "--settings": true,
@@ -25,6 +24,11 @@
   },
   "checks": [
     {
+      "id": "P9",
+      "result": "n/a",
+      "detail": "controller only (P-C reads the real home); not run by the task agent"
+    },
+    {
       "id": "P0",
       "result": "pass",
       "detail": "--version printed \"2.1.295 (Claude Code)\" (exit 0); expected ^2\\.1\\.\\d+"
@@ -32,12 +36,12 @@
     {
       "id": "P1",
       "result": "pass",
-      "detail": "all 20 pinned flags listed; --append-system-prompt-file named in --help (in the --bare text: \"--append-system-prompt[-file]\"; not a separate option line)"
+      "detail": "all 19 pinned flags listed (--safe-mode is no longer pinned: D-B15); --append-system-prompt-file named in --help (in the --bare text: \"--append-system-prompt[-file]\"; not a separate option line)"
     },
     {
       "id": "P2",
-      "result": "fail",
-      "detail": "with --safe-mode: exit 0, system/init mcp_servers=[], MCP recorder saw [], mock tool list lacks mcp__nexus__context_get. Same argv without --safe-mode: mcp_servers=[{\"name\":\"nexus\",\"status\":\"connected\",\"source\":\"dynamic\"}], recorder saw [\"server/discover\",\"initialize\",\"notifications/initialized\",\"tools/list\"], tool present"
+      "result": "pass",
+      "detail": "pinned argv without --safe-mode (D-B15): exit 0, system/init mcp_servers=[{\"name\":\"nexus\",\"status\":\"connected\",\"source\":\"dynamic\"}], MCP recorder saw [\"server/discover\",\"initialize\",\"notifications/initialized\",\"tools/list\"], mock tool list has mcp__nexus__context_get"
     },
     {
       "id": "P3",
@@ -47,40 +51,44 @@
     {
       "id": "P4",
       "result": "pass",
-      "detail": "skills-file canary in the system prompt; stdin preamble canary in the first user message (not the system prompt: stdin is the user turn); home/worktree canaries in any request: none"
+      "detail": "skills-file canary in the system prompt; stdin preamble canary in the first user message (not the system prompt: stdin is the user turn); home/worktree plants seen: none"
     },
     {
       "id": "P10",
       "result": "pass",
-      "detail": "2 file(s) written to the fake home in one turn: .claude.json (added), .claude/backups/.claude.json.backup.1792560091708 (added)"
+      "detail": "5 file(s) written under the harness root in one pinned turn: home/.claude.json (changed, 1299 B), home/.claude/backups/.claude.json.backup.1792562905228 (added, 644 B), home/AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-amVVvs-wt/mcp-logs-nexus/2026-10-21T06-08-25-778Z.jsonl (added, 2898 B), tmp/claude/fswatch-probe-MTVeJG/probe (added, 1 B), wt/.claude/settings.local.json (changed, 210 B); MCP token in any written file: none"
+    },
+    {
+      "id": "CR3+",
+      "result": "pass",
+      "detail": "control (no locks): exit 0, 21/21 plant groups live (home CLAUDE.md; home rules; worktree CLAUDE.md; worktree .claude/CLAUDE.md; worktree CLAUDE.local.md; home skill; worktree skill; home agent; worktree agent; home command; worktree command; user settings hooks; project settings hooks; local settings; user MCP server; project MCP server (.mcp.json); local MCP server; home plugin; worktree plugin; plugin hooks; plugin MCP servers). Pinned argv: exit 0, 2 mock request(s), Nexus MCP connected, plants seen: none. Worktree writes under the locks: wt/.claude/settings.local.json (changed); with no project entry in ~/.claude.json: none"
     },
     {
       "id": "P5",
-      "result": "fail",
-      "detail": "system/init tools=[\"Edit\",\"Glob\",\"Grep\",\"Read\",\"Write\"]; Edit succeeded (file changed); MCP context_get failed: <tool_use_error>Error: No such tool available: mcp__nexus__context_get</tool_use_error> (never reached the recorder); Bash/WebFetch/... offered: none"
+      "result": "pass",
+      "detail": "--disallowedTools Task Agent PowerShell Bash WebFetch WebSearch NotebookEdit; system/init tools=[\"Edit\",\"Glob\",\"Grep\",\"Read\",\"Write\",\"mcp__nexus__changeset_register\",\"mcp__nexus__context_get\"]; Edit succeeded (file changed); MCP context_get succeeded; disallowed tools offered: none"
     },
     {
       "id": "P6",
-      "result": "n/a",
-      "detail": "Authorization header from ${NEXUS_MCP_TOKEN}: no-initialize; token in argv: no; token in fake-home files: none; token in CLI output: no (the MCP server was never contacted under the pinned argv, see P2)"
+      "result": "pass",
+      "detail": "Authorization header from ${NEXUS_MCP_TOKEN}: expanded; token in argv: no; token in any file under the harness root outside the job dir: none; token in CLI output: no"
     },
     {
       "id": "P8",
       "result": "pass",
-      "detail": "argv 644 bytes (limit 8192); a 204800-byte context on stdin reached the mock intact"
+      "detail": "argv 637 bytes (limit 8192); a 204800-byte context on stdin reached the mock intact"
     },
     {
       "id": "P7",
-      "result": "fail",
-      "detail": "no ANTHROPIC_BASE_URL (unset), fake key, HTTPS_PROXY=recorder, NO_PROXY=127.0.0.1: 19 CONNECT(s) to [\"api.anthropic.com:443\"] within 30 s (stopped at the 30 s window); plain proxy requests: 0; MCP recorder reached directly: no ([]); CLI said: \"5 api_retry event(s), last attempt 5/10, error=unknown, status=null\". Without --safe-mode: 19 CONNECT(s) to [\"api.anthropic.com:443\"], MCP reached directly: yes"
-    },
-    {
-      "id": "P9",
-      "result": "n/a",
-      "detail": "controller only (P-C reads the real home); not run by the task agent"
+      "result": "pass",
+      "detail": "no ANTHROPIC_BASE_URL (unset), fake key, HTTPS_PROXY=recorder, NO_PROXY=127.0.0.1: 17 CONNECT(s) to [\"api.anthropic.com:443\"] within 30 s (stopped at the 30 s window); plain proxy requests: 0; MCP recorder reached directly: yes; CLI said: \"3 api_retry event(s), last attempt 3/10, error=unknown, status=null\""
     }
   ],
   "decisions": [
+    {
+      "id": "P9",
+      "branch": "pending:controller"
+    },
     {
       "id": "P0",
       "branch": "pinned-2.1.x"
@@ -91,11 +99,11 @@
     },
     {
       "id": "P2",
-      "branch": "STOP:S2"
+      "branch": "mcp-loaded (D-B15: no --safe-mode)"
     },
     {
       "id": "P3",
-      "branch": "safe-mode-keeps-settings"
+      "branch": "settings-deny-applies"
     },
     {
       "id": "P4",
@@ -110,16 +118,20 @@
       "branch": "recorded"
     },
     {
+      "id": "CR3+",
+      "branch": "no-customization-loads"
+    },
+    {
       "id": "P5",
-      "branch": "STOP:S5 (consequence of S2: the MCP server is absent under --safe-mode; Edit and the tool list are as pinned)"
+      "branch": "as-pinned"
     },
     {
       "id": "toolNames",
-      "branch": "pinned:{\"allowed\":[\"Edit\",\"Glob\",\"Grep\",\"Read\",\"Write\"],\"disallowedObserved\":[\"Bash\",\"WebFetch\",\"WebSearch\",\"NotebookEdit\",\"Task\"],\"subagentToolName\":\"Task\",\"plannedNamesNotInThisBuild\":[\"PowerShell\",\"Agent\"]}"
+      "branch": "pinned:{\"allowed\":[\"Edit\",\"Glob\",\"Grep\",\"Read\",\"Write\",\"mcp__nexus__changeset_register\",\"mcp__nexus__context_get\"],\"disallowed\":[\"Task\",\"Agent\",\"PowerShell\",\"Bash\",\"WebFetch\",\"WebSearch\",\"NotebookEdit\"],\"offeredByThisBuild\":[\"Task\",\"Bash\",\"WebFetch\",\"WebSearch\",\"NotebookEdit\"],\"notInThisBuild\":[\"Agent\",\"PowerShell\"]}"
     },
     {
       "id": "mcpHeaderForm",
-      "branch": "pending:S2 (without --safe-mode: env-expansion)"
+      "branch": "env-expansion"
     },
     {
       "id": "P8",
@@ -130,16 +142,16 @@
       "branch": "\"\""
     },
     {
-      "id": "P7",
-      "branch": "proxy-honoured; MCP reach pending:S2"
+      "id": "safeMode",
+      "branch": "dropped (D-B15)"
     },
     {
-      "id": "P9",
-      "branch": "pending:controller"
+      "id": "P7",
+      "branch": "proxy-honoured"
     }
   ],
   "meta": {
-    "generatedAt": "2026-10-21T05:22:40.396Z",
+    "generatedAt": "2026-10-21T06:09:32.875Z",
     "parts": [
       "A",
       "B"
@@ -152,17 +164,327 @@
     "homeWrites": [
       {
         "rel": ".claude.json",
-        "size": 719,
-        "mtimeMs": 1792560092096,
-        "change": "added"
+        "size": 1299,
+        "mtimeMs": 1792562905869,
+        "change": "changed",
+        "token": false
       },
       {
-        "rel": ".claude/backups/.claude.json.backup.1792560091708",
-        "size": 84,
-        "mtimeMs": 1792560091696,
-        "change": "added"
+        "rel": ".claude/backups/.claude.json.backup.1792562905228",
+        "size": 644,
+        "mtimeMs": 1792562904285,
+        "change": "added",
+        "token": false
+      },
+      {
+        "rel": "AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-amVVvs-wt/mcp-logs-nexus/2026-10-21T06-08-25-778Z.jsonl",
+        "size": 2898,
+        "mtimeMs": 1792562905870,
+        "change": "added",
+        "token": false
       }
     ],
+    "allWrites": [
+      {
+        "rel": "home/.claude.json",
+        "size": 1299,
+        "mtimeMs": 1792562905869,
+        "change": "changed",
+        "token": false
+      },
+      {
+        "rel": "home/.claude/backups/.claude.json.backup.1792562905228",
+        "size": 644,
+        "mtimeMs": 1792562904285,
+        "change": "added",
+        "token": false
+      },
+      {
+        "rel": "home/AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-amVVvs-wt/mcp-logs-nexus/2026-10-21T06-08-25-778Z.jsonl",
+        "size": 2898,
+        "mtimeMs": 1792562905870,
+        "change": "added",
+        "token": false
+      },
+      {
+        "rel": "tmp/claude/fswatch-probe-MTVeJG/probe",
+        "size": 1,
+        "mtimeMs": 1792562905799,
+        "change": "added",
+        "token": false
+      },
+      {
+        "rel": "wt/.claude/settings.local.json",
+        "size": 210,
+        "mtimeMs": 1792562905226,
+        "change": "changed",
+        "token": false
+      }
+    ],
+    "cr3": {
+      "controlLive": [
+        "home CLAUDE.md",
+        "home rules",
+        "worktree CLAUDE.md",
+        "worktree .claude/CLAUDE.md",
+        "worktree CLAUDE.local.md",
+        "home skill",
+        "worktree skill",
+        "home agent",
+        "worktree agent",
+        "home command",
+        "worktree command",
+        "user settings hooks",
+        "project settings hooks",
+        "local settings",
+        "user MCP server",
+        "project MCP server (.mcp.json)",
+        "local MCP server",
+        "home plugin",
+        "worktree plugin",
+        "plugin hooks",
+        "plugin MCP servers"
+      ],
+      "controlNotLive": [],
+      "lockedFound": [],
+      "lockedWrites": [
+        {
+          "rel": "home/.claude.json",
+          "size": 1299,
+          "mtimeMs": 1792562924291,
+          "change": "changed",
+          "token": false
+        },
+        {
+          "rel": "home/.claude/.last-cleanup",
+          "size": 24,
+          "mtimeMs": 1792562923819,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "home/.claude/backups/.claude.json.backup.1792562915142",
+          "size": 644,
+          "mtimeMs": 1792562913603,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "home/AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-VW6aor-wt/mcp-logs-nexus/2026-10-21T06-08-39-529Z.jsonl",
+          "size": 2900,
+          "mtimeMs": 1792562924924,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "wt/.claude/settings.local.json",
+          "size": 210,
+          "mtimeMs": 1792562915139,
+          "change": "changed",
+          "token": false
+        }
+      ],
+      "controlWrites": [
+        {
+          "rel": "home/.claude.json",
+          "size": 1588,
+          "mtimeMs": 1792562911235,
+          "change": "changed",
+          "token": false
+        },
+        {
+          "rel": "home/.claude/backups/.claude.json.backup.1792562907720",
+          "size": 644,
+          "mtimeMs": 1792562906938,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "home/AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-Hgs5M0-wt/mcp-logs-home-canary/2026-10-21T06-08-28-334Z.jsonl",
+          "size": 3892,
+          "mtimeMs": 1792562909088,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "home/AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-Hgs5M0-wt/mcp-logs-plugin-home-canary-plugin-home-canary-plugin-mcp/2026-10-21T06-08-28-334Z.jsonl",
+          "size": 3898,
+          "mtimeMs": 1792562909085,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "home/AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-Hgs5M0-wt/mcp-logs-plugin-wt-canary-plugin-wt-canary-plugin-mcp/2026-10-21T06-08-28-334Z.jsonl",
+          "size": 3892,
+          "mtimeMs": 1792562909084,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "home/AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-Hgs5M0-wt/mcp-logs-wt-canary/2026-10-21T06-08-28-334Z.jsonl",
+          "size": 3895,
+          "mtimeMs": 1792562909084,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "home/AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-Hgs5M0-wt/mcp-logs-wt-local-canary/2026-10-21T06-08-28-334Z.jsonl",
+          "size": 3889,
+          "mtimeMs": 1792562909085,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/home-PreToolUse.txt",
+          "size": 11,
+          "mtimeMs": 1792562908897,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/home-SessionStart.txt",
+          "size": 13,
+          "mtimeMs": 1792562908329,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/home-Stop.txt",
+          "size": 5,
+          "mtimeMs": 1792562909049,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/home-UserPromptSubmit.txt",
+          "size": 17,
+          "mtimeMs": 1792562908615,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/home-canary-plugin-PreToolUse.txt",
+          "size": 11,
+          "mtimeMs": 1792562908893,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/home-canary-plugin-SessionStart.txt",
+          "size": 13,
+          "mtimeMs": 1792562908358,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/home-canary-plugin-Stop.txt",
+          "size": 5,
+          "mtimeMs": 1792562909045,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/home-canary-plugin-UserPromptSubmit.txt",
+          "size": 17,
+          "mtimeMs": 1792562908614,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/wt-PreToolUse.txt",
+          "size": 11,
+          "mtimeMs": 1792562908896,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/wt-SessionStart.txt",
+          "size": 13,
+          "mtimeMs": 1792562908355,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/wt-Stop.txt",
+          "size": 5,
+          "mtimeMs": 1792562909020,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/wt-UserPromptSubmit.txt",
+          "size": 17,
+          "mtimeMs": 1792562908608,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/wt-canary-plugin-PreToolUse.txt",
+          "size": 11,
+          "mtimeMs": 1792562908893,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/wt-canary-plugin-SessionStart.txt",
+          "size": 13,
+          "mtimeMs": 1792562908411,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/wt-canary-plugin-Stop.txt",
+          "size": 5,
+          "mtimeMs": 1792562909022,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "markers/wt-canary-plugin-UserPromptSubmit.txt",
+          "size": 17,
+          "mtimeMs": 1792562908660,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "wt/.claude/settings.local.json",
+          "size": 210,
+          "mtimeMs": 1792562907717,
+          "change": "changed",
+          "token": false
+        }
+      ],
+      "lockedFreshHomeWrites": [
+        {
+          "rel": "home/.claude.json",
+          "size": 753,
+          "mtimeMs": 1792562928312,
+          "change": "changed",
+          "token": false
+        },
+        {
+          "rel": "home/.claude/backups/.claude.json.backup.1792562927609",
+          "size": 36,
+          "mtimeMs": 1792562926505,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "home/AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-COfXTd-wt/mcp-logs-nexus/2026-10-21T06-08-48-155Z.jsonl",
+          "size": 2898,
+          "mtimeMs": 1792562928327,
+          "change": "added",
+          "token": false
+        },
+        {
+          "rel": "tmp/claude/fswatch-probe-Ni7JWZ/probe",
+          "size": 1,
+          "mtimeMs": 1792562928250,
+          "change": "added",
+          "token": false
+        }
+      ]
+    },
     "builtinToolsDefault": [
       "Task",
       "Bash",
@@ -192,75 +514,79 @@
       "Glob",
       "Grep",
       "Read",
-      "Write"
+      "Write",
+      "mcp__nexus__changeset_register",
+      "mcp__nexus__context_get"
     ],
-    "withoutSafeMode": {
-      "note": "Informational for the S2 question only; not a decision. Pinned argv with --safe-mode removed (--restricted, --setting-sources, --strict-mcp-config kept).",
-      "initTools": [
-        "Edit",
-        "Glob",
-        "Grep",
-        "Read",
-        "Write",
-        "mcp__nexus__changeset_register",
-        "mcp__nexus__context_get"
-      ],
-      "editOk": true,
-      "mcpOk": true,
-      "mcpHeader": "expanded",
-      "tokenInArgv": false,
-      "tokenInHomeFiles": [],
-      "tokenInCliOutput": false,
-      "offered": [
-        "Edit",
-        "Glob",
-        "Grep",
-        "Read",
-        "Write",
-        "mcp__nexus__changeset_register",
-        "mcp__nexus__context_get"
-      ],
-      "canaryLeaks": [],
-      "skillsInSystem": true,
-      "preambleInUser": true,
-      "homeWrites": [
-        ".claude.json",
-        ".claude/backups/.claude.json.backup.1792560098639",
-        "AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-LPWAeo-wt/mcp-logs-nexus/2026-10-21T05-21-39-014Z.jsonl"
-      ]
-    },
-    "p7": {
-      "withSafeMode": {
-        "code": null,
-        "killedAtWindow": true,
-        "ms": 30058,
-        "hosts": [
-          "api.anthropic.com:443"
-        ],
-        "connects": 19,
-        "plainRequests": 0,
-        "mcpMethods": [],
-        "error": "5 api_retry event(s), last attempt 5/10, error=unknown, status=null",
-        "hasBaseUrl": false
+    "p5Writes": [
+      {
+        "rel": "home/.claude.json",
+        "size": 1299,
+        "mtimeMs": 1792562931690,
+        "change": "changed",
+        "token": false
       },
-      "withoutSafeMode": {
-        "code": null,
-        "killedAtWindow": true,
-        "ms": 30065,
-        "hosts": [
-          "api.anthropic.com:443"
-        ],
-        "connects": 19,
-        "plainRequests": 0,
-        "mcpMethods": [
-          "server/discover",
-          "initialize",
-          "notifications/initialized",
-          "tools/list"
-        ],
-        "error": "5 api_retry event(s), last attempt 5/10, error=unknown, status=null",
-        "hasBaseUrl": false
+      {
+        "rel": "home/.claude/backups/.claude.json.backup.1792562931099",
+        "size": 644,
+        "mtimeMs": 1792562929811,
+        "change": "added",
+        "token": false
+      },
+      {
+        "rel": "home/AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-1Md28t-wt/mcp-logs-nexus/2026-10-21T06-08-51-538Z.jsonl",
+        "size": 3245,
+        "mtimeMs": 1792562931907,
+        "change": "added",
+        "token": false
+      },
+      {
+        "rel": "tmp/claude/fswatch-probe-4muGjj/probe",
+        "size": 1,
+        "mtimeMs": 1792562931634,
+        "change": "added",
+        "token": false
+      },
+      {
+        "rel": "wt/.claude/settings.local.json",
+        "size": 210,
+        "mtimeMs": 1792562931096,
+        "change": "changed",
+        "token": false
+      },
+      {
+        "rel": "wt/src/app.txt",
+        "size": 20,
+        "mtimeMs": 1792562931763,
+        "change": "changed",
+        "token": false
       }
+    ],
+    "p7": {
+      "code": null,
+      "killedAtWindow": true,
+      "ms": 30334,
+      "hosts": [
+        "api.anthropic.com:443"
+      ],
+      "connects": 17,
+      "plainRequests": 0,
+      "mcpMethods": [
+        "server/discover",
+        "initialize",
+        "notifications/initialized",
+        "tools/list"
+      ],
+      "error": "3 api_retry event(s), last attempt 3/10, error=unknown, status=null",
+      "writes": [
+        "home/.claude.json",
+        "home/.claude/.last-cleanup",
+        "home/.claude/backups/.claude.json.backup.1792562942957",
+        "home/.claude/sessions/25204.json",
+        "home/AppData/Local/claude-cli-nodejs/Cache/C--tmp-nxh-wYDusf-wt/mcp-logs-nexus/2026-10-21T06-09-25-492Z.jsonl",
+        "wt/.claude/settings.local.json"
+      ],
+      "hasBaseUrl": false
     }
   }
 }

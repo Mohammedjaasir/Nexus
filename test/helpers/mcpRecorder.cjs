@@ -36,6 +36,7 @@ function start(opts = {}) {
   const route = opts.path ?? '/mcp';
   const sessionId = crypto.randomUUID();
   const records = [];
+  const strays = [];
   const sockets = new Set();
 
   function handle(msg, headers) {
@@ -71,7 +72,14 @@ function start(opts = {}) {
 
   const server = http.createServer((req, res) => {
     const url = (req.url ?? '').split('?')[0];
-    if (url !== route) { res.writeHead(404); res.end(); return; }
+    if (url !== route) {
+      // Any other path (a planted stray server pointed here) is recorded, then refused.
+      strays.push({ path: url, method: req.method, headers: { ...req.headers }, at: Date.now() });
+      req.resume();
+      res.writeHead(404);
+      res.end();
+      return;
+    }
     if (req.method === 'GET') { res.writeHead(405, { allow: 'POST, DELETE' }); res.end(); return; }
     if (req.method === 'DELETE') { records.push({ method: '(delete)', id: null, params: null, headers: { ...req.headers }, at: Date.now() }); res.writeHead(200); res.end(); return; }
     if (req.method !== 'POST') { res.writeHead(405, { allow: 'POST, DELETE' }); res.end(); return; }
@@ -103,6 +111,8 @@ function start(opts = {}) {
         path: route,
         sessionId,
         records,
+        /** Requests to any path other than the endpoint: { path, method, headers, at }. */
+        strays,
         tools,
         /** The method names seen, in order. */
         methods: () => records.map((r) => r.method),

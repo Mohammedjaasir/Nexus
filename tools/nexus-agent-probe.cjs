@@ -2,7 +2,7 @@
 'use strict';
 // B2b Task 0: the agent CLI feasibility probe. It proves, on the installed binary, what the adapter relies on,
 // and never reaches a model:
-//   P-A  answers from a loopback mock model, with a fake home and a fake key      (checks P0-P6, P8, P10)
+//   P-A  answers from a loopback mock model, with a fake home and a fake key  (checks P0-P6, P8, P10, CR3+)
 //   P-B  sends the CLI's real API traffic to a recording proxy that refuses every CONNECT        (P7)
 //   P-C  reads the login state only, through a deny-all proxy; CONTROLLER ONLY, with the user's go-ahead (P9)
 //
@@ -114,7 +114,6 @@ const readFix = (f) => fs.readFileSync(path.join(FIX, f), 'utf8');
 const initOf = (r) => r.events.find((e) => e && e.type === 'system' && e.subtype === 'init') ?? null;
 const resultOf = (r) => r.events.find((e) => e && e.type === 'result') ?? null;
 const short = (s, n = 300) => { const t = String(s ?? '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n)}…` : t; };
-const dropFlag = (argv, flag) => argv.filter((a) => a !== flag);
 
 /** The tool_result for a given tool_use id, from the mock's requests (latest wins). */
 function resultFor(mock, id) {
@@ -141,7 +140,43 @@ function pinnedJob(h, { settingsFile = 'settings.deny.json', skills = true } = {
   return h.writeJobFiles({ settings: JSON.parse(readFix(settingsFile)), skillsText });
 }
 
-const isolationCanaries = () => ['homeMemory', 'homeRules', 'homeSkill', 'homeAgent', 'homeSettings', 'wtMemory', 'wtDotMemory', 'wtLocalMemory', 'wtSkill', 'wtAgent', 'wtSettings', 'wtMcp'];
+const textTurn = (_b, s) => (s === 0 ? [{ type: 'text', text: 'ok' }] : null);
+/** Root-relative writes of one run, each with whether it holds the MCP token. */
+const writesWithToken = (h, writes) => writes.map((w) => {
+  let token = false;
+  try { token = fs.readFileSync(path.join(h.root, w.rel)).includes(h.token); } catch { /* gone */ }
+  return { ...w, token };
+});
+
+/**
+ * CR3+ (D-B15): which planted customizations are live. Each group names a plant and the sign it gives when it
+ * loads or runs (see agentHarness.detectPlants). A control run without the locks must light up the groups,
+ * which proves the plants work; the pinned run must light up none.
+ */
+const PLANT_GROUPS = [
+  ['home CLAUDE.md', (d) => d.plant === 'homeMemory'],
+  ['home rules', (d) => d.plant === 'homeRules'],
+  ['worktree CLAUDE.md', (d) => d.plant === 'wtMemory'],
+  ['worktree .claude/CLAUDE.md', (d) => d.plant === 'wtDotMemory'],
+  ['worktree CLAUDE.local.md', (d) => d.plant === 'wtLocalMemory'],
+  ['home skill', (d) => d.plant === 'homeSkill' || d.plant === 'skill:"home-canary"'],
+  ['worktree skill', (d) => d.plant === 'wtSkill' || d.plant === 'skill:"wt-canary"'],
+  ['home agent', (d) => d.plant === 'homeAgent' || d.plant === 'agent:home-canary'],
+  ['worktree agent', (d) => d.plant === 'wtAgent' || d.plant === 'agent:wt-canary'],
+  ['home command', (d) => d.plant === 'homeCommand' || d.plant === 'command:home-canary'],
+  ['worktree command', (d) => d.plant === 'wtCommand' || d.plant === 'command:wt-canary'],
+  ['user settings hooks', (d) => /^hook:home-(?!canary-plugin)/.test(d.plant) || d.plant === 'homeHook'],
+  ['project settings hooks', (d) => /^hook:wt-(?!canary-plugin)/.test(d.plant) || d.plant === 'wtHook'],
+  ['local settings', (d) => d.plant === 'wtLocalSettings'],
+  ['user MCP server', (d) => /^mcp:(\/stray\/home-user|home-canary)$/.test(d.plant)],
+  ['project MCP server (.mcp.json)', (d) => /^mcp:(\/stray\/wt-project|wt-canary)$/.test(d.plant)],
+  ['local MCP server', (d) => /^mcp:(\/stray\/wt-local|wt-local-canary)$/.test(d.plant)],
+  ['home plugin', (d) => d.plant === 'plugin:home-canary-plugin' || d.plant === 'homePlugin'],
+  ['worktree plugin', (d) => d.plant === 'plugin:wt-canary-plugin' || d.plant === 'wtPlugin'],
+  ['plugin hooks', (d) => /^hook:(home|wt)-canary-plugin-/.test(d.plant)],
+  ['plugin MCP servers', (d) => /^mcp:(\/stray\/(home|wt)-plugin|plugin:)/.test(d.plant)]
+];
+const liveGroups = (found) => PLANT_GROUPS.filter(([, t]) => found.some(t)).map(([n]) => n);
 
 async function partA(report, log) {
   const checks = [];
@@ -160,44 +195,28 @@ async function partA(report, log) {
     const hp = await h.run(['--help'], { timeoutMs: 60_000 });
     report.helpFlags = helpFlagsOf(hp.stdout);
     const missing = H.PINNED_FLAGS.filter((f) => !report.helpFlags[f]);
-    add({ id: 'P1', result: hp.code === 0 && missing.length === 0 ? 'pass' : 'fail', detail: missing.length ? `missing pinned flags: ${missing.join(' ')}` : `all ${H.PINNED_FLAGS.length} pinned flags listed; ${H.SKILLS_FILE_FLAG} ${report.helpFlags[H.SKILLS_FILE_FLAG] ? 'named in --help (in the --bare text: "--append-system-prompt[-file]"; not a separate option line)' : 'absent'}` });
+    add({ id: 'P1', result: hp.code === 0 && missing.length === 0 ? 'pass' : 'fail', detail: (missing.length ? `missing pinned flags: ${missing.join(' ')}` : `all ${H.PINNED_FLAGS.length} pinned flags listed (--safe-mode is no longer pinned: D-B15)`) + `; ${H.SKILLS_FILE_FLAG} ${report.helpFlags[H.SKILLS_FILE_FLAG] ? 'named in --help (in the --bare text: "--append-system-prompt[-file]"; not a separate option line)' : 'absent'}` });
     decisions.push({ id: 'P1', branch: missing.length === 0 ? 'all-pinned-flags' : 'STOP:S1' });
     observed.p0p1ProxyHosts = h.proxy.hosts();
   });
 
-  // P2: --safe-mode with the job mcp.json; the recorder must get initialize + tools/list, the model the tool.
-  const p2 = await withTurn({ model: 'mock', proxy: 'recorder', script: (_b, s) => (s === 0 ? [{ type: 'text', text: 'ok' }] : null) },
+  // P2 (D-B15: no --safe-mode): the recorder must get initialize + tools/list, the model the tool.
+  const p2 = await withTurn({ model: 'mock', proxy: 'recorder', script: textTurn },
     (h) => { pinnedJob(h); return { args: h.argvBase, stdin: 'Reply with one word.' }; },
     async (h, r) => {
       const init = initOf(r);
-      const methods = h.mcp.methods();
       const tools = h.mock.toolRequests().flatMap((q) => M.toolNames(q.body));
-      return { code: r.code, mcpServers: init?.mcp_servers ?? null, methods, hasTool: tools.includes('mcp__nexus__context_get'), stderr: short(r.stderr) };
-    });
-  // The same turn with only --safe-mode removed, so the evidence names the flag that drops the server.
-  const p2diag = await withTurn({ model: 'mock', proxy: 'recorder', script: (_b, s) => (s === 0 ? [{ type: 'text', text: 'ok' }] : null) },
-    (h) => { pinnedJob(h); return { args: dropFlag(h.argvBase, '--safe-mode'), stdin: 'Reply with one word.' }; },
-    async (h, r) => {
-      const init = initOf(r);
-      return { code: r.code, mcpServers: init?.mcp_servers ?? null, methods: h.mcp.methods(), hasTool: h.mock.toolRequests().flatMap((q) => M.toolNames(q.body)).includes('mcp__nexus__context_get') };
+      return { code: r.code, mcpServers: init?.mcp_servers ?? null, methods: h.mcp.methods(), hasTool: tools.includes('mcp__nexus__context_get') };
     });
   const p2ok = p2.methods.includes('initialize') && p2.methods.includes('tools/list') && p2.hasTool;
-  add({
-    id: 'P2', result: p2ok ? 'pass' : 'fail',
-    detail: `with --safe-mode: exit ${p2.code}, system/init mcp_servers=${JSON.stringify(p2.mcpServers)}, MCP recorder saw ${JSON.stringify(p2.methods)}, mock tool list ${p2.hasTool ? 'has' : 'lacks'} mcp__nexus__context_get. ` +
-      `Same argv without --safe-mode: mcp_servers=${JSON.stringify(p2diag.mcpServers)}, recorder saw ${JSON.stringify(p2diag.methods)}, tool ${p2diag.hasTool ? 'present' : 'absent'}`
-  });
-  decisions.push({ id: 'P2', branch: p2ok ? 'safe-mode-keeps-mcp' : 'STOP:S2' });
+  add({ id: 'P2', result: p2ok ? 'pass' : 'fail', detail: `pinned argv without --safe-mode (D-B15): exit ${p2.code}, system/init mcp_servers=${JSON.stringify(p2.mcpServers)}, MCP recorder saw ${JSON.stringify(p2.methods)}, mock tool list ${p2.hasTool ? 'has' : 'lacks'} mcp__nexus__context_get` });
+  decisions.push({ id: 'P2', branch: p2ok ? 'mcp-loaded (D-B15: no --safe-mode)' : 'STOP:S2' });
 
-  // P3: --settings deny on Read(**/.env*) under --safe-mode; a control run without the deny shows the rule is what denies.
+  // P3: --settings deny on Read(**/.env*); a control run without the deny shows the rule is what denies.
   const readEnvScript = (h) => (_b, s) => (s === 0 ? [{ type: 'tool_use', id: 'toolu_probe_read_env', name: 'Read', input: { file_path: path.join(h.worktree, '.env') } }] : s === 1 ? [{ type: 'text', text: 'done' }] : null);
   const p3run = (settingsFile) => withTurn({ model: 'mock', proxy: 'recorder' },
     (h) => { h.mock.setScript(readEnvScript(h)); pinnedJob(h, { settingsFile }); return { args: h.argvBase, stdin: 'Read the .env file.' }; },
-    async (h, r) => {
-      const t = resultFor(h.mock, 'toolu_probe_read_env');
-      const leaked = h.mock.requests.some((q) => q.raw.includes(h.canaries.envSecret));
-      return { code: r.code, result: t, leaked };
-    });
+    async (h, r) => ({ code: r.code, result: resultFor(h.mock, 'toolu_probe_read_env'), leaked: h.mock.requests.some((q) => q.raw.includes(h.canaries.envSecret)) }));
   const p3 = await p3run('settings.deny.json');
   const p3ctl = await p3run('settings.no-deny.json');
   const denied = !!p3.result && !p3.leaked && (p3.result.isError || /denied|not allowed|permission/i.test(p3.result.text));
@@ -207,47 +226,77 @@ async function partA(report, log) {
     detail: `with the deny rule: ${p3.result ? `tool_result is_error=${p3.result.isError} "${short(p3.result.text, 160)}"` : 'no tool_result reached the mock'}, secret ${p3.leaked ? 'LEAKED to the mock' : 'not sent'}. ` +
       `Control without the rule: ${p3ctl.result ? `is_error=${p3ctl.result.isError}` : 'no tool_result'}, secret ${p3ctl.leaked ? 'read (so the deny rule is what refused it)' : 'not read (control inconclusive)'}`
   });
-  decisions.push({ id: 'P3', branch: denied ? (ctlAllowed ? 'safe-mode-keeps-settings' : 'safe-mode-keeps-settings (control inconclusive)') : 'STOP:S3' });
+  decisions.push({ id: 'P3', branch: denied ? (ctlAllowed ? 'settings-deny-applies' : 'settings-deny-applies (control inconclusive)') : 'STOP:S3' });
 
-  // P4 + P10: prompt delivery and isolation; the same first turn in a fresh home records the home writes.
-  const p4turn = (useSkillsFlag, extraDrop) => withTurn({ model: 'mock', proxy: 'recorder', script: (_b, s) => (s === 0 ? [{ type: 'text', text: 'ok' }] : null) },
+  // P4 + P10: prompt delivery and isolation; the same first turn in a fresh home records every write.
+  const p4turn = (useSkillsFlag) => withTurn({ model: 'mock', proxy: 'recorder', script: textTurn },
     (h) => {
       const f = pinnedJob(h);
-      let args = useSkillsFlag ? [...h.argvBase, H.SKILLS_FILE_FLAG, f.skillsMd] : [...h.argvBase];
-      for (const d of extraDrop ?? []) args = dropFlag(args, d);
-      return { args, stdin: `<nexus-preamble>\n${h.canaries.preamble}\n</nexus-preamble>\nReply with one word.` };
+      return { args: useSkillsFlag ? [...h.argvBase, H.SKILLS_FILE_FLAG, f.skillsMd] : [...h.argvBase], stdin: `<nexus-preamble>\n${h.canaries.preamble}\n</nexus-preamble>\nReply with one word.` };
     },
-    async (h, r, before) => {
+    async (h, r) => {
       const first = h.mock.toolRequests()[0] ?? h.mock.messageRequests()[0] ?? null;
       const sys = first ? M.systemText(first.body) : '';
       const all = h.mock.requests.map((q) => q.raw).join('\n');
-      const leaks = isolationCanaries(h.canaries).filter((k) => all.includes(h.canaries[k]));
       return {
-        code: r.code, stderr: short(r.stderr), requests: h.mock.requests.length,
+        code: r.code, requests: h.mock.requests.length,
         skillsInSystem: sys.includes(h.canaries.skills), skillsAnywhere: all.includes(h.canaries.skills),
         preambleInUser: first ? userText(first.body).includes(h.canaries.preamble) : false,
         preambleInSystem: sys.includes(h.canaries.preamble),
-        leaks, homeWrites: h.home.diff(before)
+        leaks: [...new Set(h.detectPlants(r).map((d) => `${d.plant} (${d.via})`))],
+        writes: writesWithToken(h, r.writes)
       };
     });
   let p4 = await p4turn(true);
-  let skillsFlagWorks = p4.code === 0 && p4.skillsInSystem;
+  const skillsFlagWorks = p4.code === 0 && p4.skillsInSystem;
   if (p4.code !== 0 || p4.requests === 0) p4 = { ...(await p4turn(false)), skillsFlagRejected: true };
   const p4iso = p4.leaks.length === 0;
   add({
     id: 'P4', result: p4iso && p4.preambleInUser && skillsFlagWorks ? 'pass' : 'fail',
     detail: `skills-file canary ${p4.skillsInSystem ? 'in the system prompt' : p4.skillsAnywhere ? 'in the request but not the system prompt' : 'absent'}${p4.skillsFlagRejected ? ` (${H.SKILLS_FILE_FLAG} rejected)` : ''}; ` +
       `stdin preamble canary ${p4.preambleInUser ? 'in the first user message' : 'absent'}${p4.preambleInSystem ? ' and the system prompt' : ' (not the system prompt: stdin is the user turn)'}; ` +
-      `home/worktree canaries in any request: ${p4.leaks.length ? p4.leaks.join(', ') : 'none'}`
+      `home/worktree plants seen: ${p4.leaks.length ? p4.leaks.join(', ') : 'none'}`
   });
   decisions.push({ id: 'P4', branch: !p4iso ? 'STOP:S4' : 'isolated' });
   decisions.push({ id: 'skillsDelivery', branch: report.helpFlags?.[H.SKILLS_FILE_FLAG] && skillsFlagWorks ? 'append-system-prompt-file' : 'stdin-preamble' });
-  add({ id: 'P10', result: 'pass', detail: `${p4.homeWrites.length} file(s) written to the fake home in one turn: ${p4.homeWrites.map((f) => `${f.rel} (${f.change})`).join(', ') || 'none'}` });
-  observed.homeWrites = p4.homeWrites;
+  const tokenFiles = p4.writes.filter((w) => w.token).map((w) => w.rel);
+  add({ id: 'P10', result: tokenFiles.length ? 'fail' : 'pass', detail: `${p4.writes.length} file(s) written under the harness root in one pinned turn: ${p4.writes.map((f) => `${f.rel} (${f.change}, ${f.size} B)`).join(', ') || 'none'}; MCP token in any written file: ${tokenFiles.length ? tokenFiles.join(', ') : 'none'}` });
+  observed.homeWrites = p4.writes.filter((w) => w.rel.startsWith('home/')).map((w) => ({ ...w, rel: w.rel.slice('home/'.length) }));
+  observed.allWrites = p4.writes;
   decisions.push({ id: 'P10', branch: 'recorded' });
 
+  // CR3+ (D-B15): plants in the fake home and the worktree (CLAUDE.md, rules, skills, agents, commands, user/project/
+  // local settings with hooks, user/project/local MCP servers, user and project plugins with hooks and MCP servers).
+  // A control run without the locks proves the plants are live; the pinned run must show none of them.
+  const cr3Script = (h) => (_b, s) => (s === 0 ? [{ type: 'tool_use', id: 'toolu_cr3_read', name: 'Read', input: { file_path: path.join(h.worktree, 'README.md') } }] : s === 1 ? [{ type: 'text', text: 'done' }] : null);
+  const CONTROL_ARGV = ['-p', '--output-format', 'stream-json', '--verbose', '--input-format', 'text', '--permission-mode', 'dontAsk', '--permission-prompts', 'none', '--allowedTools', 'Read', '--no-session-persistence'];
+  const cr3run = (locked, harnessExtra = {}) => withTurn({ model: 'mock', proxy: 'recorder', ...harnessExtra },
+    (h) => { h.mock.setScript(cr3Script(h)); pinnedJob(h); return { args: locked ? h.argvBase : CONTROL_ARGV, stdin: 'Read the README.' }; },
+    async (h, r) => {
+      const found = h.detectPlants(r);
+      return {
+        code: r.code, requests: h.mock.requests.length, found: [...new Set(found.map((d) => `${d.plant} (${d.via})`))], live: liveGroups(found),
+        writes: writesWithToken(h, r.writes), mcpNexus: h.mcp.methods().includes('initialize')
+      };
+    });
+  const ctl = await cr3run(false);
+  const lk = await cr3run(true);
+  const notLive = PLANT_GROUPS.map(([n]) => n).filter((n) => !ctl.live.includes(n));
+  const cr3ok = lk.code === 0 && lk.requests > 0 && lk.found.length === 0;
+  const wtWrites = (w) => w.filter((x) => x.rel.startsWith('wt/')).map((x) => `${x.rel} (${x.change})`);
+  // The worktree write seen under the locks comes from the planted ~/.claude.json project entry; a fresh home without it:
+  const lkFresh = await cr3run(true, { homeFiles: { '.claude.json': { hasCompletedOnboarding: true } } });
+  add({
+    id: 'CR3+', result: cr3ok ? 'pass' : 'fail',
+    detail: `control (no locks): exit ${ctl.code}, ${ctl.live.length}/${PLANT_GROUPS.length} plant groups live (${ctl.live.join('; ')})${notLive.length ? `; NOT proven live: ${notLive.join('; ')}` : ''}. ` +
+      `Pinned argv: exit ${lk.code}, ${lk.requests} mock request(s), Nexus MCP ${lk.mcpNexus ? 'connected' : 'NOT connected'}, plants seen: ${lk.found.length ? lk.found.join(', ') : 'none'}. ` +
+      `Worktree writes under the locks: ${wtWrites(lk.writes).join(', ') || 'none'}; with no project entry in ~/.claude.json: ${wtWrites(lkFresh.writes).join(', ') || 'none'}`
+  });
+  decisions.push({ id: 'CR3+', branch: cr3ok ? 'no-customization-loads' : 'STOP:S4' });
+  observed.cr3 = { controlLive: ctl.live, controlNotLive: notLive, lockedFound: lk.found, lockedWrites: lk.writes, controlWrites: ctl.writes, lockedFreshHomeWrites: lkFresh.writes };
+
   // P5 + P6: the tool allow-list, an Edit inside cwd, an MCP call, the bearer header.
-  const p5turn = (argvMut) => withTurn({ model: 'mock', proxy: 'recorder', onCall: (name) => `ctx-ok:${name}` },
+  const p5 = await withTurn({ model: 'mock', proxy: 'recorder', onCall: (name) => `ctx-ok:${name}` },
     (h) => {
       const target = path.join(h.worktree, 'src', 'app.txt');
       h.mock.setScript((_b, s) => [
@@ -257,68 +306,52 @@ async function partA(report, log) {
         [{ type: 'text', text: 'done' }]
       ][s] ?? null);
       pinnedJob(h);
-      return { args: argvMut(h.argvBase), stdin: 'Edit src/app.txt, then read the context.' };
+      return { args: h.argvBase, stdin: 'Edit src/app.txt, then read the context.' };
     },
     async (h, r) => {
       const init = initOf(r);
-      const offered = h.mock.toolRequests().flatMap((q) => M.toolNames(q.body));
       const edit = resultFor(h.mock, 'toolu_probe_edit');
       const mcpRes = resultFor(h.mock, 'toolu_probe_mcp');
       const fileNow = fs.readFileSync(path.join(h.worktree, 'src', 'app.txt'), 'utf8');
       const initRec = h.mcp.records.find((x) => x.method === 'initialize');
-      const argvAll = [h.bin, ...argvMut(h.argvBase)].join(' ');
       return {
-        code: r.code, initTools: init?.tools ?? null, offered: [...new Set(offered)],
+        code: r.code, initTools: init?.tools ?? null, offered: [...new Set(h.mock.toolRequests().flatMap((q) => M.toolNames(q.body)))],
         editOk: !!edit && !edit.isError && fileNow.includes('edited by the probe'), edit,
         mcpCalled: h.mcp.calls().some((c) => c.params?.name === 'context_get'), mcpRes,
         mcpOk: !!mcpRes && !mcpRes.isError && /ctx-ok:context_get/.test(mcpRes.text),
         auth: initRec ? (initRec.headers.authorization === `Bearer ${h.token}` ? 'expanded' : initRec.headers.authorization ? 'other-value' : 'absent') : 'no-initialize',
-        tokenInArgv: argvAll.includes(h.token), result: resultOf(r),
-        tokenInHomeFiles: filesContaining(h.home.dir, h.token), tokenInStdout: r.stdout.includes(h.token) || r.stderr.includes(h.token)
+        tokenInArgv: [h.bin, ...h.argvBase].join(' ').includes(h.token),
+        tokenInRootFiles: filesContaining(h.root, h.token).filter((f) => !f.startsWith('job/')),
+        tokenInStdout: r.stdout.includes(h.token) || r.stderr.includes(h.token),
+        writes: writesWithToken(h, r.writes)
       };
     });
-  const p5 = await p5turn((a) => a);
-  // The brief's names plus `Task`: this build may name its subagent tool either way, and neither may be offered.
-  const banned = ['Bash', 'PowerShell', 'WebFetch', 'WebSearch', 'NotebookEdit', 'Agent', 'Task'];
+  const banned = [...H.DISALLOWED_TOOLS];
   const offeredBanned = banned.filter((t) => (p5.initTools ?? []).includes(t) || p5.offered.includes(t));
   const p5ok = p5.editOk && p5.mcpOk && offeredBanned.length === 0;
   add({
     id: 'P5', result: p5ok ? 'pass' : 'fail',
-    detail: `system/init tools=${JSON.stringify(p5.initTools)}; Edit ${p5.editOk ? 'succeeded (file changed)' : `failed: ${p5.edit ? short(p5.edit.text, 160) : 'no tool_result'}`}; ` +
+    detail: `--disallowedTools ${banned.join(' ')}; system/init tools=${JSON.stringify(p5.initTools)}; Edit ${p5.editOk ? 'succeeded (file changed)' : `failed: ${p5.edit ? short(p5.edit.text, 160) : 'no tool_result'}`}; ` +
       `MCP context_get ${p5.mcpOk ? 'succeeded' : `failed: ${p5.mcpRes ? short(p5.mcpRes.text, 200) : 'no tool_result'}${p5.mcpCalled ? '' : ' (never reached the recorder)'}`}; ` +
-      `Bash/WebFetch/... offered: ${offeredBanned.length ? offeredBanned.join(',') : 'none'}`
+      `disallowed tools offered: ${offeredBanned.length ? offeredBanned.join(',') : 'none'}`
   });
-  const p5causeS2 = !p5ok && p5.editOk && offeredBanned.length === 0 && !p5.mcpCalled && !p2ok;
-  decisions.push({ id: 'P5', branch: p5ok ? 'as-pinned' : p5causeS2 ? 'STOP:S5 (consequence of S2: the MCP server is absent under --safe-mode; Edit and the tool list are as pinned)' : 'STOP:S5' });
-  // The exact built-in tool names: everything `--tools default` offers, in the same fake home, mock answering text only.
-  const allTools = await withTurn({ model: 'mock', proxy: 'recorder', script: (_b, s) => (s === 0 ? [{ type: 'text', text: 'ok' }] : null) },
-    (h) => ({ args: ['-p', '--output-format', 'stream-json', '--verbose', '--safe-mode', '--strict-mcp-config', '--setting-sources', H.SETTING_SOURCES_FORM, '--tools', 'default', '--no-session-persistence', '--permission-mode', 'dontAsk', '--permission-prompts', 'none'], stdin: 'Reply with one word.' }),
+  decisions.push({ id: 'P5', branch: p5ok ? 'as-pinned' : 'STOP:S5' });
+  // The exact built-in tool names: everything `--tools default` offers without --restricted (which removes Bash and WebFetch
+  // itself), with no settings sources and no MCP; the mock answers text only.
+  const allTools = await withTurn({ model: 'mock', proxy: 'recorder', script: textTurn },
+    (h) => ({ args: ['-p', '--output-format', 'stream-json', '--verbose', '--strict-mcp-config', '--setting-sources', H.SETTING_SOURCES_FORM, '--tools', 'default', '--no-session-persistence', '--permission-mode', 'dontAsk', '--permission-prompts', 'none'], stdin: 'Reply with one word.' }),
     async (_h, r) => initOf(r)?.tools ?? null);
   observed.builtinToolsDefault = allTools;
   observed.builtinToolsPinned = p5.initTools;
   const has = (t) => Array.isArray(allTools) && allTools.includes(t);
-  const planned = ['Bash', 'PowerShell', 'WebFetch', 'WebSearch', 'NotebookEdit', 'Agent'];
-  const subagent = has('Agent') ? 'Agent' : has('Task') ? 'Task' : null;
-  const disallowedObserved = [...planned.filter((t) => t !== 'Agent' && has(t)), ...(subagent ? [subagent] : [])];
-  const notOffered = planned.filter((t) => !has(t));
-  decisions.push({ id: 'toolNames', branch: `pinned:${JSON.stringify({ allowed: p5.initTools, disallowedObserved, subagentToolName: subagent, plannedNamesNotInThisBuild: notOffered })}` });
+  decisions.push({ id: 'toolNames', branch: `pinned:${JSON.stringify({ allowed: p5.initTools, disallowed: banned, offeredByThisBuild: banned.filter(has), notInThisBuild: banned.filter((t) => !has(t)) })}` });
   const p6ok = p5.auth === 'expanded' && !p5.tokenInArgv;
-  add({ id: 'P6', result: p5.auth === 'no-initialize' ? 'n/a' : p6ok ? 'pass' : 'fail', detail: `Authorization header from \${NEXUS_MCP_TOKEN}: ${p5.auth}; token in argv: ${p5.tokenInArgv ? 'YES' : 'no'}; token in fake-home files: ${p5.tokenInHomeFiles.length ? p5.tokenInHomeFiles.join(', ') : 'none'}; token in CLI output: ${p5.tokenInStdout ? 'YES' : 'no'}${p5.auth === 'no-initialize' ? ' (the MCP server was never contacted under the pinned argv, see P2)' : ''}` });
-
-  // Informational for the S2 question only (never a decision): the same P5/P6 turn and the P4 canaries without --safe-mode.
-  const p5ns = await p5turn((a) => dropFlag(a, '--safe-mode'));
-  const p4ns = await p4turn(true, ['--safe-mode']);
-  observed.withoutSafeMode = {
-    note: 'Informational for the S2 question only; not a decision. Pinned argv with --safe-mode removed (--restricted, --setting-sources, --strict-mcp-config kept).',
-    initTools: p5ns.initTools, editOk: p5ns.editOk, mcpOk: p5ns.mcpOk, mcpHeader: p5ns.auth, tokenInArgv: p5ns.tokenInArgv, tokenInHomeFiles: p5ns.tokenInHomeFiles, tokenInCliOutput: p5ns.tokenInStdout,
-    offered: p5ns.offered,
-    canaryLeaks: p4ns.leaks, skillsInSystem: p4ns.skillsInSystem, preambleInUser: p4ns.preambleInUser, homeWrites: p4ns.homeWrites.map((f) => f.rel)
-  };
-  log(`diag without --safe-mode: ${JSON.stringify(observed.withoutSafeMode)}`);
-  decisions.push({ id: 'mcpHeaderForm', branch: p5.auth === 'expanded' ? 'env-expansion' : p5.auth === 'no-initialize' ? `pending:S2 (without --safe-mode: ${p5ns.auth === 'expanded' ? 'env-expansion' : 'literal-in-job-file'})` : 'literal-in-job-file' });
+  add({ id: 'P6', result: p5.auth === 'no-initialize' ? 'n/a' : p6ok ? 'pass' : 'fail', detail: `Authorization header from \${NEXUS_MCP_TOKEN}: ${p5.auth}; token in argv: ${p5.tokenInArgv ? 'YES' : 'no'}; token in any file under the harness root outside the job dir: ${p5.tokenInRootFiles.length ? p5.tokenInRootFiles.join(', ') : 'none'}; token in CLI output: ${p5.tokenInStdout ? 'YES' : 'no'}` });
+  decisions.push({ id: 'mcpHeaderForm', branch: p6ok ? 'env-expansion' : 'literal-in-job-file' });
+  observed.p5Writes = p5.writes;
 
   // P8: a 200 KiB context on stdin; argv stays small and the whole context reaches the mock.
-  const p8 = await withTurn({ model: 'mock', proxy: 'recorder', script: (_b, s) => (s === 0 ? [{ type: 'text', text: 'ok' }] : null) },
+  const p8 = await withTurn({ model: 'mock', proxy: 'recorder', script: textTurn },
     (h) => {
       const f = pinnedJob(h);
       const ctx = makeContext(CONTEXT_BYTES, `CTX-CANARY-${crypto.randomBytes(4).toString('hex')}`);
@@ -334,6 +367,7 @@ async function partA(report, log) {
   add({ id: 'P8', result: p8ok ? 'pass' : 'fail', detail: `argv ${p8.argvBytes} bytes (limit ${ARGV_LIMIT}); a ${p8.ctxBytes}-byte context on stdin ${p8.intact ? 'reached the mock intact' : `did NOT reach the mock intact (user text ${p8.userBytes} bytes)`}` });
   decisions.push({ id: 'P8', branch: p8ok ? 'stdin-context' : 'STOP:S8' });
   decisions.push({ id: 'settingSourcesForm', branch: JSON.stringify(H.SETTING_SOURCES_FORM) });
+  decisions.push({ id: 'safeMode', branch: 'dropped (D-B15)' });
 
   return { checks, decisions, observed };
 }
@@ -342,11 +376,11 @@ async function partB(log) {
   const checks = [];
   const decisions = [];
   const observed = {};
-  const one = async (dropSafe) => {
+  const one = async () => {
     const h = await H.start({ home: 'fake', model: 'none', proxy: 'recorder', mcp: 'recorder' });
     try {
       pinnedJob(h);
-      const args = dropSafe ? dropFlag(h.argvBase, '--safe-mode') : h.argvBase;
+      const args = h.argvBase;
       const r = await h.run(args, { stdin: 'Reply with one word.', timeoutMs: P7_WINDOW_MS });
       const res = resultOf(r);
       return {
@@ -359,28 +393,27 @@ async function partB(log) {
           if (last) return `${retries.length} api_retry event(s), last attempt ${last.attempt}/${last.max_retries}, error=${last.error}, status=${last.error_status}`;
           return short(r.stderr || r.stdout.split(/\r?\n/).filter(Boolean).slice(-1)[0], 200);
         })(),
+        writes: r.writes.map((w) => w.rel),
         hasBaseUrl: Object.prototype.hasOwnProperty.call(h.env, 'ANTHROPIC_BASE_URL')
       };
     } finally { await h.stop(); }
   };
-  const b = await one(false);
-  const bns = await one(true);
+  const b = await one();
   const onlyApi = b.hosts.length > 0 && b.hosts.every((x) => x === 'api.anthropic.com:443');
   const others = b.hosts.filter((x) => x !== 'api.anthropic.com:443');
   const mcpReached = b.mcpMethods.includes('initialize');
   let branch;
   if (b.connects === 0 && b.plainRequests === 0) branch = 'STOP:S6';
   else if (others.length) branch = `STOP:S7 (${others.join(', ')})`;
-  else branch = mcpReached ? 'proxy-honoured' : 'proxy-honoured; MCP reach pending:S2';
+  else branch = mcpReached ? 'proxy-honoured' : 'STOP:S6 (the MCP server was not reached directly)';
   checks.push({
     id: 'P7', result: onlyApi && mcpReached ? 'pass' : 'fail',
     detail: `no ANTHROPIC_BASE_URL (${b.hasBaseUrl ? 'SET — probe bug' : 'unset'}), fake key, HTTPS_PROXY=recorder, NO_PROXY=127.0.0.1: ` +
       `${b.connects} CONNECT(s) to ${JSON.stringify(b.hosts)} within ${Math.round(b.ms / 1000)} s (${b.killedAtWindow ? 'stopped at the 30 s window' : `exited ${b.code}`}); ` +
-      `plain proxy requests: ${b.plainRequests}; MCP recorder reached directly: ${mcpReached ? 'yes' : `no (${JSON.stringify(b.mcpMethods)})`}; CLI said: "${b.error}". ` +
-      `Without --safe-mode: ${bns.connects} CONNECT(s) to ${JSON.stringify(bns.hosts)}, MCP reached directly: ${bns.mcpMethods.includes('initialize') ? 'yes' : 'no'}`
+      `plain proxy requests: ${b.plainRequests}; MCP recorder reached directly: ${mcpReached ? 'yes' : `no (${JSON.stringify(b.mcpMethods)})`}; CLI said: "${b.error}"`
   });
   decisions.push({ id: 'P7', branch });
-  observed.p7 = { withSafeMode: b, withoutSafeMode: bns };
+  observed.p7 = b;
   log(`P7 ${checks[0].result}: ${checks[0].detail}`);
   return { checks, decisions, observed };
 }
@@ -433,20 +466,33 @@ function toMarkdown(report) {
   const stops = stopsOf(report);
   lines.push(`- STOP branches fired: ${stops.length ? stops.map((s) => `**${s.branch}** (${s.id})`).join(', ') : 'none'}`, '');
   lines.push('## Checks', '', '| Id | Result | Detail |', '|---|---|---|');
-  for (const c of [...report.checks].sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)))) lines.push(`| ${c.id} | ${c.result} | ${String(c.detail).replace(/\|/g, '\\|')} |`);
+  const order = ['P0', 'P1', 'P2', 'P3', 'P4', 'CR3+', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10'];
+  const rank = (id) => (order.includes(id) ? order.indexOf(id) : order.length);
+  for (const c of [...report.checks].sort((a, b) => rank(a.id) - rank(b.id))) lines.push(`| ${c.id} | ${c.result} | ${String(c.detail).replace(/\|/g, '\\|')} |`);
   lines.push('', '## Decisions', '', '| Id | Branch |', '|---|---|');
   for (const d of report.decisions) lines.push(`| ${d.id} | ${String(d.branch).replace(/\|/g, '\\|')} |`);
   lines.push('', '## Pinned flags in `--help`', '');
   for (const [f, ok] of Object.entries(report.helpFlags ?? {})) lines.push(`- \`${f}\`: ${ok ? 'listed' : 'MISSING'}`);
-  if (report.observed?.homeWrites) {
-    lines.push('', '## P10: writes to the fake home after one turn', '');
-    for (const f of report.observed.homeWrites) lines.push(`- \`${f.rel}\` (${f.change}, ${f.size} bytes, mtime ${f.mtimeMs})`);
-  }
-  if (report.observed?.withoutSafeMode) {
-    lines.push('', '## Informational for the S2 question (not a decision)', '', '```json', JSON.stringify(report.observed.withoutSafeMode, null, 2), '```');
+  const writeList = (title, ws) => {
+    if (!Array.isArray(ws)) return;
+    lines.push('', `## ${title}`, '');
+    if (!ws.length) lines.push('- none');
+    for (const f of ws) lines.push(`- \`${f.rel}\` (${f.change}, ${f.size} bytes, mtime ${f.mtimeMs}${f.token ? ', HOLDS THE MCP TOKEN' : ''})`);
+  };
+  writeList('P10: every file the CLI wrote under the harness root in one pinned turn (home = the fake home)', report.observed?.allWrites);
+  writeList('P5: every file written in the pinned Edit + MCP turn', report.observed?.p5Writes);
+  if (report.observed?.cr3) {
+    const c = report.observed.cr3;
+    lines.push('', '## CR3+: planted customizations (D-B15)', '');
+    lines.push(`- Live in the control run (no locks): ${c.controlLive.join('; ')}`);
+    lines.push(`- Not proven live in the control run: ${c.controlNotLive.length ? c.controlNotLive.join('; ') : 'none'}`);
+    lines.push(`- Seen under the pinned argv: ${c.lockedFound.length ? c.lockedFound.join(', ') : 'none'}`);
+    writeList('CR3+: files written under the pinned argv (with the planted ~/.claude.json project entry)', c.lockedWrites);
+    writeList('CR3+: files written under the pinned argv (fresh ~/.claude.json, no project entry)', c.lockedFreshHomeWrites);
+    writeList('CR3+: files written by the control run (no locks)', c.controlWrites);
   }
   lines.push('', '## Limits', '');
-  lines.push('- P-A and P-B ran on a fake home only (decision D-B12). P10 lists the fake home; the real store is measured in V3.');
+  lines.push('- P-A and P-B ran on a fake home only (decision D-B12). The write lists cover the fake home and the harness root; the real store (including the MCP log under the real LOCALAPPDATA) is measured in V3.');
   lines.push('- P9 (P-C) reads the real home and is run only by the controller with the user\'s go-ahead.');
   lines.push('- P7: every CONNECT was refused by the recording proxy, so no request left the machine.');
   return `${lines.join('\n')}\n`;
@@ -465,6 +511,10 @@ async function main(argv) {
   let report = { cliVersion: null, helpFlags: {}, checks: [], decisions: [] };
   try { report = { ...report, ...JSON.parse(fs.readFileSync(jsonPath, 'utf8')) }; } catch { /* new report */ }
   report.observed = report.observed ?? {};
+  if (parts.includes('A') && parts.includes('B')) {
+    // A full agent-side run replaces everything earlier except the controller's P9.
+    report = { cliVersion: null, helpFlags: {}, checks: report.checks.filter((c) => c.id === 'P9'), decisions: report.decisions.filter((d) => d.id === 'P9'), observed: {}, meta: report.meta?.parts?.includes('C') ? { parts: ['C'] } : undefined };
+  }
   const log = (s) => console.log(s);
   const results = [];
   if (parts.includes('A')) results.push(await partA(report, log));
