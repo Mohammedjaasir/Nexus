@@ -1,0 +1,11 @@
+Codex remote uses a short stable per-agent home alias
+\#140: stale `~` entries already on disk are normalized too
+\#140: the new home leads the recent list exactly once
+\#140: the recent list stays capped and skips blanks
+a legacy-only install still resolves, so old transcripts stay readable
+a legacy-only install with dots resolves to its undashed twin
+leaves absolute paths alone (beyond normalizing)
+the current directory wins even when a legacy twin exists
+the dotted legacy twin loses to the dotted current spelling
+the native rung actually runs, and says why it differs
+with npm present nothing mentions a missing Node
