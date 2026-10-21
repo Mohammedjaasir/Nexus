@@ -3,7 +3,8 @@ import { readFile, stat } from 'node:fs/promises';
 import * as path from 'node:path';
 import { safeJoin } from './fs';
 import {
-  FILTER_CONFIG_ARGV, FILTER_SAFE_ENV, filterDriverNames, gitResolver, insideFolder, isGitBinary, neutralizeFilterArgs, resolveGitBinary, SAFE_GIT_CONFIG
+  configEnv, FILTER_CONFIG_ARGV, FILTER_SAFE_ENV, filterDriverNames, gitResolver, inertSignatureConfig, insideFolder, isGitBinary, NO_DIFF_DRIVERS,
+  neutralizeFilterArgs, resolveGitBinary, SAFE_GIT_CONFIG
 } from './gitBinary';
 
 /** The subcommands main runs that convert repository content through filter drivers (status cleans work-tree files). */
@@ -22,7 +23,11 @@ export function gitBinary(): Promise<string | null> {
 /**
  * Run git on the repository at `cwd` with `args`. Returns stdout text or an error (`gitMissing` when no git binary is
  * installed). The resolved binary runs with its own folder as the working folder and `-C <cwd>`, so nothing in `cwd` is
- * ever launched; a binary inside `cwd` is refused.
+ * ever launched; a binary inside `cwd` is refused. Every call also carries `inertSignatureConfig` (B2a close) as
+ * command-scope config in its environment (`configEnv`; the argv is unchanged): a repository's `log.showSignature` and
+ * `gpg.*program` never run a program (the legacy `git:*` channels reach a Nexus project folder when it is opened). Calls
+ * that can produce a diff pass NO_DIFF_DRIVERS; status ignores dirty submodule work trees (a submodule's own config could
+ * name a filter driver the superproject's neutralisation never saw).
  */
 async function runGit(cwd: string, args: string[], timeoutMs = 8000): Promise<{
   ok: true; stdout: string;
@@ -33,17 +38,17 @@ async function runGit(cwd: string, args: string[], timeoutMs = 8000): Promise<{
   if (insideFolder(bin, cwd)) return { ok: false, error: 'git resolves inside the repository; refused' };
   // A call that converts repository content (status cleans the work tree's files) runs no filter driver (B2a final
   // review B1): every configured one is switched off, read first with the read-only config query.
-  let env: NodeJS.ProcessEnv | undefined;
+  let env: NodeJS.ProcessEnv = { ...process.env, ...configEnv(inertSignatureConfig(bin)) };
   if (FILTERING_SUBCOMMANDS.has(args[0])) {
     const names = await runGit(cwd, [...FILTER_CONFIG_ARGV], timeoutMs);
     // Exit 1 with nothing printed: no filter is configured.
     const list = names.ok ? filterDriverNames(names.stdout) : names.error === 'git exited 1' ? [] : null;
     if (list === null) return names.ok ? { ok: false, error: 'a configured filter driver name is refused' } : names;
     args = [...neutralizeFilterArgs(list), ...args];
-    env = { ...process.env, ...FILTER_SAFE_ENV };
+    env = { ...env, ...FILTER_SAFE_ENV };
   }
   return new Promise((resolve) => {
-    const proc = spawn(bin, ['-C', cwd, ...SAFE_GIT_CONFIG, ...args], { cwd: path.dirname(bin), windowsHide: true, shell: false, ...(env ? { env } : {}) });
+    const proc = spawn(bin, ['-C', cwd, ...SAFE_GIT_CONFIG, ...args], { cwd: path.dirname(bin), windowsHide: true, shell: false, env });
     let stdout = '';
     let stderr = '';
     const timer = setTimeout(() => {
@@ -103,7 +108,9 @@ export async function getBranch(cwd: string): Promise<GitBranchInfo | { error: s
 }
 
 export async function getStatus(cwd: string): Promise<GitStatus | { error: string }> {
-  const res = await runGit(cwd, ['status', '--porcelain=v1', '-z', '--untracked-files=all']);
+  // --ignore-submodules=dirty (B2a close): a submodule's commit change still shows; its work tree (and the filter drivers
+  // its own config names) is never read.
+  const res = await runGit(cwd, ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--ignore-submodules=dirty']);
   if (!res.ok) return { error: res.error };
   const entries: GitStatusEntry[] = [];
   const untracked: string[] = [];
@@ -127,7 +134,7 @@ export async function getLog(cwd: string, n: number): Promise<GitCommit[] | { er
   const sep = '\x1e';   // record separator
   const fsep = '\x1f';  // field separator
   const fmt = ['%H', '%P', '%s', '%an', '%at', '%D'].join(fsep) + sep;
-  const res = await runGit(cwd, ['log', '--all', `--max-count=${n}`, `--pretty=format:${fmt}`]);
+  const res = await runGit(cwd, ['log', '--no-show-signature', '--all', `--max-count=${n}`, `--pretty=format:${fmt}`]);
   if (!res.ok) return { error: res.error };
   const out: GitCommit[] = [];
   for (const rec of res.stdout.split(sep)) {
@@ -224,7 +231,7 @@ export async function getDiff(
   // HEAD side: `git show HEAD:<path>` — errors (untracked / new file) → no head version.
   let head = '';
   let headExists = false;
-  const show = await runGit(cwd, ['show', `HEAD:${relPath}`]);
+  const show = await runGit(cwd, ['show', ...NO_DIFF_DRIVERS, `HEAD:${relPath}`]);
   if (show.ok) { head = show.stdout; headExists = true; }
 
   // Working side: read the on-disk file. ENOENT → deleted from the working tree.
@@ -378,7 +385,7 @@ export async function worktreeIsGcSafe(
   }
   // (2b) base tree identical to HEAD tree (squash-merge / equivalent content)?
   // `git diff --quiet <base> HEAD` → exit 0 (ok) means NO differences.
-  const diff = await runGit(wtPath, ['diff', '--quiet', baseBranch, 'HEAD']);
+  const diff = await runGit(wtPath, ['diff', ...NO_DIFF_DRIVERS, '--quiet', baseBranch, 'HEAD']);
   if (diff.ok) return { gc: true, detail: `clean + tree identical to ${baseBranch} (integrated/squashed)` };
   // Either there are real un-integrated commits, or a query failed → keep.
   return { gc: false, detail: `clean but content not yet in ${baseBranch}` };
@@ -401,7 +408,7 @@ export async function getLogGraph(cwd: string, n: number, skip = 0): Promise<Git
   const fsep = '\x1f';
   const fmt = ['%H', '%P', '%s', '%an', '%at', '%D'].join(fsep) + sep;
   const res = await runGit(cwd, [
-    'log', '--all', '--topo-order', `--max-count=${n}`, ...(skip > 0 ? [`--skip=${skip}`] : []),
+    'log', '--no-show-signature', '--all', '--topo-order', `--max-count=${n}`, ...(skip > 0 ? [`--skip=${skip}`] : []),
     `--pretty=format:${fmt}`
   ], 15000);
   if (!res.ok) return { error: res.error };
@@ -455,7 +462,7 @@ function parseNameStatusZ(stdout: string): GitCommitFile[] {
 /** Files touched by one commit (rename-aware). */
 export async function getCommitFiles(cwd: string, sha: string): Promise<GitCommitFile[] | { error: string }> {
   if (!isSafeRev(sha)) return { error: 'invalid revision' };
-  const res = await runGit(cwd, ['diff-tree', '--no-commit-id', '-r', '--root', '-z', '-M', '--name-status', sha, '--']);
+  const res = await runGit(cwd, ['diff-tree', ...NO_DIFF_DRIVERS, '--no-commit-id', '-r', '--root', '-z', '-M', '--name-status', sha, '--']);
   if (!res.ok) return { error: res.error };
   return parseNameStatusZ(res.stdout);
 }
@@ -474,7 +481,7 @@ export async function getFileAtRev(cwd: string, rev: string, relPath: string): P
   if ((parseInt(size.stdout.trim(), 10) || 0) > MAX_SHOW_BYTES) {
     return { ok: false, error: 'file too large to diff (>2 MB)' };
   }
-  const res = await runGit(cwd, ['show', `${rev}:${relPath}`]);
+  const res = await runGit(cwd, ['show', ...NO_DIFF_DRIVERS, `${rev}:${relPath}`]);
   if (!res.ok) return { ok: true, exists: false, isBinary: false, content: '' };
   if (res.stdout.includes('\0')) return { ok: true, exists: true, isBinary: true, content: '' };
   return { ok: true, exists: true, isBinary: false, content: res.stdout };
@@ -497,8 +504,8 @@ export async function compareRefs(cwd: string, base: string, head: string, mode:
   const mb = await runGit(cwd, ['merge-base', base, head]);
   const mergeBase = mb.ok ? mb.stdout.trim() : null;
   const diffArgs = mode === 'three'
-    ? ['diff', '-z', '-M', '--name-status', `${base}...${head}`, '--']
-    : ['diff', '-z', '-M', '--name-status', base, head, '--'];
+    ? ['diff', ...NO_DIFF_DRIVERS, '-z', '-M', '--name-status', `${base}...${head}`, '--']
+    : ['diff', ...NO_DIFF_DRIVERS, '-z', '-M', '--name-status', base, head, '--'];
   const res = await runGit(cwd, diffArgs, 15000);
   if (!res.ok) return { error: res.error };
   return { ahead, behind, mergeBase, files: parseNameStatusZ(res.stdout) };

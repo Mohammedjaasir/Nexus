@@ -150,3 +150,139 @@ test('GC4 reachability (documented risks 34): no B2a module imports hive.ts; fro
     assert.doesNotMatch(body, /'diff'|'diff-tree'|'log'|ext-diff|textconv/, `${name} produces no diff`);
   }
 });
+
+// ---------- B2a close (user decision 2026-10-21): the legacy git:* path of src/main/git.ts ----------
+// The Nexus renderer calls the legacy channels on the project folder (getLog / getLogGraph / getStatus when a project
+// opens, diffs in the review and IDE views). Each test proves the planted program runs under plain git (the control),
+// then that the legacy function runs none of it and still answers what it answered before.
+const legacy = loadTs('src/main/git.ts');
+
+test('GC5 getLog and getLogGraph run no signature program of the repository\'s under log.showSignature=true: plain git log does; the commits still parse', async () => {
+  const dir = tmp('nx-gc5-'); const repo = path.join(dir, 'repo'); fs.mkdirSync(repo);
+  const gpg = marker(dir, 'gpg'); const ssh = marker(dir, 'sshsig'); const x509 = marker(dir, 'x509');
+  const commit = signedRepo(repo, { 'a.txt': 'a\n' });
+  git(repo, ['config', 'log.showSignature', 'true']);
+  git(repo, ['config', 'gpg.program', gpg.file]); git(repo, ['config', 'gpg.ssh.program', ssh.file]); git(repo, ['config', 'gpg.x509.program', x509.file]);
+  git(repo, ['log', '--all', '--max-count=5', '--format=%H'], { check: false });
+  assert.equal(gpg.ran(), true, 'the control: plain git log runs gpg.program from the repository config');
+  gpg.reset();
+  const log = await legacy.getLog(repo, 50);
+  const graph = await legacy.getLogGraph(repo, 50);
+  assert.equal(gpg.ran() || ssh.ran() || x509.ran(), false, 'no signature program of the repository ran');
+  for (const out of [log, graph]) {
+    assert.ok(Array.isArray(out), JSON.stringify(out));
+    assert.equal(out.length, 1);
+    assert.equal(out[0].sha, commit); assert.equal(out[0].subject, 'signed'); assert.equal(out[0].author, 't');
+    assert.deepEqual(out[0].parents, []);
+  }
+});
+
+test('GC6 getStatus runs no filter driver from a submodule\'s own config (--ignore-submodules=dirty): plain git status does; a submodule commit change still shows', async () => {
+  const dir = tmp('nx-gc6-');
+  const clean = marker(dir, 'clean');
+  const sub = path.join(dir, 'sub'); fs.mkdirSync(sub);
+  git(sub, ['init', '-q']);
+  fs.writeFileSync(path.join(sub, '.gitattributes'), '*.txt filter=evil\n'); fs.writeFileSync(path.join(sub, 'f.txt'), 'a\n');
+  git(sub, ['add', '-A']); git(sub, ['commit', '-qm', 's']);
+  const sup = path.join(dir, 'sup'); fs.mkdirSync(sup);
+  git(sup, ['init', '-q']);
+  git(sup, ['submodule', 'add', '-q', sub.replace(/\\/g, '/'), 'sub']);
+  git(sup, ['commit', '-qm', 'sup']);
+  fs.writeFileSync(path.join(sup, 'top.txt'), 'untracked\n');
+  const inner = path.join(sup, 'sub');
+  git(inner, ['config', 'filter.evil.clean', clean.file]);
+  const racy = () => {
+    fs.writeFileSync(path.join(inner, 'f.txt'), 'b\n');
+    const idx = git(inner, ['rev-parse', '--git-path', 'index']).stdout.trim();
+    const st = fs.statSync(path.isAbsolute(idx) ? idx : path.join(inner, idx));
+    fs.utimesSync(path.join(inner, 'f.txt'), st.atime, st.mtime);
+  };
+  racy();
+  git(sup, ['status', '--porcelain=v1', '-z'], { check: false });
+  assert.equal(clean.ran(), true, 'the control: plain git status in the superproject runs the submodule\'s filter driver');
+  clean.reset(); racy();
+  const st = await legacy.getStatus(sup);
+  assert.equal(clean.ran(), false, 'getStatus ran no submodule filter driver');
+  assert.deepEqual(st.untracked, ['top.txt'], 'the superproject\'s own status is unchanged');
+  assert.deepEqual(st.unstaged, [], 'a dirty submodule work tree is not read');
+  // A commit in the submodule (its recorded commit changes) still shows as a change of `sub`.
+  git(inner, ['-c', 'filter.evil.clean=', 'commit', '-qam', 'moved']);
+  clean.reset();
+  const moved = await legacy.getStatus(sup);
+  assert.equal(clean.ran(), false);
+  assert.deepEqual(moved.unstaged.map((e) => e.path), ['sub']);
+});
+
+test('GC7 the legacy diffs run no external diff driver and no textconv of the repository\'s (getDiff, getFileAtRev, getCommitFiles, compareRefs, worktreeIsGcSafe): plain git diff does; the answers are unchanged', async () => {
+  const dir = tmp('nx-gc7-'); const repo = path.join(dir, 'repo'); fs.mkdirSync(repo);
+  const ext = marker(dir, 'external'); const cmd = marker(dir, 'drvcmd'); const conv = marker(dir, 'textconv');
+  git(repo, ['init', '-q', '-b', 'main']);
+  fs.writeFileSync(path.join(repo, '.gitattributes'), '*.txt diff=evil\n');
+  fs.writeFileSync(path.join(repo, 'a.txt'), 'one\n'); fs.writeFileSync(path.join(repo, 'b.md'), 'one\n');
+  git(repo, ['add', '-A']); git(repo, ['commit', '-qm', 'first']);
+  fs.writeFileSync(path.join(repo, 'a.txt'), 'two\n'); fs.writeFileSync(path.join(repo, 'b.md'), 'two\n');
+  git(repo, ['commit', '-qam', 'second']);
+  const head = git(repo, ['rev-parse', 'HEAD']).stdout.trim();
+  git(repo, ['config', 'diff.external', ext.file]);
+  git(repo, ['config', 'diff.evil.command', cmd.file]);
+  git(repo, ['config', 'diff.evil.textconv', conv.file]);
+  // Controls: plain git runs each one.
+  git(repo, ['diff', 'HEAD~1', 'HEAD', '--', 'a.txt'], { check: false });
+  assert.equal(cmd.ran(), true, 'the control: the diff driver\'s command runs');
+  git(repo, ['diff', 'HEAD~1', 'HEAD', '--', 'b.md'], { check: false });
+  assert.equal(ext.ran(), true, 'the control: diff.external runs');
+  git(repo, ['diff', '--no-ext-diff', 'HEAD~1', 'HEAD', '--', 'a.txt'], { check: false });
+  assert.equal(conv.ran(), true, 'the control: textconv runs');
+  for (const m of [ext, cmd, conv]) m.reset();
+  fs.writeFileSync(path.join(repo, 'a.txt'), 'three\n');
+  const d = await legacy.getDiff(repo, 'a.txt');
+  assert.equal(d.ok, true); assert.equal(d.head, 'two\n'); assert.equal(d.working, 'three\n');
+  const at = await legacy.getFileAtRev(repo, 'HEAD~1', 'a.txt');
+  assert.deepEqual(at, { ok: true, exists: true, isBinary: false, content: 'one\n' });
+  assert.deepEqual(await legacy.getCommitFiles(repo, head), [{ path: 'a.txt', status: 'M' }, { path: 'b.md', status: 'M' }]);
+  for (const mode of ['two', 'three']) {
+    const c = await legacy.compareRefs(repo, 'HEAD~1', 'HEAD', mode);
+    assert.deepEqual(c.files, [{ path: 'a.txt', status: 'M' }, { path: 'b.md', status: 'M' }], mode);
+    assert.equal(c.ahead, 1); assert.equal(c.behind, 0);
+  }
+  git(repo, ['checkout', '-q', '--', 'a.txt']);
+  git(repo, ['branch', 'other', 'HEAD~1']);
+  assert.equal((await legacy.worktreeIsGcSafe(repo, 'main')).gc, true, 'clean and 0 ahead of itself');
+  git(repo, ['checkout', '-q', 'other']);
+  assert.equal((await legacy.worktreeIsGcSafe(repo, 'main')).gc, true, 'other is reachable from main');
+  git(repo, ['checkout', '-q', 'main']);
+  assert.deepEqual((await legacy.worktreeIsGcSafe(repo, 'other')).gc, false, 'main is ahead of other and its tree differs');
+  assert.equal(ext.ran() || cmd.ran() || conv.ran(), false, 'no external diff driver and no textconv ran');
+});
+
+test('GC8 every legacy git call carries the inert signature config (command-scope config in its environment); legacy hive.ts resolves git through gitBinary.ts (never `git` by name)', () => {
+  const { inertSignatureConfig, configEnv, NO_DIFF_DRIVERS, gitBinaryCandidates, resolveGitBinary } = loadTs('src/main/gitBinary.ts');
+  const bin = 'C:\\Program Files\\Git\\cmd\\git.exe';
+  assert.deepEqual(inertSignatureConfig(bin), [['log.showSignature', 'false'], ['gpg.program', bin], ['gpg.ssh.program', bin], ['gpg.x509.program', bin]]);
+  assert.deepEqual(configEnv([['a.b', '1'], ['c.d', '2']], {}), { GIT_CONFIG_KEY_0: 'a.b', GIT_CONFIG_VALUE_0: '1', GIT_CONFIG_KEY_1: 'c.d', GIT_CONFIG_VALUE_1: '2', GIT_CONFIG_COUNT: '2' });
+  assert.deepEqual(configEnv([['a.b', '1']], { GIT_CONFIG_COUNT: '2' }), { GIT_CONFIG_KEY_2: 'a.b', GIT_CONFIG_VALUE_2: '1', GIT_CONFIG_COUNT: '3' }, 'a caller\'s own entries are kept');
+  assert.deepEqual([...NO_DIFF_DRIVERS], ['--no-ext-diff', '--no-textconv']);
+  const gitTs = fs.readFileSync(path.join(ROOT, 'src/main/git.ts'), 'utf8');
+  assert.match(gitTs, /let env: NodeJS\.ProcessEnv = \{ \.\.\.process\.env, \.\.\.configEnv\(inertSignatureConfig\(bin\)\) \};/, 'runGit gives it to every call');
+  assert.match(gitTs, /env = \{ \.\.\.env, \.\.\.FILTER_SAFE_ENV \};/, 'a filtering call keeps it');
+  assert.match(gitTs, /shell: false, env \}\);/);
+  for (const m of gitTs.matchAll(/runGit\([^,]+, \[\s*'(diff|diff-tree|show)'([^\]]*)\]/g)) {
+    if (m[1] === 'show' && /'-s'/.test(m[2])) continue;                  // resolveCommit: `show -s` produces no diff
+    assert.match(m[2], /^, \.\.\.NO_DIFF_DRIVERS/, `${m[1]}${m[2]}`);
+  }
+  assert.equal((gitTs.match(/'log', '--no-show-signature'/g) || []).length, 2, 'getLog and getLogGraph also say so in their argv');
+  // hive.ts: one synchronous git spawn, by the binary gitBinary.ts's candidates resolve to.
+  const hive = fs.readFileSync(path.join(ROOT, 'src/main/hive.ts'), 'utf8');
+  assert.doesNotMatch(hive, /spawn(Sync)?\(\s*['"`]git(\.exe)?['"`]/);
+  assert.match(hive, /import \{ gitBinaryCandidates \} from '\.\/gitBinary';/);
+  assert.match(hive, /spawnSync\(bin, \['-c', 'commit\.gpgsign=false'/);
+  // The candidate list is resolveGitBinary's own order (one rule for both).
+  const env = { PATH: 'C:\\Tools;relative;C:\\Program Files\\Git\\cmd', ProgramFiles: 'C:\\Program Files', LOCALAPPDATA: 'C:\\Users\\u\\AppData\\Local' };
+  const cands = gitBinaryCandidates({ env, platform: 'win32' });
+  assert.deepEqual(cands.slice(0, 2), ['C:\\Tools\\git.exe', 'C:\\Program Files\\Git\\cmd\\git.exe']);
+  return (async () => {
+    const seen = [];
+    await resolveGitBinary({ stat: async (p) => { seen.push(p); throw new Error('absent'); } }, { env, platform: 'win32' });
+    assert.deepEqual(seen, cands);
+  })();
+});

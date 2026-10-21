@@ -38,6 +38,7 @@ import {
 import { MCP_CATALOG } from '../shared/mcpCatalog';
 import { LEAD_HIVE_ROLE } from '../shared/agentDisplay';
 import { expandTilde } from './fs';
+import { gitBinaryCandidates } from './gitBinary';
 import type { AgentTokens } from './hookAuth';
 
 /** The subset of HarnessConfig the hive consumes for the default-MCP merge.
@@ -1975,10 +1976,28 @@ export class HiveManager {
   }
 
   // — git (single committer, retry + stale-lock recovery) —
+  /**
+   * The git binary, resolved to an absolute path the way main's git.ts resolves it (src/main/gitBinary.ts's candidates:
+   * absolute PATH folders, then the install folders; real `git.exe`/`git` only), never `git` by name, which on Windows
+   * would run a `git.exe` found in the working folder first (B2a close). Checked with statSync because hive's git is
+   * synchronous. A found binary is kept; a miss is looked up again on the next call.
+   */
+  private gitBin: string | null = null;
+  private gitBinary(): string | null {
+    if (this.gitBin) return this.gitBin;
+    for (const c of gitBinaryCandidates()) {
+      try { if (statSync(c).isFile()) { this.gitBin = c; return c; } } catch { /* not there */ }
+    }
+    return null;
+  }
   private git(args: string[], cwd: string): { ok: boolean; out: string; err: string } {
-    const res = spawnSync('git', ['-c', 'commit.gpgsign=false', '-c', 'user.name=Hive', '-c', 'user.email=hive@local', ...args], {
+    const bin = this.gitBinary();
+    if (!bin) return { ok: false, out: '', err: 'git is not installed' };
+    const res = spawnSync(bin, ['-c', 'commit.gpgsign=false', '-c', 'user.name=Hive', '-c', 'user.email=hive@local', ...args], {
       cwd, encoding: 'utf8', timeout: 8000
     });
+    // Uninstalled while the app runs: resolved again next time.
+    if ((res.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') this.gitBin = null;
     return { ok: res.status === 0, out: res.stdout ?? '', err: res.stderr ?? '' };
   }
 

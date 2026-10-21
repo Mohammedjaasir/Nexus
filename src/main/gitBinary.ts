@@ -48,11 +48,11 @@ export function isGitBinary(bin: string, platform: string = process.platform): b
 }
 
 /**
- * Finds git: absolute PATH folders first, then the install folders; never one inside a `notInside` folder (an optional
- * rule for callers that need it; main and the runner pass none, see `gitResolver`).
+ * The paths `resolveGitBinary` tries, in its order: `git.exe` (`git`) in each ABSOLUTE PATH folder, then the install
+ * folders; only real executable names (`isGitBinary`), never one inside a `notInside` folder. Pure: no file system. The
+ * legacy hive (src/main/hive.ts, whose git is synchronous) checks these same candidates itself (B2a close).
  */
-export async function resolveGitBinary(fs: StatFs, o: { env?: NodeJS.ProcessEnv; platform?: string; notInside?: readonly string[] } = {}):
-  Promise<string | null> {
+export function gitBinaryCandidates(o: { env?: NodeJS.ProcessEnv; platform?: string; notInside?: readonly string[] } = {}): string[] {
   const env = o.env ?? process.env;
   const platform = o.platform ?? process.platform;
   const P = platform === 'win32' ? path.win32 : path.posix;
@@ -60,8 +60,17 @@ export async function resolveGitBinary(fs: StatFs, o: { env?: NodeJS.ProcessEnv;
   const dirs = String(env.PATH ?? env.Path ?? '').split(platform === 'win32' ? ';' : ':')
     .map((d) => d.trim().replace(/^"(.*)"$/, '$1')).filter((d) => d.length > 0 && P.isAbsolute(d));
   const forbidden = (o.notInside ?? []).filter((x) => typeof x === 'string' && x.length > 0);
-  for (const c of [...dirs.map((d) => P.join(d, name)), ...gitInstallCandidates(platform, env)]) {
-    if (!isGitBinary(c, platform) || forbidden.some((f) => insideFolder(c, f, platform))) continue;
+  return [...dirs.map((d) => P.join(d, name)), ...gitInstallCandidates(platform, env)]
+    .filter((c) => isGitBinary(c, platform) && !forbidden.some((f) => insideFolder(c, f, platform)));
+}
+
+/**
+ * Finds git: absolute PATH folders first, then the install folders; never one inside a `notInside` folder (an optional
+ * rule for callers that need it; main and the runner pass none, see `gitResolver`).
+ */
+export async function resolveGitBinary(fs: StatFs, o: { env?: NodeJS.ProcessEnv; platform?: string; notInside?: readonly string[] } = {}):
+  Promise<string | null> {
+  for (const c of gitBinaryCandidates(o)) {
     try { if ((await fs.stat(c)).isFile()) return c; } catch { /* not there */ }
   }
   return null;
@@ -96,6 +105,34 @@ export function gitResolver(find: () => Promise<string | null>): { get(): Promis
  * `GIT_LFS_SKIP_SMUDGE=1`; an LFS file therefore stages as its pointer text, never as the large file.
  */
 export const SAFE_GIT_CONFIG: readonly string[] = Object.freeze(['-c', 'core.fsmonitor=false']);
+
+/**
+ * The config every legacy `git:*` call in src/main/git.ts carries besides SAFE_GIT_CONFIG (B2a close, user decision
+ * 2026-10-21): a repository's `log.showSignature=true` would make `log` (and `show`) verify signed commits by running the
+ * `gpg.program` its own config names, so signatures are not shown, and every signature program is the resolved git
+ * binary itself (as the runner's `inertSignatureArgs`): git refuses gpg's options and exits, nothing of the repository's
+ * choosing runs. No legacy view parses signature output.
+ */
+export function inertSignatureConfig(gitBin: string): [string, string][] {
+  return [['log.showSignature', 'false'], ['gpg.program', gitBin], ['gpg.ssh.program', gitBin], ['gpg.x509.program', gitBin]];
+}
+
+/**
+ * `pairs` as command-scope git config in the environment (`GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_<n>`,
+ * `GIT_CONFIG_VALUE_<n>`, git 2.31 and later): the same effect as `-c key=value` (it overrides every config file, the
+ * repository's own included) without changing the argv. Entries already in `base` are kept; ours are appended after them.
+ */
+export function configEnv(pairs: readonly (readonly [string, string])[], base: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const raw = base.GIT_CONFIG_COUNT;
+  const n0 = typeof raw === 'string' && /^\d{1,4}$/.test(raw) ? Number(raw) : 0;
+  const out: Record<string, string> = {};
+  pairs.forEach(([k, v], i) => { out[`GIT_CONFIG_KEY_${n0 + i}`] = k; out[`GIT_CONFIG_VALUE_${n0 + i}`] = v; });
+  out.GIT_CONFIG_COUNT = String(n0 + pairs.length);
+  return out;
+}
+
+/** Diff options for every legacy call that can produce a diff (diff, diff-tree, show): no external diff driver, no textconv. */
+export const NO_DIFF_DRIVERS: readonly string[] = Object.freeze(['--no-ext-diff', '--no-textconv']);
 
 /** Read-only: the names of every configured `filter.*` key, one per line (exit 1 with no output when there is none). */
 export const FILTER_CONFIG_ARGV: readonly string[] = Object.freeze(['config', '--name-only', '--get-regexp', '^filter\\.']);
