@@ -396,3 +396,186 @@ test('W8 (Task 11 review round 2) a running container whose exit Docker cannot r
   assert.deepEqual(r.sentOf('attempt.release').map((m) => m.attemptId), [a.id]);
   w.close();
 });
+
+// ---------- B2a close: a runner restart holds lease expiry (user decision 2026-10-21) ----------
+
+const R = loadTs('src/main/nexus/exec/recovery.ts');
+const { LEASE_MS } = loadTs('src/main/nexus/exec/attempts.ts');
+
+/**
+ * The wiring over a new platform on the world's database, with a scripted runner that says `ready` only when told, and
+ * one clock for the world, the platform and the wiring's timers. The first runner is brought up (ready, probe, an
+ * empty reconcile) until the scheduler ticks.
+ */
+async function restartWorld(o = {}) {
+  const w = execWorld({ realIngest: true, ...o });
+  const { nx, logs } = platformOn(w);
+  const clock = new FakeClock(w.now());
+  const s = scriptedFork({ ready: false });
+  const handle = await startExecution({ platform: nx, userData: userDataOf(w), log: () => {}, fork: s.fork, timers: clock, now: () => w.now() });
+  /** `ms` of time in 1 s steps: the world's clock and the wiring's timers (its 1 s scheduler tick) move together. */
+  const step = (ms) => { for (let t = 0; t < ms; t += 1_000) { w.advance(1_000); clock.advance(1_000); } };
+  const child = () => s.children.at(-1);
+  const att = (id) => w.db.prepare('SELECT * FROM job_attempts WHERE id = ?').get(id);
+  const ready = async (c) => {
+    const before = c.posted.filter((m) => m.op === 'reconcile.list').length;
+    c.say({ op: 'ready', bootId: nx.bootId });
+    await until(() => c.posted.filter((m) => m.op === 'reconcile.list').length > before, 'reconcile.list');
+    c.say(w.probeMsg());
+  };
+  const answer = async (c, attempts) => {
+    const before = c.posted.length;
+    c.say({ op: 'reconcile.result', docker: 'running', attempts, labelled: [] });
+    await flush();
+    return c.posted.slice(before);
+  };
+  const settleNx = async () => {
+    for (let i = 0; i < 20; i++) {
+      await nx.exec.settled(); if (nx.validation) await nx.validation.settled();
+      await new Promise((res) => setImmediate(res)); if (nx.validation) nx.validation.runPending(w.now());
+    }
+  };
+  await ready(child());
+  await answer(child(), []);
+  await until(() => handle.ticking(), 'the scheduler ticks');
+  /** A build leased and (unless `provision` is false) provisioned by runner `c`, with one heartbeat. */
+  const build = (c, provision = 'a') => {
+    const job = nx.exec.start(w.me, w.req('sde.build.run')).job;
+    step(1_000);
+    const a = w.db.prepare("SELECT * FROM job_attempts WHERE job_id = ? AND state IN ('starting','running')").get(job.id);
+    assert.ok(a, 'leased');
+    if (provision) {
+      c.say({ op: 'attempt.provisioned', attemptId: a.id, containerId: provision.repeat(64), imageDigest: w.IMAGE['sde-node'], preflight: passingPreflight() });
+      c.say({ op: 'attempt.heartbeat', attemptId: a.id, at: w.now(), logBytes: 0, outBytes: 0, container: 'running' });
+    }
+    return { job, attempt: att(a.id) };
+  };
+  const stop = async () => { const st = handle.stop(); clock.advance(STOP_TIMEOUT_MS); await st; w.close(); };
+  return { w, nx, logs, handle, step, child, att, ready, answer, settleNx, build, stop };
+}
+
+test('W9 (B2a close) a runner restart that takes 90 s keeps a healthy attempt: its lease is held, it is adopted at the reconcile and completes with one attempt', async () => {
+  const x = await restartWorld();
+  const { w, step, att } = x;
+  const c1 = x.child();
+  const { job, attempt: a } = x.build(c1);
+  assert.equal(a.state, 'running');
+  step(10_000);                                                    // 10 s after the last heartbeat, the runner dies
+  const crashAt = w.now();
+  c1.die(1);
+  step(90_000);                                                    // restarted after 1 s, but slow: no ready for 90 s
+  const c2 = x.child();
+  assert.notEqual(c2, c1, 'the host restarted the runner');
+  assert.ok(att(a.id).lease_expires_at < w.now(), 'its lease ran out during the restart');
+  assert.equal(att(a.id).state, 'running', 'held: not runner_lost while the runner restarts');
+  assert.equal(w.jobState(job.id), 'running');
+  await x.ready(c2);                                               // ready: reconcile.list sent; the answer is slow too
+  assert.deepEqual(c2.posted.find((m) => m.op === 'reconcile.list').attempts.map((m) => m.attemptId), [a.id]);
+  step(5_000);
+  assert.equal(att(a.id).state, 'running', 'held while the reconcile is outstanding');
+  const sent = await x.answer(c2, [{ attemptId: a.id, container: 'running', containerId: a.container_id }]);
+  assert.ok(sent.some((m) => m.op === 'attempt.adopt' && m.attemptId === a.id), 'adopted');
+  assert.equal(att(a.id).lease_expires_at, w.now() + LEASE_MS, 'exactly one fresh lease at the adoption');
+  assert.ok(x.logs.some((l) => /the runner is back after \d+ s \(reconciled\); 1 held lease/.test(l)), x.logs.join('\n'));
+  for (let i = 0; i < 4; i++) {                                    // the new runner heartbeats, then the build exits
+    c2.say({ op: 'attempt.heartbeat', attemptId: a.id, at: w.now(), logBytes: 0, outBytes: 0, container: 'running' }); step(15_000);
+  }
+  c2.say({ op: 'attempt.exited', attemptId: a.id, exit: { code: 0, oomKilled: false, finishedAt: w.now() }, outputs: [w.file('dist/app.js', 'x')], parsed: [], logBytes: 100 });
+  await x.settleNx(); step(1_000); await x.settleNx();
+  assert.equal(w.jobState(job.id), 'completed');
+  const atts = w.db.prepare('SELECT * FROM job_attempts WHERE job_id = ? ORDER BY n').all(job.id);
+  assert.equal(atts.length, 1, 'one attempt'); assert.equal(atts[0].state, 'succeeded');
+  assert.ok(w.now() - crashAt > LEASE_MS, 'the restart outlasted a lease');
+  await x.stop();
+});
+
+test('W10 (B2a close) a runner that never comes back: the held attempt ends runner_lost at the bound (no request: 10 min; an unanswered request: first request + 15 min); an unavailable runner ends the hold at once', async () => {
+  const MIN = 60_000;
+  // (a) Restarted but never ready: no reconcile request; the bound is 10 minutes from when the runner was last seen live.
+  {
+    const x = await restartWorld();
+    const { w, step, att } = x;
+    const { attempt: a } = x.build(x.child());
+    const crashAt = w.now();
+    x.child().die(1);
+    let failedAt = null;
+    while (failedAt === null && w.now() - crashAt < 20 * MIN) { step(1_000); if (att(a.id).state !== 'running') failedAt = w.now(); }
+    assert.ok(failedAt !== null, 'ended');
+    assert.equal(att(a.id).state, 'failed'); assert.equal(att(a.id).outcome, 'runner_lost');
+    assert.ok(failedAt - crashAt >= R.RECONCILE_BOUND_MS - 1_000 && failedAt - crashAt <= R.RECONCILE_BOUND_MS + 2_000,
+      `at the bound (${(failedAt - crashAt) / 1000} s after the crash)`);
+    assert.ok(x.logs.some((l) => /lease hold ended \(the runner did not reconcile within the bound\)/.test(l)));
+    await x.stop();
+  }
+  // (b) Ready, reconcile.list sent, never answered: the bound waits for the answer, at most the first request + 15 minutes.
+  // The build's own 15-minute wall clock would end it first, so this one is given an hour: the bound is what ends it.
+  {
+    const x = await restartWorld();
+    const { w, step, att } = x;
+    const { job, attempt: a } = x.build(x.child());
+    w.db.prepare("UPDATE jobs SET limits_json = json_set(limits_json, '$.wallClockMs', ?) WHERE id = ?").run(60 * MIN, job.id);
+    x.child().die(1);
+    step(30_000);
+    const c2 = x.child();
+    await x.ready(c2);
+    const requestedAt = w.now();
+    let failedAt = null;
+    while (failedAt === null && w.now() - requestedAt < 20 * MIN) {
+      step(1_000);
+      if (w.now() - requestedAt === 12 * MIN) await x.ready(c2);   // a later ready asks again: it never moves the bound
+      if (att(a.id).state !== 'running') failedAt = w.now();
+    }
+    assert.ok(failedAt !== null, 'ended');
+    assert.equal(att(a.id).outcome, 'runner_lost');
+    const bound = R.RECONCILE_BOUND_MS + R.RECONCILE_WAIT_CAP_MS;
+    assert.ok(failedAt - requestedAt >= bound && failedAt - requestedAt <= bound + 2_000, `at the first request + 15 minutes (${(failedAt - requestedAt) / 1000} s)`);
+    await x.stop();
+  }
+  // (c) Supervision gives up (unavailable): nothing is coming back, so the held lease runs out at once.
+  {
+    const x = await restartWorld();
+    const { w, step, att } = x;
+    const { attempt: a } = x.build(x.child());
+    const crashAt = w.now();
+    for (let i = 0; i < 6 && x.handle.host.state() !== 'unavailable'; i++) { x.child().die(1); step(31_000); }
+    assert.equal(x.handle.host.state(), 'unavailable');
+    step(LEASE_MS);
+    assert.equal(att(a.id).outcome, 'runner_lost');
+    assert.ok(w.now() - crashAt < 5 * MIN, 'long before the bound');
+    assert.ok(x.logs.some((l) => /lease hold ended \(the runner is unavailable\)/.test(l)));
+    await x.stop();
+  }
+});
+
+test('W11 (B2a close) after the reconcile nothing stays held: a container reported missing is decided at the answer, an adopted one that vanishes fails at once, a start the runner never recorded runs out within its remaining lease', async () => {
+  const MIN = 60_000;
+  const x = await restartWorld({ dockerMemoryBytes: 64 * 2 ** 30 });   // room for three builds at once
+  const { w, step, att } = x;
+  const c1 = x.child();
+  const gone = x.build(c1, 'a');
+  const vanish = x.build(c1, 'b');
+  const unrecorded = x.build(c1, false);                           // leased, attempt.start sent, never provisioned
+  assert.equal(unrecorded.attempt.state, 'starting');
+  step(5_000);
+  c1.die(1);
+  step(90_000);
+  for (const a of [gone.attempt, vanish.attempt, unrecorded.attempt]) assert.ok(['starting', 'running'].includes(att(a.id).state), 'held during the restart');
+  const c2 = x.child();
+  await x.ready(c2);
+  const answeredAt = w.now();
+  const sent = await x.answer(c2, [{ attemptId: gone.attempt.id, container: 'missing' },
+    { attemptId: vanish.attempt.id, container: 'running', containerId: vanish.attempt.container_id }]);
+  // Missing at the reconcile: abandoned at the answer, never completed.
+  assert.equal(att(gone.attempt.id).state, 'abandoned');
+  assert.ok(!['running', 'leased', 'completed'].includes(w.jobState(gone.job.id)), w.jobState(gone.job.id));
+  // Adopted, then its container goes: container_vanished on the heartbeat that says so, at once.
+  assert.ok(sent.some((m) => m.op === 'attempt.adopt' && m.attemptId === vanish.attempt.id));
+  c2.say({ op: 'attempt.heartbeat', attemptId: vanish.attempt.id, at: w.now(), logBytes: 0, outBytes: 0, container: 'missing' });
+  assert.equal(att(vanish.attempt.id).outcome, 'container_vanished');
+  // Not reconciled (no container recorded): it keeps only the lease it had left, then fails runner_lost.
+  let lostAt = null;
+  while (lostAt === null && w.now() - answeredAt < 5 * MIN) { step(1_000); if (att(unrecorded.attempt.id).state !== 'starting') lostAt = w.now(); }
+  assert.equal(att(unrecorded.attempt.id).outcome, 'runner_lost');
+  assert.ok(lostAt - answeredAt <= LEASE_MS, `within its remaining lease after the answer (${(lostAt - answeredAt) / 1000} s), not at the bound`);
+  await x.stop();
+});

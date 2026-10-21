@@ -63,6 +63,17 @@
  * later requests never move it, so a crash-looping runner cannot postpone it); while a request is outstanding (no phase
  * B since it), it waits up to RECONCILE_WAIT_CAP_MS (5 minutes) more: at most 15 minutes from the first request.
  *
+ * A mid-session runner restart (B2a close, user decision 2026-10-21; `runnerOutageHoldEnded` says when the hold ends):
+ * while the runner is known to be restarting (main's port is not attached or not `ready`, or a reconcile requested
+ * since it went away has had no phase B), main does not expire the leases of the attempts this boot held when it went
+ * away. When the answer comes, those leases move by the downtime BEFORE phase B decides (an adopted attempt then gets
+ * its one fresh lease; one phase B leaves alone, such as a start whose container was never recorded, keeps only what
+ * was left of its lease). The hold is bounded like the reconcile bound: RECONCILE_BOUND_MS from the later of the outage
+ * start and the first reconcile request during it, plus up to RECONCILE_WAIT_CAP_MS while that request is outstanding,
+ * so at most the first request + 15 minutes. At the bound, or once the runner is `unavailable` (supervision gave up),
+ * the hold ends without an extension and the sweep fails those attempts `runner_lost`. A runner that is `ready` again
+ * without a reconcile request ends the hold with the extension (no answer is coming; its heartbeats decide).
+ *
  * Leases and stall history (carried decision 8): the old process's in-memory stall record is gone at a restart, so
  * every attempt recovery adopts or re-owns gets exactly ONE fresh LEASE_MS from the recovery's `now`, and the wall
  * clock of an adopted running attempt counts the downtime (only approval waits are excluded). An adopted attempt that
@@ -142,6 +153,10 @@ export const RUNNER_RECOVERY_CONTRACT: readonly string[] = Object.freeze([
   'exec.recoverBlobStore(system) runs once per app start: after phase B and before the scheduler\'s first tick. Not at a '
     + 'mid-session runner restart: the scheduler is running then, and the pass holds the blob store\'s exclusive lock '
     + '(leases and ingests would wait); what a dead runner left in objects/tmp is swept at the next app start.',
+  'A mid-session runner restart holds lease expiry: while main\'s port is not `ready`, or a reconcile requested since the '
+    + 'runner went away has had no phase B, the attempts this boot held keep their leases; at the answer they move by the '
+    + 'downtime before phase B decides. The hold ends at the reconcile bound (at most the first request + 15 minutes) or '
+    + 'when the runner is `unavailable`, and those attempts then fail `runner_lost` in the sweep.',
   'If no phase B adopts or decides an attempt phase A left pending within the reconcile bound, it fails `runner_lost` '
     + '(a durable exit keeps waiting for finalization) and main sends `attempt.cancel` (grace 10 s, reason `timeout`) '
     + 'when a runner is attached: the runner stops that container and keeps its scratch; the next phase B lists it '
@@ -386,6 +401,15 @@ export function reconcileBoundDue(s: { recoveredAt: number; requestedAt: number 
   const deadline = Math.max(s.recoveredAt, s.requestedAt ?? s.recoveredAt) + RECONCILE_BOUND_MS;
   if (now < deadline) return false;
   return !(s.outstanding && s.requestedAt !== null && now < deadline + RECONCILE_WAIT_CAP_MS);
+}
+
+/**
+ * Whether a mid-session runner restart's lease hold has ended at `now` (B2a close): the reconcile bound, anchored at the
+ * outage start (`since`, when the runner was last seen live) and the FIRST reconcile request during the outage, waiting
+ * up to RECONCILE_WAIT_CAP_MS more while that request has had no answer. At most the first request + 15 minutes. Pure.
+ */
+export function runnerOutageHoldEnded(o: { since: number; requestedAt: number | null; answered: boolean }, now: number): boolean {
+  return reconcileBoundDue({ recoveredAt: o.since, requestedAt: o.requestedAt, outstanding: o.requestedAt !== null && !o.answered }, now);
 }
 
 /** Whether an attempt's exit is durable: its job collects outputs, or the exit's `attempt.output` event was written. */

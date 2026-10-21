@@ -65,6 +65,10 @@
  * - Heartbeats extend the lease and set `heartbeat_at` only (no activity, no event). The message
  *   handler keeps the latest one per attempt in memory; the next tick (every second) writes them
  *   all in one transaction before it sweeps leases. A 45 s gap writes one `attempt.heartbeat_gap` event.
+ * - A mid-session runner restart (B2a close) holds lease expiry for the attempts this boot held when the runner went
+ *   away, while the port is not `ready` or the reconcile requested since then has had no answer; at the answer their
+ *   leases move by the downtime before phase B decides. Bounded by the reconcile bound (at most the first request + 15
+ *   minutes) and ended at once when the runner is `unavailable` (recovery.ts, `runnerOutageHoldEnded`).
  * - Every job transition writes one activity row (JobService) and one `job_events` row in the
  *   same transaction. Recovery (Task 10, recovery.ts) rebuilds from these rows: live attempts are exactly
  *   the `starting` and `running` ones, each with its lease owner. `recoverPhaseA` runs at platform startup
@@ -130,7 +134,7 @@ import { homeLabel } from '../../../shared/nexus/homeLabel';
 import type { RunnerPort } from './runnerPort';
 import { backoffMs, DEFAULT_CAPS, leaseGuard, SOLO_MEMORY_SHARE, usableImage, type LiveUse, type ProbeCache, type SchedulerCaps } from './scheduler';
 import {
-  contractMet, exitFailure, failUnreconciled, reconcileBoundDue, recoverBlobStore, recoverPhaseA, recoverPhaseB, reconcileList,
+  contractMet, exitFailure, failUnreconciled, reconcileBoundDue, recoverBlobStore, recoverPhaseA, recoverPhaseB, reconcileList, runnerOutageHoldEnded,
   type BlobStoreFiles, type BlobSweepReport, type PhaseAReport, type PhaseBReport, type ReconcileResult, type RecoveryHost
 } from './recovery';
 
@@ -493,6 +497,15 @@ export class ExecutionService {
   private rawImages: ImageStatus[] | null = null;
   /** When the expiry sweep and the dev deployments' pass last ran (cadence only; the rows decide). */
   private lastExpiryAt: number | null = null;
+  /**
+   * A mid-session runner restart (B2a close, user decision 2026-10-21). `since`: when the scheduler last saw the runner
+   * live (the downtime counts from it); `requestedAt`: the first reconcile request during the outage (null: none yet);
+   * `held`: the live attempts this boot owned when the outage opened (only their leases are held, never an attempt
+   * leased later); `lifted`: the hold ended without an extension (the bound, or the runner is unavailable).
+   */
+  private outage: { since: number; requestedAt: number | null; held: Set<string>; lifted: boolean } | null = null;
+  /** When a tick last saw the port `ready` with no outage open (null: never, so a ready port is the app start). */
+  private lastLiveAt: number | null = null;
   private lastDeploymentPassAt: number | null = null;
   private lastImagePassAt: number | null = null;
 
@@ -1154,6 +1167,7 @@ export class ExecutionService {
       this.flushHeartbeats();
       if (stalled) this.recordStall(gap, now, firstOfStreak);
       this.requeueDue(now);
+      this.trackRunnerOutage(now);
       this.sweep(now, firstOfStreak);
       // Probing is independent of leasing: a runner that only answers probes recovers from the send-failure flag.
       if ((firstOfStreak && this.port) || (this.portReady() && (this.probeSentAt === null || now - this.probeSentAt >= this.caps.probeRefreshMs))) this.sendProbe(now);
@@ -1303,7 +1317,9 @@ export class ExecutionService {
       }
       // A lease that ran out without a heartbeat: the runner is gone for this attempt (an approval wait holds no lease).
       if (stalled) continue;               // the first tick after a stall: no lease expiry and no gap event
-      if (r.lease_expires_at < now && r.job_state !== 'awaiting_approval' && r.phase !== 'approval') { this.runnerLost(r.attempt_id, now); continue; }
+      // B2a close: an attempt the runner held when it went away keeps its lease while the runner restarts (bounded).
+      const held = this.outage !== null && !this.outage.lifted && this.outage.held.has(r.attempt_id);
+      if (!held && r.lease_expires_at < now && r.job_state !== 'awaiting_approval' && r.phase !== 'approval') { this.runnerLost(r.attempt_id, now); continue; }
       if (r.attempt_state === 'running') {
         const last = r.heartbeat_at ?? r.started_at ?? r.created_at;
         if (now - last >= HEARTBEAT_GAP_MS && !this.gapFlagged.has(r.attempt_id)) {
@@ -1313,6 +1329,70 @@ export class ExecutionService {
         }
       }
     }
+  }
+
+  // ---------- a mid-session runner restart (B2a close) ----------
+
+  /** The port's state as a tick sees it (null: no port attached). */
+  private portStateNow(): string | null {
+    try { return this.port ? this.port.state() : null; } catch { return 'unavailable'; }
+  }
+
+  /**
+   * Opens the outage of a runner the scheduler saw live (never at the app start: `lastLiveAt` is null until a tick saw
+   * the port ready), holding the leases of the attempts this boot owns now. With no such attempt there is nothing to hold.
+   */
+  private openOutage(now: number, requested: boolean): void {
+    if (this.outage !== null || this.bootId === null || this.lastLiveAt === null) return;
+    const held = new Set((cachedStmt(this.db, "SELECT id FROM job_attempts WHERE state IN ('starting','running') AND lease_owner = ?")
+      .all(this.bootId) as { id: string }[]).map((r) => r.id));
+    if (held.size === 0) return;
+    this.outage = { since: Math.min(this.lastLiveAt, now), requestedAt: requested ? now : null, held, lifted: false };
+    this.log(`[nexus] exec: the runner is restarting; the leases of ${held.size} live attempt(s) are held until it reconciles (bounded)`);
+  }
+
+  /** Once per tick, before the sweep: opens, ends or lifts the hold from the port's state and the reconcile bound. */
+  private trackRunnerOutage(now: number): void {
+    if (this.bootId === null) return;
+    const st = this.portStateNow();
+    const o = this.outage;
+    if (o === null) {
+      if (st === 'ready') this.lastLiveAt = now;
+      else if (st !== 'unavailable') this.openOutage(now, false);   // crashed, starting, or no port attached
+      return;
+    }
+    // Ready again without a reconcile request: no answer is coming, so the held attempts' own heartbeats decide.
+    if (st === 'ready' && o.requestedAt === null) { this.endOutage(now, 'ready without a reconcile'); this.lastLiveAt = now; return; }
+    if (o.lifted) return;
+    if (st === 'unavailable') { this.liftOutage('the runner is unavailable'); return; }
+    if (runnerOutageHoldEnded({ since: o.since, requestedAt: o.requestedAt, answered: false }, now)) this.liftOutage('the runner did not reconcile within the bound');
+  }
+
+  /** The hold ends without an extension: the sweep fails the held attempts whose lease ran out `runner_lost`. */
+  private liftOutage(why: string): void {
+    if (!this.outage || this.outage.lifted) return;
+    this.outage.lifted = true;
+    this.log(`[nexus] exec: lease hold ended (${why}); ${this.outage.held.size} held lease(s) run out`);
+  }
+
+  /**
+   * The runner is back (its reconcile answer, or ready with no request): the held attempts that are still live and this
+   * boot's get their leases moved by the downtime, so each keeps what it had left when the runner went away. A lifted
+   * hold extends nothing. Runs BEFORE phase B decides, so an adopted attempt still gets exactly one fresh lease.
+   */
+  private endOutage(now: number, why: string): void {
+    const o = this.outage;
+    this.outage = null;
+    this.lastLiveAt = now;
+    if (!o || o.lifted || this.bootId === null) return;
+    const boot = this.bootId;
+    const downtime = Math.max(0, now - o.since);
+    let n = 0;
+    immediateTx(this.db, () => {
+      const st = cachedStmt(this.db, "UPDATE job_attempts SET lease_expires_at = lease_expires_at + ? WHERE id = ? AND state IN ('starting','running') AND lease_owner = ?");
+      for (const id of o.held) n += st.run(downtime, id, boot).changes;
+    });
+    this.log(`[nexus] exec: the runner is back after ${Math.round(downtime / 1000)} s (${why}); ${n} held lease(s) moved by the downtime`);
   }
 
   /**
@@ -1867,7 +1947,11 @@ export class ExecutionService {
    */
   recoverPhaseB(system: Principal, bootId: string, reconcile: ReconcileResult): PhaseBReport {
     this.requireRecoveryBoot(bootId);
-    const report = recoverPhaseB(this.recoveryHost(), system, bootId, reconcile, this.deps.now());
+    const now = this.deps.now();
+    // B2a close: the runner answered; the held leases move by the downtime before phase B decides (even when the answer
+    // turns out malformed: the runner is back, so what it does not pick up runs out within its remaining lease).
+    if (this.outage !== null) this.endOutage(now, 'reconciled');
+    const report = recoverPhaseB(this.recoveryHost(), system, bootId, reconcile, now);
     // The answer to the outstanding reconcile request has been applied.
     this.reconcileOutstanding = false;
     return report;
@@ -1919,8 +2003,13 @@ export class ExecutionService {
     if (!this.deps.available) return [];
     // Main calls this exactly when it sends `reconcile.list`: the reconcile bound waits for the answer.
     // Only the first request after phase A anchors the bound: a crash-looping runner's later requests never move it.
-    if (this.reconcileRequestedAt === null) this.reconcileRequestedAt = this.deps.now();
+    const now = this.deps.now();
+    if (this.reconcileRequestedAt === null) this.reconcileRequestedAt = now;
     this.reconcileOutstanding = true;
+    // B2a close: a request at a runner restart the scheduler did not see (crash and ready between two ticks) opens the
+    // hold; the first request during an outage anchors its bound.
+    if (this.outage === null) this.openOutage(now, true);
+    else if (this.outage.requestedAt === null) this.outage.requestedAt = now;
     return reconcileList(this.db);
   }
 

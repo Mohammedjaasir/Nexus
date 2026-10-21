@@ -1130,7 +1130,7 @@ Three runners apply. `test:db` runs every `nexus-db-*` and `nexus-platform-*` fi
 | `test/nexus-platform-exec-validation.test.cjs` | `test:db` | Ingest, validators, finalize, revalidate, dedupe, evidence shape, and O10 to O17 (N1 to N12, E1 to E14, R1 to R15, S1 to S5) |
 | `test/nexus-platform-exec-approvals.test.cjs` | `test:db` | Approvals A1 to A10, image builds, dev deployments D1 to D10, snapshots R1 to R4, and the bypass and secret sweeps |
 | `test/nexus-platform-exec-recovery.test.cjs` | `test:db` | Restart recovery RC1 to RC20, D1 to D11, F1 to F8 and G1 to G7: the six restart states of constraint 10, durable exits, orphan scoping and the reconcile bound |
-| `test/nexus-platform-exec-wiring.test.cjs` | `test:db` | `startExecution` and the runner host: restarts, reconcile routing, the blob pass, the hint, quit (H1 to H3, W1 to W8) |
+| `test/nexus-platform-exec-wiring.test.cjs` | `test:db` | `startExecution` and the runner host: restarts, reconcile routing, the blob pass, the hint, quit, and the lease hold during a runner restart (H1 to H3, W1 to W11) |
 | `test/nexus-platform-exec-recipes.test.cjs` | `test:db` | X1 to X12 and the F-* flows through the fake sandbox driver, with real main, runner, git, hashing and parsers |
 | `test/nexus-platform-ipc-exec.test.cjs` | `test:db` | Channels #22 to #41 and `nexus:hint` through the wrapper: hostile arguments, envelopes and the push rate |
 | `test/nexus-platform-exec-security.test.cjs` | `test:db` | The constraint 11 sweep (S1 to S9): unauthorized execution and file access, traversal, references, secrets, approval and network bypass, malformed requests |
@@ -3187,6 +3187,17 @@ The cost of the ruling: **resources left by a deleted data home are never remove
 
 On a v9 file whose execution is off, phase A recovers only jobs without a live attempt, by B1's rule. It writes no v9 table. Jobs with a live attempt are left exactly as they are for the next start with execution on.
 
+### 35.8 A mid-session runner restart
+
+When only the runner `utilityProcess` restarts, main keeps its boot id, so the live attempts stay this boot's and the lease sweep applies to them. A 60 s lease can run out before a slow restart's phase B reaches them (L13/L14 under heavy load). So main holds lease expiry during the restart (B2a close, user decision 2026-10-21):
+- **When the hold opens.** A tick sees the port not attached, `crashed` or `starting` after it had seen it `ready`, or a reconcile request arrives at a restart no tick saw. The hold covers the attempts this boot owned at that moment, never an attempt leased later.
+- **While it holds.** Those attempts are not failed `runner_lost` by the sweep. Their wall clock still runs, and a heartbeat gap is still recorded.
+- **When the runner answers.** At its `reconcile.result`, and before phase B decides, each held attempt that is still live has its lease moved by the downtime (from when the scheduler last saw the runner live). An adopted attempt then gets its one fresh lease as usual. One that phase B leaves alone, such as a start whose container was never recorded, keeps only what was left of its lease. A port that is `ready` again without a reconcile request ends the hold the same way, because no answer is coming.
+- **The bound.** It is the reconcile bound of [section 35.3](#353-the-reconcile-bound), anchored at the outage: 10 minutes from the later of the outage start and the first reconcile request during it, plus up to 5 minutes while that request has no answer. So the hold lasts at most until the first request + 15 minutes. At the bound, the hold ends without an extension, and the sweep fails the held attempts `runner_lost`.
+- **A runner that will not come back.** When the host gives up (`unavailable`), the hold ends at once, without an extension.
+
+A main restart needs no hold: the new process has a new boot id, so the attempts of the old boot are outside the lease sweep, and the reconcile bound of [section 35.3](#353-the-reconcile-bound) ends them. Tests: W9 to W11 in `test/nexus-platform-exec-wiring.test.cjs`.
+
 The runner side of all this is exported as `RUNNER_RECOVERY_CONTRACT` (`src/main/nexus/exec/recovery.ts`).
 
 ---
@@ -3724,6 +3735,7 @@ Each item records what the code does now, and the code wins. The "Ruling" lines 
 | `stop_reason` | The CHECK was widened before v9 shipped, so that a row stores the true end cause (Task 9 ruling). | In effect. |
 | Orphan rule | **Plan R.2's orphan rule is superseded.** Removal is scoped by `nexus.home` plus a `nexus.attempt` of an ended attempt in this database (Task 10 ruling). | In effect ([section 35.5](#355-orphan-scoping)). |
 | Durable exits | Durable exits are adopted for finalization whatever the Docker state. The bound is anchored to the first reconcile request, plus up to 5 minutes. | In effect. |
+| Runner restart | While the runner restarts, lease expiry is held for the attempts it held. At its reconcile answer, their leases move by the downtime. The hold is bounded by the reconcile bound (at most the first request + 15 minutes), and it ends at once when the runner is `unavailable` ([section 35.8](#358-a-mid-session-runner-restart)). | Ruled (user, 2026-10-21). |
 | RC3, RC9 | The v7 job table has no `running → queued`. A recovered running job goes through `retry_scheduled`, or is interrupted. A running main check is interrupted and queued again as a new job. | Accepted deviations. |
 | Ingest timing | Ingest runs synchronously when nothing contends for the lock. It is async only for snapshots and GC waits. It always runs after the exit is durable. | Accepted. |
 | Builds | A build is keyed by (commit, tree), not by tree alone (Task 12 ruling). | In effect. |

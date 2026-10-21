@@ -5,6 +5,11 @@
  * - At every runner `ready` (app start and every runner restart) main sends `reconcile.list` (built from
  *   `exec.reconcileCandidates()`, which records nothing) and calls `exec.reconcileList()` only once the send succeeded
  *   (that call records the request for the reconcile bound: a request that never left is never waited for).
+ * - A mid-session runner restart (B2a close): the host's port reads `crashed`/`starting` until the new runner says
+ *   `ready`, and the reconcile request at that `ready` stays outstanding until its `reconcile.result`. The core holds
+ *   lease expiry for the attempts the old runner held over that whole span, and moves their leases by the downtime when
+ *   the answer reaches `recoverPhaseB` (bounded by the reconcile bound; ended at once when the host is `unavailable`).
+ *   The ready handler below must therefore call `exec.reconcileList()` synchronously, before any tick can run.
  * - The runner's `reconcile.result` goes to `exec.recoverPhaseB(system, platform.bootId, result)` (the core's own
  *   `onRunnerMessage` never sees it). Phase B's removal list is handed to the runner (`reconcile.remove`; it removes
  *   only resources labelled with this install's `nexus.home` and a `nexus.attempt`) and recorded once
