@@ -33,7 +33,9 @@ function guardedTables(ddl) {
 }
 // Derived from V7_DDL and V8_DDL, so a newly guarded table is protected without editing a list.
 // nexus_migrations has no trigger but is an append-only record by policy, so it is named here.
-const GUARDED = new Set([...guardedTables(ddlText('schemaV7.ts', 'V7_DDL')), ...guardedTables(ddlText('schemaV8.ts', 'V8_DDL')), ...guardedTables(ddlText('schemaV9.ts', 'V9_DDL'))]);
+// B2b Task 2 (named edit): V10_DDL is derived from too.
+const GUARDED = new Set([...guardedTables(ddlText('schemaV7.ts', 'V7_DDL')), ...guardedTables(ddlText('schemaV8.ts', 'V8_DDL')), ...guardedTables(ddlText('schemaV9.ts', 'V9_DDL')),
+  ...guardedTables(ddlText('schemaV10.ts', 'V10_DDL'))]);
 const PROTECTED = new Set([...GUARDED, 'nexus_migrations']);
 // "<file relative to src/main/nexus>:<table>" entries that are allowed, each with a reason.
 // Empty: at e2fceec plus Task 1 no platform code uses OR REPLACE or DO UPDATE at all.
@@ -112,6 +114,12 @@ test('no OR REPLACE or DO UPDATE aimed at an append-only or immutable platform t
     }
   }
   assert.deepEqual(bad, []);
+});
+
+test('B2b Task 2: every v10 table is protected (each has a no-delete trigger)', () => {
+  for (const t of ['capability_tokens', 'reviews', 'change_set_accepts', 'repo_merges', 'runtime_consents', 'session_worktrees']) {
+    assert.ok(PROTECTED.has(t), t);
+  }
 });
 
 test('B2a Task 4 fix round 1: every append-only or immutable v9 table is protected, version_attempts included', () => {
