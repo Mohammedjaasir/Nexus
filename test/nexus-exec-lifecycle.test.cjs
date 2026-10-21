@@ -182,13 +182,17 @@ if (realDockerOrSkip()) {
     }
     // The distribution behind the bounds below, printed for the record (B2a stabilization).
     const pct = (xs, q) => [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(xs.length * q))];
-    console.log(`# L11 exec.list + exec.get n ${calls.length} p50 ${pct(calls, 0.5).toFixed(2)} p95 ${pct(calls, 0.95).toFixed(2)} max ${Math.max(...calls).toFixed(2)} ms; `
+    console.log(`# L11 exec.list + exec.get n ${calls.length} p50 ${pct(calls, 0.5).toFixed(2)} p95 ${pct(calls, 0.95).toFixed(2)} p99 ${pct(calls, 0.99).toFixed(2)} max ${Math.max(...calls).toFixed(2)} ms; `
       + `event-loop lag p99 ${(lag.percentile(99) / 1e6).toFixed(1)} max ${(lag.max / 1e6).toFixed(1)} ms`);
     // Final review B6: the 99th percentile under 100 ms (main stays responsive), and no single stall of half a second or more
     // (a one-off GC or OS hiccup of a loaded test machine is not a responsiveness failure; a blocked loop still is).
     assert.ok(lag.percentile(99) / 1e6 < 100, `L11: event-loop lag p99 ${(lag.percentile(99) / 1e6).toFixed(1)} ms`);
     assert.ok(lag.max / 1e6 < 500, `L11: event-loop lag max ${(lag.max / 1e6).toFixed(1)} ms`);
-    assert.ok(Math.max(...calls) < 50, `L11: exec.list + exec.get max ${Math.max(...calls).toFixed(1)} ms`);
+    // B2a close (user decision 2026-10-21): the 50 ms bound holds at the 99th percentile of the list + get samples, and no
+    // single sample may reach 250 ms. Measurements showed the max alone is decided by whole-process OS stalls of a loaded
+    // machine (no GC, no page faults, a pure-JS control stalling alike), not by the calls' own cost.
+    assert.ok(pct(calls, 0.99) < 50, `L11: exec.list + exec.get p99 ${pct(calls, 0.99).toFixed(1)} ms`);
+    assert.ok(Math.max(...calls) < 250, `L11: exec.list + exec.get max ${Math.max(...calls).toFixed(1)} ms`);
   });
 
   test('L8 Docker unavailable (a pipe that does not exist): the probe says stopped, a job waits waiting:docker, the action is unavailable with its setup reason', LONG, async () => {
