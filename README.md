@@ -1,35 +1,12 @@
 <p align="center">
-  <img src="doc/assets/banner.jpg" alt="Nexus is the app people use to manage AI agents for work." width="720" />
-</p>
-
-<p align="center">
   <a href="#quickstart"><strong>Quickstart</strong></a> &middot;
-  <a href="https://docs.paperclip.ing"><strong>Docs</strong></a> &middot;
-  <a href="https://github.com/paperclipai/paperclip"><strong>GitHub</strong></a> &middot;
-  <a href="https://discord.gg/nexusai"><strong>Discord</strong></a> &middot;
-  <a href="https://x.com/nexusing"><strong>Twitter</strong></a> &middot;
-  <a href="https://paperclip.ing"><strong>Website</strong></a>
+  <a href="docs/start/what-is-nexus.md"><strong>Docs</strong></a> &middot;
+  <a href="https://github.com/Mohammedjaasir/Nexus"><strong>GitHub</strong></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/paperclipai/paperclip/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a>
-  <a href="https://github.com/paperclipai/paperclip/stargazers"><img src="https://img.shields.io/github/stars/nexusai/nexus?style=flat" alt="Stars" /></a>
-  <a href="https://discord.gg/nexusai"><img src="https://img.shields.io/badge/discord-join-7289da" alt="Discord" /></a>
-  <a href="https://superagent.sh"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.superagent.sh/api/badge/nexusai/nexus/shield.svg?theme=dark&accent=teal&variant=scanned" /><img src="https://www.superagent.sh/api/badge/nexusai/nexus/shield.svg?theme=light&accent=teal&variant=scanned" alt="Security posture verified by Superagent" /></picture></a>
-</p>
-
-<p align="center">
-  <a href="https://www.star-history.com/nexusai/nexus"><img src="https://api.star-history.com/badge?repo=paperclipai/paperclip" alt="Star History Rank" /></a>
-</p>
-
-<br/>
-
-<div align="center">
-  <video src="https://github.com/user-attachments/assets/773bdfb2-6d1e-4e30-8c5f-3487d5b70c8f" width="600" controls></video>
-</div>
-
-<p align="center">
-  <a href="https://paperclip.ing/waitlist/"><strong>Sign up for the Nexus Cloud waitlist →</strong></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a>
+  <a href="https://github.com/Mohammedjaasir/Nexus/stargazers"><img src="https://img.shields.io/github/stars/Mohammedjaasir/Nexus?style=flat" alt="Stars" /></a>
 </p>
 
 <br/>
@@ -77,7 +54,7 @@ It looks like a task manager. Under the hood: org charts, budgets, governance, g
 
 </div>
 
-Custom processes, HTTP endpoints, and external adapter packages extend the roster. See the [adapter overview](https://docs.paperclip.ing/reference/adapters/overview/) for setup and capabilities.
+Custom processes, HTTP endpoints, and external adapter packages extend the roster. See the [adapter overview](docs/adapters/overview.md) for setup and capabilities.
 
 <br/>
 
@@ -96,12 +73,6 @@ Custom processes, HTTP endpoints, and external adapter packages extend the roste
 ## The four pillars
 
 Four things have to work for an organization of AI agents to actually produce: the tasks, the org, the training, and the infrastructure. Nexus is built around exactly those four pillars.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/paperclipai/paperclip/1ec33ffd8b597f7e36aac3e2fbb4665b8c42dc3c/doc/assets/four-pillars-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/paperclipai/paperclip/1ec33ffd8b597f7e36aac3e2fbb4665b8c42dc3c/doc/assets/four-pillars-light.png">
-  <img src="https://raw.githubusercontent.com/paperclipai/paperclip/1ec33ffd8b597f7e36aac3e2fbb4665b8c42dc3c/doc/assets/four-pillars-light.png" alt="The four pillars of Nexus">
-</picture>
 
 | Pillar | Built for | What it covers |
 | --- | --- | --- |
@@ -132,7 +103,7 @@ Agents wake for assigned work, follow-up messages, or configured schedules. Dele
 <tr>
 <td align="center">
 <h3>💰 Cost Control</h3>
-Company, agent, and project <a href="https://docs.paperclip.ing/guides/day-to-day/costs/">budgets</a>. Track reported spend, get threshold alerts, and pause work at configured limits.
+Company, agent, and project <a href="docs/guides/board-operator/costs-and-budgets.md">budgets</a>. Track reported spend, get threshold alerts, and pause work at configured limits.
 </td>
 <td align="center">
 <h3>🏢 Multi-Organization</h3>
@@ -146,7 +117,7 @@ Keep conversations, plans, blockers, files, and run history attached to the work
 <tr>
 <td align="center">
 <h3>🛡️ Governance</h3>
-Configure <a href="https://docs.paperclip.ing/guides/day-to-day/approvals/">review and approval stages</a>, approve hires, and pause, reassign, or stop work when needed.
+Configure <a href="docs/guides/board-operator/approvals.md">review and approval stages</a>, approve hires, and pause, reassign, or stop work when needed.
 </td>
 <td align="center">
 <h3>📊 Org Chart</h3>
@@ -160,29 +131,29 @@ Monitor and manage your autonomous businesses from anywhere.
 <tr>
 <td align="center">
 <h3>🔗 Apps & Connections</h3>
-<a href="https://docs.paperclip.ing/connectors/">Connect services</a> such as GitHub, Notion, and Railway, or your own MCP server. Set gateway actions to Allowed, Ask first, or Off.
+Connect services such as GitHub, Notion, and Railway, or your own MCP server. Set gateway actions to Allowed, Ask first, or Off.
 </td>
 <td align="center">
 <h3>👥 Shared Agents, Personal Accounts</h3>
-Choose <a href="https://docs.paperclip.ing/connectors/access-model/">who can use a connection and which agents can access it</a>. Managed GitHub operations can use the account of the person directing the work.
+Choose who can use a connection and which agents can access it. Managed GitHub operations can use the account of the person directing the work.
 </td>
 <td align="center">
 <h3>🧠 Skills & Skill Studio</h3>
-Install or write <a href="https://docs.paperclip.ing/guides/org/skills/">shared skills</a>, test them with saved inputs, inspect results, and restore earlier versions.
+Install or write <a href="docs/guides/agent-developer/writing-a-skill.md">shared skills</a>, test them with saved inputs, inspect results, and restore earlier versions.
 </td>
 </tr>
 <tr>
 <td align="center">
 <h3>📅 Scheduled Routines</h3>
-Run <a href="https://docs.paperclip.ing/guides/projects-workflow/routines/">recurring work</a> on a schedule or trigger it through an API or webhook. Each run has a task, an owner, and a history.
+Run recurring work on a schedule or trigger it through an API or webhook. Each run has a task, an owner, and a history.
 </td>
 <td align="center">
 <h3>📎 Artifacts & Feedback</h3>
-Find the <a href="https://docs.paperclip.ing/guides/day-to-day/artifacts/">files and documents agents produce</a>. Preview supported formats and leave comments on specific passages in documents.
+Find the files and documents agents produce. Preview supported formats and leave comments on specific passages in documents.
 </td>
 <td align="center">
 <h3>📦 Ready-Made Teams</h3>
-Preview and install <a href="https://docs.paperclip.ing/guides/org/team-catalog/">teams</a> with roles, skills, projects, and routines. Choose their runtimes and make the setup your own.
+Preview and install teams with roles, skills, projects, and routines. Choose their runtimes and make the setup your own.
 </td>
 </tr>
 </table>
@@ -305,7 +276,7 @@ Nexus is a full control plane, not a wrapper. Before you build any of this yours
 <tr>
 <td>
 
-**[Plugins](https://docs.paperclip.ing/administration/plugins/)** — Instance-wide plugin system with out-of-process workers, capability-gated host services, job scheduling, tool exposure, and UI contributions. Extend Nexus without forking it.
+**Plugins** — Instance-wide plugin system with out-of-process workers, capability-gated host services, job scheduling, tool exposure, and UI contributions. Extend Nexus without forking it.
 
 </td>
 <td>
@@ -322,7 +293,7 @@ Nexus is a full control plane, not a wrapper. Before you build any of this yours
 </td>
 <td>
 
-**[Company Portability](https://docs.paperclip.ing/guides/power/export-import/)** — Preview, export, and import organization packages with agents, skills, and optional projects, routines, tasks, and attachments. Referenced secret values are omitted; review packages before sharing because plain environment values and local paths can remain. Packages share an operating setup; full-instance recovery uses backups.
+**[Company Portability](docs/guides/board-operator/importing-and-exporting.md)** — Preview, export, and import organization packages with agents, skills, and optional projects, routines, tasks, and attachments. Referenced secret values are omitted; review packages before sharing because plain environment values and local paths can remain. Packages share an operating setup; full-instance recovery uses backups.
 
 </td>
 </tr>
@@ -345,32 +316,45 @@ Nexus is a full control plane, not a wrapper. Before you build any of this yours
 
 ## Quickstart
 
-Open source. Self-hosted. No Nexus account required. Follow the [guided quickstart](https://docs.paperclip.ing/guides/getting-started/five-minute-path/) to set up your first agent.
+Open source. Self-hosted. No Nexus account required. See the [quickstart guide](docs/start/quickstart.md) to set up your first agent.
 
-### Just ask your agent to install Nexus
-
-Share the [installation guide](https://docs.paperclip.ing/reference/cli/installation/) with your agent.
-
-### Or install it yourself
-
-With **Node.js 24.11 or newer** installed:
+> **Requirements:** Node.js 24.11+, pnpm 9.15+
 
 ```bash
-npx nexusai@latest onboard --yes
+git clone https://github.com/Mohammedjaasir/Nexus.git
+cd Nexus
+pnpm install
+pnpm dev
 ```
 
-The CLI runs from npm's cache; your instance configuration and data persist locally.
+This starts the UI and API at `http://localhost:3100`. An embedded PostgreSQL database is created automatically — no setup required.
 
-See the [installation guide](https://docs.paperclip.ing/reference/cli/installation/) for managed installs, pinned versions, canary and git-ref installs, updates, rollback, service management, and uninstalling.
+### Using the CLI from a clone
+
+The `nexusai` CLI runs straight from the repository:
+
+```bash
+pnpm nexusai onboard --yes
+```
+
+Onboarding defaults to trusted local loopback mode for the fastest first run. To start in authenticated/private mode instead, choose a bind preset explicitly:
+
+```bash
+pnpm nexusai onboard --yes --bind lan
+# or:
+pnpm nexusai onboard --yes --bind tailnet
+```
+
+If you already have Nexus configured, rerunning `onboard` keeps the existing config in place. Use `pnpm nexusai configure` to edit settings. See the [CLI overview](docs/cli/overview.md) and [setup commands](docs/cli/setup-commands.md) for more.
 
 For an isolated manual test instance that is already initialized with a CEO
 agent, use `test-drive`. It stays in the foreground, never installs a service
 or creates a first task, and opens the browser only after setup succeeds:
 
 ```bash
-ANTHROPIC_API_KEY=... npx nexusai test-drive
-OPENAI_API_KEY=... npx nexusai test-drive --harness codex
-OPENROUTER_API_KEY=... npx nexusai test-drive \
+ANTHROPIC_API_KEY=... pnpm nexusai test-drive
+OPENAI_API_KEY=... pnpm nexusai test-drive --harness codex
+OPENROUTER_API_KEY=... pnpm nexusai test-drive \
   --harness opencode \
   --model openrouter/anthropic/claude-sonnet-4.5
 ```
@@ -379,47 +363,6 @@ Each run without `--data-dir` gets a unique, retained temporary directory; its
 absolute path is printed at startup. Pass `--data-dir` to reuse one, or
 `--no-browser` to leave the initialized instance unopened. When invoked from a
 linked Git worktree, `test-drive` also enables task execution in that worktree.
-See the [test-drive guide](https://docs.paperclip.ing/reference/cli/test-drive/) for credential and
-reuse behavior.
-
-> **Troubleshooting: private npm registry `.npmrc`**
->
-> If this fails with an `E404` for `nexusai` (or similar) and you use a private npm registry (for example GitHub Packages) via a global `~/.npmrc`, `npx` may be resolving `nexusai` against that private registry instead of the public npm registry.
->
-> Diagnostic:
->
-> ```bash
-> npm config get registry
-> ```
->
-> Workaround (cross-platform; force the public npm registry for this command):
->
-> ```bash
-> npx --registry https://registry.npmjs.org nexusai@latest onboard --yes
-> ```
-
-That quickstart path now defaults to trusted local loopback mode for the fastest first run. To start in authenticated/private mode instead, choose a bind preset explicitly:
-
-```bash
-npx nexusai@latest onboard --yes --bind lan
-# or:
-npx nexusai@latest onboard --yes --bind tailnet
-```
-
-If you already have Nexus configured, rerunning `onboard` keeps the existing config in place. Use `npx nexusai configure` to edit settings.
-
-Or manually:
-
-```bash
-git clone https://github.com/paperclipai/paperclip.git
-cd nexus
-pnpm install
-pnpm dev
-```
-
-This starts the UI and API at `http://localhost:3100`. An embedded PostgreSQL database is created automatically — no setup required.
-
-> **Requirements:** Node.js 24.11+, pnpm 9.15+
 
 Local Claude and Codex subscription sign-in also needs Python 3 and the
 corresponding provider CLI on the Nexus host. The Docker image includes them.
@@ -430,17 +373,11 @@ Source development also builds the native Nexus Runner when enabled (the self-ho
 
 ## FAQ
 
-**Q: Is this project maintained or just slop?**
-
-**A:** Nexus is maintained by the [Nexus team](https://paperclip.ing). We've merged [over 2,700 pull requests](https://github.com/paperclipai/paperclip/pulls?q=is%3Apr+is%3Amerged).
-
-<br/>
-
 **Q: What does a typical setup look like?**
 
 **A:** Locally, a single Node.js process manages an embedded Postgres and local file storage. For production, point it at your own Postgres and deploy however you like. Configure projects, agents, and goals — the agents take care of the rest.
 
-For remote access, use authenticated mode with a private-network bind such as Tailscale, or deploy the persistent server with Docker. See [deployment modes](https://docs.paperclip.ing/reference/deploy/deployment-modes/) and the [Docker guide](https://docs.paperclip.ing/reference/deploy/docker/).
+For remote access, use authenticated mode with a private-network bind such as Tailscale, or deploy the persistent server with Docker. See [deployment modes](docs/deploy/deployment-modes.md) and the [Docker guide](docs/deploy/docker.md).
 
 <br/>
 
@@ -534,10 +471,6 @@ This is the short roadmap preview. See the full roadmap in [ROADMAP.md](ROADMAP.
 
 <br/>
 
-## Community & Plugins
-
-Find Plugins and more at [awesome-nexus](https://github.com/gsxdsm/awesome-nexus)
-
 ## Observability
 
 Nexus ships with opt-in OpenTelemetry auto-instrumentation for the server (traces only). It activates when `OTEL_EXPORTER_OTLP_ENDPOINT` is set and supports `grpc`, `http/protobuf`, and `http/json` via the standard `OTEL_EXPORTER_OTLP_PROTOCOL` env var. `@opentelemetry/api` is a normal server dependency; the SDK, auto-instrumentation, and exporter packages are optional peer dependencies — install them only if you want tracing. See [doc/observability.md](doc/observability.md) for install commands and the full env-var reference.
@@ -546,7 +479,7 @@ Nexus also ships with opt-in Sentry error monitoring for the server and the brow
 
 ## Telemetry
 
-Nexus collects anonymous usage telemetry to help us understand how the product is used and improve it. No personal information, issue content, prompts, file paths, or secrets are ever collected. Private repository references are hashed with a per-install salt before being sent.
+Nexus includes anonymous usage telemetry. Events go to the ingest endpoint configured in [packages/shared/src/telemetry/client.ts](packages/shared/src/telemetry/client.ts). No personal information, issue content, prompts, file paths, or secrets are ever collected. Private repository references are hashed with a per-install salt before being sent.
 
 Contributors changing emitted telemetry events should follow the [Telemetry Data Contract](packages/shared/src/telemetry/README.md).
 For proposed first-party events that are not in the generated contract yet, follow [Telemetry Workflow](doc/TELEMETRY_WORKFLOW.md).
@@ -562,34 +495,15 @@ Telemetry is **enabled by default** and can be disabled with any of the followin
 
 ## Contributing
 
-We welcome contributions. See the [contributing guide](CONTRIBUTING.md) for details.
+Contributions are welcome. See the [contributing guide](CONTRIBUTING.md) for details.
 
-**[We're hiring](https://paperclip.ing/about/#careers)**
-
-<br/>
-
-## Community
-
-- [Discord](https://discord.gg/nexusai) — Join the community
-- [Twitter / X](https://x.com/nexusing) — Follow updates and announcements
-- [GitHub Issues](https://github.com/paperclipai/paperclip/issues) — bugs and feature requests
-- [GitHub Discussions](https://github.com/paperclipai/paperclip/discussions) — ideas and RFC
+- [GitHub Issues](https://github.com/Mohammedjaasir/Nexus/issues) — bugs and feature requests
 
 <br/>
 
 ## License
 
-MIT &copy; 2026 [Nexus Labs, Inc](https://paperclip.ing)
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=nexusai%2Fnexus&type=date&legend=top-left">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=paperclipai/paperclip&type=date&theme=dark&legend=top-left&sealed_token=hFjuwFq41bQD5cevvXVv5cTru2swWRZujwJYKlHhtBh6n0H5-VvJZW2SAlcQKB8u4KxhyEB9JqFg1yccJ8WLv9wPBcoWpWcak4gx0MYTWu_pOs2jKOaDluH7KsLeTKt6DHGkHiN3LsqV9s--MTDQcC6Xl7zV51W0-YezQXo-pVPgoFDFAGf2CY5fiP5Q" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=paperclipai/paperclip&type=date&legend=top-left&sealed_token=hFjuwFq41bQD5cevvXVv5cTru2swWRZujwJYKlHhtBh6n0H5-VvJZW2SAlcQKB8u4KxhyEB9JqFg1yccJ8WLv9wPBcoWpWcak4gx0MYTWu_pOs2jKOaDluH7KsLeTKt6DHGkHiN3LsqV9s--MTDQcC6Xl7zV51W0-YezQXo-pVPgoFDFAGf2CY5fiP5Q" />
-    <img src="https://api.star-history.com/chart?repos=paperclipai/paperclip&type=date&legend=top-left&sealed_token=hFjuwFq41bQD5cevvXVv5cTru2swWRZujwJYKlHhtBh6n0H5-VvJZW2SAlcQKB8u4KxhyEB9JqFg1yccJ8WLv9wPBcoWpWcak4gx0MYTWu_pOs2jKOaDluH7KsLeTKt6DHGkHiN3LsqV9s--MTDQcC6Xl7zV51W0-YezQXo-pVPgoFDFAGf2CY5fiP5Q" alt="Star History Chart" />
-  </picture>
-</a>
+MIT — see [LICENSE](LICENSE).
 
 <br/>
 
