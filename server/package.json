@@ -83,7 +83,7 @@
     "@nexusai/plugin-sdk": "workspace:*",
     "@nexusai/shared": "workspace:*",
     "@nexusai/skills-catalog": "workspace:*",
-    "@photon-ai/advanced-imessage": "2.1.0",
+    "@photon-ai/advanced-imessage": "2.4.0",
     "@vercel/connect": "2.3.3",
     "acorn": "8.18.0",
     "acpx": "0.13.1",
