@@ -40,7 +40,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@lexical/link": "0.48.0",
     "@lezer/highlight": "^1.2.3",
-    "@mdxeditor/editor": "^4.2.3",
+    "@mdxeditor/editor": "^4.3.4",
     "@nexusai/adapter-claude-local": "workspace:*",
     "@nexusai/adapter-codex-local": "workspace:*",
     "@nexusai/adapter-cursor-cloud": "workspace:*",
